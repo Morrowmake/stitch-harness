@@ -202,10 +202,10 @@ type AssistantStreamFrame =
  * Persona belongs to system-prompt sections.
  */
 interface AgentOptions {
-  /** Provider route (must have a registered adapter at call time). */
-  provider?: string
-  /** Model id interpreted by the selected provider adapter. */
-  model?: string
+  /** Provider route (must have a registered adapter at call time); a live accessor may yield undefined while none is configured. */
+  provider?: string | undefined
+  /** Model id interpreted by the selected provider adapter; a live accessor may yield undefined while none is configured. */
+  model?: string | undefined
   /** Adapter-owned reasoning effort for the selected provider/model route. */
   reasoningEffort?: ReasoningEffortId | undefined
   /** Maximum output tokens for each conversation-model request. */
@@ -515,8 +515,16 @@ Owns the default model selection independently of any Host or transport. Each op
 
 ```ts cordis-catalog
 /**
- * Read the current default model selection.
+ * Read the configured default model selection.
+ * @returns a detached provider, model, and optional reasoning selection, or
+ * undefined while provider or model is unset.
+ */
+configuredSelection(): ModelSelection | undefined
+
+/**
+ * Read the default model selection a new Agent requires.
  * @returns a detached provider, model, and optional reasoning selection.
+ * @throws HarnessError with code {@link NO_DEFAULT_MODEL} while provider or model is unset.
  */
 currentSelection(): ModelSelection
 

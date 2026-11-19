@@ -23,20 +23,14 @@ import type { ReactNode } from 'react'
 import type { LlmDiscoveredModel } from '@deepseek-ai/dsh-api-remotes/client'
 import { AnimatedRows, Button, IconPlusOutlineRegular, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
 import { TextSearchIndex } from '@deepseek-ai/dsh-util-text-search'
-import { formatCapacity, parseCapacity } from './DeepSeekModelsEditor.tsx'
+import { formatCapacity, parseCapacity } from './model-drafts.ts'
+import type { ModelDraft } from './model-drafts.ts'
 import type { ModelsOperations } from './operations.ts'
-import type { DeepSeekModelDraft } from './DeepSeekModelsEditor.tsx'
 import type { en } from './locales.ts'
 import { ModelRow } from './ModelRow.tsx'
 import { useModelRows } from './useModelRows.ts'
 import type { CapacityField } from './useModelRows.ts'
 import styles from './ModelsSection.module.css'
-
-/**
- * One configured model row. Fields this card does not edit must survive an
- * edit rather than being dropped by a rebuild.
- */
-export type ModelDraft = DeepSeekModelDraft
 
 /** A row's text field, or the empty string when unset or not a string. */
 function textOf(model: ModelDraft, key: string): string {
@@ -129,8 +123,8 @@ const CAPACITY_HINT: Readonly<Record<CapacityField, string>> = {
 
 /**
  * Spell a stored count for a field that may be unset. The spelling itself is
- * {@link formatCapacity}, shared with the DeepSeek catalog editor so both
- * surfaces read and write one K/M vocabulary.
+ * {@link formatCapacity}, shared with every catalog surface so they all read
+ * and write one K/M vocabulary.
  * @param value - stored capacity, or `undefined` for an unset field.
  * @returns the field text, empty when unset.
  */

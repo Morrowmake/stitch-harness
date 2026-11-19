@@ -24,8 +24,7 @@ import type {} from '@deepseek-ai/dsh-permission-presets'
 
 import type {} from '@deepseek-ai/dsh-schedule'
 import type { SubagentRunEndInfo } from '@deepseek-ai/dsh-subagent'
-import DeepSeekAuth from '@deepseek-ai/dsh-deepseek-auth'
-import * as LlmDeepSeek from '@deepseek-ai/dsh-llm-deepseek-api-key'
+import type {} from '@deepseek-ai/dsh-agent-default-model'
 import type {
   ApprovalRequestParams,
   CommandExecution,
@@ -91,12 +90,10 @@ function successStatus(reason: string, options: HarnessSdkJsonRpcServerOptions):
  */
 export class HarnessSdkJsonRpcServer {
   private cwd = process.cwd()
-  private provider = 'deepseek-official'
-  private model = 'deepseek-official'
+  private provider = ''
+  private model = ''
   private reasoningEffort: ReasoningEffortId | undefined
   private maxTokens: number | undefined
-  private llmFiber: { dispose(): Promise<void> } | undefined
-  private authFiber: { dispose(): Promise<void> } | undefined
   private readonly sessions = new Map<string, SessionRecord>()
   private readonly sessionCreations = new Map<string, Promise<SessionRecord>>()
   private readonly commandTasks = new Set<Promise<CommandExecution | undefined>>()
@@ -212,7 +209,8 @@ export class HarnessSdkJsonRpcServer {
   }
 
   /**
-   * Validate and configure the SDK route, mounting the DeepSeek fallback only when unowned.
+   * Validate and configure the SDK route: the handshake's provider and model when both are
+   * given, otherwise the deployment default model. The route must have a registered adapter.
    * @param params - SDK handshake parameters.
    * @returns server identity for the handshake.
    */
@@ -228,27 +226,23 @@ export class HarnessSdkJsonRpcServer {
       && (!Number.isSafeInteger(params.maxTokens) || params.maxTokens <= 0)) {
       throw new TypeError('initialize maxTokens must be a positive safe integer')
     }
+    if ((params.provider === undefined) !== (params.model === undefined)) {
+      throw new TypeError('initialize provider and model must be given together')
+    }
     const cwd = resolve(params.cwd)
-    const provider = params.provider
-    const model = params.model
+    const route = params.provider !== undefined && params.model !== undefined
+      ? { provider: params.provider, model: params.model }
+      : this.ctx.get('agentDefaultModel')?.configuredSelection()
+    if (route === undefined) {
+      throw new Error('No model provider configured. Pass provider and model when starting the SDK, '
+        + 'or set provider/model for agent-default-model in your profile patch.')
+    }
+    const { provider, model } = route
     const reasoningEffort = params.reasoningEffort === undefined
       ? undefined
       : brandString<ReasoningEffortId>(params.reasoningEffort)
-    if (!this.hasAdapterFor(provider)) {
-      if (provider !== 'deepseek-official') throw new Error(`no adapter registered for provider "${provider}"`)
-      // The route requires the DeepSeek authentication service; a composition without one gets it with the fallback route.
-      if (this.ctx.get('deepseekAuth') === undefined) this.authFiber = await this.ctx.plugin(DeepSeekAuth)
-      try {
-        this.llmFiber = await this.ctx.plugin(LlmDeepSeek)
-      } catch (error: unknown) {
-        // Without the route nothing here uses the authentication service this call mounted.
-        const mounted = this.authFiber
-        this.authFiber = undefined
-        await mounted?.dispose()
-        throw error
-      }
-    }
-    // Adapter presence was read from this service above; a successful fallback mount also requires it.
+    if (!this.hasAdapterFor(provider)) throw new Error(`no adapter registered for provider "${provider}"`)
+    // Adapter presence was read from this service above.
     const llm = this.ctx.get('llm') as LlmRuntime
     await llm.resolveCallConfig({
       provider,
@@ -497,13 +491,7 @@ export class HarnessSdkJsonRpcServer {
     const teardownResults = await Promise.allSettled([
       this.goalLifetime.dispose(),
       ...records.map(rec => Promise.resolve().then(() => rec.handle.dispose())),
-      ...(this.llmFiber === undefined ? [] : [Promise.resolve().then(async () => {
-        // The route requires the authentication service, so the route goes first; its failure does not keep the service.
-        try { await this.llmFiber?.dispose() } finally { await this.authFiber?.dispose() }
-      })]),
     ])
-    this.llmFiber = undefined
-    this.authFiber = undefined
     failures.push(...teardownResults
       .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
       .map(result => result.reason as unknown))

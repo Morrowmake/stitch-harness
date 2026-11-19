@@ -103,10 +103,10 @@ it('mounts and disposes the Timeline surfaces with session-owned actions and set
     expect(tab?.guide?.[0]?.description?.()).toBeTruthy()
 
     const panel = entry('sidebar.right.pane.tab')(id as never) as Record<string, unknown> & PanelInjected
-    ctx.emit('command/executed', id, 'other', { kind: 'success', text: '' })
-    ctx.emit('command/executed', id, 'timeline', { kind: 'error', text: '' })
+    ctx.emit('command/executed', id, 'other', { kind: 'success', text: '' }, '/other')
+    ctx.emit('command/executed', id, 'timeline', { kind: 'error', text: '' }, '/timeline')
     expect(sidebar.openTabIn).not.toHaveBeenCalled()
-    ctx.emit('command/executed', id, 'timeline', { kind: 'success', text: '' })
+    ctx.emit('command/executed', id, 'timeline', { kind: 'success', text: '' }, '/timeline')
     expect(panel.hooks.selection.getSnapshot()).toBe(id)
     const otherPanel = entry('sidebar.right.pane.tab')(other as never) as Record<string, unknown> & PanelInjected
     otherPanel.consumeSelection()

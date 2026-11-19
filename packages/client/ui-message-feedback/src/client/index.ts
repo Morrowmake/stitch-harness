@@ -32,7 +32,10 @@ export type {
   MessageFeedbackActionFailure, MessageFeedbackActionResult, MessageFeedbackStatus,
   MessageFeedbackView,
 } from './controller.ts'
-export type { FeedbackDialogState, FeedbackDialogTarget, FeedbackSubmit } from './dialog.ts'
+export type {
+  FeedbackDialogState, FeedbackDialogTarget, FeedbackIssueCall, FeedbackIssueChannel, FeedbackIssuePreview,
+  FeedbackNotice, FeedbackSubmit,
+} from './dialog.ts'
 export type {
   FeedbackDialogInjected, FeedbackDialogProps, MessageFeedbackActionProps, MessageFeedbackInjected,
 } from './slots.ts'
@@ -123,6 +126,11 @@ export function apply(ctx: ClientContext): void {
         hooks: { dialog: dialog.state },
         edit: (draft) => { dialog.edit(draft) },
         submit: () => dialog.submitDraft(),
+        previewReport: () => dialog.previewReport(),
+        editReport: (draft) => { dialog.editReport(draft) },
+        includeSessionId: (include) => { dialog.includeSessionId(include) },
+        closeReport: () => { dialog.closeReport() },
+        confirmReport: () => dialog.confirmReport(),
         dismiss: () => { dialog.dismiss() },
         dismissFailure: () => { dialog.dismissFailure() },
         dismissToast: (seq) => { dialog.dismissToast(seq) },
@@ -131,12 +139,19 @@ export function apply(ctx: ClientContext): void {
   }, FeedbackDialog))
 
   // The Host keeps `/feedback <text>` for a typed remark; a bare invocation
-  // from the menu or the composer opens the dialog instead.
+  // from the menu or the composer opens the dialog instead. Once a typed
+  // remark is recorded, the dialog offers it as a GitHub issue preview that
+  // is filed only on confirmation.
   ctx.inject(['commandUi'], (scope: ClientContext) => {
     scope.effect(() => scope.commandUi.decorate({
       name: 'feedback',
       available: () => true,
       ui: { kind: 'action', run: (session) => { feedbackUi.openSession(session.sessionId) } },
     }), 'ui-message-feedback: /feedback decoration')
+    scope.on('command/executed', (sessionId, name, result, line) => {
+      if (name !== 'feedback' || result.kind !== 'success') return
+      const text = line.trim().replace(/^\S+/u, '').trim()
+      if (text.length > 0) void surfaceFor(sessionId).dialog.openReport(text)
+    })
   })
 }

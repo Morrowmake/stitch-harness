@@ -53,9 +53,7 @@ The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-a
 <a id="credentials"></a>
 ### Credentials
 
-The shipped headless profile disables the managed credential store and its authorization and DeepSeek account consumers. API-key routes use the launch environment, then `<invocation cwd>/.env`, then `$DSH_HOME/.env`. Keys and sign-ins saved by the GUI are ignored without changing their file. Providers that require a saved sign-in fail unless stored authentication is restored; external provider credential chains, such as AWS profiles, remain available.
-
-The DeepSeek Search and Fetch APIs [follow the session's DeepSeek credentials](../../web/web-deepseek-api/README.md#authentication). In the shipped headless profile, they send the DeepSeek model route's `DEEPSEEK_API_KEY` to that route's origin, so no sign-in is needed. Without that key, the model request omits `web_search`.
+The shipped headless profile disables the managed credential store and its authorization consumer. API-key routes use the launch environment, then `<invocation cwd>/.env`, then `$DSH_HOME/.env`. Keys and sign-ins saved by the GUI are ignored without changing their file. Providers that require a saved sign-in fail unless stored authentication is restored; external provider credential chains, such as AWS profiles, remain available. No provider is configured by default: declare a `llm-pi-ai` route and an `agent-default-model` selection in the profile or a `--patch` overlay. Keyless web search needs no credential.
 
 Unset an empty launch variable to allow its `.env` fallback; an exported empty value shadows that fallback.
 
@@ -65,8 +63,6 @@ To restore stored authentication, add these rows to `$DSH_HOME/profiles/headless
 - id: credentials
   disabled: false
 - id: authorization
-  disabled: false
-- id: deepseek-account
   disabled: false
 ```
 

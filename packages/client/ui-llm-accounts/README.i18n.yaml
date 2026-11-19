@@ -1,0 +1,49 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/client/ui-llm-accounts/README.md
+/:
+  en: 6fd36b80d26e7951
+  zh: fd9f8e5e80eefa17
+/deepseek-ai-dsh-client-ui-llm-accounts:
+  en: 0eeb590ec34efe5e
+  zh: 6c10d687b72d4b4b
+/deepseek-ai-dsh-client-ui-llm-accounts/summary:
+  en: 8d62cee116b7dbc2
+  zh: 80f59537229d8f0c
+/deepseek-ai-dsh-client-ui-llm-accounts/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: b00dddf4c88f0a45
+/deepseek-ai-dsh-client-ui-llm-accounts/use-this-package:
+  en: 264df8157e8d87b9
+  zh: eee693162fa644b2
+/deepseek-ai-dsh-client-ui-llm-accounts/use-this-package/accounts-section:
+  en: 9a38e6ba265b2c90
+  zh: 4b1aceb823f63bae
+/deepseek-ai-dsh-client-ui-llm-accounts/use-this-package/sign-in-dialog:
+  en: f7769b95c7e9c222
+  zh: 61de634dd4f889c9
+/deepseek-ai-dsh-client-ui-llm-accounts/use-this-package/usage-badge:
+  en: 4a8d342a67b0123c
+  zh: 5eb809285ad93ac3
+/deepseek-ai-dsh-client-ui-llm-accounts/use-this-package/privacy:
+  en: b8f20c546778ff61
+  zh: 22759c78434bd1a0
+/deepseek-ai-dsh-client-ui-llm-accounts/understand-the-implementation:
+  en: 07caaf9b17fb86e3
+  zh: 516c46cb55b2c01d
+/deepseek-ai-dsh-client-ui-llm-accounts/further-exploration:
+  en: 4e0dd535248e0635
+  zh: 89812b45fea45991
+/deepseek-ai-dsh-client-ui-llm-accounts/model-experience:
+  en: cacd114a5ea5369f
+  zh: 0b3099dc34ca21c4
+/deepseek-ai-dsh-client-ui-llm-accounts/model-experience/kv-cache-effect:
+  en: b45d5ce0990e347f
+  zh: de3aaf7406b546df
+/deepseek-ai-dsh-client-ui-llm-accounts/known-limitations-and-deferred-work:
+  en: 7a40b55657717274
+  zh: 4c2d6e797360dfd2
+/deepseek-ai-dsh-client-ui-llm-accounts/known-limitations-and-deferred-work/dev-note:
+  en: e8ad68666f5b976a
+  zh: 6142b3d884e8205e

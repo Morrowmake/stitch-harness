@@ -71,7 +71,7 @@ it('keeps the export overlay across real Session rebinding and removes it when i
   expect(screen.getByRole('article').textContent).toBe(secondId)
   expect(screen.getByRole('dialog')).toBe(modal)
   expect(modal.textContent).not.toContain(secondId)
-  act(() => { ctx.emit('command/executed', secondId, 'export', { kind: 'success' }) })
+  act(() => { ctx.emit('command/executed', secondId, 'export', { kind: 'success' }, '/export') })
   expect(signals).toHaveLength(2)
   expect(screen.getAllByRole('dialog')).toHaveLength(1)
   fireEvent.click(screen.getAllByRole('button', { name: 'Close' })[0]!)

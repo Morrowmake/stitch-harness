@@ -38,7 +38,6 @@ def _client(tmp_path: Path, mode: str, monkeypatch: pytest.MonkeyPatch, *patches
                 "DEEPSEEK_API_KEY": "sk-dummy-for-boot",
                 "DEEPSEEK_BASE_URL": "http://127.0.0.1:9",
                 "DSH_PERMISSION_MODE": "danger-full-access",
-                "DSH_TELEMETRY_DISABLED": "1",
             },
             request_timeout_seconds=120,
         )
@@ -50,7 +49,7 @@ def test_bundled_runtime_boots_the_sdk_profile(
     tmp_path: Path, mode: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     with _client(tmp_path, mode, monkeypatch) as client:
-        init = client.initialize(provider="deepseek-official", cwd=str(tmp_path), model="deepseek-v4-pro")
+        init = client.initialize(cwd=str(tmp_path))
 
     assert init.serverInfo is not None
     assert init.serverInfo.name == "deepseek-harness-sdk-runtime"
@@ -72,7 +71,6 @@ def test_python_sdk_applies_an_ordered_profile_patch(
         "config": {"persona": "Python SDK ordered patch marker."},
     }]))
     harness = DeepSeekHarness(
-        model="deepseek-v4-pro",
         cwd=str(tmp_path),
         dsh_home=str(tmp_path / "home"),
         patches=(str(patch),),
@@ -99,7 +97,7 @@ def test_bundled_runtime_surfaces_unbundled_plugin_failure(
     client.start()
     try:
         with pytest.raises((JsonRpcError, TransportClosedError, TimeoutError)) as excinfo:
-            client.initialize(provider="deepseek-official", cwd=str(tmp_path), model="deepseek-v4-pro")
+            client.initialize(cwd=str(tmp_path))
     finally:
         client.close()
 

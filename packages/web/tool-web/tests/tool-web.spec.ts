@@ -785,23 +785,17 @@ describe('tool-web execution through the real registry', () => {
     await fiber.dispose()
   })
 
-  it.each([
-    ['Messages search for a model request on a DeepSeek model route', 'deepseek-account', 'deepseek-official'],
-    ['the Search API for a model request on another route', 'openai', 'deepseek-search-api'],
-    ['the Search API for a Session that has made no model request', undefined, 'deepseek-search-api'],
-  ])('with no provider configured, searches through %s', async (_label, route, expected) => {
+  it('with no provider configured, searches through the only registered provider (the keyless default)', async () => {
     const requests: unknown[] = []
-    const { ctx, fiber, call } = await mountTools(route === undefined ? {} : { route })
-    for (const id of ['deepseek-search-api', 'deepseek-official']) {
-      ctx.web.registerSearchProvider({
-        id, available: () => available,
-        search: (request) => { requests.push(request); return Promise.resolve({ content: id, sources: [], truncated: false }) },
-      })
-    }
+    const { ctx, fiber, call } = await mountTools({ route: 'openai' })
+    ctx.web.registerSearchProvider({
+      id: 'keyless', available: () => available,
+      search: (request) => { requests.push(request); return Promise.resolve({ content: 'keyless', sources: [], truncated: false }) },
+    })
     const out = await call('web_search', { queries: ['one', 'two'] })
     expect(out.isError).toBe(false)
-    expect(out.value).toMatchObject({ content: `### one\n\n${expected}\n\n### two\n\n${expected}` })
-    expect(requests).toEqual(['one', 'two'].map(query => ({ query, maxResults: 10, ...route === undefined ? {} : { llmProvider: route } })))
+    expect(out.value).toMatchObject({ content: '### one\n\nkeyless\n\n### two\n\nkeyless' })
+    expect(requests).toEqual(['one', 'two'].map(query => ({ query, maxResults: 10, llmProvider: 'openai' })))
     await fiber.dispose()
   })
 

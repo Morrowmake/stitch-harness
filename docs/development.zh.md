@@ -36,8 +36,6 @@ pnpm install
 
 安装过程还会通过 `scripts/install-lefthook.mjs` 配置 worktree 本地的 Lefthook 钩子。[worktree 本地钩子 Agent Note](../.agents/notes/implemented/process/2026-07-27-worktree-local-lefthook.zh.md) 负责钩子路径的安全约定。
 
-[DevTools 前端](../packages/experimental/inspector/README.zh.md#use-this-package)通过固定版本的 npm 源码包和 Vite 在本地编译。依赖安装完成后，构建不需要网络连接或安装浏览器。workspace 与发布包的安装过程都不运行 DevTools 资源下载 hook；发布的 Inspector 包包含已构建的前端。
-
 如果依赖是从缓存恢复或 `postinstall` 被跳过而导致钩子缺失，请手动安装：
 
 ```sh
@@ -131,7 +129,7 @@ pnpm run build
 
 ### 环境变量
 
-真实的 DeepSeek 适配器和需要密钥的 agent 演示从环境变量或仓库根目录一个被 gitignore 的 `.env` 文件读取凭证：
+真实 API 测试和需要密钥的 agent 演示通过 pi-ai 适配器驱动 DeepSeek 的 `deepseek` 提供方路由，并从环境变量或仓库根目录一个被 gitignore 的 `.env` 文件读取凭证：
 
 ```sh
 DEEPSEEK_API_KEY=sk-...
@@ -180,7 +178,7 @@ keyless [CI 工作流](../.github/workflows/ci.yml) 将独立门禁分组到若�
 pnpm run build
 ```
 
-单次运行的 Headless coding agent 需要环境变量或仓库根目录 `.env` 中的 `DEEPSEEK_API_KEY`：
+单次运行的 Headless coding agent 需要已配置的提供方路由；该演示使用环境变量或仓库根目录 `.env` 中的 `DEEPSEEK_API_KEY`：
 
 ```sh
 pnpm dsh --profile headless "summarize this workspace"

@@ -17,32 +17,20 @@ export const remoteDefaultResponses: RemoteTable = {
     'workspace/initializeDefault': ok(undefined),
     // ui-settings `mirror.ensure()` at apply and again on `connection/reset`.
     'settings/describe': ok({ writable: true, hasDocument: false, namespaces: [] }),
-    // ui-model-selection `ModelDirectoryResolver` constructor.
-    'session/modelCatalog': ok({
-      default: { provider: 'deepseek-official', model: 'deepseek-v4-flash' },
-      routableProviders: [],
-      groups: [],
-      failures: [],
-    }),
+    // ui-model-selection `ModelDirectoryResolver` constructor; no default model is configured.
+    'session/modelCatalog': ok({ routableProviders: [], groups: [], failures: [] }),
     // ui-agent-preset hero chip and header label on first mount.
     'agentPresets/list': ok({ presets: [] }),
     // cordis-client-runner `ClientCordisInspectRegistry.sync` at apply and on `connection/reset`.
     'dynamicCordisRunner/syncInspectManifest': ok(null),
     // ui-cordis inventory at apply and on `connection/reset`.
     'dynamicCordisRunner/inventory': ok([]),
-    // ui-settings-web-search page `readCredential()` when the settings mirror first publishes.
+    // ui-settings-models credential presence reads.
     'credentials/describe': ok({}),
     // ui-settings-web-search page provider options at apply and on `connection/reset`.
     'web/listProviders': ok({ search: [], fetch: [] }),
     // ui-permission-presets `PermissionCatalogDirectory` on its first read for a connection generation.
     'permissionPresets/catalog': ok({ options: [] }),
-    // ui-settings-account refreshes details after a stored-grant snapshot.
-    'account/getProfile': ok(null),
-    'account/getBalance': ok(null),
-    // ui-settings-account bonus notice read and acknowledgement at signing in.
-    'account/getNotifications': ok(null),
-    'account/getNotificationContent': ok(null),
-    'account/reportNotificationEvent': ok(true),
   },
   // Stream endpoints the roster opens later than boot; declared so a spec that forgets the script gets a stream miss.
   streams: [
@@ -53,8 +41,6 @@ export const remoteDefaultResponses: RemoteTable = {
     'sessionStatus/follow': openStream([{ type: 'baseline', items: [] }]),
     // api-session-controller client `apply`: the control stream's opening baseline, then open.
     'session/control': openStream([{ type: 'baseline', value: { projections: {} } }]),
-    // ui-settings-account shares the account snapshot across settings and the sidebar menu.
-    'account/watch': openStream([{ type: 'snapshot', state: { status: 'signed-out', attempt: null, links: { usageUrl: 'https://platform.deepseek.com/usage', topUpUrl: 'https://platform.deepseek.com/top_up' } } }]),
     // api-workspace-controller client `apply`: the follow stream's opening baseline, then open.
     'workspace/follow': openStream([{ type: 'baseline', value: { items: [], archivedSessionIds: [], pinnedSessionIds: [] } }]),
     // api-remote-access client `mountAccess`: the owner's access snapshot, then open.

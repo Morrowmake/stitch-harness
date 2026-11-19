@@ -8,6 +8,7 @@ import { DeepSeekHarness, type SdkUserQuestionRequest } from '@deepseek-ai/dsh-s
 import { clearAmbientProxyEnv } from '../../../../../scripts/test-proxy-environment.ts'
 import { expect, it, onTestFinished } from 'vitest'
 import { messagesResponse } from './fixtures/messages-response.ts'
+import { MOCK_ROUTE, MOCK_ROUTE_KEY_ENV, writeMockRoutePatch } from './fixtures/profile-environment.ts'
 
 it.each([
   { mode: 'native', cancel: false }, { mode: 'ptc', cancel: false }, { mode: 'native', cancel: true },
@@ -48,14 +49,14 @@ it.each([
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
   const address = server.address()
   if (address === null || typeof address === 'string') throw new Error('model fixture has no port')
-  const env = { ...process.env, DSH_PERMISSION_MODE: 'danger-full-access', DSH_TELEMETRY_DISABLED: '1',
-    DEEPSEEK_API_KEY: 'keyless-question-fixture', DEEPSEEK_BASE_URL: `http://127.0.0.1:${String(address.port)}` }
+  const env = { ...process.env, DSH_PERMISSION_MODE: 'danger-full-access', [MOCK_ROUTE_KEY_ENV]: 'keyless-question-fixture' }
   clearAmbientProxyEnv(env)
+  const routePatch = await writeMockRoutePatch(root, `http://127.0.0.1:${String(address.port)}`)
   const seen: SdkUserQuestionRequest[] = []
   const entered = Promise.withResolvers<AbortSignal>()
   const harness = state.harness = new DeepSeekHarness({
-    cwd: root, dshHome: join(root, '.dsh'), env, model: 'deepseek-v4-pro', maxTokens: 1234, initializeTimeoutMs: 30_000,
-    patches: mode === 'ptc' ? [fileURLToPath(new URL('../../../config/examples/ptc.yml', import.meta.url))] : [],
+    cwd: root, dshHome: join(root, '.dsh'), env, ...MOCK_ROUTE, maxTokens: 1234, initializeTimeoutMs: 30_000,
+    patches: [...mode === 'ptc' ? [fileURLToPath(new URL('../../../config/examples/ptc.yml', import.meta.url))] : [], routePatch],
     onUserQuestion: async (request, { signal }) => {
       expect(signal.aborted).toBe(false)
       seen.push(request)

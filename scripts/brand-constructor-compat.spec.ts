@@ -22,7 +22,6 @@ import { GoalId } from '../packages/goal/goal/src/runtime.ts'
 import { CommandDefinitionId, CommandId } from '../packages/interaction/commands/src/brand.ts'
 import { ApprovalRequestId as UserApprovalRequestId } from '../packages/interaction/user-approval/src/types.ts'
 import { JobId } from '../packages/jobs/jobs/src/brand.ts'
-import { DeepSeekFileId, DeepSeekFileScope } from '../packages/llm/llm-deepseek/src/file-id.ts'
 import { RetryId } from '../packages/llm/llm-retry/src/brand.ts'
 import {
   LlmAttemptId,
@@ -69,8 +68,6 @@ describe('External compatibility API: retained string constructors', () => {
     ['commands.CommandId', CommandId],
     ['user-approval.ApprovalRequestId', UserApprovalRequestId],
     ['jobs.JobId', JobId],
-    ['llm-deepseek.DeepSeekFileId', DeepSeekFileId],
-    ['llm-deepseek.DeepSeekFileScope', DeepSeekFileScope],
     ['llm-retry.RetryId', RetryId],
     ['llm.LlmAttemptId', LlmAttemptId],
     ['llm.MessageId', MessageId],

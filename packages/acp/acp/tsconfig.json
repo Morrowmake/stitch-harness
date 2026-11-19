@@ -30,6 +30,9 @@
       "path": "../../core/agent"
     },
     {
+      "path": "../../core/agent-default-model"
+    },
+    {
       "path": "../../attachment/attachment"
     },
     {

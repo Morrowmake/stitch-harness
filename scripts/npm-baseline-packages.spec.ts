@@ -61,7 +61,7 @@ describe('npm baseline package discovery', () => {
 
   it('retains experimental packages when the configured denylist is empty', () => {
     const manifests = [
-      'packages/experimental/inspector/package.json',
+      'packages/experimental/early-tool/package.json',
       'packages/experimental/new-prototype/package.json',
     ]
     expect(discoverNpmBaselineManifests(fixture(manifests), [])).toEqual(manifests)

@@ -1,12 +1,11 @@
 /** Shared shell settings storage; reads have no side effects and fields fail independently. */
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { withFileLock, writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
 import { z } from 'zod'
 
 const preferencesSchema = z.object({
-  allowTestAuthPopupWindow: z.boolean(),
-  channel: z.enum(['nightly', 'stable']),
+  checkForUpdates: z.boolean(),
 })
 const documentSchema = z.looseObject({ updates: z.looseObject({}).optional() })
 
@@ -19,7 +18,7 @@ export type DesktopSettingsProblem =
   | { kind: 'read' }
   | { kind: 'invalid'; reason: 'json' | 'structure' }
   | { kind: 'invalid'; reason: 'field'; field: keyof DesktopUpdatePreferences }
-  | { kind: 'write'; operation: 'initialize' | 'save'; effect: 'unchanged' | 'unknown' | 'written' }
+  | { kind: 'write'; operation: 'save'; effect: 'unchanged' | 'unknown' | 'written' }
 
 /** A storage or validation failure; business consumers decide fallback or suspension. */
 export class DesktopSettingsFileError extends Error {
@@ -57,16 +56,7 @@ function field<T>(schema: z.ZodType<T>, value: unknown, name: keyof DesktopUpdat
 }
 
 /**
- * Validate a channel at the IPC boundary using the same schema as file loading.
- * @param value - Untrusted input.
- * @returns Whether the input is a supported channel.
- */
-export function isDesktopUpdateChannel(value: unknown): value is DesktopUpdatePreferences['channel'] {
-  return preferencesSchema.shape.channel.safeParse(value).success
-}
-
-/**
- * Resolve the document shared by shell preferences and update channels.
+ * Resolve the shell settings document.
  * @param userData - Electron userData, independent of Host and DSH_HOME.
  * @returns Settings file path without filesystem changes.
  */
@@ -101,23 +91,8 @@ export class DesktopSettingsFile {
     if (!result.success) return { kind: 'error', error: new DesktopSettingsFileError({ kind: 'invalid', reason: 'structure' }, this.path) }
     const document = result.data
     return { kind: 'ready', document, fields: {
-      allowTestAuthPopupWindow: field(preferencesSchema.shape.allowTestAuthPopupWindow,
-        document.updates?.allowTestAuthPopupWindow, 'allowTestAuthPopupWindow', this.path),
-      channel: field(preferencesSchema.shape.channel, document.updates?.channel, 'channel', this.path),
+      checkForUpdates: field(preferencesSchema.shape.checkForUpdates, document.updates?.checkForUpdates, 'checkForUpdates', this.path),
     } }
-  }
-
-  /**
-   * Explicit startup initialization; existing files, including invalid ones, are never replaced.
-   * @returns Current file state after exclusive creation if missing, or a structured failure.
-   */
-  async initialize(): Promise<DesktopSettingsRead> {
-    const current = await this.read()
-    if (current.kind !== 'missing') return current
-    try { return await this.mutate({ kind: 'initialize' }) } catch (error) {
-      if (!(error instanceof DesktopSettingsFileError)) throw error
-      return { kind: 'error', error }
-    }
   }
 
   /**
@@ -129,38 +104,21 @@ export class DesktopSettingsFile {
    * @returns After atomic replacement and lock release; otherwise throws DesktopSettingsFileError.
    */
   async saveUpdates(updates: Partial<DesktopUpdatePreferences>): Promise<void> {
-    const result = await this.mutate({ kind: 'save', updates })
-    if (result.kind === 'error') throw result.error
-  }
-
-  private async mutate(request: { kind: 'initialize' } | { kind: 'save'; updates: Partial<DesktopUpdatePreferences> }): Promise<DesktopSettingsRead> {
     let effect: 'unchanged' | 'unknown' | 'written' = 'unchanged'
     try {
       await mkdir(dirname(this.path), { recursive: true, mode: 0o700 })
-      return await withFileLock(this.path, async () => {
+      await withFileLock(this.path, async () => {
         const current = await this.read()
         if (current.kind === 'error') throw current.error
-        if (request.kind === 'initialize' && current.kind !== 'missing') return current
         const document = current.kind === 'ready' ? current.document : {}
-        const updates = request.kind === 'initialize' ? { allowTestAuthPopupWindow: false } : request.updates
         const next = { ...document, updates: { ...document.updates, ...updates } }
-        const raw = `${JSON.stringify(next, null, 2)}\n`
         effect = 'unknown'
-        if (request.kind === 'initialize') {
-          try { await writeFile(this.path, raw, { flag: 'wx', mode: 0o600 }) } catch (error) {
-            if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
-            effect = 'unchanged'
-            return this.read()
-          }
-        } else {
-          await writeFileAtomic(this.path, raw, { mode: 0o600 })
-        }
+        await writeFileAtomic(this.path, `${JSON.stringify(next, null, 2)}\n`, { mode: 0o600 })
         effect = 'written'
-        return this.inspect(next)
       })
     } catch (error) {
       if (error instanceof DesktopSettingsFileError) throw error
-      throw new DesktopSettingsFileError({ kind: 'write', operation: request.kind, effect }, this.path, { cause: error })
+      throw new DesktopSettingsFileError({ kind: 'write', operation: 'save', effect }, this.path, { cause: error })
     }
   }
 }

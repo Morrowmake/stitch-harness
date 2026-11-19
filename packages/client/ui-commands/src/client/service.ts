@@ -54,9 +54,10 @@ declare module '@deepseek-ai/cordis' {
      * @param sessionId - Session addressed by the local submission.
      * @param name - Executed command name without the leading slash.
      * @param result - Host command result returned to this browser.
+     * @param line - Submitted command line, canonical name and arguments as sent.
      * @mode emit
      */
-    'command/executed'(sessionId: SessionId, name: string, result: CommandResult): void
+    'command/executed'(sessionId: SessionId, name: string, result: CommandResult, line: string): void
   }
 }
 
@@ -425,7 +426,7 @@ export class CommandUiRuntime extends Service implements CommandUiContract {
     const result = await this.ctx.remote.commands.execute(session.sessionId, line, attachments)
     if (!result.ok) throw new Error(`command.execute failed: ${result.error.code}: ${result.error.message}`)
     if (result.value === undefined) return { kind: 'error', text: `unknown or malformed command: ${line}` }
-    this.notifyExecuted(session.sessionId, submittedCommandName(line), result.value.result)
+    this.notifyExecuted(session.sessionId, line, result.value.result)
     // A submission consumes its attachments only after handler success; an
     // error outcome keeps the draft and attachments in the composer.
     if (attachments.length > 0 && result.value.result.kind === 'error') {
@@ -435,11 +436,12 @@ export class CommandUiRuntime extends Service implements CommandUiContract {
   }
 
   /** Publish the local acknowledgment without letting an observer change command admission. */
-  private notifyExecuted(sessionId: SessionId, name: string, result: CommandResult): void {
-    const args = ['command/executed', sessionId, name, result]
+  private notifyExecuted(sessionId: SessionId, line: string, result: CommandResult): void {
+    const name = submittedCommandName(line)
+    const args = ['command/executed', sessionId, name, result, line]
     for (const listener of this.ctx.events.dispatch('emit', args) as Array<(...listenerArgs: unknown[]) => unknown>) {
       try {
-        const returned = listener(sessionId, name, result)
+        const returned = listener(sessionId, name, result, line)
         if (returned != null && typeof (returned as PromiseLike<unknown>).then === 'function') {
           void Promise.resolve(returned as PromiseLike<unknown>).then(undefined, (error: unknown) => {
             this.warnExecutedListenerFailure(name, error)

@@ -18,8 +18,7 @@ import * as SubagentSpawn from '@deepseek-ai/dsh-subagent-spawn-in-process'
 import { renderPrompt, renderContextSnapshot } from '@deepseek-ai/dsh-system-prompt'
 import * as ToolSubagentControl from '@deepseek-ai/dsh-tool-subagent-control'
 import { defineContentToolFixture } from '@deepseek-ai/dsh-tool-testkit'
-import { resolveAdapterOptions } from '@deepseek-ai/dsh-llm-deepseek'
-import { serialize } from '@deepseek-ai/dsh-llm-deepseek/src/serialize.ts'
+import { toPiContext } from '../../../llm/llm-pi-ai/src/context.ts'
 import type { GenerateOptions } from '@deepseek-ai/dsh-llm'
 import { MockAdapter, textResponse, toolCallResponse } from '../../../core/agent-loop/tests/mock-adapter.ts'
 import { mountWorkingDirectoryFixture } from '../../../subagent/subagent/tests/working-directory-fixture.ts'
@@ -28,9 +27,9 @@ import TeamService, { type TeamId } from '../../agent-team/src/index.ts'
 import * as toolTeam from '../src/index.ts'
 import { brandString } from '@deepseek-ai/dsh-brand'
 
+/** The pi-ai wire context for a recorded request on a route that keeps system-prompt updates in history. */
 function serializeRequest(request: GenerateOptions) {
-  const connection = resolveAdapterOptions({ models: [{ id: request.model, systemPromptUpdate: 'in-history' }] })
-  return serialize(request, connection, request.messages, new Map(), () => undefined)
+  return toPiContext(request, undefined, undefined, true)
 }
 
 function runtimeContextText(request: GenerateOptions) {
@@ -313,7 +312,7 @@ describe('dsh-tool-team', () => {
     await waitNoAgent(ctx, childId)
     const childRequest = serializeRequest(adapter.requests[1]!)
     expect(childRequest.tools).toEqual(parentRequest.tools)
-    expect(childRequest.system).toEqual(parentRequest.system)
+    expect(childRequest.systemPrompt).toEqual(parentRequest.systemPrompt)
     if (provider === 'fork') {
       expect(childRequest.messages.slice(0, parentRequest.messages.length)).toEqual(parentRequest.messages)
       expect(adapter.requests[1]!.messages.slice(0, parentHistory.length)).toEqual(parentHistory)
@@ -342,7 +341,7 @@ describe('dsh-tool-team', () => {
     const childRequest = serializeRequest(adapter.requests[1]!)
     expect(childRequest.tools).toEqual(parentRequest.tools)
     expect(childRequest.messages.slice(0, parentRequest.messages.length)).toEqual(parentRequest.messages)
-    expect(childRequest.messages.at(-1)?.content).toContainEqual({ type: 'text', text: 'Continue independently' })
+    expect(childRequest.messages.at(-1)?.content).toContain('Continue independently')
     expect(runtimeContextText(adapter.requests[1]!)).toContain(leadIdentity(handle.agent))
     expect(handle.agent.session.snapshotEvents().slice(seed.length).filter(event =>
       event.type === 'user/message' && event.data.source.kind === 'runtime-context')).toHaveLength(0)

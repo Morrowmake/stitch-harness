@@ -31,7 +31,7 @@ The adapter accepts the LLM service's [request-only user inputs](../llm/README.m
 
 ### When to choose it
 
-Choose this adapter when the same composition serves several providers, when a route needs pi-ai's catalog defaults with a few fields corrected, or when a hand-declared gateway must be reached through its own endpoint and protocol. Choose `dsh-llm-deepseek` for the direct DeepSeek route when the deployment needs no other provider. Both adapters can be mounted together because their route names do not collide; registering a route another adapter already owns fails plugin loading.
+Every model request goes through this adapter: it is the harness's only LLM adapter, so a composition serves one provider or many from the same `providers` dictionary. Catalog routes such as `deepseek`, `openai`, or `anthropic` take pi-ai's defaults with a few fields corrected when needed; a hand-declared gateway is reached through its own endpoint and protocol. DeepSeek is no special case: it is the catalog `deepseek` route, configured like any other provider. Registering a route another adapter already owns fails plugin loading.
 
 ### Configure provider routes
 
@@ -96,7 +96,25 @@ The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-a
 
 ### Sign in to a provider
 
-A provider pi-ai ships a login for can be signed into through the harness authorization seam: the flow offers OAuth or an interactive key prompt (a key is typed into pi-ai's own login prompt, not into the settings form), and the resulting credential is stored in the harness credential store at `llm-pi-ai/<provider id>`. The stored sign-in authenticates its route beneath any `apiKeyEnv` override and refreshes itself under the store's cross-process lock; signing out deletes the stored record. A hand-declared route key outside the record grammar — a lowercase hyphenated identifier — cannot be signed into, because a record write for it refuses with `LlmError('UNSTORABLE_PROVIDER_ID')`; such a route authenticates through `apiKeyEnv` or ambient provider settings instead.
+Every provider pi-ai ships a login for can be signed into from Settings → Models (the `llmAccounts` Remote): OAuth — including OpenAI's Sign in with ChatGPT and Anthropic's Claude sign-in, run exactly as pi-ai ships them — or pi-ai's interactive key prompt. Each sign-in is one **account**; a route can hold several. Each attempt registers its own authorization flow for its duration, so an idle authorization seam lists no flow. OpenAI's Sign in with ChatGPT needs a device id: each account gets its own random id, kept only inside that account's credential record, carried through every token refresh, and deleted with the account; there is no installation-wide id. Signed-in tokens refresh under their record's cross-process lock. A hand-declared route key outside the record grammar — a lowercase hyphenated identifier without `--` — cannot be signed into (`LlmError('UNSTORABLE_PROVIDER_ID')`); such a route authenticates through `apiKeyEnv` or ambient provider settings instead.
+
+### Accounts and usage pools
+
+A route's accounts are its stored credential records plus, when the profile names `apiKeyEnv`, the virtual account `env`; a route with neither has the virtual account `ambient` (pi-ai's own environment discovery). Records live at `llm-pi-ai/<route>` (account `main`, the record every earlier sign-in already wrote) and `llm-pi-ai/<route>--<accountId>` for further accounts, which is why a route key may not contain `--`. Non-secret metadata lives in the settings profile, never in the credential record:
+
+```yaml
+providers:
+  openai-codex:
+    defaultAccount: main
+    accounts:
+      main: { alias: Personal }
+      k3j9x0a1bc: { alias: Work, pooled: false, pinned: true }
+      env: { models: [gpt-5.1] }   # absent = every model; [] = none
+```
+
+A request tries the session's last serving account first, then the default (`defaultAccount`, else `main`, else `env`, else the oldest), then the rest by `order`, `createdAt`, and id; unpooled accounts are skipped unless the default is the only usable one. Before the first content chunk, a rate limit, quota exhaustion, 402/404, or authentication failure moves the request to the next account; an OAuth 401 first gets one forced token refresh and a retry on the same account. Server errors, timeouts, transport failures, and request faults are never failed over (`dsh-llm-retry` owns the transient ones). Cooldowns honour the provider's `Retry-After` or reset disclosure, otherwise grow from 30 s (rate limit) or 30 min (quota); an account whose refresh is rejected for good stays stored and is marked for sign-in again. When every account is unavailable the request fails at once with the last failure's code, a per-account recovery summary, and `providerRetryAfterMs` set to the earliest recovery; the router never sleeps. Every error finish also carries the captured HTTP `status` and reset hint, single-account routes included. Accounts with `pinned: true` also appear in the model picker as `~acct:<accountId>:<model>` entries badged with their alias; such an entry is served only by that account and never falls over. Replay state from a signed-in account is bound to it, so switching accounts costs one prompt-cache miss.
+
+Usage bars and the composer badge read memory-only usage snapshots: rate-limit response headers of every request, plus — only for signed-in subscriptions with a usage endpoint (ChatGPT/Codex, Claude, Grok), only while a settings page or badge is open (or once after a limit) — that provider's own usage endpoint, called with the same client identity pi-ai uses for that account's inference. No other host is ever contacted. Health, stickiness, and usage are never persisted.
 
 ### Resolve the model catalog
 
@@ -156,8 +174,9 @@ This event covers inference calls with or without a Session id, including auxili
 | File | Role |
 |---|---|
 | [`src/index.ts`](src/index.ts) | Config snapshots, directory and route registration |
-| [`src/auth.ts`](src/auth.ts) | The credential store and ambient auth context over the harness credential plane |
-| [`src/login.ts`](src/login.ts) | Authorization flows for the installed providers that ship a login |
+| [`src/auth.ts`](src/auth.ts) | The ambient auth context over the harness credential plane |
+| [`src/login.ts`](src/login.ts) | Login methods and notice/prompt translation for pi-ai logins |
+| [`src/accounts/`](src/accounts/) | Accounts: record keys, scoped stores, directory, health, scheduler, failure classification, response capture, router, the `llmAccounts` Remote, sign-in, usage |
 | [`src/config.ts`](src/config.ts) | Profile schema, resolution, and serviceability checks |
 | [`src/catalog.ts`](src/catalog.ts) | Installed-catalog integration and drift gates |
 | [`src/provider-data.ts`](src/provider-data.ts) | Generated authentication and endpoint metadata for configuration surfaces |
@@ -205,13 +224,11 @@ Anthropic can bind each signed thinking block to the request prefix it was gener
 <a id="further-exploration"></a>
 ## Further Exploration
 
-Read these pages when the package-level contract is not enough. They move from the service contract to the twin adapter and the shared types.
+Read these pages when the package-level contract is not enough. They move from the service contract to the streaming protocol and the shared types.
 
 - [dsh-llm service](../llm/README.md) — the provider-neutral service this adapter registers on.
-- [llm-deepseek adapter](../llm-deepseek/README.md) — the direct DeepSeek twin for the `deepseek-official` route.
 - [LLM streaming subsystem](../../../docs/subsystems/llm-streaming.md) — the `StreamChunk` protocol and adapter contract.
 - [llm-retry](../llm-retry/README.md) — the retry executor that applies each profile's `retryPolicy`.
-- [Twin LLM adapters](../../../.agents/notes/implemented/architecture/2026-06-13-twin-llm-adapters.md) — why the DeepSeek route ships two structurally different adapters.
 - [Generated configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-llm-pi-ai) — every accepted config field and its source declaration.
 
 -----
@@ -257,7 +274,8 @@ These limits define where the adapter stops and future work begins. They are cur
 - **`maxRequestImageBytes` counts base64 image payload only** — text, tools, descriptors, and JSON structure ride outside the bound, so it must sit below the gateway's request-body cap with headroom.
 - **The byte bound has no removal quantum** — at `maxRequestImageBytes`, every new image offloads the minimum oldest prefix, so prompt-cache reuse restarts from that point on each image-adding request.
 - **A sign-in lives only in the process that started it** — an authorization attempt is not durable, so reloading the page mid-login abandons it and the human starts over. Signing out is `deleteRecord` on the stored record, which forgets it locally without telling the issuer.
-- **OpenAI offers no ChatGPT sign-in** — pi-ai's Sign in with ChatGPT identifies the installation to OpenAI with a stable UUID the app supplies, and the harness keeps no installation ID meant for a third-party account sign-in; the `openai` route signs in with an API key.
+- **Pool state is per process and in memory** — cooldowns, sign-in marks, session affinity, and usage snapshots restart empty with the process, so the first request after a restart may hit a still-limited account once. Every account of a route shares the route's catalog descriptor: per-account model availability (pi-ai `filterModels`) is not consulted, so the allowlist is the only per-account model control.
+- **One ChatGPT sign-in at a time per host** — pi-ai's OpenAI and Codex logins share the fixed loopback callback port 1455, so a second concurrent attempt for either route is refused; a headless host pastes the callback URL instead.
 - **Provider-native discovery answers through this plugin's ambient context** — a route naming no credential defers to the catalog provider's own resolution, which asks for environment values (`AZURE_OPENAI_API_KEY`, `AWS_PROFILE`, and each provider's own set) and for local credential files. Both questions are answered here: the credential seam is consulted before the process environment, and file existence is checked against the host process's filesystem with `~` expanded. What it cannot do is *read* a credential file's contents — a provider that parses `~/.aws/credentials` itself does so directly, outside the seam.
 - **Reset restores inherited configuration** — resetting a route supplied by a lower profile layer restores that route.
 - **Complete Config replacement can remove inherited dictionary entries** — a field reset instead restores its inherited value.

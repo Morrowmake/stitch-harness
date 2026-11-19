@@ -173,6 +173,50 @@ interface SessionEventMap {
    * so tolerating concurrent writers needs a signal beyond the log.
    */
   'session/end-seed': { inherited?: true }
+  /**
+   * Legacy record from the removed DeepSeek session-log upload: the endpoint
+   * accepted one delivery through `throughSeq`. Nothing appends it any more;
+   * it stays declared so released logs that contain it still load and migrate.
+   */
+  'session-log-deepseek/delivery-accepted': {
+    /** Session identity the accepted delivery carried; inherited fork markers retain the parent's id. */
+    sessionId: SessionId
+    /** Accepted Session format generation; absence identifies version 0. */
+    sessionFormatVersion?: number
+    /** Last canonical event included in the accepted request. */
+    throughSeq: SessionSeq
+  }
+  /**
+   * Legacy record from the removed DeepSeek search provider: the secret-free
+   * auxiliary Messages request recorded before one search dispatch. Nothing
+   * appends it any more; it stays declared so released logs that contain it
+   * still load and migrate.
+   */
+  'web/deepseek-search-llm-request': {
+    /** Fully resolved Messages endpoint. */
+    readonly endpoint: string
+    /** `anthropic-version` header value. */
+    readonly apiVersion: string
+    /** Exact JSON body sent to the provider. */
+    readonly body: {
+      readonly model: string
+      readonly max_tokens: number
+      readonly messages: readonly [{
+        readonly role: 'user'
+        readonly content: readonly [{
+          readonly type: 'text'
+          readonly text: string
+        }]
+      }]
+      readonly tools: readonly [{
+        readonly type: 'web_search_20250305'
+        readonly name: 'web_search'
+        readonly max_uses: number
+      }]
+      /** Thinking mode for the auxiliary turn; the provider sent `disabled`, and absence means it omitted the field. */
+      readonly thinking?: { readonly type: 'disabled' }
+    }
+  }
 }
 ```
 
@@ -840,29 +884,6 @@ The backends that consume this contract are on [persistence.md](persistence.md).
 
 The optional `application` selects a registered file handler without changing the system default; `workspacePathApplications({ path })` returns current handlers, names, icons, and default selection after Host path verification.
 
-## Session-log upload exclusions
-
-`ctx.sessionLogDeepSeek.registerExclusion()` registers a caller-owned predicate over `SessionLogUploadRequest`. Any match omits the log contribution and its acceptance callback before reading Session events. No match preserves normal upload eligibility. The [package README](../../packages/session/session-log-deepseek/README.md#upload-exclusions) defines failure and disposal behavior.
-
-```ts type-equiv
-/** Request identity inspected before preparing a Session-log contribution. */
-interface SessionLogUploadRequest {
-  /** Live Session whose canonical log would be contributed. */
-  readonly sessionId: SessionId
-  /** Auxiliary request classification; absent for ordinary conversation requests. */
-  readonly purpose?: string
-}
-```
-
-```ts type-equiv
-/**
- * Synchronous, side-effect-free upload exclusion owned by its registering plugin.
- * @param request - request identity; the predicate must not mutate it.
- * @returns `true` to omit the log field and acceptance callback, or `false` to keep checking eligibility.
- */
-type SessionLogUploadExclusion = (request: SessionLogUploadRequest) => boolean
-```
-
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
 <a id="cordis-surface"></a>
@@ -916,12 +937,6 @@ resolveAgent(sessionId: SessionId): Promise<ApiSessionAgentResult>
  * @returns the normalized selection installed for the Session, without waiting for default persistence.
  */
 @Remote('selectModel') selectModel(request: SessionSelectModelRequest): Promise<SessionSelectModelValue>
-
-/**
- * Select the first available account model after login when no provider API key is configured.
- * @returns after saving the first available model or retaining the existing default.
- */
-@Remote async initializeDefaultModel(): Promise<void>
 
 /**
  * Describe every currently routable model for Host-generation selectors.
@@ -1080,26 +1095,6 @@ workspaceDesktop(): { name: string; available: boolean; fileManager: 'finder' | 
 Types: [SessionId](core.md) · [SessionSearchRequest](session-query.md)
 
 Source: [`packages/api/session-controller/src/index.ts`](../../packages/api/session-controller/src/index.ts)
-
-<a id="ctxsessionlogdeepseek--sessionlogdeepseekservice"></a>
-
-### `ctx.sessionLogDeepSeek` — `SessionLogDeepSeekService`
-
-Incremental Session-log contributor with caller-owned upload exclusions.
-
-```ts cordis-catalog
-/**
- * Exclude matching requests before reading or preparing their log contribution.
- * Any matching rule suppresses both the field and its acceptance callback. With
- * no matching rules, normal upload eligibility applies. A throwing rule fails
- * this contribution; the request-extension registry omits it and reports the error.
- * @param exclude - synchronous, side-effect-free predicate; `true` skips this upload.
- * @returns effect disposer that removes this registration when called or when the caller unloads.
- */
-registerExclusion(exclude: SessionLogUploadExclusion): () => Promise<void>
-```
-
-Source: [`packages/session/session-log-deepseek/src/index.ts`](../../packages/session/session-log-deepseek/src/index.ts)
 
 <a id="ctxsessions--sessionstore"></a>
 

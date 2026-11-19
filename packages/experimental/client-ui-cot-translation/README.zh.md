@@ -61,11 +61,11 @@ kind: "package-reference"
 <a id="model-experience"></a>
 ## 模型体验
 
-间接影响来自可选的独立付费 Flash 请求，以及缓存未命中时的正常 Session 激活；translator 负责翻译提示词，Session 的 preset 负责启动上下文。
+间接影响来自缓存未命中时的正常 Session 激活；Session 的 preset 负责启动上下文。翻译本身不发起模型请求。
 
 #### KV Cache 效果
 
-翻译记录不替换模型输入。正常激活可能追加上下文或修复中断轮次，其缓存影响与打开对话相同。独立付费查询的 token 和缓存影响由 [translator](../translator/README.zh.md#model-experience) 负责。
+翻译记录不替换模型输入。正常激活可能追加上下文或修复中断轮次，其缓存影响与打开对话相同。
 
 ## 已知限制与后续工作
 

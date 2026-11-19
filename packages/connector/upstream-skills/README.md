@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-CLI app plugins such as WeCom and Tencent Meeting register with `ctx.upstreamSkills` for guides their vendor publishes only in its GitHub repository. The plugin keeps its own entry `SKILL.md` and pins one directory of that repository by commit, total size, and digest. The Service downloads the commit's archive when the plugin loads, verifies the kept files, publishes them in the DSH cache, and lists the entry skill with the published directory as its base directory. The repository and the plugins' npm packages carry no copy of those files. The base bundle loads the Service, which downloads nothing until one registers.
+CLI app plugins such as WeCom and Tencent Meeting register with `ctx.upstreamSkills` for guides their vendor publishes only in its GitHub repository. The plugin keeps its own entry `SKILL.md` and pins one repository directory by commit, size, and digest. When the plugin loads, the Service downloads that commit's archive, verifies the kept files, publishes them in the DSH cache, and lists the entry skill over them. Neither the repository nor the plugins' npm packages copy those files. The Service is optional: it loads only where a profile mounts it and downloads nothing until a plugin registers.
 
 ## Table of Contents
 
@@ -33,7 +33,7 @@ Register from the Host row of a CLI app plugin whose upstream skills exist only 
 
 ### Minimal configuration
 
-The [base bundle](../../bundle/base/cordis.patch.yml) loads the Service in every profile built on it, after the `skills` registry it injects:
+No shipped bundle loads the Service. A profile that installs such a plugin mounts it in its own Cordis patch, after the `skills` registry:
 
 ```yaml
 - id: upstream-skills
@@ -125,7 +125,7 @@ The Service downloads `<prefix>/<owner>/<repository>/tar.gz/<commit>` from each 
 - [Runtime download of upstream skills](../../../.agents/notes/implemented/architecture/2026-10-28-upstream-skills-runtime-download.md) — why the plugins download the files instead of carrying a copy.
 - [Skill registry](../../skill/skill/README.md) — the provider and catalog API the Service registers each entry skill with.
 - [Skill subsystem reference](../../../docs/subsystems/skills.md) — how skills reach the model.
-- [Base bundle](../../bundle/base/README.md) — the bundle that loads the Service, and how a profile overrides one of its rows.
+- [Base bundle](../../bundle/base/README.md) — the shared profile rows a profile extends with this Service's row.
 
 -----
 

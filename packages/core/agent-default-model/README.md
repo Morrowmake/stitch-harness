@@ -29,25 +29,25 @@ Mount this package wherever agents are created without an explicit model route. 
 
 ### Configure the default
 
-The composition requires a provider and model. Consumers read the live references even when no configuration editor is mounted.
+Provider and model start unset: a deployment has no default model until the user configures a provider. Consumers read the live references even when no configuration editor is mounted.
 
 ```yaml
 - name: '@deepseek-ai/dsh-agent-default-model'
   config:
-    provider: deepseek
-    model: deepseek-chat
+    provider: anthropic
+    model: claude-sonnet-4-5
 ```
 
 | Field | Default | Meaning |
 |---|---|---|
-| `provider` | required | Registered provider route for fresh agents |
-| `model` | required | Provider-owned model id for fresh agents |
+| `provider` | unset | Registered provider route for fresh agents |
+| `model` | unset | Provider-owned model id for fresh agents |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-agent-default-model) lists every accepted field. `reasoningEffort` is optional; saving a selection without it removes that field from the profile’s complete config override.
 
 ### Read and change the default
 
-`currentSelection()` returns a detached `{ provider, model, reasoningEffort? }` for a newly created agent; `saveSelection()` stores the complete selection for later agents.
+`currentSelection()` returns a detached `{ provider, model, reasoningEffort? }` for a newly created agent and throws a `HarnessError` with code `NO_DEFAULT_MODEL` and an actionable message while provider or model is unset; `configuredSelection()` returns the same selection or `undefined` for surfaces that must work without one, such as the model catalog. `saveSelection()` stores the complete selection for later agents.
 
 ```text
 const selection = ctx.agentDefaultModel.currentSelection()
@@ -75,6 +75,7 @@ The service retains its validated Config references and samples them in `current
 | File | Role |
 |---|---|
 | [`src/index.ts`](src/index.ts) | Live default selection and profile-backed writes |
+| [`src/no-default-model.ts`](src/no-default-model.ts) | The `NO_DEFAULT_MODEL` error code and its actionable message |
 
 ### Behavior notes
 

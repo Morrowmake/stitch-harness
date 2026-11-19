@@ -59,9 +59,19 @@ def run_smoke(repo_root: Path, keep_sessions: bool) -> None:
     print(f"repo_root={repo_root}")
     print(f"dsh_home={dsh_home}")
     print(f"mock_base_url={base_url}")
+    # The adapter mounts with zero routes; this patch points one Anthropic-messages route at the mock server.
+    route_patch = dsh_home / "smoke-route.patch.yml"
+    route_patch.write_text(
+        "- id: llm-pi-ai\n  config:\n    providers:\n      sdk-smoke:\n"
+        "        apiKeyEnv: DEEPSEEK_API_KEY\n        api: anthropic-messages\n"
+        f"        baseURL: {json.dumps(base_url)}\n"
+        "        models:\n          - id: sdk-smoke-model\n            contextWindow: 200000\n",
+        encoding="utf-8",
+    )
 
     try:
         with DeepSeekHarness(
+            provider="sdk-smoke",
             model="sdk-smoke-model",
             cwd=str(repo_root / "python/sdk"),
             runtime_cwd=str(repo_root),
@@ -72,11 +82,12 @@ def run_smoke(repo_root: Path, keep_sessions: bool) -> None:
                 str(runtime_entry),
                 "--profile",
                 "sdk",
+                "--patch",
+                str(route_patch),
             ),
             env={
                 "DSH_HOME": str(dsh_home),
                 "DSH_PERMISSION_MODE": "danger-full-access",
-                "DSH_TELEMETRY_DISABLED": "1",
                 "DEEPSEEK_BASE_URL": base_url,
                 "DEEPSEEK_API_KEY": "sdk-smoke-key",
             },

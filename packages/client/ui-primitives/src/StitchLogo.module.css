@@ -1,0 +1,43 @@
+/* Stitch patchwork mark palette (branding/mark.svg and branding/mark-dark.svg). */
+.mark {
+  --dsh-stitch-ink: #1c2434;
+  --dsh-stitch-thread: #fbfbfb;
+  --dsh-stitch-accent: #4176e6;
+  --dsh-stitch-accent-thread: #4176e6;
+  --dsh-stitch-soft: #d4dbe9;
+}
+
+:global(body[data-ds-dark-theme]) .mark {
+  --dsh-stitch-ink: #e1e6ee;
+  --dsh-stitch-thread: #1c2434;
+  --dsh-stitch-accent-thread: #6e98f0;
+  --dsh-stitch-soft: #3a4660;
+}
+
+.ink {
+  fill: var(--dsh-stitch-ink);
+}
+
+.inkThread {
+  stroke: var(--dsh-stitch-thread);
+}
+
+.accent {
+  fill: var(--dsh-stitch-accent);
+}
+
+.accentThread {
+  stroke: #fbfbfb;
+}
+
+.soft {
+  fill: var(--dsh-stitch-soft);
+}
+
+.softThread {
+  stroke: var(--dsh-stitch-ink);
+}
+
+.openThread {
+  stroke: var(--dsh-stitch-accent-thread);
+}

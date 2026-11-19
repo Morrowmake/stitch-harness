@@ -22,6 +22,6 @@ Sessions recorded with `propose_action` no longer show those cards: the calls ap
 ## Migration
 
 1. Remove `queuedMessageLimit` from the `id: action-cards` entry of the profile's `cordis.patch.yml`, and remove the entry when nothing else remains in it.
-2. In a plugin that registers a card kind, drop `skill` and `invitation` from `ctx.actionCards.register()`, and change its skill to ask for one `action-card` block at the end of the final answer, with the invitation sentence before it, as [`official-plugins.md`](../../../../packages/experimental/plugin-recommendations/skills/official-plugins.md) does.
+2. In a plugin that registers a card kind, drop `skill` and `invitation` from `ctx.actionCards.register()`, and change its skill to ask for one `action-card` block at the end of the final answer, with the invitation sentence before it, as the official plugin-recommendations skill (`official-plugins.md`) did.
 3. Rename `callId` to `cardId` where the plugin reads proposals or decisions, records decisions or calls `act()`.
 4. Ask a question that a kind's skill answers with a card; the migration works when the card appears below the answer and the process area shows no `propose_action` call.

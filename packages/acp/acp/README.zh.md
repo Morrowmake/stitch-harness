@@ -33,13 +33,13 @@ kind: "package-reference"
 
 ### 最小配置
 
-服务器创建的每个会话都使用此处配置的提供方与模型。两个字段都是可选的，以便由另一个 agent/request 监听器提供；可运行的演示组合会同时设置两者。Stdout 只承载协议流量，因此请让日志远离它。
+两个字段都设置时，服务器创建的每个会话都使用此处配置的提供方与模型；否则在挂载了 `dsh-agent-default-model` 时使用其部署默认模型。两者都没有时，提示词会在第一个模型步骤失败，并说明应在何处配置提供方。Stdout 只承载协议流量，因此请让日志远离它。
 
 ```yaml
 - name: '@deepseek-ai/dsh-acp'
   config:
-    provider: deepseek-official
-    model: deepseek-v4-pro
+    provider: anthropic
+    model: claude-sonnet-4-5
 ```
 
 | 字段 | 默认值 | 含义 |

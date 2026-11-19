@@ -21,7 +21,7 @@
       "path": "../../llm/llm"
     },
     {
-      "path": "../../llm/llm-deepseek-api-key"
+      "path": "../../core/agent-default-model"
     },
     {
       "path": "../../core/agent"
@@ -58,9 +58,6 @@
     },
     {
       "path": "../../interaction/permission-presets"
-    },
-    {
-      "path": "../../account/deepseek-auth"
     }
   ]
 }

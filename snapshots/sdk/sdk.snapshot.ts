@@ -32,7 +32,6 @@ import {
   redactSessionSnapshotIds,
   refreshFixtureReplacements,
   reconcileCatalogCreationTimes,
-  REPLAY_CREDENTIAL_ENV,
   restorePinnedToolSchemas,
   scrubModelRequestBulk,
   scrubSessionSnapshot,
@@ -723,7 +722,6 @@ const legacySdkCompositions = new Set([
   'dynamic-tool-updates',
   'image',
   'ptc',
-  'sdk-account-provider-signout',
   'sdk-default',
   'sdk-dsh-sdk-diagnostic',
   'sdk-dsh-sdk-dynamic-route',
@@ -833,11 +831,9 @@ async function runScenario(scenario: CorpusScenario): Promise<{
   if (firstTurn !== undefined) await prepareTurnReplay(firstTurn.turn)
   const env: Record<string, string> = {
     ...Object.fromEntries(Object.entries(process.env).filter(([, value]) => value !== undefined)) as Record<string, string>,
-    ...recording ? {} : REPLAY_CREDENTIAL_ENV,
     DSH_SNAPSHOT: mode,
     DSH_SNAPSHOT_PROVIDER: route.provider,
     DSH_SNAPSHOT_MODEL: route.model,
-    DSH_TELEMETRY_DISABLED: '1',
     DSH_AGENTS_HOME: join(cwd, '.agents'),
     NODE_OPTIONS: [process.env.NODE_OPTIONS, '--disable-warning=ExperimentalWarning'].filter(Boolean).join(' '),
     ...parentFixture === undefined ? {} : {

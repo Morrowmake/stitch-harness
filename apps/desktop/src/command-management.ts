@@ -37,7 +37,6 @@ export interface CommandManagerOptions {
   readonly resources: string
   readonly isPackaged: boolean
   readonly isInstalledLocation: () => boolean
-  readonly isInstalling: () => boolean
   readonly isQuitting: () => boolean
   readonly messages: () => DesktopMessages
   readonly show: (options: UpdateDialogOptions) => Promise<MessageBoxReturnValue>
@@ -184,10 +183,6 @@ export class DesktopCommandManager {
     const messages = this.options.messages()
     if (!this.options.isPackaged || !this.options.isInstalledLocation()) {
       await this.options.show({ type: 'info', title: messages.cliCommandTitle, message: messages.cliCommandInstallApp, buttons: [messages.cliCommandClose] })
-      return
-    }
-    if (this.options.isInstalling()) {
-      await this.options.show({ type: 'info', title: messages.cliCommandTitle, message: messages.cliCommandUpdating, buttons: [messages.cliCommandClose] })
       return
     }
     try {

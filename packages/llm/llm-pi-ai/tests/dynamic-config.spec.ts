@@ -9,7 +9,7 @@ import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import { LocalCredentialProvider } from '@deepseek-ai/dsh-credentials-local'
 import { liveConfig } from '../../../settings/settings/tests/live-config.ts'
 import * as LlmPiAi from '@deepseek-ai/dsh-llm-pi-ai'
-import { recordKeyFor } from '../src/auth.ts'
+import { recordKeyFor } from '../src/accounts/keys.ts'
 import AuthorizationService from '@deepseek-ai/dsh-authorization'
 import { assemble } from './assemble.ts'
 import { closeMockServers, mockServer, textEvents } from './mock-server.ts'
@@ -57,13 +57,13 @@ async function boot(
 }
 
 describe('login flows in a real composition', () => {
-  it('offers a sign-in for a provider no route names, once the seam is mounted', async () => {
+  it('registers no standing sign-in flow; sign-in flows exist only per attempt', async () => {
     const ctx = await boot(await home(), {}, { authorization: true })
 
-    // Zero routes configured: signing in is what makes a route worth adding,
-    // so the offer cannot wait for a profile to name the provider.
-    const codex = ctx.authorization.describe(recordKeyFor('openai-codex'))
-    expect(codex?.methods.map(method => method.id)).toEqual(['oauth'])
+    // Sign-in attempts register a flow per account for their own duration
+    // (`llmAccounts.beginSignIn`), so an idle seam lists nothing.
+    expect(ctx.authorization.describe(recordKeyFor('openai-codex'))).toBeUndefined()
+    expect(ctx.authorization.list()).toEqual([])
   })
 
   it('mounts without the seam, and simply offers no sign-in', async () => {

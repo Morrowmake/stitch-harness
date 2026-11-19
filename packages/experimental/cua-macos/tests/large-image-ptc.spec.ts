@@ -9,17 +9,16 @@ import Loader from '@deepseek-ai/cordis-plugin-loader'
 import Include from '@deepseek-ai/cordis-plugin-include'
 import AgentRegistry from '@deepseek-ai/dsh-agent'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
+import type { AddressInfo } from 'node:net'
+import { createServer } from 'node:http'
 import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import LocalAttachmentStore from '@deepseek-ai/dsh-attachment-local'
 import ComputerUseRegistry from '@deepseek-ai/dsh-computer-use'
 import FileSystem from '@deepseek-ai/dsh-fs-local'
 import { brandString } from '@deepseek-ai/dsh-brand'
-import LlmRuntime, { LlmAdapter, type ToolCallId, createUserMessage, resolveImageAttachmentAccess } from '@deepseek-ai/dsh-llm'
+import LlmRuntime, { LlmAdapter, type ToolCallId, createUserMessage } from '@deepseek-ai/dsh-llm'
 import type { GenerateOptions, LlmResolvedModelInfo, StreamChunk } from '@deepseek-ai/dsh-llm'
-import { resolveAdapterOptions } from '@deepseek-ai/dsh-llm-deepseek'
-import { inlineImages, prepareImages } from '@deepseek-ai/dsh-llm-deepseek/src/images.ts'
-import { serialize } from '@deepseek-ai/dsh-llm-deepseek/src/serialize.ts'
-import { resolveRequestImageTarget } from '@deepseek-ai/dsh-llm-deepseek/src/request-pricing.ts'
+import * as LlmPiAi from '@deepseek-ai/dsh-llm-pi-ai'
 import NodePtcRuntime from '@deepseek-ai/dsh-ptc-runtime-node'
 import Sandbox from '@deepseek-ai/dsh-sandbox-local'
 import SandboxPolicy from '@deepseek-ai/dsh-sandbox-policy'
@@ -37,6 +36,18 @@ import { installNativeFixture, startFixtureHost } from './native-fixture.ts'
 const WIDTH = 2048
 const HEIGHT = 1024
 const MODEL = 'large-image-vision-fixture'
+
+/** Anthropic Messages content block as captured on the wire. */
+interface WireBlock {
+  type: string
+  content?: string | WireBlock[]
+  source?: { type: string; data?: string }
+}
+
+/** Captured Anthropic Messages request body. */
+interface WireRequest {
+  messages: { content: string | WireBlock[] }[]
+}
 
 // The external native substitute is a POSIX executable; it never accesses the desktop.
 it.skipIf(process.platform === 'win32')('delivers a valid PNG larger than 4 MiB through disk storage and Node PTC into the next model image request', async () => {
@@ -65,17 +76,43 @@ it.skipIf(process.platform === 'win32')('delivers a valid PNG larger than 4 MiB 
     file: './generated-screenshot.png', pixelWidth: WIDTH, pixelHeight: HEIGHT,
     bounds: { x: 0, y: 0, width: 1024, height: 512 },
   }))
+  // A local Anthropic Messages endpoint records the real pi-ai request body and refuses it.
+  const captured: WireRequest[] = []
+  const capture = createServer((request, response) => {
+    const chunks: Buffer[] = []
+    request.on('data', (chunk: Buffer) => { chunks.push(chunk) })
+    request.on('end', () => {
+      captured.push(JSON.parse(Buffer.concat(chunks).toString('utf8')) as WireRequest)
+      response.writeHead(401, { 'content-type': 'application/json' })
+      response.end(JSON.stringify({ type: 'error', error: { type: 'authentication_error', message: 'capture only' } }))
+    })
+  })
+  const listening = Promise.withResolvers<undefined>()
+  capture.listen(0, '127.0.0.1', () => { listening.resolve(undefined) })
+  await listening.promise
+  onTestFinished(() => {
+    const closed = Promise.withResolvers<undefined>()
+    capture.close(() => { closed.resolve(undefined) })
+    return closed.promise
+  })
+  vi.stubEnv('CAPTURE_API_KEY', 'capture-key')
   const modules = {
     llm: LlmRuntime, session: SessionStore, projection: SessionProjectionRegistry,
     systemPrompt: SystemPrompt, tools: ToolRuntime, toolExecutor: PtcToolExecutor, agents: AgentRegistry, agentLoop: AgentLoop,
     attachments: LocalAttachmentStore, fs: FileSystem, subprocess: SubprocessLocal,
     sandbox: Sandbox, sandboxPolicy: SandboxPolicy, ptc: NodePtcRuntime,
-    computerUse: ComputerUseRegistry, cua: NativeProvider, workingDirectory: WorkingDirectory,
+    computerUse: ComputerUseRegistry, cua: NativeProvider, workingDirectory: WorkingDirectory, piAi: LlmPiAi,
   }
   const configPath = join(root, 'cordis.yml')
   const configs: Record<string, object> = {
     attachments: { dshHome: join(root, 'home') }, workingDirectory: { defaultDirectory: root },
     fs: { cwd: root }, sandboxPolicy: { mode: 'danger-full-access', workspaceRoot: root }, cua: { agentPreset: false, helperPath, allowedApps: [{ 'id': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'name': 'Fixture', 'executablePath': '/fixture/app' }] },
+    piAi: { providers: { capture: {
+      api: 'anthropic-messages', baseURL: `http://127.0.0.1:${(capture.address() as AddressInfo).port}`,
+      apiKeyEnv: 'CAPTURE_API_KEY', cacheRetention: 'none', models: [{ id: MODEL, input: ['text', 'image'] }],
+      // Below the screenshot's 2048x1024 so the route target downsizes it.
+      requestImagePixelBudget: 1024 * 1024,
+    } } },
   }
   await writeFile(configPath, Object.keys(modules).flatMap(name => [
     `- name: 'cordis:${name}'`, ...configs[name] === undefined ? [] : [`  config: ${JSON.stringify(configs[name])}`],
@@ -87,18 +124,12 @@ it.skipIf(process.platform === 'win32')('delivers a valid PNG larger than 4 MiB 
   await context.loader.await()
   for (const entry of context.loader.entries()) await entry.fiber?.await()
 
-  const connection = resolveAdapterOptions({ models: [{ id: MODEL, inputModalities: ['text', 'image'] }] })
-  const access = (ref: ImageAttachmentRef) => resolveImageAttachmentAccess(
-    context.attachments, path => context.fs.processPathFromHostPath(path), ref,
-  )
   class VisionModel extends LlmAdapter {
     readonly requests: GenerateOptions[] = []
     readonly requestImages: Buffer[] = []
 
     override imageRequestTarget(_provider: string, _model: string, image: ImageAttachmentRef) {
-      const entry = connection.models.find(model => model.id === MODEL)
-      if (!entry) throw new Error('Missing image fixture route')
-      return resolveRequestImageTarget(entry, image)
+      return context.llm.imageRequestTarget('capture', MODEL, image)
     }
 
     override resolveModel(provider: string, model: string): Promise<LlmResolvedModelInfo> {
@@ -119,16 +150,17 @@ it.skipIf(process.platform === 'win32')('delivers a valid PNG larger than 4 MiB 
         yield { type: 'finish', reason: { kind: 'tool-calls' } }
         return
       }
-      // Serialize the real next AgentLoop request using the provider's image reader
-      // and message serializer, but do not contact a model endpoint.
-      const prepared = await prepareImages(options.messages, connection, MODEL, context.attachments, access,
-        options.signal ?? new AbortController().signal)
-      const history = inlineImages(prepared.messages, prepared.versions, connection)
-      const body = serialize(options, connection, history, prepared.versions, access)
-      const blocks = body.messages.flatMap(message => message.content.flatMap(block => block.type === 'tool_result' ? block.content : [block]))
+      // Send the real next AgentLoop request through the pi-ai image reader and
+      // Anthropic Messages serializer to the local capture endpoint.
+      const before = captured.length
+      for await (const chunk of context.llm.stream({ ...options, provider: 'capture' })) void chunk
+      const body = captured[before]
+      if (body === undefined) throw new Error('The capture route received no request')
+      const blocks = body.messages.flatMap(message => typeof message.content === 'string' ? [] : message.content)
+        .flatMap(block => block.type === 'tool_result' && Array.isArray(block.content) ? block.content : [block])
       for (const block of blocks) {
         if (block.type !== 'image') continue
-        if (block.source.type !== 'base64') throw new Error('Expected inline request image bytes')
+        if (block.source?.type !== 'base64' || block.source.data === undefined) throw new Error('Expected inline request image bytes')
         this.requestImages.push(Buffer.from(block.source.data, 'base64'))
       }
       yield { type: 'block-start', index: 0, blockType: 'text' }

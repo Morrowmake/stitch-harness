@@ -24,11 +24,11 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-可选的[自定义插件索引组合包](../../experimental/plugin-market-bundle/README.zh.md)把该服务挂载为 `plugin-market` 行；随附的 profile 默认不启用该组合包。与 `plugin-manager` 一样，该行在没有 profile 时被禁用，并等待 `pluginManager`。默认不配置任何索引源，因此在用户添加索引源之前，Host 不发送任何索引请求。
+可选的[自定义插件索引组合包](../../experimental/plugin-market-bundle/README.zh.md)把该服务挂载为 `plugin-market` 行；随附的 profile 默认不启用该组合包。与 `plugin-manager` 一样，该行在没有 profile 时被禁用，并等待 `pluginManager`。默认索引源是 Stitch 插件索引 `DEFAULT_PLUGIN_INDEX`（`https://raw.githubusercontent.com/Morrowmake/stitch-plugins/main/index.json`，由 [`Morrowmake/stitch-plugins`](https://github.com/Morrowmake/stitch-plugins) 仓库生成，其 README 说明了如何提交插件）。挂载服务本身不发送任何请求：只有发现区或 `plugin_market` 工具搜索某个索引时，Host 才会读取它。在发现区移除默认索引后，剩余列表（包括空列表）会写入 profile 条目，因此移除会保持生效。
 
 | 配置 | 默认值 | 含义 |
 |---|---|---|
-| `indexes` | `[]` | 按显示顺序排列的规范索引源 URL。发现区、设置和 `setIndexes` 可修改此字段，无需重新挂载本服务或 `plugin-manager`。 |
+| `indexes` | `[DEFAULT_PLUGIN_INDEX]` | 按显示顺序排列的规范索引源 URL。发现区、设置和 `setIndexes` 可修改此字段，无需重新挂载本服务或 `plugin-manager`。 |
 | `fetchTimeoutMs` | `15000` | 单次通过 HTTP(S) 请求索引或详细介绍文件的时限，包括读取响应体。 |
 | `maxBytes` | `134217728` | 接受的最大索引文件大小。 |
 | `cacheTtlMs` | `600000` | 成功读取的索引文档、详细介绍的读取结果以及仓库默认分支提交的缓存时长。 |

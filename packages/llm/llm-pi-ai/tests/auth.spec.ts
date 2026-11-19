@@ -6,7 +6,9 @@ import { Context } from '@deepseek-ai/cordis'
 import LocalCredentialProvider from '@deepseek-ai/dsh-credentials-local'
 import { credentialKey, credentialRef } from '@deepseek-ai/dsh-credentials'
 import { createLaunchEnvironmentSnapshot, DSH_LAUNCH_ENVIRONMENT_KEY } from '@deepseek-ai/dsh-launch-environment'
-import { authContextFrom, credentialStoreFrom, recordKeyFor } from '../src/auth.ts'
+import { authContextFrom } from '../src/auth.ts'
+import { recordKeyFor } from '../src/accounts/keys.ts'
+import { accountCredentialStore as credentialStoreFrom } from '../src/accounts/store.ts'
 
 const home = vi.hoisted(() => ({ unavailable: false }))
 

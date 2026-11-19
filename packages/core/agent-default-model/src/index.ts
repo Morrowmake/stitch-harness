@@ -11,8 +11,10 @@ import { Context, Service } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { ModelSelection } from '@deepseek-ai/dsh-agent'
 import { brandString } from '@deepseek-ai/dsh-brand'
+import { HarnessError } from '@deepseek-ai/dsh-error'
 import type { ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import type {} from '@deepseek-ai/dsh-config-editor'
+import { NO_DEFAULT_MODEL, NO_DEFAULT_MODEL_MESSAGE } from './no-default-model.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -21,12 +23,12 @@ declare module '@deepseek-ai/cordis' {
   }
 }
 
-/** Default model selection supplied by plugin configuration. */
+/** Default model selection supplied by plugin configuration; both route fields stay unset until a user configures a provider. */
 export interface Config {
-  /** Registered provider route. */
-  provider: Volatile<string>
-  /** Provider-owned model id. */
-  model: Volatile<string>
+  /** Registered provider route; unset means no default model is configured. */
+  provider: Volatile<string | undefined>
+  /** Provider-owned model id; unset means no default model is configured. */
+  model: Volatile<string | undefined>
   /** Adapter-owned reasoning effort; omission follows the provider default. */
   reasoningEffort: Volatile<string | undefined>
 }
@@ -50,8 +52,8 @@ export class AgentDefaultModelConfig extends Service {
   private saves: Promise<void> = Promise.resolve()
 
   static Config = z.object({
-    provider: z.string().required().volatile(),
-    model: z.string().required().volatile(),
+    provider: z.string().volatile(),
+    model: z.string().volatile(),
     reasoningEffort: z.string().volatile(),
   })
 
@@ -62,15 +64,27 @@ export class AgentDefaultModelConfig extends Service {
   }
 
   /**
-   * Read the current default model selection.
+   * Read the configured default model selection.
+   * @returns a detached provider, model, and optional reasoning selection, or
+   * undefined while provider or model is unset.
+   */
+  configuredSelection(): ModelSelection | undefined {
+    const provider = this.config.provider.get()
+    const model = this.config.model.get()
+    if (provider === undefined || model === undefined) return undefined
+    const reasoningEffort = this.config.reasoningEffort.get()
+    return selection({ provider, model, ...reasoningEffort === undefined ? {} : { reasoningEffort } })
+  }
+
+  /**
+   * Read the default model selection a new Agent requires.
    * @returns a detached provider, model, and optional reasoning selection.
+   * @throws HarnessError with code {@link NO_DEFAULT_MODEL} while provider or model is unset.
    */
   currentSelection(): ModelSelection {
-    const reasoningEffort = this.config.reasoningEffort.get()
-    return selection({
-      provider: this.config.provider.get(), model: this.config.model.get(),
-      ...reasoningEffort === undefined ? {} : { reasoningEffort },
-    })
+    const current = this.configuredSelection()
+    if (current === undefined) throw new HarnessError(NO_DEFAULT_MODEL_MESSAGE, NO_DEFAULT_MODEL)
+    return current
   }
 
   /**

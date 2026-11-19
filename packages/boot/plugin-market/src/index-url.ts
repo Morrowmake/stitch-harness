@@ -3,6 +3,12 @@ import { parseGitMarketIndexSource } from '@deepseek-ai/dsh-plugin-market-index/
 import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
 
 /**
+ * The Stitch plugin index, the `indexes` default: a direct JSON address generated from the
+ * `Morrowmake/stitch-plugins` repository. Nothing is fetched until Discover or the tool reads it.
+ */
+export const DEFAULT_PLUGIN_INDEX = 'https://raw.githubusercontent.com/Morrowmake/stitch-plugins/main/index.json'
+
+/**
  * Validate and normalize one index source URL.
  * @param text - URL as configured or entered.
  * @returns the URL's serialization.

@@ -22,6 +22,18 @@ export const zh = {
   'error.load': '反馈状态加载失败',
   'error.generic': '反馈保存失败',
   'error.noteTooLarge': '描述太长，请缩短后再提交',
+  'error.report': '无法提交到 GitHub，请稍后重试',
+  'report.open': '在 GitHub 上报告…',
+  'report.title': '在 GitHub 上报告',
+  'report.issueTitle': '议题标题',
+  'report.issueBody': '议题内容',
+  'report.includeSessionId': '附带会话 ID',
+  'report.hint': '确认前不会发送任何内容。若已登录 GitHub CLI，将直接创建议题；否则会在浏览器中打开预填好的 GitHub 页面。',
+  'report.back': '返回',
+  'report.confirm': '确认并报告',
+  'report.reporting': '正在报告…',
+  'toast.issueCreated': '已在 GitHub 上创建议题',
+  'toast.issueOpened': '请在 GitHub 页面上完成提交',
 } satisfies Record<string, string>
 
 /** The feedback namespace key union. */
@@ -56,6 +68,18 @@ export const en = {
   'error.load': 'Could not load feedback',
   'error.generic': 'Could not save feedback',
   'error.noteTooLarge': 'The description is too long; shorten it and submit again',
+  'error.report': 'Could not report on GitHub; try again',
+  'report.open': 'Report on GitHub…',
+  'report.title': 'Report on GitHub',
+  'report.issueTitle': 'Issue title',
+  'report.issueBody': 'Issue body',
+  'report.includeSessionId': 'Include session id',
+  'report.hint': 'Nothing is sent until you confirm. If the GitHub CLI is signed in, the issue is filed for you; otherwise a prefilled GitHub page opens in your browser.',
+  'report.back': 'Back',
+  'report.confirm': 'Confirm and report',
+  'report.reporting': 'Reporting…',
+  'toast.issueCreated': 'Issue filed on GitHub',
+  'toast.issueOpened': 'Finish your report on the GitHub page',
 } satisfies Record<MessageFeedbackKey, string>
 
 /** Japanese copy, checked against the English keys. */
@@ -80,6 +104,18 @@ export const ja = {
   'error.load': 'フィードバックを読み込めませんでした',
   'error.generic': 'フィードバックを保存できませんでした',
   'error.noteTooLarge': '説明が長すぎます。短くして再送信してください',
+  'error.report': 'GitHub に報告できませんでした。もう一度お試しください',
+  'report.open': 'GitHub で報告…',
+  'report.title': 'GitHub で報告',
+  'report.issueTitle': 'Issue のタイトル',
+  'report.issueBody': 'Issue の本文',
+  'report.includeSessionId': 'セッション ID を含める',
+  'report.hint': '確認するまで何も送信されません。GitHub CLI にサインインしていれば Issue が作成され、そうでなければ入力済みの GitHub ページがブラウザで開きます。',
+  'report.back': '戻る',
+  'report.confirm': '確認して報告',
+  'report.reporting': '報告中…',
+  'toast.issueCreated': 'GitHub に Issue を作成しました',
+  'toast.issueOpened': 'GitHub のページで報告を完了してください',
 } satisfies Record<keyof typeof en, string>
 
 /** Spanish dictionary, checked against the English keys. */
@@ -104,6 +140,18 @@ export const es = {
   'error.load': 'No se pudieron cargar los comentarios',
   'error.generic': 'No se pudieron guardar los comentarios',
   'error.noteTooLarge': 'La descripción es demasiado larga; acortarlo y enviarlo de nuevo',
+  'error.report': 'No se pudo informar en GitHub; inténtalo de nuevo',
+  'report.open': 'Informar en GitHub…',
+  'report.title': 'Informar en GitHub',
+  'report.issueTitle': 'Título de la incidencia',
+  'report.issueBody': 'Cuerpo de la incidencia',
+  'report.includeSessionId': 'Incluir el id de sesión',
+  'report.hint': 'No se envía nada hasta que confirmes. Si GitHub CLI tiene la sesión iniciada, la incidencia se crea por ti; si no, se abre en el navegador una página de GitHub ya rellenada.',
+  'report.back': 'Atrás',
+  'report.confirm': 'Confirmar e informar',
+  'report.reporting': 'Informando…',
+  'toast.issueCreated': 'Incidencia creada en GitHub',
+  'toast.issueOpened': 'Termina tu informe en la página de GitHub',
 } satisfies Record<keyof typeof en, string>
 
 /** French dictionary, checked against the English keys. */
@@ -128,6 +176,18 @@ export const fr = {
   'error.load': 'Impossible de charger les commentaires',
   'error.generic': "Impossible d'enregistrer les commentaires",
   'error.noteTooLarge': 'La description est trop longue ; raccourcissez-le et soumettez-le à nouveau',
+  'error.report': 'Impossible de signaler sur GitHub ; réessayez',
+  'report.open': 'Signaler sur GitHub…',
+  'report.title': 'Signaler sur GitHub',
+  'report.issueTitle': 'Titre du ticket',
+  'report.issueBody': 'Contenu du ticket',
+  'report.includeSessionId': "Inclure l'identifiant de session",
+  'report.hint': "Rien n'est envoyé avant votre confirmation. Si GitHub CLI est connecté, le ticket est créé pour vous ; sinon une page GitHub préremplie s'ouvre dans votre navigateur.",
+  'report.back': 'Retour',
+  'report.confirm': 'Confirmer et signaler',
+  'report.reporting': 'Signalement…',
+  'toast.issueCreated': 'Ticket créé sur GitHub',
+  'toast.issueOpened': 'Terminez votre signalement sur la page GitHub',
 } satisfies Record<keyof typeof en, string>
 
 /** German dictionary, checked against the English keys. */
@@ -152,6 +212,18 @@ export const de = {
   'error.load': 'Feedback konnte nicht geladen werden',
   'error.generic': 'Das Feedback konnte nicht gespeichert werden',
   'error.noteTooLarge': 'Die Beschreibung ist zu lang; kürzen Sie es und reichen Sie es erneut ein',
+  'error.report': 'Meldung auf GitHub fehlgeschlagen; bitte erneut versuchen',
+  'report.open': 'Auf GitHub melden…',
+  'report.title': 'Auf GitHub melden',
+  'report.issueTitle': 'Issue-Titel',
+  'report.issueBody': 'Issue-Text',
+  'report.includeSessionId': 'Sitzungs-ID einschließen',
+  'report.hint': 'Nichts wird gesendet, bevor Sie bestätigen. Ist die GitHub CLI angemeldet, wird das Issue für Sie erstellt; andernfalls öffnet sich eine vorausgefüllte GitHub-Seite im Browser.',
+  'report.back': 'Zurück',
+  'report.confirm': 'Bestätigen und melden',
+  'report.reporting': 'Wird gemeldet…',
+  'toast.issueCreated': 'Issue auf GitHub erstellt',
+  'toast.issueOpened': 'Schließen Sie die Meldung auf der GitHub-Seite ab',
 } satisfies Record<keyof typeof en, string>
 
 /** Russian dictionary, checked against the English keys. */
@@ -176,6 +248,18 @@ export const ru = {
   'error.load': 'Не удалось загрузить отзыв.',
   'error.generic': 'Не удалось сохранить отзыв',
   'error.noteTooLarge': 'Описание слишком длинное; сократите его и отправьте снова',
+  'error.report': 'Не удалось сообщить на GitHub; попробуйте снова',
+  'report.open': 'Сообщить на GitHub…',
+  'report.title': 'Сообщить на GitHub',
+  'report.issueTitle': 'Заголовок задачи',
+  'report.issueBody': 'Текст задачи',
+  'report.includeSessionId': 'Указать идентификатор сеанса',
+  'report.hint': 'Ничего не отправляется до подтверждения. Если GitHub CLI авторизован, задача будет создана автоматически; иначе в браузере откроется заполненная страница GitHub.',
+  'report.back': 'Назад',
+  'report.confirm': 'Подтвердить и сообщить',
+  'report.reporting': 'Отправка…',
+  'toast.issueCreated': 'Задача создана на GitHub',
+  'toast.issueOpened': 'Завершите отчёт на странице GitHub',
 } satisfies Record<keyof typeof en, string>
 
 /** Portuguese dictionary, checked against the English keys. */
@@ -200,4 +284,16 @@ export const pt = {
   'error.load': 'Não foi possível carregar o feedback',
   'error.generic': 'Não foi possível salvar o feedback',
   'error.noteTooLarge': 'A descrição é muito longa; encurte-o e envie novamente',
+  'error.report': 'Não foi possível reportar no GitHub; tente novamente',
+  'report.open': 'Reportar no GitHub…',
+  'report.title': 'Reportar no GitHub',
+  'report.issueTitle': 'Título da issue',
+  'report.issueBody': 'Corpo da issue',
+  'report.includeSessionId': 'Incluir o id da sessão',
+  'report.hint': 'Nada é enviado até você confirmar. Se o GitHub CLI estiver autenticado, a issue é criada para você; caso contrário, uma página do GitHub pré-preenchida abre no navegador.',
+  'report.back': 'Voltar',
+  'report.confirm': 'Confirmar e reportar',
+  'report.reporting': 'Reportando…',
+  'toast.issueCreated': 'Issue criada no GitHub',
+  'toast.issueOpened': 'Conclua o relatório na página do GitHub',
 } satisfies Record<keyof typeof en, string>

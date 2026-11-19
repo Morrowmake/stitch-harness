@@ -272,6 +272,39 @@ type SessionFeedbackRecordResult =
   | { readonly ok: false; readonly error: SessionFeedbackSessionNotFound }
 ```
 
+```ts type-equiv
+/**
+ * Ask the Host for an editable GitHub issue preview of one remark. Nothing is
+ * sent anywhere; the reply only carries the text the human will review.
+ */
+interface SessionFeedbackIssueDraftRequest {
+  /** Free-text remark; blank text yields a placeholder line. */
+  readonly text?: string
+  /** Category the human filed the remark under. */
+  readonly category?: FeedbackCategory
+}
+```
+
+```ts type-equiv
+/** An issue title and Markdown body, as previewed or as confirmed by the human. */
+interface SessionFeedbackIssue {
+  /** Issue title; a blank title is replaced by a generic one when filed. */
+  readonly title: string
+  /** Markdown issue body. */
+  readonly body: string
+}
+```
+
+```ts type-equiv
+/**
+ * Where a confirmed issue ended up: `created` when the `gh` CLI filed it,
+ * `browser` when the human must finish filing it on a prefilled GitHub page.
+ */
+type SessionFeedbackReportIssueResult =
+  | { readonly kind: 'created'; readonly url: string }
+  | { readonly kind: 'browser'; readonly url: string }
+```
+
 ## Data and concurrency
 
 Current items are folded from canonical feedback events whose payload `sessionId` matches the owning Session. Each item carries a positive or negative rating, an optional note, an optional category, Host-assigned `createdAt`/`updatedAt` timestamps, and its own opaque version. Versions are compared only for equality and only against the addressed message; callers do not order or synthesize them.
@@ -286,11 +319,13 @@ Fork seeds can contain parent feedback events, but their payload retains the par
 
 ## Persistence and Remote contract
 
-Successful message-feedback mutations await canonical persistence: live operations append through the owning Session and require a participating `ctx.sessions.flush` listener; cold operations append and flush through their write handle. Persistence failures propagate rather than reporting success. `maxNoteBytes` is required and bounds note text by UTF-8 bytes; the Web Host composition sets `8192`. The package publishes the Host `messageFeedback.list`, `messageFeedback.put`, and `messageFeedback.delete` unary Remote contract through `TypertRemoteService` and `@Remote`; `command-feedback` publishes `sessionFeedback.record` the same way for Session-level remarks on live Sessions. The generated Cordis API below is the method-level authority.
+Successful message-feedback mutations await canonical persistence: live operations append through the owning Session and require a participating `ctx.sessions.flush` listener; cold operations append and flush through their write handle. Persistence failures propagate rather than reporting success. `maxNoteBytes` is required and bounds note text by UTF-8 bytes; the Web Host composition sets `8192`. The package publishes the Host `messageFeedback.list`, `messageFeedback.put`, and `messageFeedback.delete` unary Remote contract through `TypertRemoteService` and `@Remote`; `command-feedback` publishes `sessionFeedback.record` the same way for Session-level remarks on live Sessions, plus `sessionFeedback.draftIssue` and `sessionFeedback.reportIssue` for GitHub reports. The generated Cordis API below is the method-level authority.
+
+`draftIssue` returns an editable title and a body holding only the remark, its category, the Stitch version, and the OS; it reads no Session and sends nothing. `reportIssue` files a confirmed title and body on the repository named by `FEEDBACK_REPOSITORY` (`Morrowmake/stitch-harness`): through `gh issue create` when `gh auth status` succeeds, run as argv without a shell under a deadline by the Host `subprocess` provider or Node's `execFile`, and otherwise by answering a prefilled `issues/new` URL of at most 7000 characters, whose body is cut with a note when needed. Neither method appends to the Session log; the dialog records through `record` before reporting.
 
 Plugin disposal closes operation admission and drains accepted per-Session queue work.
 
-By default, [`session-log-deepseek`](../../packages/session/session-log-deepseek/README.md) carries feedback as part of the ordinary `dsh_session_log` suffix on subsequent eligible DeepSeek requests; a composition disables it with `enabled: false`. Recording feedback does not trigger an LLM request or a separate `dsh_feedback` upload. For non-DeepSeek routes, the [OTel backend](../../packages/session/session-telemetry-otel/README.md) can release the canonical prefix through recorded feedback. The command acknowledgement confirms recording and identifies the Session and anonymous user; it reports neither telemetry policy nor delivery.
+Feedback stays local: recording it does not trigger an LLM request or any upload, and nothing ships it to a provider or telemetry backend. The command acknowledgement confirms recording and identifies the Session.
 
 ## Web surface
 
@@ -301,6 +336,8 @@ The controls are the `feedback` entry (order 10) of the `conversation.chat.assis
 One `MessageFeedbackController` per Session backs every message control in that Session: a single `list` read seeds the whole transcript, deferred to first hover or focus rather than fired on mount. Each mutation sends the version that controller last observed as `ifVersion`; a `version-conflict` reply carries the authoritative item, so the controller reconciles from the reply instead of refetching. Mutations serialize per Session so a queued operation compares against the committed version. The injected `retract` operation rechecks the committed rating inside that queue and becomes a no-op after a concurrent change, so stale UI cannot bypass the dialog by recording a bare rating. A `connection/reset` refreshes only Sessions already read.
 
 Either unrecorded rating opens the Session's feedback dialog, the `feedback-dialog` entry of `conversation.input.overlay`: the shared Modal card with seven category chips and a detail box. Submit puts the selected judgment carrying the chosen category and the trimmed description, or neither; success closes the dialog and shows the acknowledgement toast, while failure keeps the dialog and draft open and shows a warning toast. The same dialog opens for the Session from a bare `/feedback` — a decoration `ui-commands` routes as an `action` — and then records through `sessionFeedback.record`; `/feedback <text>` keeps the Host command path. Clicking a recorded rating retracts it without opening the dialog.
+
+**Report on GitHub…** switches the dialog to an editable issue preview drafted by `sessionFeedback.draftIssue`, with an **Include session id** box that is off by default. Confirming records the draft as Submit would, then calls `sessionFeedback.reportIssue` and opens the returned GitHub page in a new tab; nothing is filed before that click. After a typed `/feedback <text>` succeeds, the `command/executed` event carries the submitted line and the dialog opens the same preview for that text, already recorded, so confirming files the issue only.
 
 ## Boundaries and limitations
 
@@ -313,10 +350,11 @@ Either unrecorded rating opens the Session's feedback dialog, the `feedback-dial
 - The Web controller does not consume feedback log events, so a second tab's rating becomes visible on reconnect or on the next conflict reply rather than immediately.
 - The dialog does not pre-check `maxNoteBytes`; an oversized description for a message fails on submit with `note-too-large` rather than while typing. A Session remark has no size bound, as the `/feedback` command never had one.
 - `sessionFeedback.record` serves live Sessions only and answers `session-not-found` otherwise; the dialog reports that failure when its Session retires while it is open.
+- A confirmed GitHub report is public and cannot be withdrawn through Stitch. A `gh issue create` that exceeds its deadline after GitHub accepted the issue still yields the prefilled page, so the user can file twice.
 
 ## Feedback in exported Session logs
 
-This section is for consumers that select rated Sessions from exported logs. The [OTel backend](../../packages/session/session-telemetry-otel/README.md#use-this-package) owns the record fields and the feedback that releases a log prefix; the [session-telemetry subsystem](session-telemetry.md) owns deduplication, and [the redact waterfall](session-telemetry.md#session-telemetryrecord--waterfall) owns how exported `data` can differ from the canonical log. The feedback-specific `data` fields are:
+This section is for consumers that select rated Sessions from exported Session logs. The feedback-specific `data` fields are:
 
 | Event | Target | `data` | Meaning |
 |---|---|---|---|
@@ -376,7 +414,7 @@ Source: [`packages/feedback/message-feedback/src/index.ts`](../../packages/feedb
 
 ### `ctx.sessionFeedback` — `SessionFeedbackService`
 
-Host Remote through which a product surface records a Session-level remark.
+Host Remote through which a product surface records a Session-level remark and, after the human confirms a preview, reports it as a GitHub issue.
 
 ```ts cordis-catalog
 /**
@@ -386,6 +424,24 @@ Host Remote through which a product surface records a Session-level remark.
  * Session carries the id.
  */
 @Remote('record') record(request: SessionFeedbackRecordRequest): Promise<SessionFeedbackRecordResult>
+
+/**
+ * Preview a remark as a GitHub issue without sending anything. The body
+ * names only the remark, its category, the Stitch version, and the OS.
+ * @param request - the remark text and category.
+ * @returns an editable title and Markdown body.
+ */
+@Remote('draftIssue') draftIssue(request: SessionFeedbackIssueDraftRequest): Promise<SessionFeedbackIssue>
+
+/**
+ * File a confirmed issue on the feedback repository: through an installed,
+ * authenticated `gh` CLI (run by the Host `subprocess` provider when one is
+ * mounted, else by Node without a shell), or else as a prefilled new-issue
+ * page the caller opens.
+ * @param issue - the title and body the human confirmed.
+ * @returns `created` with the issue URL, or `browser` with the prefilled page URL.
+ */
+@Remote('reportIssue') reportIssue(issue: SessionFeedbackIssue): Promise<SessionFeedbackReportIssueResult>
 ```
 
 Source: [`packages/feedback/command-feedback/src/index.ts`](../../packages/feedback/command-feedback/src/index.ts)

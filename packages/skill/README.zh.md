@@ -40,10 +40,6 @@ skill 家族让 agent 和用户仅在需要时发现并加载可复用的任务�
 - [skill 子系统参考](../../docs/subsystems/skills.zh.md)——注册表、提供方约定、本地发现优先级，以及目录与工具。
 - [skill 调用策略 参考](skill/README.zh.md)——模型与用户调用控制。
 
------
-
-实验性可选能力见 [`skill-badge`](../experimental/skill-badge/README.zh.md)。
-
 <a id="dev-note"></a>
 ## 开发备注
 

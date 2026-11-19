@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { DeepSeekHarness } from '@deepseek-ai/dsh-sdk-client'
 import { expect, it } from 'vitest'
 import { z } from 'zod'
-import { profileEnvironment } from './fixtures/profile-environment.ts'
+import { profileEnvironment, writeMockRoutePatch } from './fixtures/profile-environment.ts'
 import { messagesResponse } from './fixtures/messages-response.ts'
 
 it.for(['standard', 'ptc'] as const)('keeps %s plugin changes pending until the SDK runtime restarts', async (mode, test) => {
@@ -66,10 +66,11 @@ it.for(['standard', 'ptc'] as const)('keeps %s plugin changes pending until the 
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
   const address = server.address()
   if (address === null || typeof address === 'string') throw new Error('model fixture has no TCP address')
-  const env = profileEnvironment(root, `http://127.0.0.1:${address.port}`)
+  const env = profileEnvironment(root)
+  const routePatch = await writeMockRoutePatch(root, `http://127.0.0.1:${address.port}`)
   const options = {
-    cwd: root, processCwd: root, dshHome: join(root, 'home'), env, model: 'deepseek-v4-pro',
-    patches: mode === 'ptc' ? [fileURLToPath(new URL('../../../config/examples/ptc.yml', import.meta.url))] : [],
+    cwd: root, processCwd: root, dshHome: join(root, 'home'), env,
+    patches: [...mode === 'ptc' ? [fileURLToPath(new URL('../../../config/examples/ptc.yml', import.meta.url))] : [], routePatch],
   }
   async function run(restarted: boolean): Promise<void> {
     const harness = new DeepSeekHarness(options)
@@ -132,14 +133,15 @@ it.for(['unavailable', 'approved', 'missing-pnpm'] as const)('reports the %s plu
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
   const address = server.address()
   if (address === null || typeof address === 'string') throw new Error('model fixture has no TCP address')
-  const env = profileEnvironment(root, `http://127.0.0.1:${address.port}`)
+  const env = profileEnvironment(root)
+  const routePatch = await writeMockRoutePatch(root, `http://127.0.0.1:${address.port}`)
   env.DSH_PERMISSION_MODE = scenario === 'missing-pnpm' ? 'danger-full-access' : 'workspace-write'
   if (scenario === 'missing-pnpm') {
     for (const key of Object.keys(env)) if (key.toLowerCase() === 'path') Reflect.deleteProperty(env, key)
     env.PATH = root
   }
   const harness = new DeepSeekHarness({ cwd: root, processCwd: root, dshHome: join(root, 'home'),
-    env, model: 'deepseek-v4-pro', approvalRequests: scenario === 'approved' })
+    env, patches: [routePatch], approvalRequests: scenario === 'approved' })
   let approvals = 0
   const abort = (): void => { void harness.close() }
   test.signal.addEventListener('abort', abort, { once: true })

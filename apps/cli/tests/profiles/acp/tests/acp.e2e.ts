@@ -44,17 +44,8 @@ describe('acp-agent over real stdio (no key required)', () => {
   it('emits only framed JSON-RPC on stdout', async () => {
     workdir = await mkdtemp(join(tmpdir(), 'acp-e2e-'))
     // Inspect the launcher's raw-byte tee in addition to driving its SDK client.
-    // A dummy key lets the deepseek adapter APPLY (it only checks the key is
-    // present at boot, not valid — the key is used only on a real model call,
-    // which this purity test never triggers). So this runs WITHOUT real creds.
-    spawned = launchAcpTestAgent({
-      agent: AGENT,
-      cwd: workdir,
-      env: {
-        DEEPSEEK_API_KEY: process.env.DEEPSEEK_API_KEY ?? 'sk-dummy-for-boot',
-        ...DANGER_FULL_ACCESS_ENV,
-      },
-    })
+    // Routes resolve keys per request, so booting needs no credentials.
+    spawned = launchAcpTestAgent({ agent: AGENT, cwd: workdir, env: DANGER_FULL_ACCESS_ENV })
     await spawned.client.initialize({ protocolVersion: PROTOCOL_VERSION, clientCapabilities: {} })
 
     const lines = spawned.rawStdout().split('\n').filter(line => line.trim().length > 0)
@@ -79,16 +70,7 @@ describe('acp-agent over real stdio (no key required)', () => {
     // the factory). This closes that gap: boot the real subprocess and create a
     // session, asserting the RPC RESOLVES (not rejects with an inject error).
     workdir = await mkdtemp(join(tmpdir(), 'acp-e2e-'))
-    // A dummy key lets the deepseek adapter boot (it only checks presence, not
-    // validity, at apply time); no model call is made, so the key is never used.
-    spawned = launchAcpTestAgent({
-      agent: AGENT,
-      cwd: workdir,
-      env: {
-        DEEPSEEK_API_KEY: process.env.DEEPSEEK_API_KEY ?? 'sk-dummy-for-boot',
-        ...DANGER_FULL_ACCESS_ENV,
-      },
-    })
+    spawned = launchAcpTestAgent({ agent: AGENT, cwd: workdir, env: DANGER_FULL_ACCESS_ENV })
     const { client } = spawned
 
     await client.initialize({ protocolVersion: PROTOCOL_VERSION, clientCapabilities: {} })

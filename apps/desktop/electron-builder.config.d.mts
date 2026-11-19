@@ -68,8 +68,8 @@ export interface DesktopElectronBuilderConfig {
  * @param env - Packaging environment.
  * @param hostPlatform - Build-host platform used when no explicit target is present.
  * @param hostArch - Build-host architecture used when no explicit target is present.
- * @param preparedRuntime - Verified private qualification runtime; ordinary releases use target-owned resources.
- * @param preparedRuntimeVersion - Version that private runtime declares, which qualification rewrites away from the product version.
+ * @param preparedRuntime - Separately prepared runtime to package; ordinary releases use target-owned resources.
+ * @param preparedRuntimeVersion - Version that prepared runtime declares when it differs from the product version.
  * @returns electron-builder configuration.
  */
 export function createElectronBuilderConfig(

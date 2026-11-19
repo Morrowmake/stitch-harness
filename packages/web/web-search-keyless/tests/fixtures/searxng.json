@@ -1,0 +1,29 @@
+{
+  "query": "cordis plugin framework",
+  "number_of_results": 0,
+  "results": [
+    {
+      "url": "https://github.com/cordiverse/cordis",
+      "title": "GitHub - cordiverse/cordis",
+      "content": "Meta-Framework of Spatiotemporal Composability.",
+      "engine": "duckduckgo",
+      "engines": ["duckduckgo", "brave"],
+      "score": 4.0,
+      "category": "general",
+      "publishedDate": null
+    },
+    {
+      "url": "https://news.example.com/cordis-release",
+      "title": "Cordis 4 released",
+      "content": "",
+      "engine": "bing",
+      "publishedDate": "2026-03-01T00:00:00"
+    },
+    { "url": "javascript:alert(1)", "title": "Script URL", "content": "skipped" }
+  ],
+  "answers": [],
+  "corrections": [],
+  "infoboxes": [],
+  "suggestions": ["cordis framework"],
+  "unresponsive_engines": [["google", "CAPTCHA"]]
+}

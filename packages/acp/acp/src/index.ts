@@ -45,6 +45,7 @@ import {
   type SessionNotification,
   type Stream,
 } from '@agentclientprotocol/sdk'
+import type {} from '@deepseek-ai/dsh-agent-default-model'
 import type { SessionId } from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-session-persistence'
 // Side-effect type import: declaration-merges the approval waterfall answered below.
@@ -72,9 +73,9 @@ function internalError(detail: string): RequestError {
 
 /** Plugin config: the provider/model selection used for each ACP-created agent. */
 export interface AcpConfig {
-  /** Provider route for created agents. */
+  /** Provider route for created agents; with `model`, overrides the deployment default model. */
   provider?: string
-  /** Model name for created agents. */
+  /** Model name for created agents; with `provider`, overrides the deployment default model. */
   model?: string
   /** Maximum summaries returned by one session/list page. */
   sessionListPageSize?: number
@@ -179,7 +180,8 @@ export function apply(ctx: Context, config: AcpConfig): void {
     async initialize(_params: InitializeRequest): Promise<InitializeResponse> {
       // Single-version agent: the spec's "same version if supported, else
       // the latest supported" both resolve to this server's one version.
-      imagePromptEnabled = await supportsAcpImagePrompts(ctx, config.provider, config.model)
+      const route = agentOptions(ctx, config)
+      imagePromptEnabled = await supportsAcpImagePrompts(ctx, route.provider, route.model)
       return {
         protocolVersion: PROTOCOL_VERSION,
         agentInfo: { name: 'deepseek-harness-acp', version: '0.0.1' },
@@ -210,7 +212,7 @@ export function apply(ctx: Context, config: AcpConfig): void {
           sessionId,
           cwd: params.cwd,
           mcpServers: params.mcpServers,
-          agentOptions: agentOptions(config),
+          agentOptions: agentOptions(ctx, config),
           signal,
           notify,
         })
@@ -260,7 +262,7 @@ export function apply(ctx: Context, config: AcpConfig): void {
             sessionId,
             cwd: params.cwd,
             mcpServers: params.mcpServers ?? [],
-            agentOptions: agentOptions(config),
+            agentOptions: agentOptions(ctx, config),
             signal,
             notify,
           })
@@ -437,15 +439,17 @@ export function apply(ctx: Context, config: AcpConfig): void {
 }
 
 /**
- * Build per-agent options from plugin config without assigning absent optional fields.
+ * Resolve the route for ACP-created agents: the plugin's own provider/model
+ * when both are configured, otherwise the deployment default model, if any.
+ * Without either the Agent loop reports the missing model at its first step.
+ * @param ctx - plugin context carrying the optional default model service.
  * @param config - ACP provider/model configuration.
- * @returns the configured fields only.
+ * @returns the resolved route fields only.
  */
-function agentOptions(config: AcpConfig): { provider?: string; model?: string } {
-  return {
-    ...config.provider !== undefined ? { provider: config.provider } : {},
-    ...config.model !== undefined ? { model: config.model } : {},
-  }
+function agentOptions(ctx: Context, config: AcpConfig): { provider?: string; model?: string } {
+  if (config.provider !== undefined && config.model !== undefined) return { provider: config.provider, model: config.model }
+  const fallback = ctx.get('agentDefaultModel')?.configuredSelection()
+  return fallback === undefined ? {} : { provider: fallback.provider, model: fallback.model }
 }
 
 interface SessionListCursor {

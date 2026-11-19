@@ -30,9 +30,9 @@ import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import { apiKeyFailure } from './apiKey.ts'
 import { ApiKeyInput } from './ApiKeyInput.tsx'
 import { EditorFooter } from './EditorFooter.tsx'
-import { validateDeepSeekModels } from './DeepSeekModelsEditor.tsx'
+import { validateModels } from './model-drafts.ts'
 import { ModelListEditor } from './ModelListEditor.tsx'
-import type { ModelDraft } from './ModelListEditor.tsx'
+import type { ModelDraft } from './model-drafts.ts'
 import { validateReasoningEfforts } from './ModelReasoningEfforts.tsx'
 import { deriveKeyRef } from './store.ts'
 import { protocolLabel } from './protocol-label.ts'
@@ -131,6 +131,8 @@ export function CustomProviderCard(props: CustomProviderCardProps): ReactNode {
   /** Everything but the key stops being editable once the provider exists. */
   const profileDisabled = disabled || committed
 
+  // `--` separates route and account in pi-ai credential record ids (`<route>--<account>`), so the Host refuses it.
+  const routeReserved = route.includes('--')
   const routeInvalid = route.length > 0 && !ROUTE_PATTERN.test(route)
   const routeTaken = taken.includes(route)
   const normalizedBaseURL = baseURL.trim()
@@ -140,7 +142,7 @@ export function CustomProviderCard(props: CustomProviderCardProps): ReactNode {
   // fallbacks; what a route cannot default is at least one model. Every row of
   // this hand-declared route edits its reasoning levels, so they are checked too.
   const reasoning = protocolReasoningLevels(protocol, reasoningLevels)
-  const modelFailure = validateDeepSeekModels(models)
+  const modelFailure = validateModels(models)
     ?? validateReasoningEfforts(models, reasoning.levelsOnly ? reasoning.levels : undefined)
   // A blank key is a legal choice only where the protocol can authenticate without one.
   const keyMissing = protocolNeedsKey(protocol) && keyDraft.trim().length === 0
@@ -244,7 +246,7 @@ export function CustomProviderCard(props: CustomProviderCardProps): ReactNode {
       {/* A rejected id reads as a fault, not as guidance — the same split the
           key field below already makes between its failure and its hint. */}
       {routeInvalid || routeTaken
-        ? <p className={styles['error']}>{t(routeInvalid ? 'customRouteInvalid' : 'customRouteTaken')}</p>
+        ? <p className={styles['error']}>{t(routeReserved ? 'customRouteReserved' : routeInvalid ? 'customRouteInvalid' : 'customRouteTaken')}</p>
         : <p className={styles['advancedHint']}>{t('customRouteHint')}</p>}
       <div className={styles['field']}>
         <span className={styles['fieldLabel']}>{t('customDisplayName')}</span>

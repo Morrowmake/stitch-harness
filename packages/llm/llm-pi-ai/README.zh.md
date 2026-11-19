@@ -31,7 +31,7 @@ kind: "package-reference"
 
 ### 何时选择
 
-当同一组合服务多个提供方、某条路由需要 pi-ai 目录默认值并修正少数字段、或必须通过自有端点与协议到达手工声明网关时，选择本适配器。当部署不需要其他提供方时，选择 `dsh-llm-deepseek` 直连 DeepSeek 路由。两个适配器可以同时挂载，因为它们的路由名不冲突；注册其他适配器已拥有的路由会导致插件加载失败。
+所有模型请求都经由本适配器：它是 harness 唯一的 LLM 适配器，因此同一个 `providers` 字典即可服务一个或多个提供方。`deepseek`、`openai`、`anthropic` 等目录路由采用 pi-ai 默认值，必要时修正少数字段；手工声明的网关通过其自有端点与协议到达。DeepSeek 没有特殊处理：它就是目录中的 `deepseek` 路由，与其他提供方一样配置。注册其他适配器已拥有的路由会导致插件加载失败。
 
 ### 配置提供方路由
 
@@ -96,7 +96,25 @@ kind: "package-reference"
 
 ### 登录提供方
 
-pi-ai 提供登录的提供方可以通过 harness 授权 seam 登录：流程提供 OAuth 或交互式密钥提示（密钥键入 pi-ai 自己的登录提示，而非设置表单），得到的凭据存储在 harness 凭据存储的 `llm-pi-ai/<provider id>` 记录中。存储的登录在其路由的 `apiKeyEnv` 覆盖之下完成认证，并在存储的跨进程锁下自行刷新；退出登录即删除存储记录。落在记录文法之外——小写连字符标识符——的手工声明路由键无法登录，因为对它的记录写入会以 `LlmError('UNSTORABLE_PROVIDER_ID')` 拒绝；这类路由改用 `apiKeyEnv` 或提供方 ambient 设置认证。
+pi-ai 提供登录的每个提供方都可以在“设置 → 模型”（`llmAccounts` Remote）中登录：OAuth——包括 OpenAI 的“使用 ChatGPT 登录”与 Anthropic 的 Claude 登录，完全按 pi-ai 自带方式运行——或 pi-ai 的交互式密钥提示。每次登录就是一个**账号**；一条路由可以有多个账号。每次尝试仅在其进行期间注册自己的授权流程，因此空闲的授权 seam 不列出任何流程。OpenAI 的“使用 ChatGPT 登录”需要设备 id：每个账号拥有自己的随机 id，仅保存在该账号的凭据记录内，随每次令牌刷新保留，并随账号一起删除；不存在全安装范围的 id。已登录令牌在其记录的跨进程锁下刷新。落在记录文法之外——不含 `--` 的小写连字符标识符——的手工声明路由键无法登录（`LlmError('UNSTORABLE_PROVIDER_ID')`）；这类路由改用 `apiKeyEnv` 或提供方 ambient 设置认证。
+
+### 账号与用量池
+
+路由的账号是其存储的凭据记录；当 profile 指定 `apiKeyEnv` 时另有虚拟账号 `env`；两者皆无的路由有虚拟账号 `ambient`（pi-ai 自身的环境发现）。记录位于 `llm-pi-ai/<route>`（账号 `main`，即此前每次登录已写入的记录）以及其他账号的 `llm-pi-ai/<route>--<accountId>`，因此路由键不得包含 `--`。非机密元数据存放在设置 profile 中，绝不进入凭据记录：
+
+```yaml
+providers:
+  openai-codex:
+    defaultAccount: main
+    accounts:
+      main: { alias: Personal }
+      k3j9x0a1bc: { alias: Work, pooled: false, pinned: true }
+      env: { models: [gpt-5.1] }   # absent = every model; [] = none
+```
+
+请求先尝试该会话上次服务的账号，再尝试默认账号（`defaultAccount`，否则 `main`，否则 `env`，否则最早创建者），然后按 `order`、`createdAt` 与 id 尝试其余账号；未加入池的账号会被跳过，除非默认账号是唯一可用者。在首个内容块之前，限流、配额耗尽、402/404 或认证失败会把请求转到下一个账号；OAuth 的 401 会先对同一账号强制刷新一次令牌并重试。服务器错误、超时、传输失败与请求本身的错误从不切换账号（瞬时错误由 `dsh-llm-retry` 负责）。冷却时间遵循提供方的 `Retry-After` 或重置披露，否则从 30 秒（限流）或 30 分钟（配额）开始增长；刷新被永久拒绝的账号仍保留存储，并标记为需要重新登录。所有账号均不可用时，请求立即失败，带上最后一次失败的代码、各账号的恢复摘要，以及设为最早恢复时间的 `providerRetryAfterMs`；路由器从不等待。每个错误结束块也携带捕获到的 HTTP `status` 与重置提示，单账号路由同样如此。`pinned: true` 的账号还会以 `~acct:<accountId>:<model>` 条目出现在模型选择器中，并以其别名作为徽标；这类条目只由该账号服务，从不切换。已登录账号的回放状态与该账号绑定，因此切换账号会造成一次提示缓存未命中。
+
+用量条与输入框徽标读取仅存于内存的用量快照：每次请求的限流响应头；另外——仅对具有用量端点的已登录订阅（ChatGPT/Codex、Claude、Grok），且仅在设置页或徽标打开时（或限流后一次）——调用该提供方自己的用量端点，并使用 pi-ai 为该账号推理时所用的同一客户端身份。不会联系任何其他主机。健康状态、会话粘性与用量从不持久化。
 
 ### 解析模型目录
 
@@ -156,8 +174,9 @@ Config 更新严格验证发生变化的 provider。初始加载将已存储的�
 | 文件 | 职责 |
 |---|---|
 | [`src/index.ts`](src/index.ts) | Config 快照、目录及路由注册 |
-| [`src/auth.ts`](src/auth.ts) | 覆盖 harness 凭据平面的凭据存储与 ambient auth context |
-| [`src/login.ts`](src/login.ts) | 面向提供登录的已安装提供方的授权流程 |
+| [`src/auth.ts`](src/auth.ts) | 覆盖 harness 凭据平面的 ambient auth context |
+| [`src/login.ts`](src/login.ts) | pi-ai 登录的方法与通知/提示转换 |
+| [`src/accounts/`](src/accounts/) | 账号：记录键、作用域存储、目录、健康状态、调度、失败分类、响应捕获、路由器、`llmAccounts` Remote、登录与用量 |
 | [`src/config.ts`](src/config.ts) | Profile schema、解析与可服务性校验 |
 | [`src/catalog.ts`](src/catalog.ts) | 已安装目录集成与漂移门禁 |
 | [`src/provider-data.ts`](src/provider-data.ts) | 配置界面使用的认证与端点生成数据 |
@@ -205,13 +224,11 @@ Anthropic 可以将每个已签名 thinking 块绑定到生成它时的请求前
 <a id="further-exploration"></a>
 ## 进一步探索
 
-当包级约定不够用时阅读以下页面。它们从服务约定逐步进入孪生适配器与共享类型。
+当包级约定不够用时阅读以下页面。它们从服务约定逐步进入流式协议与共享类型。
 
 - [dsh-llm 服务](../llm/README.zh.md)——本适配器注册其上的提供方无关服务。
-- [llm-deepseek 适配器](../llm-deepseek/README.zh.md)——`deepseek-official` 路由的 DeepSeek 直连孪生。
 - [LLM 流式子系统](../../../docs/subsystems/llm-streaming.zh.md)——`StreamChunk` 协议与适配器约定。
 - [llm-retry](../llm-retry/README.zh.md)——应用每个 profile `retryPolicy` 的重试执行器。
-- [孪生 LLM 适配器](../../../.agents/notes/implemented/architecture/2026-06-13-twin-llm-adapters.zh.md)——为什么 DeepSeek 路由交付两个结构不同的适配器。
 - [生成配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-llm-pi-ai)——每个受支持配置字段及其源声明。
 
 -----
@@ -257,7 +274,8 @@ pi-ai 事件变成 harness 的推理、文本、工具调用、用量与 finish 
 - **`maxRequestImageBytes` 只计算 base64 图片载荷**，文本、工具、描述符与 JSON 结构在该上限之外，因此它必须留有余量地低于网关请求体上限。
 - **字节上限没有移除量子**：达到 `maxRequestImageBytes` 后，每张新图片都只省略最少的最老前缀，因此每个新增图片的请求都会让提示词缓存复用从该位置重新开始。
 - **登录只存在于发起它的进程中**——授权尝试不持久，因此登录中途刷新页面会放弃它，用户需要重新开始。退出登录是对已存储记录执行 `deleteRecord`，只在本地忘记它，不会告知签发方。
-- **OpenAI 不提供 ChatGPT 登录**——pi-ai 的 Sign in with ChatGPT 用应用提供的稳定 UUID 向 OpenAI 标识安装实例，而 harness 没有用于第三方账号登录的安装 ID；`openai` 路由改用 API key 登录。
+- **池状态仅在进程内存中**——冷却、重新登录标记、会话粘性与用量快照随进程重启而清空，因此重启后的首个请求可能再碰一次仍受限的账号。路由的所有账号共用该路由的目录描述：不参考按账号的模型可用性（pi-ai `filterModels`），因此允许列表是唯一的按账号模型控制。
+- **每台主机同一时间只能进行一次 ChatGPT 登录**——pi-ai 的 OpenAI 与 Codex 登录共用固定的回环回调端口 1455，因此任一路由的第二个并发尝试会被拒绝；无界面主机改为粘贴回调 URL。
 - **提供方原生发现经本插件的 ambient context 回答**——不点名凭据的路由交由目录提供方自身解析，它会询问环境值（`AZURE_OPENAI_API_KEY`、`AWS_PROFILE` 及各提供方自有集合）与本地凭据文件。两个问题都在这里得到回答：凭据 seam 先于进程环境被查询，文件存在性则针对宿主进程的文件系统以 `~` 展开后检查。它做不到的是*读取*凭据文件内容——自行解析 `~/.aws/credentials` 的提供方会直接读取，不经该 seam。
 - **重置恢复继承配置**——重置下层 profile 提供的路由会恢复该路由。
 - **完整替换 Config 可以移除继承的字典条目**——字段重置则恢复其继承值。

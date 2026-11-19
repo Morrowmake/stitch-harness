@@ -9,7 +9,7 @@ kind: "package-bundle"
 
 ## 概述
 
-此可选组合包（bundle）挂载自定义插件索引：Host 的 [`pluginMarket`](../../boot/plugin-market/README.zh.md) 服务读取用户添加的插件索引，Web 端提供插件页的[发现标签页](../../client/ui-plugin-market/README.zh.md)。随包配置默认禁用。
+此可选组合包（bundle）挂载自定义插件索引：Host 的 [`pluginMarket`](../../boot/plugin-market/README.zh.md) 服务读取 Stitch 插件索引和用户添加的插件索引，Web 端提供插件页的[发现标签页](../../client/ui-plugin-market/README.zh.md)。随包配置默认禁用。
 
 ## 目录
 
@@ -24,7 +24,7 @@ kind: "package-bundle"
 <a id="use-this-package"></a>
 ## 使用此包
 
-打开 Web 侧栏中的**插件**，在**实验性插件**下启用**自定义插件索引**。页面随后显示**已安装**和**发现**两个标签页。在[发现](../../client/ui-plugin-market/README.zh.md#use-this-package)中添加直接返回 JSON 的地址或 Git 仓库，包括 Host 有权访问的私有仓库，并安装索引中的组合包。禁用此组合包会移除发现标签页和 `plugin_market` 工具。已保存的索引源保留在 profile 中。
+打开 Web 侧栏中的**插件**，在**实验性插件**下启用**自定义插件索引**。页面随后显示**已安装**和**发现**两个标签页。发现标签页默认配置了 [Stitch 插件索引](https://github.com/Morrowmake/stitch-plugins)，且只在打开该标签页时读取；插件作者通过拉取请求在那里提交插件。在[发现](../../client/ui-plugin-market/README.zh.md#use-this-package)中添加直接返回 JSON 的地址或 Git 仓库（包括 Host 有权访问的私有仓库），或移除默认索引，并安装索引中的组合包。禁用此组合包会移除发现标签页和 `plugin_market` 工具。已保存的索引源保留在 profile 中。
 
 -----
 
@@ -53,7 +53,7 @@ kind: "package-bundle"
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- 目前没有官方插件索引；发现标签页只列出用户添加的索引源。
+- Stitch 插件索引通过拉取请求维护且未签名；条目内容是插件包对自身的声明，并非审查结论。
 
 -----
 

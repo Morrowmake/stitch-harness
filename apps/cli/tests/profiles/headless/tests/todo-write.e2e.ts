@@ -28,7 +28,7 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY)('todo_write: real model records a
   it('appends a todo/write event with the model-produced task list', async () => {
     workdir = await mkdtemp(join(tmpdir(), 'dsh-todo-write-e2e-'))
     ctx = await codingHarness(workdir, { personaPrefix: TODO_SYSTEM_PROMPT })
-    const agent = await ctx.agentLoop.create(brandString<SessionId>('e2e-todo'), { provider: 'deepseek-official', model: 'deepseek-v4-flash' }, { cwd: workdir })
+    const agent = await ctx.agentLoop.create(brandString<SessionId>('e2e-todo'), { provider: 'deepseek', model: 'deepseek-flash' }, { cwd: workdir })
 
     agent.followup(createUserMessage({
       content: [{ type: 'text', text:

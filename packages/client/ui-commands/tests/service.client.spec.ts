@@ -134,9 +134,9 @@ async function bench(opts: BenchOptions = {}) {
   if (opts.addressed !== undefined) mint(opts.addressed)
   const remote = Object.assign(new TestRemote(ctx), { commands: commandsRemote })
   ctx.provide('remote.commands', commandsRemote)
-  const executions: Array<{ sessionId: SessionId; name: string; result: CommandResult }> = []
-  ctx.on('command/executed', (sessionId, name, result) => {
-    executions.push({ sessionId, name, result })
+  const executions: Array<{ sessionId: SessionId; name: string; result: CommandResult; line: string }> = []
+  ctx.on('command/executed', (sessionId, name, result, line) => {
+    executions.push({ sessionId, name, result, line })
   })
   /** Notices the fake conversation face collected (runDetached routing). */
   const notices: Array<{ scope: SessionId | undefined; level: 'info' | 'error'; text: string }> = []
@@ -664,6 +664,7 @@ describe('dispatch (menu column)', () => {
         sessionId: sid('s1'),
         name: 'plan',
         result: { kind: 'success' },
+        line: '/plan',
       }])
     })
   })
@@ -895,6 +896,7 @@ describe('execute payload', () => {
       sessionId: sid('s1'),
       name: 'goal',
       result: { kind: 'success' },
+      line: '/goal ship it',
     }])
   })
 

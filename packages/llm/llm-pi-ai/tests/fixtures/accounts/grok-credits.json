@@ -1,0 +1,7 @@
+{
+  "config": {
+    "creditUsagePercent": 2,
+    "currentPeriod": { "type": "USAGE_PERIOD_TYPE_WEEKLY", "start": "2026-08-11T10:14:00Z", "end": "2026-08-18T10:14:00Z" }
+  },
+  "subscriptionTier": "SuperGrok Heavy"
+}

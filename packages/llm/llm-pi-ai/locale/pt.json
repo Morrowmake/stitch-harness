@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "adaptação do modelo pi-ai",
-    "description": "Fornecimento de adaptação do modelo DeepSeek via pi-ai para DeepSeek Harness como uma implementação verificada por design de dsh-llm-deepseek."
+    "description": "Adaptador LLM multiprovedor via pi-ai: todo acesso a modelos passa pelas rotas configuradas no dicionário providers (provedores do catálogo ou gateways declarados)."
   }
 }

@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Provider accounts",
+    "description": "Accounts section in each pi-ai provider card on the Models page — sign-in, API-key accounts, default, pool, model allowlist, usage bars — and the composer usage badge."
+  }
+}

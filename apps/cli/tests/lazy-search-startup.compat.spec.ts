@@ -42,7 +42,6 @@ function runBuiltWeb(cwd: string): Promise<{ stdout: string; stderr: string; cod
   return new Promise((resolveRun, rejectRun) => {
     const env: NodeJS.ProcessEnv = {
       ...process.env,
-      DEEPSEEK_API_KEY: 'dsh-cli-smoke-dummy-key',
       DSH_HOME: join(cwd, '.dsh'),
     }
     delete env.DEEPSEEK_BASE_URL

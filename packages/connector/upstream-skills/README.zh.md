@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-企业微信、腾讯会议等 CLI 应用插件向 `ctx.upstreamSkills` 注册，以获取厂商只在自己 GitHub 仓库里发布的子指南。插件保留自己的入口 `SKILL.md`，并按提交、总大小和摘要固定该仓库的一个目录。插件加载时，Service 下载这个提交的归档，校验保留的文件，把它们发布到 DSH 缓存，并列出入口技能，把发布目录作为它的基础目录。仓库和插件的 npm 包里都没有这些文件的副本。Service 由基础组合包加载，在有插件注册之前不下载任何内容。
+企业微信、腾讯会议等 CLI 应用插件向 `ctx.upstreamSkills` 注册，以获取厂商只在自己 GitHub 仓库里发布的子指南。插件保留自己的入口 `SKILL.md`，并按提交、大小和摘要固定该仓库的一个目录。插件加载时，Service 下载这个提交的归档，校验保留的文件，把它们发布到 DSH 缓存，并基于它们列出入口技能。仓库和插件的 npm 包都不复制这些文件。Service 是可选的：只在 profile 挂载它时加载，在有插件注册之前不下载任何内容。
 
 ## 目录
 
@@ -33,7 +33,7 @@ CLI 应用插件的 Host 行注入 `upstreamSkills` 并调用一次 `register`�
 
 ### 最小配置
 
-[基础组合包（base bundle）](../../bundle/base/cordis.patch.yml)在基于它的每个 profile 中加载这个 Service，位于它注入的 `skills` 注册表之后：
+没有内置组合包加载这个 Service。安装此类插件的 profile 在自己的 Cordis patch 中挂载它，位于 `skills` 注册表之后：
 
 ```yaml
 - id: upstream-skills
@@ -125,7 +125,7 @@ Service 按顺序从每个 `skillsUrls` 前缀下载 `<前缀>/<owner>/<reposito
 - [运行时下载上游技能](../../../.agents/notes/implemented/architecture/2026-10-28-upstream-skills-runtime-download.zh.md)——插件为什么下载这些文件，而不是携带副本。
 - [Skill registry](../../skill/skill/README.zh.md)——Service 注册每个入口技能时使用的提供方与目录 API。
 - [Skill 子系统参考](../../../docs/subsystems/skills.zh.md)——技能如何到达模型。
-- [Base bundle](../../bundle/base/README.zh.md)——加载这个 Service 的组合包，以及 profile 如何覆盖它的某一行。
+- [Base bundle](../../bundle/base/README.zh.md)——共享的 profile 行，profile 在其基础上加入这个 Service 的行。
 
 -----
 

@@ -23,7 +23,7 @@ const { version } = createRequire(import.meta.url)('../package.json') as { versi
  * and nothing per-request may influence the values.
  */
 export interface AppIdentity {
-  /** `User-Agent` product token (lowercase, hyphenated). */
+  /** `User-Agent` product token, such as `Stitch`; sent as `Stitch/<version>`. */
   product: string
   /** Product version; sourced from package metadata, never hand-copied. */
   version: string
@@ -58,9 +58,9 @@ function launchSuffix(): string | undefined {
  * can suppress attribution entirely.
  */
 export const APP_IDENTITY: AppIdentity = {
-  product: 'deepseek-harness',
+  product: 'Stitch',
   version,
-  url: 'https://github.com/deepseek-ai/deepseek-harness',
+  url: 'https://github.com/Morrowmake/stitch-harness',
   get suffix() { return launchSuffix() },
 }
 

@@ -26,6 +26,7 @@
  * @module dsh-llm-pi-ai/adapter
  */
 
+import { ModelsError } from '@earendil-works/pi-ai'
 import type {
   Api,
   AuthContext,
@@ -61,7 +62,16 @@ import { idleWatchdog, timeoutOf } from '@deepseek-ai/dsh-timeout'
 import type { ResolvedPiAiProviderProfile } from './config.ts'
 import { requestImageTarget, toPiContext } from './context.ts'
 import { conversationUpdates, createModels, getSupportedThinkingLevels } from './models.ts'
+import { bindReplayToAccount } from './replay.ts'
 import { toStreamChunks } from './stream.ts'
+import { capturingFetch, FETCHABLE_APIS, responseObserver } from './accounts/capture.ts'
+import { REFRESH_FAILURE_CODE } from './accounts/classify.ts'
+import { AMBIENT_ACCOUNT, ENV_ACCOUNT, MAIN_ACCOUNT } from './accounts/keys.ts'
+import { AccountPool, accountLabel, parsePinnedModelId, pinnedModelId } from './accounts/router.ts'
+import type { AttemptObserver } from './accounts/router.ts'
+import type { AccountRuntime } from './accounts/runtime.ts'
+import { allows } from './accounts/scheduler.ts'
+import type { AccountId } from './accounts/types.ts'
 import { bindThinkingToPrefix } from './prefix-binding.ts'
 import type { PrefixDigests } from './prefix-binding.ts'
 import type { PiAiRequestHeaderContext } from './types.ts'
@@ -82,6 +92,32 @@ interface PiAiSnapshot {
   profiles: ReadonlyMap<string, ResolvedPiAiProviderProfile>
   /** Providers for exactly those profiles; never mutated once published. */
   models: Models
+  /** Per stored account (other than `main`), the same providers over that account's credential store; built lazily. */
+  byAccount: Map<AccountId, Models>
+}
+
+/** Virtual accounts and `main` resolve through the snapshot's own collection (the legacy store). */
+const SHARED_ACCOUNTS: ReadonlySet<AccountId> = new Set([MAIN_ACCOUNT, ENV_ACCOUNT, AMBIENT_ACCOUNT])
+
+/** The one account a route has when no pool is mounted: its key reference, else pi-ai's own discovery. */
+function legacyAccount(provider: string, profile: ResolvedPiAiProviderProfile | undefined): AccountRuntime {
+  const keyRef = profile?.apiKeyEnv !== undefined
+  return {
+    provider,
+    id: keyRef ? ENV_ACCOUNT : AMBIENT_ACCOUNT,
+    kind: keyRef ? 'key-ref' : 'ambient',
+    meta: { pooled: true, pinned: false },
+    isDefault: true,
+  }
+}
+
+/** Map a pi-ai auth-resolution failure of a signed-in account to a classifiable `LlmError`. */
+function authFailure(error: unknown, provider: string, account: AccountRuntime): unknown {
+  if (!(error instanceof ModelsError) || error.code !== 'oauth') return error
+  return LlmError.fromFailure({
+    message: `llm-pi-ai: signing in to provider "${provider}" as account "${accountLabel(account)}" could not refresh its token`,
+    code: REFRESH_FAILURE_CODE,
+  }, { cause: error })
 }
 
 /** Constructor options for {@link PiAiAdapter}: the two resolution hooks the plugin owns. */
@@ -135,14 +171,21 @@ export interface PiAiAdapterOptions {
    * conversation report them again.
    */
   onThinkingOmitted?: (detail: { provider: string; model: string; count: number }) => void
+  /**
+   * The multi-account pool. Omitted, each route has exactly one account —
+   * its `apiKeyEnv` reference, else pi-ai's own auth over the `main` store.
+   */
+  pool?: AccountPool
 }
 
-/** The two auth injectables a pi-ai collection is built with. */
+/** The auth injectables a pi-ai collection is built with. */
 export interface PiAiAuthInjection {
-  /** Durable storage for credentials pi-ai itself writes: logins, and the refreshes it runs under its own lock. */
+  /** Durable storage of the `main` account: logins, and the refreshes pi-ai runs under its own lock. */
   credentials: CredentialStore
   /** Ambient lookups a provider performs while resolving its own auth. */
   authContext: AuthContext
+  /** The store of one other stored account; omitted, only `main` exists. */
+  accountCredentials?: (account: AccountId) => CredentialStore
 }
 
 /** Copy profile stream knobs into pi-ai's common option vocabulary. */
@@ -281,9 +324,15 @@ function requestHeaders(
  */
 export class PiAiAdapter extends LlmAdapter {
   private snapshot: PiAiSnapshot | undefined
+  /** The configured pool, or a one-account-per-route pool over the profiles. */
+  readonly pool: AccountPool
 
   constructor(private readonly config: PiAiAdapterOptions) {
     super()
+    this.pool = config.pool ?? new AccountPool({
+      forRoute: route => Promise.resolve([legacyAccount(route, this.current().profiles.get(route))]),
+      invalidate: () => {},
+    })
   }
 
   override imageRequestTarget(provider: string, model: string, image: ImageAttachmentRef) {
@@ -302,12 +351,44 @@ export class PiAiAdapter extends LlmAdapter {
   private current(): PiAiSnapshot {
     const profiles = this.config.profiles()
     if (this.snapshot?.profiles === profiles) return this.snapshot
-    const models: MutableModels = createModels(this.config.auth)
+    this.snapshot = { profiles, models: this.collection(profiles, this.config.auth.credentials), byAccount: new Map() }
+    return this.snapshot
+  }
+
+  /** A collection holding every profile's provider over one credential store. */
+  private collection(profiles: ReadonlyMap<string, ResolvedPiAiProviderProfile>, credentials: CredentialStore): Models {
+    const models: MutableModels = createModels({ credentials, authContext: this.config.auth.authContext })
     for (const profile of profiles.values()) {
       if (profile.piProvider !== undefined) models.setProvider(profile.piProvider)
     }
-    this.snapshot = { profiles, models }
-    return this.snapshot
+    return models
+  }
+
+  /** The collection serving one account: `main` and the virtual accounts share the snapshot's own. */
+  private modelsFor(snapshot: PiAiSnapshot, account: AccountId): Models {
+    const scoped = this.config.auth.accountCredentials
+    if (SHARED_ACCOUNTS.has(account) || scoped === undefined) return snapshot.models
+    let models = snapshot.byAccount.get(account)
+    if (models === undefined) {
+      models = this.collection(snapshot.profiles, scoped(account))
+      snapshot.byAccount.set(account, models)
+    }
+    return models
+  }
+
+  /**
+   * The account-scoped collection of the current snapshot (sign-in and usage fetchers).
+   * @param account - the account id; `main` and the virtual accounts share the snapshot's own collection.
+   * @returns the pi-ai model collection reading that account's credentials.
+   */
+  accountModels(account: AccountId): Models {
+    return this.modelsFor(this.current(), account)
+  }
+
+  /** The credential store pi-ai refreshes one account's token through. */
+  private storeFor(account: AccountId): CredentialStore {
+    const scoped = this.config.auth.accountCredentials
+    return SHARED_ACCOUNTS.has(account) || scoped === undefined ? this.config.auth.credentials : scoped(account)
   }
 
   /** The profile for one route within one snapshot, or the not-owned failure. */
@@ -319,8 +400,9 @@ export class PiAiAdapter extends LlmAdapter {
     return profile
   }
 
-  /** The configured descriptor for one exact route/model pair within one snapshot. */
-  private modelOf(snapshot: PiAiSnapshot, provider: string, model: string): Model<Api> {
+  /** The configured descriptor for one route/model pair (a pinned `~acct:` id names its underlying model). */
+  private modelOf(snapshot: PiAiSnapshot, provider: string, requested: string): Model<Api> {
+    const model = parsePinnedModelId(requested)?.model ?? requested
     const profile = this.profileOf(snapshot, provider)
     const failure = profile.modelErrors.get(model)
       ?? (profile.piProvider === undefined ? profile.catalogError : undefined)
@@ -343,22 +425,44 @@ export class PiAiAdapter extends LlmAdapter {
     return this.current().profiles.get(provider)?.retryPolicy
   }
 
+  /**
+   * Pool entries (catalog models allowed by a pooled account, or by the
+   * default account) plus `~acct:<id>:<model>` entries for every pinned
+   * account. A route with no usable account offers nothing: a named key that
+   * does not resolve and no stored account is today's `MISSING_CREDENTIAL → []`.
+   */
   override listModels(provider: string): Promise<readonly LlmModelInfo[]> {
     return Promise.resolve().then(async () => {
       const snapshot = this.current()
       const profile = this.profileOf(snapshot, provider)
-      try { await this.config.resolveApiKey(provider, profile) }
-      catch (error) {
-        // A route whose named key does not resolve cannot serve a request, so it offers no models until the key is stored.
-        if (error instanceof LlmError && error.code === 'MISSING_CREDENTIAL') return []
-        throw error
+      const usable: AccountRuntime[] = []
+      for (const account of await this.pool.directory.forRoute(provider)) {
+        if (account.kind === 'key-ref' || account.kind === 'ambient') {
+          try { await this.config.resolveApiKey(provider, profile) }
+          catch (error) {
+            // A named key that does not resolve cannot serve a request.
+            if (error instanceof LlmError && error.code === 'MISSING_CREDENTIAL') continue
+            throw error
+          }
+        }
+        usable.push(account)
       }
-      return snapshot.models.getModels(provider).map(model => ({
+      const catalog = snapshot.models.getModels(provider)
+      const entry = (model: Model<Api>): LlmModelInfo => ({
         provider,
         id: model.id,
         name: model.name,
         inputModalities: [...model.input],
-      }))
+      })
+      const pooled = catalog
+        .filter(model => usable.some(account => (account.meta.pooled || account.isDefault) && allows(account.meta.models, model.id)))
+        .map(entry)
+      const pinned = usable.filter(account => account.meta.pinned).flatMap(account => catalog.map(model => ({
+        ...entry(model),
+        id: pinnedModelId(account.id, model.id),
+        badge: { text: accountLabel(account), tone: 'info' as const },
+      })))
+      return [...pooled, ...pinned]
     })
   }
 
@@ -373,13 +477,18 @@ export class PiAiAdapter extends LlmAdapter {
     })
   }
 
+  /**
+   * Every account of a route shares one catalog descriptor today (per-account
+   * model overrides do not exist), so the capability intersection a failover
+   * needs is the descriptor itself.
+   */
   private modelInfo(snapshot: PiAiSnapshot, provider: string, model: string): LlmResolvedModelInfo {
     const profile = this.profileOf(snapshot, provider)
     const resolvedModel = this.modelOf(snapshot, provider, model)
     const defaultLevel = describableReasoningLevel(resolvedModel, profile.reasoning)
     // Only a cap the deployment configured is a request default; the
     // catalog's `maxTokens` sizes the model and stops there.
-    const configuredMaxTokens = profile.configuredMaxTokens.get(model)
+    const configuredMaxTokens = profile.configuredMaxTokens.get(resolvedModel.id)
     return {
       provider,
       id: model,
@@ -396,21 +505,63 @@ export class PiAiAdapter extends LlmAdapter {
     const snapshot = this.current()
     return Promise.resolve({
       model: this.modelInfo(snapshot, provider, model),
-      stream: options => this.streamWithSnapshot(options, snapshot),
+      stream: options => this.routeStream(options, snapshot),
     })
   }
 
   stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
-    return this.streamWithSnapshot(options, this.current())
+    return this.routeStream(options, this.current())
   }
 
-  private async * streamWithSnapshot(
-    options: GenerateOptions,
-    snapshot: PiAiSnapshot,
-  ): AsyncIterable<StreamChunk> {
+  /** Route one call across the accounts of its provider; see `accounts/router.ts`. */
+  private async * routeStream(options: GenerateOptions, snapshot: PiAiSnapshot): AsyncIterable<StreamChunk> {
     if (options.stop !== undefined) {
       throw new LlmError('llm-pi-ai does not support GenerateOptions.stop', 'UNSUPPORTED_OPTION')
     }
+    this.modelOf(snapshot, options.provider, options.model)
+    const accounts = await this.pool.directory.forRoute(options.provider)
+    yield * this.pool.route(
+      accounts,
+      {
+        route: options.provider,
+        model: options.model,
+        ...options.sessionId === undefined ? {} : { sessionId: String(options.sessionId) },
+        ...options.signal === undefined ? {} : { signal: options.signal },
+      },
+      (account, observer) => this.streamAttempt(options, snapshot, account, observer),
+      (account, observer) => this.forceRefresh(snapshot, options.provider, account, observer, options.signal),
+    )
+  }
+
+  /**
+   * Expire one OAuth account's token under its record lock and refresh it.
+   * Only the token the failed attempt used is expired, so concurrent 401s on
+   * the same account refresh once: pi-ai re-checks expiry under the lock.
+   */
+  private async forceRefresh(
+    snapshot: PiAiSnapshot,
+    provider: string,
+    account: AccountRuntime,
+    observer: AttemptObserver,
+    signal: AbortSignal | undefined,
+  ): Promise<void> {
+    const used = observer.credentialStamp
+    await this.storeFor(account.id).modify(provider, current =>
+      Promise.resolve(current?.type === 'oauth' && (used === undefined || current.access === used) ? { ...current, expires: 0 } : undefined))
+    try {
+      await this.modelsFor(snapshot, account.id).getAuth(provider, signal === undefined ? {} : { signal })
+    } catch (error) {
+      throw authFailure(error, provider, account)
+    }
+  }
+
+  /** One SDK attempt as one account. */
+  private async * streamAttempt(
+    options: GenerateOptions,
+    snapshot: PiAiSnapshot,
+    account: AccountRuntime,
+    observer: AttemptObserver,
+  ): AsyncIterable<StreamChunk> {
     // One capture per stream call, taken before any await: the profile, the
     // model descriptor, and the collection all come from the same immutable
     // snapshot, and the credential freezes with them. A configuration change
@@ -418,21 +569,51 @@ export class PiAiAdapter extends LlmAdapter {
     // the one it started with and the next call picks up the new one.
     const profile = this.profileOf(snapshot, options.provider)
     const model = this.modelOf(snapshot, options.provider, options.model)
+    const models = this.modelsFor(snapshot, account.id)
     const updates = conversationUpdates(model)
+    const onReplayDegrade = (reason: string): void => {
+      this.config.onReplayDegrade?.({ provider: options.provider, model: options.model, reason })
+    }
+    // Signed-in accounts bind their replay state (design D4).
+    const boundAccount = account.kind === 'oauth' ? account.id : undefined
+    const messages = bindReplayToAccount(options.messages, boundAccount, onReplayDegrade)
     // pi-ai collapses Anthropic tool updates without an initially active declaration.
     const tools = options.tools ?? []
     const needsPlaceholder = model.api === 'anthropic-messages' && updates.toolUpdate === 'in-history'
       && tools.every(tool => tool.deferLoading === true)
-      && options.messages.some(message => message.role === 'developer'
+      && messages.some(message => message.role === 'developer'
         && message.content.some(block => block.type === 'tool-addition' || block.type === 'tool-removal'))
     const request = needsPlaceholder
-      ? { ...options, tools: [ANTHROPIC_TOOL_UPDATE_PLACEHOLDER, ...tools] }
-      : options
+      ? { ...options, messages, tools: [ANTHROPIC_TOOL_UPDATE_PLACEHOLDER, ...tools] }
+      : { ...options, messages }
     const reasoning = resolveReasoningLevel(
       model,
       options.reasoningEffort ?? profile.reasoning,
     )
-    const apiKey = await this.config.resolveApiKey(options.provider, profile)
+    // Stored accounts resolve through their own scoped store; the key
+    // reference (and, for an `ambient` route, the host's resolver, which
+    // answers undefined there) supplies the request-level `apiKey` override.
+    const apiKey = account.kind === 'key-ref' || account.kind === 'ambient'
+      ? await this.config.resolveApiKey(options.provider, profile)
+      : undefined
+    if (account.kind === 'oauth') {
+      // Pre-flight: runs the locked refresh now, so a failed refresh is a
+      // typed failure instead of an opaque stream error.
+      let resolved
+      try {
+        resolved = await models.getAuth(options.provider, options.signal === undefined ? {} : { signal: options.signal })
+      } catch (error) {
+        throw authFailure(error, options.provider, account)
+      }
+      if (resolved === undefined) {
+        throw new LlmError(
+          `llm-pi-ai: account "${accountLabel(account)}" of provider "${options.provider}" holds no credential; sign in again`,
+          'MISSING_CREDENTIAL',
+        )
+      }
+      const stored = await this.storeFor(account.id).read(options.provider)
+      if (stored?.type === 'oauth') observer.credentialStamp = stored.access
+    }
 
     const consumer = new AbortController()
     const upstream = options.signal === undefined
@@ -442,16 +623,13 @@ export class PiAiAdapter extends LlmAdapter {
     using watchdog = idleWatchdog(upstream, streamIdleTimeoutMs, 'LLM_STREAM_IDLE_TIMEOUT')
 
     try {
-      const containsImage = options.messages.some(message => contentHasImage(message.content))
+      const containsImage = messages.some(message => contentHasImage(message.content))
       if (containsImage && !model.input.includes('image')) {
         throw new LlmError(`pi-ai model "${model.id}" does not support image input`, 'UNSUPPORTED_CONTENT')
       }
       const attachments = containsImage ? this.config.resolveAttachments?.() : undefined
       if (containsImage && attachments === undefined) {
         throw new LlmError('pi-ai image input requires the durable attachment service', 'UNSUPPORTED_CONTENT')
-      }
-      const onReplayDegrade = (reason: string): void => {
-        this.config.onReplayDegrade?.({ provider: options.provider, model: options.model, reason })
       }
       const prefixDigests: PrefixDigests = new Map()
       const converted = attachments === undefined
@@ -472,15 +650,23 @@ export class PiAiAdapter extends LlmAdapter {
       const { context, digest } = bindThinkingToPrefix(converted, model.api, prefixDigests, manualThinking, (count) => {
         this.config.onThinkingOmitted?.({ provider: options.provider, model: options.model, count })
       })
-      const events = snapshot.models.streamSimple(model, context, {
+      const events = models.streamSimple(model, context, {
         ...profileOptions(profile, reasoning, apiKey),
         ...options.temperature === undefined ? {} : { temperature: options.temperature },
         ...options.maxTokens === undefined ? {} : { maxTokens: options.maxTokens },
         ...options.sessionId === undefined ? {} : { sessionId: String(options.sessionId) },
+        // Response capture: status, rate-limit headers, and (non-2xx) a bounded body.
+        ...FETCHABLE_APIS.has(model.api)
+          ? { fetch: capturingFetch(options.provider, observer) }
+          : { onResponse: responseObserver(options.provider, observer) },
         signal: watchdog.signal,
         headers: requestHeaders(profile.headers, options, model.baseUrl, this.config.prepareHeaders),
       })
-      const iterator = toStreamChunks(events, model.contextWindow, options.signal, model.id, digest)[Symbol.asyncIterator]()
+      // The requested id (pinned or not) is what the durable assistant source records.
+      const iterator = toStreamChunks(events, model.contextWindow, options.signal, options.model, digest, {
+        ...boundAccount === undefined ? {} : { account: boundAccount },
+        enrich: failure => observer.enrich(failure, Date.now()),
+      })[Symbol.asyncIterator]()
       let exhausted = false
       try {
         while (true) {

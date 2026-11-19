@@ -16,8 +16,7 @@ import {
   createUserMessage, isAgentLoopRequest, type ToolCallId,
   type StreamChunk,
 } from '@deepseek-ai/dsh-llm'
-import * as LlmDeepSeek from '@deepseek-ai/dsh-llm-deepseek-api-key'
-import DeepSeekAuth from '@deepseek-ai/dsh-deepseek-auth'
+import * as LlmPiAi from '@deepseek-ai/dsh-llm-pi-ai'
 import PermissionPresetService, { AUTO_PRESET } from '@deepseek-ai/dsh-permission-presets'
 import SandboxProvider, { type ConfinedArgv, type SandboxPolicy } from '@deepseek-ai/dsh-sandbox'
 import SandboxPolicyService from '@deepseek-ai/dsh-sandbox-policy'
@@ -31,10 +30,9 @@ import ApprovalService, { setApprovalPolicy } from '@deepseek-ai/dsh-user-approv
 import { expect, it, vi } from 'vitest'
 import * as AutoReview from '@deepseek-ai/dsh-experimental-auto-review'
 
-const PROVIDER = 'deepseek-official'
-const FLASH = 'deepseek-v4-flash'
+const PROVIDER = 'deepseek'
+const FLASH = 'deepseek-flash'
 const PRO = 'deepseek-v4-pro'
-const VISION = 'deepseek-v4-flash-vision-exp'
 const REAL = process.env.DSH_AUTO_REVIEW_CERTIFICATION === '1'
 const DENIED = 'AUTO_REVIEW_DENIED'
 type Risk = 'low' | 'medium' | 'high'
@@ -136,8 +134,9 @@ async function mount(ctx: Context, workspace: string, dshHome: string): Promise<
     systemPrompt: {}, tools: { mode: 'native' },
   })
   // No reasoning or output-budget override: use each shipped model's defaults.
-  await ctx.plugin(DeepSeekAuth)
-  await ctx.plugin(LlmDeepSeek, { retryPolicy: { mode: 'normal', maxRetries: 0 } })
+  await ctx.plugin(LlmPiAi, {
+    providers: { deepseek: { apiKeyEnv: 'DEEPSEEK_API_KEY', retryPolicy: { mode: 'normal', maxRetries: 0 } } },
+  })
   await ctx.plugin(SandboxPolicyService, { mode: 'workspace-write', workspaceRoot: workspace })
   await ctx.plugin(UnusedSandbox)
   await ctx.plugin(SandboxedFileSystem, { cwd: workspace })
@@ -309,7 +308,7 @@ it('certifies eight Auto risk/authorization cases with zero retries and zero ski
       await low.dispose()
     }
 
-    for (const [model, path] of [[FLASH, 'ptc-inner'], [PRO, 'native'], [VISION, 'ptc-inner']] as const) {
+    for (const [model, path] of [[FLASH, 'ptc-inner'], [PRO, 'native']] as const) {
       // Runner-owned pre-existing state is deliberately absent from Session
       // creation history. Both prompts issue the identical action and target.
       const target = join(workspace, `${model}-pre-existing.txt`)

@@ -423,7 +423,7 @@ describe('package payload constraints', () => {
   })
 
   it('rejects a bundle whose locale detail document is missing from its publication files', () => {
-    const dir = 'packages/experimental/badge-skill-bundle'
+    const dir = 'packages/experimental/ralph-bundle'
     const manifest = JSON.parse(readFileSync(join(import.meta.dirname, '..', dir, 'package.json'), 'utf8')) as WorkspaceManifest['manifest']
     expect(checkWorkspaceManifest({ dir, manifest })).toEqual([])
     const files = (manifest.files ?? []).filter(file => file !== 'docs')
@@ -453,7 +453,8 @@ describe('package payload constraints', () => {
     },
   )
 
-  it.each(['apps/plugin-market-generator', 'apps/desktop-publisher'])('exempts private tool %s from release rules in its own directory only', (dir) => {
+  it('exempts private tool apps/plugin-market-generator from release rules in its own directory only', () => {
+    const dir = 'apps/plugin-market-generator'
     const manifest = JSON.parse(readFileSync(new URL(`../${dir}/package.json`, import.meta.url), 'utf8')) as WorkspaceManifest['manifest']
     expect(checkWorkspaceManifest({ dir, manifest })).toEqual([])
     expect(checkWorkspaceManifest({ dir: 'apps/other-tool', manifest })).not.toEqual([])
@@ -553,7 +554,7 @@ describe('package payload constraints', () => {
     ])
   })
 
-  it.each(['ui-chat', 'ui-settings-account'])(
+  it.each(['ui-chat'])(
     'accepts the published package assets for %s and rejects their omission', (name) => {
       const dir = `packages/client/${name}`
       const manifest = JSON.parse(readFileSync(new URL(`../${dir}/package.json`, import.meta.url), 'utf8')) as WorkspaceManifest['manifest']
@@ -605,16 +606,6 @@ it('requires Node profile configuration and both execution bootstraps in the pub
   for (const omitted of ['lib/configuration.js', 'lib/process.js', 'lib/persistent-process.js']) {
     const files = expectedDshPackageFiles(manifest).filter(file => file !== omitted)
     expect(checkWorkspaceManifest({ dir, manifest: { ...manifest, files } }))
-      .toEqual([expect.stringContaining('package.json files must be')])
-  }
-})
-
-it('requires the Inspector Worker, Client chunks, and mirrored DevTools resources in the published payload', () => {
-  const dir = 'packages/experimental/inspector'
-  const manifest = JSON.parse(readFileSync(new URL(`../${dir}/package.json`, import.meta.url), 'utf8')) as WorkspaceManifest['manifest']
-  expect(checkWorkspaceManifest({ dir, manifest })).toEqual([])
-  for (const omitted of ['lib/client.*.js', 'lib/worker.js', 'lib/devtools/**']) {
-    expect(checkWorkspaceManifest({ dir, manifest: { ...manifest, files: manifest.files!.filter(file => file !== omitted) } }))
       .toEqual([expect.stringContaining('package.json files must be')])
   }
 })

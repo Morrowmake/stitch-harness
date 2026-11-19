@@ -30,7 +30,8 @@ from deepseek_harness.client import UserQuestionHandler
 
 _WAIT_SECONDS = 30
 _SESSION_ID = "commands-runtime"
-_MODEL = "deepseek-v4-flash"
+_PROVIDER = "commands-test"
+_MODEL = "commands-model"
 _HISTORY_MARKER = "DSH_COMMANDS_OLD_USER_INPUT"
 _FIRST_REPLY = "SDK_COMPACT_READY"
 _CHECKPOINT = "## Primary Request and Intent\n- DSH_COMMANDS_CHECKPOINT: retain the earlier task."
@@ -261,6 +262,17 @@ def _wait_activity(runtime: _Runtime, session: Session) -> None:
     runtime.call(runtime.harness.client.request, "session/wait", {"sessionId": session.id}, response_model=_WaitResult)
 
 
+def _route_patch_row(url: str, model: str) -> str:
+    """The adapter mounts with zero routes; this row points one Anthropic-messages route at the local server."""
+    return (
+        f"- id: llm-pi-ai\n  config:\n    providers:\n      {_PROVIDER}:\n"
+        "        apiKeyEnv: DEEPSEEK_API_KEY\n        api: anthropic-messages\n"
+        f"        baseURL: {json.dumps(url)}\n"
+        f"        models:\n          - id: {json.dumps(model)}\n            contextWindow: 200000\n"
+        "            input: [text, image]\n"
+    )
+
+
 @contextmanager
 def _runtime(
     tmp_path: Path, completions: list[_Completion], *, capture_patch: Path | None = None,
@@ -283,17 +295,20 @@ def _runtime(
     if max_goal_rounds is not None:
         with patch.open("a", encoding="utf-8") as extra:
             extra.write(f"- id: goal\n  config:\n    defaultMaxGoalRounds: {max_goal_rounds}\n")
-    patches = (patch,) if capture_patch is None else (patch, capture_patch.resolve())
     dsh_bin = _dsh_bin()
     with _ModelServer(completions) as model_server, ThreadPoolExecutor(max_workers=2) as workers:
+        with patch.open("a", encoding="utf-8") as extra:
+            extra.write(_route_patch_row(model_server.url, model))
+        patches = (patch,) if capture_patch is None else (patch, capture_patch.resolve())
         harness = DeepSeekHarness(
             cwd=str(workspace), runtime_cwd=str(workspace), dsh_home=str(home),
-            dsh_bin=dsh_bin, profile="sdk", patches=tuple(str(item) for item in patches), model=model,
+            dsh_bin=dsh_bin, profile="sdk", patches=tuple(str(item) for item in patches),
+            provider=_PROVIDER, model=model,
             base_url=model_server.url, api_key="keyless-commands-runtime",
             initialize_timeout_seconds=60, request_timeout_seconds=20, shutdown_timeout_seconds=20,
             on_user_question=on_user_question,
             env={"DSH_PERMISSION_MODE": initial_permission,
-                 "DSH_TELEMETRY_DISABLED": "1", "DSH_TOOLS_MODE": "native"},
+                 "DSH_TOOLS_MODE": "native"},
         )
         try:
             harness.start()
@@ -463,7 +478,7 @@ def run_compaction_scenario(tmp_path: Path, *, capture_patch: Path | None = None
         summary = summaries[0]
         assert summary["seq"] == execution.result.source_event_seq
         assert summary["data"]["llmStreamCall"] is True
-        assert summary["data"]["provider"] == "deepseek-official"
+        assert summary["data"]["provider"] == _PROVIDER
         assert summary["data"]["model"] == _MODEL
         for event in [starts[0], summary, ends[0]]:
             assert event["data"]["sourceCommandId"] == execution.command_id

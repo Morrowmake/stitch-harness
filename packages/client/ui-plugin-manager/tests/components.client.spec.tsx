@@ -331,7 +331,7 @@ describe('PluginManagerPage', () => {
   })
 
   it('keeps the Installed tab panel through loading and the More list out of the tabs, and returns a More plugin opened from Discover to Discover', () => {
-    const inspector = '@deepseek-ai/dsh-experimental-inspector-profile'
+    const inspector = '@deepseek-ai/dsh-timeline'
     const { navigation, set } = renderTab({ status: 'loading', packages: [] }, {}, {
       'plugins.tab:discover': (_view, owner) => (
         <button type="button" onClick={() => { (owner as PluginTabProps).openPackage(inspector) }}>Discover open</button>
@@ -847,7 +847,7 @@ describe('PluginManagerPage', () => {
   })
 
   it('keeps a shipped bundle out of both lists until one of its declared rows runs', () => {
-    const hidden = '@deepseek-ai/dsh-experimental-liveshare'
+    const hidden = '@acme/row-gated-bundle'
     const shown = '@deepseek-ai/dsh-experimental-voice-input-bundle'
     const offer = (rows: readonly PackageRow[]): PackageView => pkg({
       name: hidden, official: true, installed: false, optional: true, removable: false, enabled: false, listedByDefault: false, rows,
@@ -866,7 +866,7 @@ describe('PluginManagerPage', () => {
     // is listed as experimental exactly like a bundle the profile selected.
     b.set({
       packages: [
-        offer([row({ rowId: 'liveshare-viewer-declarations', moduleName: `${hidden}/viewer-declarations` })]),
+        offer([row({ rowId: 'row-gated-viewer', moduleName: `${hidden}/viewer` })]),
         other,
       ],
     })
@@ -878,7 +878,7 @@ describe('PluginManagerPage', () => {
     b.set({
       packages: [
         offer([row({
-          rowId: 'liveshare-viewer-declarations', moduleName: `${hidden}/viewer-declarations`,
+          rowId: 'row-gated-viewer', moduleName: `${hidden}/viewer`,
           enabled: false, phase: null,
         })]),
         other,
@@ -888,7 +888,7 @@ describe('PluginManagerPage', () => {
   })
 
   it('does not open a default-hidden bundle by id while its card is hidden', () => {
-    const hidden = '@deepseek-ai/dsh-experimental-liveshare'
+    const hidden = '@acme/row-gated-bundle'
     const b = renderTab({
       packages: [pkg({
         name: hidden, official: true, installed: false, optional: true, removable: false, enabled: false,
@@ -1362,7 +1362,7 @@ describe('PluginManagerPage', () => {
       const team = '@deepseek-ai/dsh-experimental-voice-input-bundle'
       renderTab(
         { packages: [
-          pkg({ name: '@deepseek-ai/dsh-experimental-badge-skill-bundle', official: true, enabled: false }),
+          pkg({ name: '@deepseek-ai/dsh-timeline', official: true, enabled: false }),
           pkg({ name: '@deepseek-ai/dsh-experimental-voice-input-bundle', installed: false, optional: true, removable: false, enabled: false }),
           pkg({ name: '@deepseek-ai/dsh-subagent-claude-code', official: true, availability: 'missing', installed: false, enabled: false }),
           pkg({ name: '@deepseek-ai/dsh-subagent-codex', official: true, enabled: false }),
@@ -1398,7 +1398,7 @@ describe('PluginManagerPage', () => {
         .toEqual(['more'])
       const more = document.querySelector('[data-plugin-group="more"]') as HTMLElement
       expect(within(more).getAllByRole('listitem').map(card => card.getAttribute('data-plugin-package')))
-        .toEqual([team, '@acme/new-official', '@deepseek-ai/dsh-experimental-badge-skill-bundle', '@deepseek-ai/dsh-subagent-codex', '@deepseek-ai/dsh-subagent-claude-code'])
+        .toEqual([team, '@acme/new-official', '@deepseek-ai/dsh-timeline', '@deepseek-ai/dsh-subagent-codex', '@deepseek-ai/dsh-subagent-claude-code'])
       expect(document.querySelector('[data-plugin-package="dsh-better-sidebar"]')).toBeNull()
       fireEvent.click(screen.getByRole('button', { name: en.openDetail.replace('{name}', team) }))
       fireEvent.click(screen.getByRole('button', { name: en.backToPackage.replace('{name}', en.moreTitle) }))
@@ -1518,7 +1518,7 @@ describe('PluginManagerPage', () => {
 
     it.each([
       '@deepseek-ai/dsh-experimental-session-titles-bundle',
-      '@deepseek-ai/dsh-personalized-recommendations',
+      '@deepseek-ai/dsh-timeline',
     ])('returns %s details to the secondary page and retains it across React remounts', (name) => {
       const b = renderTab({ packages: [pkg({ name, official: true, enabled: false })] })
       fireEvent.click(screen.getByRole('button', { name: en.moreAction }))
@@ -1535,8 +1535,8 @@ describe('PluginManagerPage', () => {
     })
 
     it.each([
-      '@deepseek-ai/dsh-experimental-inspector-profile',
-      '@deepseek-ai/dsh-personalized-recommendations',
+      '@deepseek-ai/dsh-timeline',
+      '@deepseek-ai/dsh-experimental-terminal-bundle',
     ])('pins enabled %s onto the main list and removes it when disabled', (first) => {
       const team = '@deepseek-ai/dsh-experimental-voice-input-bundle'
       const second = '@deepseek-ai/dsh-experimental-cot-translation-bundle'

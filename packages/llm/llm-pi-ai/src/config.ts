@@ -22,6 +22,9 @@ import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
 import { resolveRetryPolicy, RetryPolicySchema } from '@deepseek-ai/dsh-llm'
 import type { ResolvedRetryPolicy, RetryPolicyConfig } from '@deepseek-ai/dsh-llm'
 import { deepEqualJson } from '@deepseek-ai/dsh-util-values'
+import { isAccountId } from './accounts/keys.ts'
+import { PINNED_MODEL_PREFIX } from './accounts/types.ts'
+import type { AccountProfile } from './accounts/types.ts'
 import {
   CACHE_CONTROL_FORMATS,
   CHAT_TEMPLATE_VARS,
@@ -42,6 +45,12 @@ import type {
   RouteCatalog,
 } from './catalog.ts'
 import { buildProvider, supportedProtocols } from './provider.ts'
+
+/** {@link AccountProfile} as the settings schema stores it. */
+export type PiAiAccountProfile = Omit<AccountProfile, 'models'> & {
+  /** Model ids this account may serve; absent allows every model (including future ones), `[]` allows none. */
+  models?: string[]
+}
 
 /** Default maximum idle interval while an adapter stream read is outstanding. */
 export const DEFAULT_STREAM_IDLE_TIMEOUT_MS = 300_000
@@ -205,6 +214,10 @@ export interface PiAiProviderProfile {
   requestImageMaxBytes?: number
   /** Provider-owned model-request retry policy; omission uses normal mode with five retries. */
   retryPolicy?: RetryPolicyConfig
+  /** Account served when no session affinity applies; unset derives `main` → `env` → oldest. */
+  defaultAccount?: string
+  /** Non-secret per-account metadata keyed by account id; secrets stay in credential records. */
+  accounts?: Record<string, PiAiAccountProfile>
 }
 
 /** Validated profile with its route stamped and every adapter-owned default resolved. */
@@ -352,6 +365,15 @@ const modelProfile: z<PiAiModelProfile> = z.object({
 /** A {@link modelProfile} whose id lives in the `modelOverrides` dict key. */
 const modelOverride: z<PiAiModelOverride> = z.object(modelFields)
 
+const accountProfile = z.object({
+  alias: z.string(),
+  pooled: z.boolean(),
+  pinned: z.boolean(),
+  models: z.array(z.string()),
+  order: z.number(),
+  createdAt: z.natural(),
+})
+
 const profile = z.object({
   apiKeyEnv: z.string().role('credential-ref'),
   displayName: z.string(),
@@ -377,6 +399,8 @@ const profile = z.object({
   requestImagePixelBudget: z.number().step(1).min(1).default(DEFAULT_REQUEST_IMAGE_PIXEL_BUDGET),
   requestImageMaxBytes: z.number().step(1).min(1).default(DEFAULT_REQUEST_IMAGE_MAX_BYTES),
   retryPolicy: RetryPolicySchema,
+  defaultAccount: z.string(),
+  accounts: z.dict(accountProfile),
 })
 
 /** Runtime schema for {@link Config}. */
@@ -430,6 +454,22 @@ function assertValidHeaders(provider: string, headers: Readonly<Record<string, s
   }
 }
 
+/** Account metadata keys are account ids; `models` entries are non-empty strings; aliases are short. */
+function assertValidAccounts(provider: string, source: PiAiProviderProfile): void {
+  if (source.defaultAccount !== undefined && !isAccountId(source.defaultAccount)) {
+    throw new Error(`llm-pi-ai: provider "${provider}" defaultAccount "${source.defaultAccount}" is not an account id`)
+  }
+  for (const [id, meta] of Object.entries(source.accounts ?? {})) {
+    if (!isAccountId(id)) throw new Error(`llm-pi-ai: provider "${provider}" account "${id}" is not an account id`)
+    if (meta.alias !== undefined && meta.alias.length > 80) {
+      throw new Error(`llm-pi-ai: provider "${provider}" account "${id}" alias exceeds 80 characters`)
+    }
+    if (meta.models?.some(model => model.length === 0) === true) {
+      throw new Error(`llm-pi-ai: provider "${provider}" account "${id}" lists an empty model id`)
+    }
+  }
+}
+
 /**
  * Resolve scalar defaults and materialize each route's serviceable models.
  * Deferred catalog validation retains diagnostics without deleting configured
@@ -450,6 +490,16 @@ export function resolveProfiles(
   for (const [provider, source] of entries) {
     rejectRemovedFields(provider, source)
     if (provider.length === 0) throw new Error('llm-pi-ai: provider names must be non-empty')
+    // `--` separates route and account in a credential record id (`<route>--<account>`).
+    if (provider.includes('--')) {
+      throw new Error(`llm-pi-ai: provider "${provider}" contains "--", which is reserved for account record keys`)
+    }
+    for (const id of [...(source.models ?? []).map(model => model.id), ...Object.keys(source.modelOverrides ?? {})]) {
+      if (id.startsWith(PINNED_MODEL_PREFIX)) {
+        throw new Error(`llm-pi-ai: provider "${provider}" model "${id}" starts with the reserved "${PINNED_MODEL_PREFIX}" prefix`)
+      }
+    }
+    assertValidAccounts(provider, source)
     if (source.baseURL !== undefined && source.baseURL.length === 0) {
       throw new Error(`llm-pi-ai: provider "${provider}" has an empty baseURL`)
     }

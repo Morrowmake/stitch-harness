@@ -41,15 +41,13 @@ export default class CotTranslationController extends TypertRemoteService {
   /**
    * Read accepted translation preferences and the current request limit without sending text.
    * @param signal - browser query cancellation or Remote contribution withdrawal.
-   * @returns authoritative preferences, eligible routes, and maximum UTF-16 text length per request.
+   * @returns authoritative preferences and maximum UTF-16 text length per request.
    */
   @Remote
-  async limits(signal: AbortSignal): Promise<CotTranslationSnapshot> {
-    signal.throwIfAborted()
-    const availableProviders = await this.ctx.translator.availableProviders(signal)
+  limits(signal: AbortSignal): CotTranslationSnapshot {
     signal.throwIfAborted()
     return { maxTextChars: this.ctx.translator.maxTextChars,
-      preferences: { provider: this.config.provider.get(), targetLanguage: this.config.targetLanguage.get() }, availableProviders }
+      preferences: { provider: this.config.provider.get(), targetLanguage: this.config.targetLanguage.get() } }
   }
 
   /**

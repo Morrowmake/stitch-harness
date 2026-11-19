@@ -38,8 +38,11 @@ describe('dsh run with Agent Teams enabled', () => {
         },
       }, undefined, 2) + '\n')
       await writeFile(join(profileDir, 'cordis.patch.yml'), [
-        '- id: llm-deepseek',
-        '  disabled: true',
+        // The team fixture registers its adapter under the recorded route name.
+        '- id: agent-default-model',
+        '  config:',
+        '    provider: deepseek-official',
+        '    model: deepseek-v4-flash',
         '- id: session-persistence-jsonl',
         '  config:',
         `    root: '${sessions}'`,
@@ -56,8 +59,6 @@ describe('dsh run with Agent Teams enabled', () => {
         env: {
           DSH_HOME: home,
           DSH_AGENTS_HOME: join(cwd, '.agents'),
-          DSH_TELEMETRY_DISABLED: '1',
-          DEEPSEEK_API_KEY: '',
           NODE_OPTIONS: [
             process.env.NODE_OPTIONS,
             '--disable-warning=ExperimentalWarning',

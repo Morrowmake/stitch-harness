@@ -49,30 +49,10 @@ const windowsUnsupportedTests = process.platform === 'win32'
       'packages/subprocess/subprocess-local/tests/process-inspector.spec.ts',
       'packages/subprocess/subprocess-local/tests/spawn.spec.ts',
       'packages/subprocess/subprocess-local/tests/terminal.spec.ts',
-      // Oracle-diff suites: they compare the worker's POSIX path/url faces
-      // against the host Node's own answers, which are win32 semantics on
-      // Windows. The worker always speaks POSIX; the Linux lanes hold the diff.
-      'packages/experimental/webworker-runtime/tests/node/path-diff.spec.ts',
-      'packages/experimental/webworker-runtime/tests/node/shim-diff.spec.ts',
-      // The subprocess ladder over the worker's child_process face: its kill
-      // rung reaches the in-worker process table through `process.kill`,
-      // which the ladder's win32 branch replaces with taskkill-by-real-pid —
-      // undeliverable to a table pid. The worker host always reports 'linux',
-      // so the Linux lanes hold the ladder.
-      'packages/experimental/webworker-runtime/tests/node/child-process.spec.ts',
     ]
   : []
 
-// These suites compare against or assemble the Worker's fixed Linux platform.
-// Host-native Windows and macOS behavior is not their oracle.
-const nonLinuxWebWorkerTests = process.platform === 'linux'
-  ? []
-  : [
-      'packages/experimental/webworker-runtime/tests/node/fs-watch-stream.spec.ts',
-      'packages/experimental/webworker-runtime/tests/node/sandbox-stack.spec.ts',
-    ]
-
-const platformUnsupportedTests = [...windowsUnsupportedTests, ...nonLinuxWebWorkerTests]
+const platformUnsupportedTests = windowsUnsupportedTests
 
 const windowsUnsupportedCoveragePackages = process.platform === 'win32'
   ? [...windowsUnsupportedPackages, 'packages/subprocess/*']
@@ -189,21 +169,13 @@ const claudeCodeTestingAliases = {
   'claude-code': fileURLToPath(new URL('./packages/experimental/claude-code-mods/tests/support/claude-code.ts', import.meta.url)),
 }
 
-// These client entries statically import their generated `./remote` contribution, which exists
-// only in built `lib/` output. On a clean checkout Vite resolves that import while transforming the
-// entry, before `vi.mock` can answer it, so the jsdom assembly suites need a resolvable stand-in.
-const liveshareRemoteBuild = fileURLToPath(new URL('./packages/experimental/liveshare/lib/typert.remote-client.js', import.meta.url))
-const chatImportRemoteBuild = fileURLToPath(new URL('./packages/experimental/deepseek-chat-import/lib/typert.remote-client.js', import.meta.url))
+// This client entry statically imports its generated `./remote` contribution, which exists only in
+// built `lib/` output. On a clean checkout Vite resolves that import while transforming the entry,
+// before `vi.mock` can answer it, so the jsdom assembly suites need a resolvable stand-in.
 const hmrRemoteBuild = fileURLToPath(new URL('./packages/client/hmr/lib/typert.remote-client.js', import.meta.url))
 const generatedRemoteAliases = {
   ...existsSync(hmrRemoteBuild) ? {} : {
     '@deepseek-ai/dsh-client-hmr/remote': fileURLToPath(new URL('./packages/client/hmr/tests/generated-remote-stub.ts', import.meta.url)),
-  },
-  ...existsSync(liveshareRemoteBuild) ? {} : {
-    '@deepseek-ai/dsh-experimental-liveshare/remote': fileURLToPath(new URL('./packages/experimental/liveshare/tests/generated-remote-stub.ts', import.meta.url)),
-  },
-  ...existsSync(chatImportRemoteBuild) ? {} : {
-    '@deepseek-ai/dsh-deepseek-chat-import/remote': fileURLToPath(new URL('./packages/experimental/deepseek-chat-import/tests/generated-remote-stub.ts', import.meta.url)),
   },
 }
 const testingAliases = { ...claudeCodeTestingAliases, ...generatedRemoteAliases }
@@ -214,7 +186,7 @@ export default defineConfig({
   test: {
     ...localWorkerBudget,
     setupFiles: [
-      './scripts/test-proxy-environment.ts', './scripts/test-dom-environment.ts', './scripts/test-official-listing-guard.ts',
+      './scripts/test-proxy-environment.ts', './scripts/test-dom-environment.ts',
     ],
     // .tsx: client component specs (jsdom via per-file @vitest-environment pragma).
     include: testIncludes,
@@ -234,7 +206,7 @@ export default defineConfig({
           pool: 'forks',
           ...laneTestBudget,
           setupFiles: [
-            './scripts/test-proxy-environment.ts', './scripts/test-dom-environment.ts', './scripts/test-official-listing-guard.ts',
+            './scripts/test-proxy-environment.ts', './scripts/test-dom-environment.ts',
           ],
           include: testIncludes,
           exclude: [
@@ -254,7 +226,7 @@ export default defineConfig({
           pool: 'forks',
           ...laneTestBudget,
           setupFiles: [
-            './scripts/test-proxy-environment.ts', './scripts/test-dom-environment.ts', './scripts/test-official-listing-guard.ts',
+            './scripts/test-proxy-environment.ts', './scripts/test-dom-environment.ts',
           ],
           include: processBoundTests,
           exclude: [
@@ -323,33 +295,6 @@ export default defineConfig({
         'packages/client/ui-layout/src/*',
         'packages/client/web/src/*',
         'packages/host/webserver/src/*',
-        // The browser-worker runtime and its image packer: the executing
-        // composition is a real dedicated Worker driven by the web browser lane
-        // (apps/web/tests/preview-boot.e2e.ts), which unit-process V8 coverage
-        // cannot observe. Unit specs cover the algorithmic cores; the assembled
-        // evidence is that boot. TODO(webworker): revisit when a browser-grade
-        // coverage lane exists.
-        'packages/experimental/webworker-runtime/src/**',
-        'packages/experimental/webworker-packer/src/*',
-        // Inspector execution adapters run in a Node Worker, the Host native
-        // inspector session, or a browser realm, outside attributable parent
-        // Vitest coverage.
-        'packages/experimental/inspector/src/client/**',
-        'packages/experimental/inspector/src/host/bridge/**',
-        'packages/experimental/inspector/src/host/cdp/**',
-        'packages/experimental/inspector/src/worker/bridge/**',
-        'packages/experimental/inspector/src/worker/cdp/**',
-        'packages/experimental/inspector/src/worker/realms/**',
-        'packages/experimental/inspector/src/worker/{entry,server}.ts',
-        // Keep already-complete Inspector modules under the per-file gate and
-        // enumerate the remaining direct-test debt instead of exempting src/**.
-        // TODO(inspector): close these branch gaps and remove the entries.
-        'packages/experimental/inspector/src/shared/bridge/{control-codec,rpc}.ts',
-        'packages/experimental/inspector/src/shared/bridge/messages/observation.ts',
-        'packages/experimental/inspector/src/shared/bridge/messages/query/codec.ts',
-        'packages/experimental/inspector/src/shared/bridge/messages/runtime/{command-codec,console-frames,frames,value-codec}.ts',
-        'packages/experimental/inspector/src/shared/bridge/messages/sources/{codec,frames}.ts',
-        'packages/experimental/inspector/src/worker/inspection/{cordis-store,query-router,realm-store}.ts',
         // Web config-tree boot round: the new host-side web-transport halves
         // whose remaining branches need real-composition/process harnesses.
         // TODO(gui): cover and remove with the client test lane above.
@@ -369,9 +314,6 @@ export default defineConfig({
         // The speech entry also imports generated Remote definitions; voice-input.e2e.ts
         // exercises the built entry, while source tests cover mountVoiceInput.
         'packages/experimental/client-ui-voice-input/src/client/index.ts',
-        // Built Web replays cover the generated Remote wiring of the card entries; their mount modules are source-covered.
-        'packages/experimental/client-ui-action-cards/src/client/index.ts',
-        'packages/experimental/client-ui-plugin-recommendations/src/client/index.ts',
         // The permission entry binds generated Remote code; cua-permissions.e2e.ts covers
         // its built entry, while source tests exercise mountCuaPermissions and its UI.
         'packages/experimental/cua/src/client/index.ts',
@@ -416,10 +358,6 @@ export default defineConfig({
         // Typert correctness is checked by its uninstrumented suites,
         // including compiler fixtures and byte-for-byte catalog reproduction.
         'packages/typert/*/src/**/*.{ts,tsx}',
-        // Experimental webworker-runtime is outside the coverage requirement
-        // by decision: its correctness signal is its uninstrumented suite and
-        // the packer's end-to-end image spec.
-        'packages/experimental/webworker-runtime/src/**/*.ts',
         // Command executor lifecycle branches need the same maturing lanes.
         // TODO(gui): cover and remove with the client test lane above.
         'packages/interaction/commands/src/index.ts',

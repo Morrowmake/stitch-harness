@@ -148,11 +148,11 @@ describe('session-log-download browser plugin', () => {
     const first = await bench()
     const second = await bench()
 
-    first.ctx.emit('command/executed', SID, 'plan', { kind: 'success' })
+    first.ctx.emit('command/executed', SID, 'plan', { kind: 'success' }, '/plan')
     expect(fetcher).not.toHaveBeenCalled()
-    first.ctx.emit('command/executed', SID, 'export', { kind: 'error', text: 'bad path' })
+    first.ctx.emit('command/executed', SID, 'export', { kind: 'error', text: 'bad path' }, '/export bad')
     expect(fetcher).not.toHaveBeenCalled()
-    first.ctx.emit('command/executed', SID, 'export', { kind: 'success' })
+    first.ctx.emit('command/executed', SID, 'export', { kind: 'success' }, '/export')
     await vi.waitFor(() => {
       expect(fetcher).toHaveBeenCalledOnce()
       expect(first.ctx.sessionLogDownload.store.getSnapshot().bySession[SID]?.status).toBe('error')

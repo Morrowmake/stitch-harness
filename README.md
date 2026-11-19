@@ -1,27 +1,38 @@
-# DeepSeek Harness
+<p align="center"><img src="branding/wordmark.svg" alt="Stitch" width="232" height="64"></p>
+
+# Stitch
 
 English | [中文](README.zh.md)
 
-DeepSeek Harness (`dsh`) is an open-source agent harness developed by [DeepSeek AI](https://deepseek.com).
+Stitch is an open-source coding agent harness you can modify while it runs. Every capability is a plugin, so the agent can inspect itself, add or remove tools, and rewrite its own composition on the fly.
 
-It is built on an **everything-is-a-plugin** architecture and powered by [Cordis](https://github.com/cordiverse/cordis), whose design is described in [_A Programming Paradigm for Spatiotemporal Composability_](https://arxiv.org/abs/2608.25512).
+Stitch is provider-neutral and private by default:
 
-Documentation: [https://deepseek-harness.github.io/deepseek-harness/](https://deepseek-harness.github.io/deepseek-harness/)
+- **No account, no telemetry.** Stitch sends nothing anywhere except the requests you make to the model provider you chose.
+- **Any model provider.** Local models (Ollama, LM Studio, any OpenAI-compatible server) or hosted providers (Anthropic, OpenAI, Google, OpenRouter, DeepSeek, and more), with API keys or subscription sign-in where the provider offers one.
+- **Choose what you install.** The installer lets you pick components; the minimal install has only the read, write, edit, and bash tools plus the self-modification kernel.
+- **Keyless web search.** Web search uses DuckDuckGo with a Marginalia fallback, or your own SearXNG instance.
+
+Stitch is based on [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) and its **everything-is-a-plugin** architecture, powered by [Cordis](https://github.com/cordiverse/cordis).
 
 ## Developer preview
 
-DeepSeek Harness is in _developer preview_ and iterating rapidly. **THERE WILL BE COMPATIBILITY-BREAKING CHANGES.**
+Stitch is in _developer preview_ and iterating rapidly. **THERE WILL BE COMPATIBILITY-BREAKING CHANGES.**
 
 Review the [safety notice](SAFETY.md) before running the project.
 
 ## Run
+
+### Desktop app
+
+Download the macOS or Windows installer from [GitHub Releases](https://github.com/Morrowmake/stitch-harness/releases). The builds are unsigned for now, so macOS Gatekeeper and Windows SmartScreen warn on first launch.
 
 ### Run from `npm`
 
 Install `Node.js`, then run:
 
 ```sh
-npx @deepseek-ai/dsh web
+npx @stitch-harness/stitch web
 ```
 
 The command starts the Web UI at `http://127.0.0.1:3080` by default and opens it in the default browser for a local launch. An SSH launch only prints the host URL because the SSH client or editor owns the local forwarded address. Pass `--no-open` to run the server without opening a browser. See [Web UI guide](docs/user/guide/index.md).
@@ -31,20 +42,18 @@ The command starts the Web UI at `http://127.0.0.1:3080` by default and opens it
 To run from a repository checkout:
 
 ```sh
-git clone https://github.com/deepseek-ai/deepseek-harness.git
-cd deepseek-harness
+git clone https://github.com/Morrowmake/stitch-harness.git
+cd stitch-harness
 pnpm install
 pnpm run build
-pnpm dsh web
+pnpm stitch web
 ```
 
-`pnpm run build` prepares the repository artifacts. `pnpm dsh web` uses those built artifacts without rebuilding.
+`pnpm run build` prepares the repository artifacts. `pnpm stitch web` uses those built artifacts without rebuilding.
 
 ## Community and support
 
-- Submit feedback or bug reports through [GitHub Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions).
-- Add the [`dsh-plugin`](https://github.com/topics/dsh-plugin) topic to your plugin repository for discoverability.
-- Join <a href="https://discord.gg/4MrtZUhpxg">DeepSeek Harness Discord community</a>.
+Report bugs and request features in [GitHub Issues](https://github.com/Morrowmake/stitch-harness/issues), or use `/feedback` inside Stitch.
 
 ## Contributing
 
@@ -58,7 +67,9 @@ Start with the [development guide](docs/development.md) and [architecture docume
 
 For agents, follow [AGENTS.md](AGENTS.md).
 
-## Citation
+## Acknowledgements
+
+Stitch is a fork of [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) by DeepSeek-AI. If you use the underlying architecture in research, cite the original work:
 
 ```bibtex
 @misc{deepseek-harness2026,

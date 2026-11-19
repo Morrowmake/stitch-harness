@@ -12,7 +12,6 @@
   ],
   "references": [
     { "path": "../../team/agent-team" },
-    { "path": "../../client/product-analytics/tsconfig.client.json" },
     {
       "path": "../../../vendor/cordis"
     },
@@ -113,10 +112,10 @@
       "path": "../../document/office-kit"
     },
     {
-      "path": "../../account/deepseek-account"
+      "path": "../../web/web"
     },
     {
-      "path": "../../web/web"
+      "path": "../../llm/llm-pi-ai"
     }
   ]
 }

@@ -42,7 +42,7 @@ it.skipIf(!process.env.DEEPSEEK_API_KEY || process.platform === 'win32')(`agent 
     await writeFile(join(root, 'input.docx'), source)
     const patch = join(root, 'office.patch.yml')
     await writeFile(patch, JSON.stringify([
-      ...(process.env.DSH_OFFICE_TEST_API === 'openai-completions' ? [{ id: 'llm-deepseek', disabled: true }, { id: 'llm-pi-ai', config: { providers: { 'office-test': { api: 'openai-completions', apiKeyEnv: 'DEEPSEEK_API_KEY', baseURL: process.env.DEEPSEEK_BASE_URL, compat: { thinkingFormat: 'deepseek' }, models: [{ id: process.env.MODEL_NAME ?? 'deepseek-v4-flash', contextWindow: 128000, maxTokens: 8000 }] } } } }] : []),
+      { id: 'llm-pi-ai', config: { providers: { deepseek: { apiKeyEnv: 'DEEPSEEK_API_KEY' } } } },
       { id: 'session-persistence-jsonl', config: { root: join(root, 'sessions'), compression: 'none' } },
     ]))
     // A private POSIX tool directory also excludes /usr/bin/node on Linux.
@@ -66,7 +66,7 @@ it.skipIf(!process.env.DEEPSEEK_API_KEY || process.platform === 'win32')(`agent 
     ], {
       cwd: root, env: {
         PATH: path, DSH_HOME: join(root, 'home'), DSH_AGENTS_HOME: join(root, 'agents'),
-        DSH_PERMISSION_MODE: 'danger-full-access', DSH_TELEMETRY_DISABLED: '1',
+        DSH_PERMISSION_MODE: 'danger-full-access',
         DSH_PRIMARY_RUNTIME: carrier === 'sdk' ? undefined : process.env.DSH_PRIMARY_RUNTIME,
       },
       timeout: 110_000, killSignal: 'SIGKILL', reject: false,
@@ -92,7 +92,7 @@ it.skipIf(!process.env.DEEPSEEK_API_KEY || process.platform === 'win32')(`agent 
       }
     })
     try {
-      send(1, 'initialize', { cwd: root, provider: process.env.DSH_OFFICE_TEST_API === 'openai-completions' ? 'office-test' : 'deepseek-official', model: process.env.MODEL_NAME ?? 'deepseek-v4-flash', maxTokens: 8000 })
+      send(1, 'initialize', { cwd: root, provider: 'deepseek', model: process.env.MODEL_NAME ?? 'deepseek-flash', maxTokens: 8000 })
       const result = await child
       const diagnostic = `${result.stderr}\n${result.stdout}`
       expect(protocolError, diagnostic).toBeUndefined()

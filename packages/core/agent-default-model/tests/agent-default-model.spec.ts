@@ -4,6 +4,7 @@ import { expect, it, onTestFinished, vi } from 'vitest'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import type { ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import DefaultModel from '../src/index.ts'
+import { NO_DEFAULT_MODEL } from '../src/no-default-model.ts'
 import { liveConfig } from '../../../settings/settings/tests/live-config.ts'
 
 it('reads complete selections from volatile config and clears omitted reasoning effort', async () => {
@@ -17,6 +18,15 @@ it('reads complete selections from volatile config and clears omitted reasoning 
   expect(consumer.currentSelection()).toEqual({ provider: 'p', model: 'm' })
   await consumer.saveSelection({ provider: 'unsaved', model: 'unsaved' })
   expect(consumer.currentSelection()).toEqual({ provider: 'p', model: 'm' })
+})
+
+it('reports an unset default model with an actionable error', async () => {
+  const ctx = new Context()
+  onTestFinished(() => ctx.fiber.dispose())
+  await ctx.plugin(DefaultModel, {})
+  expect(ctx.agentDefaultModel.configuredSelection()).toBeUndefined()
+  expect(() => ctx.agentDefaultModel.currentSelection()).toThrow(expect.objectContaining({ code: NO_DEFAULT_MODEL }))
+  expect(() => ctx.agentDefaultModel.currentSelection()).toThrow('Settings → Models')
 })
 
 it('persists complete selections through its owning profile entry', async () => {

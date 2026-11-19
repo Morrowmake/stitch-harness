@@ -1,242 +1,82 @@
-// @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { useSyncExternalStore } from 'react'
-import { afterEach, expect, it, vi } from 'vitest'
-import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
-import { DesktopUpdateIndicator } from '../src/client/DesktopUpdateIndicator.tsx'
-import type { DesktopUpdateBridge, DesktopUpdatePresentation } from '../src/types.ts'
+import { expect, it, vi } from 'vitest'
+import type { DesktopUpdateBridge, DesktopUpdateCheckResult } from '../src/types.ts'
 import { DesktopUpdateSource } from '../src/client/desktop-update-source.ts'
-import { en, zh } from '../src/client/locales.ts'
 
-afterEach(() => { cleanup(); vi.unstubAllGlobals() })
-
-type SettingsTranslate = PropsLocale<'settings'>['t']
-
-function translate(dictionary: typeof zh | typeof en): SettingsTranslate {
-  const messages: Readonly<Record<string, string>> = dictionary
-  return (key, params) => Object.entries(params ?? {})
-    .reduce((message, [name, value]) => message.replaceAll(`{${name}}`, String(value)),
-      messages[key] ?? key)
-}
-
-function fixture() {
-  let listener: ((state: DesktopUpdatePresentation) => void) | undefined
-  const status = Promise.withResolvers<DesktopUpdatePresentation>()
+function fixture(preference: Promise<boolean> = Promise.resolve(false)) {
+  let listener: ((enabled: boolean) => void) | undefined
   const unsubscribe = vi.fn()
-  const open = vi.fn(async () => {})
-  const bridge: DesktopUpdateBridge = {
-    status: () => status.promise,
-    open,
-    subscribe: (next) => { listener = next; return unsubscribe },
-  }
+  const bridge = {
+    getPreference: vi.fn(() => preference),
+    setPreference: vi.fn(async (enabled: boolean) => enabled),
+    subscribe: vi.fn((next: (enabled: boolean) => void) => { listener = next; return unsubscribe }),
+    check: vi.fn(async (): Promise<DesktopUpdateCheckResult> => ({ kind: 'current', version: '1.0.0' })),
+  } satisfies DesktopUpdateBridge
   const source = new DesktopUpdateSource(bridge)
-  const subscribe = (notify: () => void) => source.store.subscribe(notify)
-  const snapshot = () => source.store.getSnapshot()
-  function Indicator({ wide = true, hidden = false, dictionary = zh }: {
-    wide?: boolean
-    hidden?: boolean
-    dictionary?: typeof zh | typeof en
-  }) {
-    const state = useSyncExternalStore(subscribe, snapshot)
-    return <DesktopUpdateIndicator wide={wide} hidden={hidden} t={translate(dictionary)} view={state} onOpen={() => { source.open() }} />
-  }
-  const view = render(<Indicator />)
-  const unmount = view.unmount
-  view.unmount = () => { source.dispose(); unmount() }
-  return { open, status, unsubscribe, view, Indicator, source, emit: async (state: DesktopUpdatePresentation) => {
-    await act(async () => { listener?.(state) })
-  } }
+  return { bridge, source, unsubscribe, emit: (enabled: boolean) => { listener?.(enabled) } }
 }
 
-const available = { phase: 'available', version: '1.0.1' } as const
+it('reads the persisted preference and follows changes from other windows', async () => {
+  const { source, emit } = fixture(Promise.resolve(true))
+  expect(source.store.getSnapshot().enabled).toBeUndefined()
+  await vi.waitFor(() => { expect(source.store.getSnapshot().enabled).toBe(true) })
+  emit(false)
+  expect(source.store.getSnapshot().enabled).toBe(false)
+})
 
-it('renders nothing outside the Desktop carrier', () => {
-  const source = new DesktopUpdateSource(undefined)
-  const view = render(<DesktopUpdateIndicator wide hidden={false} t={translate(zh)}
-    view={source.store.getSnapshot()} onOpen={() => { source.open() }} />)
-  source.open()
+it('keeps a pushed change when the initial read answers late', async () => {
+  const initial = Promise.withResolvers<boolean>()
+  const { source, emit } = fixture(initial.promise)
+  emit(true)
+  initial.resolve(false)
+  await initial.promise
+  await Promise.resolve()
+  expect(source.store.getSnapshot().enabled).toBe(true)
+})
+
+it('saves an explicit choice once at a time and reports save failures', async () => {
+  const { bridge, source } = fixture()
+  const save = Promise.withResolvers<boolean>()
+  bridge.setPreference.mockReturnValueOnce(save.promise)
+  const first = source.setEnabled(true)
+  expect(source.store.getSnapshot().saving).toBe(true)
+  await source.setEnabled(false)
+  expect(bridge.setPreference).toHaveBeenCalledOnce()
+  save.resolve(true)
+  await first
+  expect(source.store.getSnapshot()).toMatchObject({ enabled: true, saving: false, saveFailed: false })
+  bridge.setPreference.mockRejectedValueOnce(new Error('disk full'))
+  await source.setEnabled(false)
+  expect(source.store.getSnapshot()).toMatchObject({ enabled: true, saving: false, saveFailed: true })
+})
+
+it.each<[string, DesktopUpdateCheckResult]>([
+  ['an available release', { kind: 'available', version: '1.1.0', name: 'Stitch 1.1.0' }],
+  ['the current version', { kind: 'current', version: '1.0.0' }],
+  ['a failure', { kind: 'failed' }],
+])('reports %s from Check now', async (_label, result) => {
+  const { bridge, source } = fixture()
+  const reply = Promise.withResolvers<DesktopUpdateCheckResult>()
+  bridge.check.mockReturnValueOnce(reply.promise)
+  const checking = source.check()
+  expect(source.store.getSnapshot().check).toEqual({ phase: 'checking' })
+  await source.check()
+  expect(bridge.check).toHaveBeenCalledOnce()
+  reply.resolve(result)
+  await checking
+  expect(source.store.getSnapshot().check).toEqual({ phase: 'done', result })
+})
+
+it('reports a rejected check as failed and ignores late answers after disposal', async () => {
+  const { bridge, source, unsubscribe } = fixture()
+  bridge.check.mockRejectedValueOnce(new Error('IPC closed'))
+  await source.check()
+  expect(source.store.getSnapshot().check).toEqual({ phase: 'done', result: { kind: 'failed' } })
+  const reply = Promise.withResolvers<DesktopUpdateCheckResult>()
+  bridge.check.mockReturnValueOnce(reply.promise)
+  const pending = source.check()
   source.dispose()
-  expect(view.container.innerHTML).toBe('')
-})
-
-it('keeps the newest event, hides for connection priority, and invokes only the shell action', async () => {
-  const f = fixture()
-  try {
-    await f.emit(available)
-    await act(async () => { f.status.resolve({ phase: 'idle' }) })
-    fireEvent.click(screen.getByRole('button', { name: '新版本' }))
-    await act(async () => {})
-    expect(f.open).toHaveBeenCalledOnce()
-    f.view.rerender(<f.Indicator hidden />)
-    expect(screen.queryByRole('button')).toBeNull()
-    await f.emit({ phase: 'downloading', version: available.version, percent: 58 })
-    f.view.rerender(<f.Indicator />)
-    expect(screen.getByRole('button', { name: '58%' }).getAttribute('aria-disabled')).toBe('false')
-    fireEvent.click(screen.getByRole('button', { name: '58%' }))
-    await act(async () => {})
-    expect(f.open).toHaveBeenCalledTimes(2)
-    await f.emit({ phase: 'error', version: available.version, failure: 'download' })
-    const retry = screen.getByRole('button', { name: '重试更新' })
-    fireEvent.focus(retry)
-    expect((await screen.findByRole('tooltip')).textContent).toBe('下载更新失败，请重试。')
-    f.view.rerender(<f.Indicator wide={false} />)
-    expect(screen.queryByRole('button')).toBeNull()
-  } finally { f.view.unmount(); f.status.resolve(available) }
-  expect(f.unsubscribe).toHaveBeenCalledOnce()
-})
-
-it('keeps bridge failures actionable and ignores status completion after unmount', async () => {
-  const f = fixture()
-  await act(async () => { f.status.reject(new Error('IPC unavailable')) })
-  f.open.mockRejectedValueOnce(new Error('IPC unavailable'))
-  fireEvent.click(screen.getByRole('button', { name: '重试更新' }))
-  await act(async () => {})
-  f.view.unmount()
-  const late = fixture()
-  late.view.unmount()
-  await act(async () => { late.status.resolve(available) })
-  expect(late.unsubscribe).toHaveBeenCalledOnce()
-})
-
-it('accepts initial status, coalesces actions, and ignores late events and action rejection after disposal', async () => {
-  const f = fixture()
-  const pending = Promise.withResolvers<undefined>()
-  try {
-    await act(async () => { f.status.resolve(available) })
-    expect(screen.getByRole('button', { name: '新版本' })).toBeTruthy()
-    await f.emit({ phase: 'verifying', version: available.version })
-    f.source.open()
-    expect(f.open).not.toHaveBeenCalled()
-    await f.emit(available)
-    f.open.mockImplementationOnce(() => pending.promise)
-    act(() => { f.source.open(); f.source.open() })
-    expect(f.open).toHaveBeenCalledOnce()
-    const state = f.source.store.getSnapshot()
-    f.view.unmount()
-    f.source.open()
-    await f.emit({ phase: 'error', version: available.version, failure: 'install' })
-    await act(async () => { pending.reject(new Error('late IPC failure')) })
-    expect(f.source.store.getSnapshot()).toBe(state)
-  } finally { pending.resolve(undefined); f.status.resolve(available) }
-})
-
-it('keeps an event newer than an initial-status failure', async () => {
-  const f = fixture()
-  try {
-    await f.emit(available)
-    await act(async () => { f.status.reject(new Error('stale initial request')) })
-    expect(f.source.store.getSnapshot().failed).toBe(false)
-  } finally { f.view.unmount(); f.status.resolve(available) }
-})
-
-it('renders the same semantic update in the active Web locale', async () => {
-  const f = fixture()
-  try {
-    await f.emit(available)
-    expect(screen.getByRole('button', { name: '新版本' })).toBeTruthy()
-    f.view.rerender(<f.Indicator dictionary={en} />)
-    expect(screen.getByRole('button', { name: 'Update' })).toBeTruthy()
-  } finally { f.view.unmount(); f.status.resolve(available) }
-})
-
-it('shows fallback progress and error details when the shell omits optional fields', async () => {
-  const f = fixture()
-  try {
-    await f.emit({ phase: 'downloading' })
-    const progress = screen.getByRole('button', { name: '0%' })
-    fireEvent.focus(progress)
-    expect((await screen.findByRole('tooltip')).textContent).toBe('0%')
-    await f.emit({ phase: 'downloading', version: '1.0.1' })
-    fireEvent.focus(screen.getByRole('button', { name: '0%' }))
-    expect((await screen.findByRole('tooltip')).textContent).toContain('1.0.1')
-    await f.emit({ phase: 'error' })
-    fireEvent.focus(screen.getByRole('button', { name: '重试更新' }))
-    expect((await screen.findByRole('tooltip')).textContent).toBe('安装更新失败，请稍后重试。')
-  } finally { f.view.unmount(); f.status.resolve({ phase: 'idle' }) }
-})
-
-it.each(['checking', 'verifying', 'installing'] as const)('shows only the version during %s in both locales', async (phase) => {
-  const f = fixture()
-  try {
-    await f.emit({ phase, version: '0.1.7-alpha.2' })
-    fireEvent.focus(screen.getByRole('button'))
-    expect((await screen.findByRole('tooltip')).textContent).toBe('0.1.7-alpha.2')
-    f.view.rerender(<f.Indicator dictionary={en} />)
-    fireEvent.focus(screen.getByRole('button'))
-    expect((await screen.findByRole('tooltip')).textContent).toBe('0.1.7-alpha.2')
-  } finally { f.view.unmount(); f.status.resolve({ phase: 'idle' }) }
-})
-
-it.each([
-  ['checking', '正在检查更新…'],
-  ['verifying', '正在校验更新文件…'],
-  ['installing', '正在准备重启…'],
-] as const)('retains the state label when %s has no version', async (phase, label) => {
-  const f = fixture()
-  try {
-    await f.emit({ phase })
-    fireEvent.focus(screen.getByRole('button', { name: label }))
-    expect((await screen.findByRole('tooltip')).textContent).toBe(label)
-  } finally { f.view.unmount(); f.status.resolve({ phase: 'idle' }) }
-})
-
-it('localizes fullscreen timeout guidance and preserves the retry action', async () => {
-  const f = fixture()
-  const copy: string[] = []
-  try {
-    await f.emit({ phase: 'error', failure: 'fullscreen-timeout', version: available.version })
-    for (const dictionary of [zh, en]) {
-      f.view.rerender(<f.Indicator dictionary={dictionary} />)
-      fireEvent.focus(screen.getByRole('button'))
-      copy.push((await screen.findByRole('tooltip')).textContent ?? '')
-    }
-    expect(copy).toMatchInlineSnapshot(`
-      [
-        "无法退出全屏，请退出全屏后重试更新",
-        "Could not exit fullscreen. Exit fullscreen, then retry the update.",
-      ]
-    `)
-    fireEvent.click(screen.getByRole('button'))
-    expect(f.open).toHaveBeenCalledOnce()
-  } finally { f.view.unmount(); f.status.resolve(available) }
-})
-
-
-it('keeps a configuration error actionable while download progress continues', async () => {
-  const f = fixture()
-  await f.emit({ phase: 'idle', configurationError: 'format' })
-  const error = screen.getByRole('button', { name: '配置不可用' })
-  fireEvent.click(error)
-  await act(async () => {})
-  expect(f.open).toHaveBeenCalledOnce()
-  await f.emit({ phase: 'downloading', percent: 58, configurationError: 'cleanup' })
-  fireEvent.click(screen.getByRole('button', { name: '配置不可用' }))
-  await act(async () => {})
-  expect(f.open).toHaveBeenCalledTimes(2)
-  f.view.unmount()
-  f.status.resolve({ phase: 'idle' })
-})
-
-it('opens download status while the original download action remains pending and coalesces status clicks', async () => {
-  const f = fixture()
-  const download = Promise.withResolvers<undefined>()
-  const statusDialog = Promise.withResolvers<undefined>()
-  try {
-    await act(async () => { f.status.resolve(available) })
-    f.open.mockImplementationOnce(() => download.promise).mockImplementationOnce(() => statusDialog.promise)
-    fireEvent.click(screen.getByRole('button', { name: '新版本' }))
-    await f.emit({ phase: 'downloading', percent: 12, version: available.version })
-    const progress = screen.getByRole('button', { name: '12%' })
-    fireEvent.click(progress)
-    fireEvent.click(progress)
-    expect(f.open).toHaveBeenCalledTimes(2)
-    await act(async () => { download.resolve(undefined) })
-    expect(progress.getAttribute('aria-disabled')).toBe('true')
-    await act(async () => { statusDialog.resolve(undefined) })
-    expect(progress.getAttribute('aria-disabled')).toBe('false')
-  } finally {
-    f.view.unmount()
-    download.resolve(undefined)
-    statusDialog.resolve(undefined)
-  }
+  expect(unsubscribe).toHaveBeenCalledOnce()
+  reply.resolve({ kind: 'current', version: '1.0.0' })
+  await pending
+  expect(source.store.getSnapshot().check).toEqual({ phase: 'checking' })
 })

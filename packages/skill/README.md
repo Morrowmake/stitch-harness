@@ -40,10 +40,6 @@ Start with the subsystem reference for the shared vocabulary, then read the Agen
 - [Skill subsystem reference](../../docs/subsystems/skills.md) — the registry, provider contract, local discovery priority, and the catalog and tool.
 - [Skill invocation policy reference](skill/README.md) — the model and user invocation controls.
 
------
-
-See [`skill-badge`](../experimental/skill-badge/README.md) for the experimental optional capability.
-
 <a id="dev-note"></a>
 ## Dev Note
 

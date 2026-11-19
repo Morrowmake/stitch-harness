@@ -8,8 +8,7 @@ import * as BashEnvPlugin from '@deepseek-ai/dsh-shell-env'
 import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
 import * as ToolBash from '@deepseek-ai/dsh-tool-bash'
 import * as ToolTodo from '@deepseek-ai/dsh-tool-todo'
-import * as LlmDeepSeek from '@deepseek-ai/dsh-llm-deepseek-api-key'
-import DeepSeekAuth from '@deepseek-ai/dsh-deepseek-auth'
+import * as LlmPiAi from '@deepseek-ai/dsh-llm-pi-ai'
 import TokenMeter from '@deepseek-ai/dsh-token-meter'
 import ToolResultPruner from '@deepseek-ai/dsh-compaction-tool-result-pruner'
 import * as JsonlSessionPersistence from '@deepseek-ai/dsh-session-persistence-jsonl'
@@ -19,7 +18,7 @@ import type { BasicCompactionConfig } from '@deepseek-ai/dsh-compaction-basic'
 
 /**
  * Shared harness for the headless-agent e2e suites: the full plugin stack
- * with the real DeepSeek adapter and the real bash + todo_write tools. Lives
+ * with the pi-ai `deepseek` route and the real bash + todo_write tools. Lives
  * outside the *.e2e.ts pattern so importing it never re-registers another
  * file's tests.
  */
@@ -51,13 +50,13 @@ export interface CodingHarnessOptions {
    */
   compact?: BasicCompactionConfig
   /**
-   * Test-only context capacity advertised for `deepseek-v4-flash`. Automatic
+   * Test-only context capacity advertised for `deepseek-flash`. Automatic
    * pressure scales the message budget left after the request's reserved
    * output tokens, so this capacity must exceed the advertised output cap.
    */
   modelContextWindow?: number
   /**
-   * Test-only per-request output cap advertised for `deepseek-v4-flash`, which
+   * Test-only per-request output cap advertised for `deepseek-flash`, which
    * the adapter forwards as `max_tokens` and pressure excludes from the
    * capacity above.
    */
@@ -71,14 +70,19 @@ export async function codingHarness(workdir: string, options: CodingHarnessOptio
     systemPrompt: { personaPrefix: options.personaPrefix ?? '' },
   })
   await ctx.plugin(AgentLoop, { agents: [] })
-  await ctx.plugin(DeepSeekAuth)
-  await ctx.plugin(LlmDeepSeek, {
-    ...options.modelContextWindow === undefined && options.modelMaxTokens === undefined ? {} : {
-      models: [{
-        id: 'deepseek-v4-flash',
-        ...options.modelContextWindow === undefined ? {} : { contextWindow: options.modelContextWindow },
-        ...options.modelMaxTokens === undefined ? {} : { maxTokens: options.modelMaxTokens },
-      }],
+  await ctx.plugin(LlmPiAi, {
+    providers: {
+      deepseek: {
+        apiKeyEnv: 'DEEPSEEK_API_KEY',
+        ...options.modelContextWindow === undefined && options.modelMaxTokens === undefined ? {} : {
+          modelOverrides: {
+            'deepseek-flash': {
+              ...options.modelContextWindow === undefined ? {} : { contextWindow: options.modelContextWindow },
+              ...options.modelMaxTokens === undefined ? {} : { maxTokens: options.modelMaxTokens },
+            },
+          },
+        },
+      },
     },
   })
   await ctx.plugin(LocalSubprocessRuntime)

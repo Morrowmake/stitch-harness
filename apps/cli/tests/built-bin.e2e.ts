@@ -180,7 +180,28 @@ function requestProfileShutdown(
   child.kill('SIGTERM')
 }
 
-function createEnvironmentProbeProfile(home: string, project: string): void {
+/** Credential reference the loopback mock route resolves. */
+const MOCK_ROUTE_KEY_ENV = 'STITCH_TEST_API_KEY'
+
+/** Rows selecting a pi-ai Anthropic Messages route on the loopback mock as the default model. */
+function mockRouteRows(baseURL: string): object[] {
+  return [
+    { id: 'agent-default-model', config: { provider: 'mock', model: 'mock-model' } },
+    { id: 'llm-pi-ai', config: { providers: { mock: {
+      apiKeyEnv: MOCK_ROUTE_KEY_ENV, api: 'anthropic-messages', baseURL,
+      models: [{ id: 'mock-model', contextWindow: 32_768, maxTokens: 1024 }],
+    } } } },
+  ]
+}
+
+/** Write {@link mockRouteRows} as a launch patch under `dir`. */
+function writeMockRoutePatch(dir: string, baseURL: string): string {
+  const path = join(dir, 'mock-route.patch.json')
+  writeFileSync(path, JSON.stringify(mockRouteRows(baseURL)))
+  return path
+}
+
+function createEnvironmentProbeProfile(home: string, project: string, baseURL: string): void {
   const pluginFile = join(project, 'environment-probe.mjs')
   writeFileSync(pluginFile, [
     "export const name = 'environment-probe'",
@@ -189,8 +210,8 @@ function createEnvironmentProbeProfile(home: string, project: string): void {
     '  void ctx.loader.await().then(async () => {',
     "    let text = ''",
     '    for await (const chunk of ctx.llm.stream({',
-    "      provider: 'deepseek-official',",
-    "      model: 'deepseek-v4-flash',",
+    "      provider: 'mock',",
+    "      model: 'mock-model',",
     '      messages: [],',
     '      maxTokens: 32,',
     '    })) {',
@@ -211,12 +232,10 @@ function createEnvironmentProbeProfile(home: string, project: string): void {
     dependencies: {},
     dsh: { profile: { bundles: ['@deepseek-ai/dsh-base'] } },
   }, undefined, 2))
-  writeFileSync(join(profileDir, 'cordis.patch.yml'), [
-    '- insert:',
-    '    - id: environment-probe',
-    `      name: ${pathToFileURL(pluginFile).href}`,
-    '',
-  ].join('\n'))
+  writeFileSync(join(profileDir, 'cordis.patch.yml'), JSON.stringify([
+    ...mockRouteRows(baseURL),
+    { insert: [{ id: 'environment-probe', name: pathToFileURL(pluginFile).href }] },
+  ]))
 }
 
 interface StartupFixture {
@@ -348,7 +367,7 @@ describe.skipIf(!existsSync(dshBin))('dsh BUILT bin (node lib/bin.js, no tsx)', 
       symlinkSync(join(repoRoot, 'apps/cli/lib'), alias, 'junction')
       const { stdout } = await execa(process.execPath, [
         '--preserve-symlinks-main', join(alias, 'bin.js'), '--version',
-      ], { timeout: SPAWN_TIMEOUT_MS, env: { DSH_HOME: home, DSH_TELEMETRY_DISABLED: '1' } })
+      ], { timeout: SPAWN_TIMEOUT_MS, env: { DSH_HOME: home } })
       expect(stdout).toBe(cliVersion)
     } finally {
       rmSync(home, { recursive: true, force: true })
@@ -377,7 +396,6 @@ describe.skipIf(!existsSync(dshBin))('dsh BUILT bin (node lib/bin.js, no tsx)', 
     try {
       const web = await runBuiltBin(['--profile', 'web', '--help'], {
         DSH_HOME: home,
-        DSH_TELEMETRY_DISABLED: '1',
       })
       expect(web.code).toBe(0)
       expect(web.stderr).toBe('')
@@ -388,7 +406,6 @@ describe.skipIf(!existsSync(dshBin))('dsh BUILT bin (node lib/bin.js, no tsx)', 
 
       const wildcardHost = await runBuiltBin(['web', '--host', '0.0.0.0'], {
         DSH_HOME: home,
-        DSH_TELEMETRY_DISABLED: '1',
       })
       expect(wildcardHost.code).toBe(1)
       expect(wildcardHost.stdout).toBe('')
@@ -396,7 +413,6 @@ describe.skipIf(!existsSync(dshBin))('dsh BUILT bin (node lib/bin.js, no tsx)', 
 
       const headlessHelp = await runBuiltBin(['headless', '--help'], {
         DSH_HOME: home,
-        DSH_TELEMETRY_DISABLED: '1',
       })
       expect(headlessHelp.code).toBe(0)
       expect(headlessHelp.stderr).toBe('')
@@ -404,7 +420,6 @@ describe.skipIf(!existsSync(dshBin))('dsh BUILT bin (node lib/bin.js, no tsx)', 
 
       const sdkHelp = await runBuiltBin(['sdk', '--help'], {
         DSH_HOME: home,
-        DSH_TELEMETRY_DISABLED: '1',
       })
       expect(sdkHelp.code).toBe(0)
       expect(sdkHelp.stderr).toBe('')
@@ -412,7 +427,6 @@ describe.skipIf(!existsSync(dshBin))('dsh BUILT bin (node lib/bin.js, no tsx)', 
 
       const acpHelp = await runBuiltBin(['acp', '--help'], {
         DSH_HOME: home,
-        DSH_TELEMETRY_DISABLED: '1',
       })
       expect(acpHelp.code).toBe(0)
       expect(acpHelp.stderr).toBe('')
@@ -420,7 +434,6 @@ describe.skipIf(!existsSync(dshBin))('dsh BUILT bin (node lib/bin.js, no tsx)', 
 
       const missingTask = await runBuiltBin(['--profile', 'headless'], {
         DSH_HOME: home,
-        DSH_TELEMETRY_DISABLED: '1',
       })
       expect(missingTask.code).toBe(1)
       expect(missingTask.stderr).toContain('a task is required')
@@ -441,8 +454,6 @@ describe.skipIf(!existsSync(dshBin))('dsh BUILT bin (node lib/bin.js, no tsx)', 
     try {
       const result = await runBuiltBin(['--profile', 'sdk', '--patch', patch], {
         DSH_HOME: home,
-        DSH_TELEMETRY_DISABLED: '1',
-        DEEPSEEK_API_KEY: 'built-sdk-startup-failure-no-call',
       }, home)
       expect(result.code).toBe(0)
       expect(result.stdout).toBe('')
@@ -454,8 +465,7 @@ describe.skipIf(!existsSync(dshBin))('dsh BUILT bin (node lib/bin.js, no tsx)', 
   }, SPAWN_TIMEOUT_MS + 30_000)
 
   it('serves the SDK protocol with an absolute-path overlay plugin and exits after shutdown', async () => {
-    // On the official endpoint the route requests its model listing with this key;
-    // the loopback mock keeps the run offline and records any model call.
+    // The loopback mock route keeps the run offline and records any model call.
     const server = await startMockLlmServer({ sequence: ['success'] })
     const home = mkdtempSync(join(tmpdir(), 'dsh-built-sdk-'))
     const pluginPath = join(home, 'plugin #100%.mjs')
@@ -466,7 +476,7 @@ describe.skipIf(!existsSync(dshBin))('dsh BUILT bin (node lib/bin.js, no tsx)', 
       '',
     ].join('\n'))
     const patch = join(home, 'absolute.patch.yml')
-    writeFileSync(patch, JSON.stringify([{ insert: [
+    writeFileSync(patch, JSON.stringify([...mockRouteRows(server.baseURL), { insert: [
       { id: 'absolute-plugin', name: pluginPath, config: { marker } },
     ] }]))
     const child = execa(process.execPath, [dshBin, '--profile', 'sdk', '--patch', patch], {
@@ -477,9 +487,7 @@ describe.skipIf(!existsSync(dshBin))('dsh BUILT bin (node lib/bin.js, no tsx)', 
       env: {
         ...process.env,
         DSH_HOME: home,
-        DSH_TELEMETRY_DISABLED: '1',
-        DEEPSEEK_API_KEY: 'built-sdk-profile-no-call',
-        DEEPSEEK_BASE_URL: server.baseURL,
+        [MOCK_ROUTE_KEY_ENV]: 'built-sdk-profile-no-call',
       },
       extendEnv: false,
     })
@@ -504,7 +512,7 @@ describe.skipIf(!existsSync(dshBin))('dsh BUILT bin (node lib/bin.js, no tsx)', 
         jsonrpc: '2.0',
         id: 1,
         method: 'initialize',
-        params: { cwd: home, provider: 'deepseek-official', model: 'deepseek-v4-flash' },
+        params: { cwd: home, provider: 'mock', model: 'mock-model' },
       })}\n`)
       const initialized = await response(1)
       expect(initialized, `${JSON.stringify(initialized)}\n${stderr}`).toMatchObject({
@@ -537,7 +545,7 @@ describe.skipIf(!existsSync(dshBin))('dsh BUILT bin (node lib/bin.js, no tsx)', 
       successText: 'ACP BUILT PROFILE OK',
     })
     const home = mkdtempSync(join(tmpdir(), 'dsh-built-acp-'))
-    const child = execa(process.execPath, [dshBin, '--profile', 'acp'], {
+    const child = execa(process.execPath, [dshBin, '--profile', 'acp', '--patch', writeMockRoutePatch(home, server.baseURL)], {
       cwd: home,
       reject: false,
       timeout: SPAWN_TIMEOUT_MS,
@@ -545,9 +553,7 @@ describe.skipIf(!existsSync(dshBin))('dsh BUILT bin (node lib/bin.js, no tsx)', 
       env: {
         ...process.env,
         DSH_HOME: home,
-        DSH_TELEMETRY_DISABLED: '1',
-        DEEPSEEK_API_KEY: apiKey,
-        DEEPSEEK_BASE_URL: server.baseURL,
+        [MOCK_ROUTE_KEY_ENV]: apiKey,
         DSH_PERMISSION_MODE: 'danger-full-access',
       },
       extendEnv: false,
@@ -623,11 +629,9 @@ describe.skipIf(!existsSync(dshBin))('dsh BUILT bin (node lib/bin.js, no tsx)', 
     })
     const home = mkdtempSync(join(tmpdir(), 'dsh-built-headless-'))
     try {
-      const result = await runBuiltBin(['--profile', 'headless', 'answer', 'from', 'the', 'published', 'entry'], {
+      const result = await runBuiltBin(['--profile', 'headless', '--patch', writeMockRoutePatch(home, server.baseURL), 'answer', 'from', 'the', 'published', 'entry'], {
         DSH_HOME: home,
-        DSH_TELEMETRY_DISABLED: '1',
-        DEEPSEEK_API_KEY: apiKey,
-        DEEPSEEK_BASE_URL: server.baseURL,
+        [MOCK_ROUTE_KEY_ENV]: apiKey,
       })
       expect(result.code, result.stderr).toBe(0)
       expect(result.stdout).toBe('published headless profile reached the mock')
@@ -688,7 +692,7 @@ describe.skipIf(!existsSync(dshBin))('dsh BUILT bin (node lib/bin.js, no tsx)', 
     try {
       const created = await runBuiltBin(
         ['rescue', '--from-default-profile', 'web', '--help'],
-        { DSH_HOME: home, DSH_TELEMETRY_DISABLED: '1' },
+        { DSH_HOME: home },
       )
       expect(created.code).toBe(0)
       expect(created.stderr).toBe('')
@@ -709,7 +713,7 @@ describe.skipIf(!existsSync(dshBin))('dsh BUILT bin (node lib/bin.js, no tsx)', 
       writeFileSync(join(dir, 'cordis.patch.yml'), '- id: local-change\n  disabled: true\n')
       const repeated = await runBuiltBin(
         ['rescue', '--from-default-profile', 'web', '--help'],
-        { DSH_HOME: home, DSH_TELEMETRY_DISABLED: '1' },
+        { DSH_HOME: home },
       )
       expect(repeated.code).toBe(0)
       expect(repeated.stderr).toBe('')
@@ -717,7 +721,7 @@ describe.skipIf(!existsSync(dshBin))('dsh BUILT bin (node lib/bin.js, no tsx)', 
 
       const reopened = await runBuiltBin(
         ['rescue', '--help'],
-        { DSH_HOME: home, DSH_TELEMETRY_DISABLED: '1' },
+        { DSH_HOME: home },
       )
       expect(reopened.code).toBe(0)
       expect(reopened.stderr).toBe('')
@@ -732,7 +736,7 @@ describe.skipIf(!existsSync(dshBin))('dsh BUILT bin (node lib/bin.js, no tsx)', 
     try {
       const failed = await runBuiltBin(
         ['--profile', 'rescue', '--from-default-profile', 'web', '--port', 'not-a-number'],
-        { DSH_HOME: home, DSH_TELEMETRY_DISABLED: '1' },
+        { DSH_HOME: home },
       )
       expect(failed.code).toBe(1)
       expect(failed.stderr).toContain('--port must be a number')
@@ -740,7 +744,7 @@ describe.skipIf(!existsSync(dshBin))('dsh BUILT bin (node lib/bin.js, no tsx)', 
 
       const retried = await runBuiltBin(
         ['rescue', '--help'],
-        { DSH_HOME: home, DSH_TELEMETRY_DISABLED: '1' },
+        { DSH_HOME: home },
       )
       expect(retried.code).toBe(0)
       expect(retried.stderr).toBe('')
@@ -750,25 +754,23 @@ describe.skipIf(!existsSync(dshBin))('dsh BUILT bin (node lib/bin.js, no tsx)', 
     }
   }, SPAWN_TIMEOUT_MS * 2 + 30_000)
 
-  it('uses the launching endpoint and managed credential through the published entry', async () => {
+  it('uses the managed credential through the published entry', async () => {
     const apiKey = 'built-home-layer-key'
     const server = await startMockLlmServer({
       sequence: ['success'],
       apiKey,
-      successText: 'launching endpoint reached the mock',
+      successText: 'managed credential reached the mock',
     })
     const home = mkdtempSync(join(tmpdir(), 'dsh-home-environment-'))
     const project = mkdtempSync(join(tmpdir(), 'dsh-home-project-'))
-    writeFileSync(join(home, '.credentials.yaml'), `version: 1\nrefs:\n  DEEPSEEK_API_KEY: ${apiKey}\n`, { mode: 0o600 })
-    createEnvironmentProbeProfile(home, project)
+    writeFileSync(join(home, '.credentials.yaml'), `version: 1\nrefs:\n  ${MOCK_ROUTE_KEY_ENV}: ${apiKey}\n`, { mode: 0o600 })
+    createEnvironmentProbeProfile(home, project, server.baseURL)
     try {
       const result = await runBuiltBin(
         ['--profile', 'environment-probe'],
         {
           DSH_HOME: home,
-          DSH_TELEMETRY_DISABLED: '1',
-          DEEPSEEK_API_KEY: undefined,
-          DEEPSEEK_BASE_URL: server.baseURL,
+          [MOCK_ROUTE_KEY_ENV]: undefined,
         },
         project,
       )
@@ -776,7 +778,7 @@ describe.skipIf(!existsSync(dshBin))('dsh BUILT bin (node lib/bin.js, no tsx)', 
         result.code,
         `${result.stderr}\nstdout:\n${result.stdout}\nmock requests: ${String(server.requests.length)}`,
       ).toBe(0)
-      expect(result.stdout).toBe('launching endpoint reached the mock')
+      expect(result.stdout).toBe('managed credential reached the mock')
       expect(result.stdout).not.toContain(apiKey)
       expect(result.stderr).not.toContain(apiKey)
       expect(server.requests).toHaveLength(1)
@@ -796,8 +798,6 @@ describe.skipIf(!existsSync(dshBin))('dsh BUILT bin (node lib/bin.js, no tsx)', 
       const result = await runBuiltBin(['--profile', 'web', '--patch', invalidProvider, '--port', '0', '--no-open'], {
         DSH_HOME: home,
         DSH_BROWSER_OPEN_TEST_EXIT_ON_READY: '1',
-        DEEPSEEK_API_KEY: 'keyless-invalid-config',
-        DSH_TELEMETRY_DISABLED: '1',
         NODE_OPTIONS: `--import=${webReadyExitHook}`,
       })
       expect(result.code, result.stderr).toBe(0)
@@ -1260,11 +1260,7 @@ describe.skipIf(!existsSync(dshBin))('dsh BUILT bin (node lib/bin.js, no tsx)', 
       expect(rows.map(row => [row.id, row.name])).toEqual([
         ['sdk-app-startup', '@deepseek-ai/dsh-sdk-app'],
         ['sdk-jsonrpc-server', '@deepseek-ai/dsh-sdk-jsonrpc-server'],
-        ['deepseek-llm-api-extensions', '@deepseek-ai/dsh-deepseek-llm-api-extensions'],
-        ['session-log-deepseek', '@deepseek-ai/dsh-session-log-deepseek'],
-        ['plugin-package-inventory-deepseek', '@deepseek-ai/dsh-plugin-package-inventory-deepseek'],
-        ['deepseek-auth', '@deepseek-ai/dsh-deepseek-auth'],
-        ['llm-deepseek', '@deepseek-ai/dsh-llm-deepseek-api-key'],
+        ['llm-pi-ai', '@deepseek-ai/dsh-llm-pi-ai'],
         ['sandbox', '@deepseek-ai/dsh-sandbox-local'],
         ['filesystem', '@deepseek-ai/dsh-fs-local'],
         ['attachment-local', '@deepseek-ai/dsh-attachment-local'],

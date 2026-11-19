@@ -97,6 +97,41 @@
   font-weight: 500;
 }
 
+/* Submit (or confirm) on top, the quieter alternative path below it. */
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.secondary {
+  width: 100%;
+  height: 36px;
+  border-radius: var(--dsw-radius-lg);
+  font-size: 13px;
+}
+
+/* The issue preview: disclosure, title, body, and the Session id opt-in. */
+.report {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.hint {
+  margin: 0;
+  color: var(--dsw-alias-label-caption);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.detail.body {
+  margin-top: 0;
+  font-family: var(--ds-font-family-code);
+  font-size: 13px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .chip,
   .detail {

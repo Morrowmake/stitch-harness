@@ -1,0 +1,37 @@
+{
+  "license": "CC-BY-NC-SA 4.0",
+  "query": "cordis plugin framework",
+  "page": 1,
+  "pages": 1,
+  "results": [
+    {
+      "url": "https://cordis.example.org/docs/plugins.html",
+      "title": "Writing Cordis plugins",
+      "description": "How a plugin declares services and effects.",
+      "quality": -2.5,
+      "format": "HTML5",
+      "details": ""
+    },
+    {
+      "url": "https://blog.example.net/2019/plugin-frameworks",
+      "title": "",
+      "description": "   ",
+      "quality": -4.1,
+      "format": "HTML5",
+      "details": ""
+    },
+    {
+      "url": "https://cordis.example.org/docs/plugins.html",
+      "title": "Repeated",
+      "description": "Repeated entry"
+    },
+    { "url": "ftp://files.example.org/cordis.tar", "title": "Not a web page", "description": "skipped" },
+    { "title": "No URL", "description": "skipped" },
+    "not an object",
+    {
+      "url": "https://wiki.example.com/Cordis",
+      "title": "Cordis - Wiki",
+      "description": "Encyclopedic entry."
+    }
+  ]
+}

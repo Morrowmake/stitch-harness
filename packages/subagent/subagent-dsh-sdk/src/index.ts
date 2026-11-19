@@ -42,10 +42,10 @@ export interface Config {
   patches: string[]
   /** Absolute isolated Harness home for every nested child process. */
   dshHome: string
-  /** Provider route the child runtime initializes with (default `deepseek-official`). */
-  provider: string
-  /** Model the child runtime initializes with (default `deepseek-v4-flash`). */
-  model: string
+  /** Provider route the child runtime initializes with; unset (with `model`) inherits the parent's selected route. */
+  provider?: string
+  /** Model the child runtime initializes with; unset (with `provider`) inherits the parent's selected route. */
+  model?: string
   /** Optional per-request output-token cap for the child runtime. */
   maxTokens?: number
   /**
@@ -73,8 +73,8 @@ export const Config: z<Config> = z.object({
   profile: z.string().default('sdk'),
   patches: z.array(z.string()).default([]),
   dshHome: z.string().required(),
-  provider: z.string().default('deepseek-official'),
-  model: z.string().default('deepseek-v4-flash'),
+  provider: z.string(),
+  model: z.string(),
   maxTokens: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER),
   env: z.dict(z.string()).default({}),
   shutdownTimeoutMs: z.number().default(DEFAULT_SHUTDOWN_TIMEOUT_MS),
@@ -82,8 +82,9 @@ export const Config: z<Config> = z.object({
   disposeGraceMs: z.number().default(DEFAULT_DISPOSE_GRACE_MS),
 })
 
-/** The shape after schemastery applied the defaults (`dshBin` and `maxTokens` have none). */
-type ResolvedConfig = Required<Omit<Config, 'maxTokens' | 'dshBin'>> & Pick<Config, 'maxTokens' | 'dshBin'>
+/** The shape after schemastery applied the defaults (`dshBin`, `maxTokens`, and the route have none). */
+type ResolvedConfig = Required<Omit<Config, 'maxTokens' | 'dshBin' | 'provider' | 'model'>>
+  & Pick<Config, 'maxTokens' | 'dshBin' | 'provider' | 'model'>
 
 /** Resolve one configured runtime file against the harness launch directory and require a regular file. */
 function resolveConfiguredFile(field: string, value: string): string {
@@ -109,8 +110,8 @@ function resolveSdkRoute(config: ResolvedConfig, requested: AgentOptions | undef
 > {
   const maxTokens = requested?.maxTokens ?? config.maxTokens
   return {
-    provider: requested?.provider ?? config.provider,
-    model: requested?.model ?? config.model,
+    ...(requested?.provider ?? config.provider) === undefined ? {} : { provider: requested?.provider ?? config.provider },
+    ...(requested?.model ?? config.model) === undefined ? {} : { model: requested?.model ?? config.model },
     ...requested?.reasoningEffort === undefined ? {} : { reasoningEffort: requested.reasoningEffort },
     ...maxTokens === undefined ? {} : { maxTokens },
   }
@@ -123,12 +124,15 @@ function resolveSdkRoute(config: ResolvedConfig, requested: AgentOptions | undef
  */
 class SdkSubagentProvider implements SubagentProvider {
   readonly capabilities = SDK_START_CAPABILITIES
-  readonly agentRouteDefaults: Readonly<{ provider: string; model: string }>
+  readonly agentRouteDefaults?: Readonly<{ provider: string; model: string }>
   // Context contract: an out-of-process SDK child starts fresh — no parent conversation crosses the process boundary.
   readonly inheritsParentContext = false
 
   constructor(readonly name: string, private readonly ctx: Context, private readonly config: ResolvedConfig) {
-    this.agentRouteDefaults = Object.freeze({ provider: config.provider, model: config.model })
+    // Without a configured route the child follows the parent's selected provider and model.
+    if (config.provider !== undefined && config.model !== undefined) {
+      this.agentRouteDefaults = Object.freeze({ provider: config.provider, model: config.model })
+    }
   }
 
   start(request: ResolvedSubagentStartRequest) {

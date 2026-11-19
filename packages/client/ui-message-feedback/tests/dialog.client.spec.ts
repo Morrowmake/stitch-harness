@@ -2,28 +2,46 @@
  * FeedbackDialogController: one draft per open, submission routed by target,
  * success closes and acknowledges, failure keeps the draft with its code, a
  * settlement from a superseded open closes nothing, and the toast sequence
- * retires only the toast the view finished showing.
+ * retires only the toast the view finished showing. The GitHub issue preview
+ * is editable, names the Session only on opt-in, records the remark before
+ * filing it, and sends nothing until the human confirms.
  */
 import { describe, expect, it, vi } from 'vitest'
 import type { MessageId } from '@deepseek-ai/dsh-api-remotes/client'
 import type { MessageFeedbackActionResult } from '../src/client/controller.ts'
-import { FeedbackDialogController, type FeedbackSubmit } from '../src/client/dialog.ts'
+import {
+  FeedbackDialogController, sessionIdLine, type FeedbackIssueChannel, type FeedbackSubmit,
+} from '../src/client/dialog.ts'
 
 const MSG = 'm-1' as MessageId
 const MESSAGE_TARGET = { kind: 'message', messageId: MSG, rating: 'positive' } as const
+const SESSION = 'session-1'
+const DRAFT = { title: 'slow', body: 'slow\n\n---\n- Category: none\n- Stitch version: 1.0.0\n- OS: Linux' }
+const ISSUE_URL = 'https://github.com/Morrowmake/stitch-harness/issues/7'
 
-function bench(result: () => Promise<MessageFeedbackActionResult> = () => Promise.resolve({ ok: true })) {
+function bench(
+  result: () => Promise<MessageFeedbackActionResult> = () => Promise.resolve({ ok: true }),
+  report: FeedbackIssueChannel['report'] = () => Promise.resolve({ ok: true, value: { kind: 'created', url: ISSUE_URL } }),
+) {
   const submit = vi.fn<FeedbackSubmit>(() => result())
-  return { submit, controller: new FeedbackDialogController(submit) }
+  const issues = {
+    sessionId: SESSION,
+    draft: vi.fn<FeedbackIssueChannel['draft']>(() => Promise.resolve({ ok: true, value: DRAFT })),
+    report: vi.fn(report),
+    open: vi.fn<FeedbackIssueChannel['open']>(),
+  }
+  return { submit, issues, controller: new FeedbackDialogController(submit, issues) }
+}
+
+const CLOSED_STATE = {
+  target: null, category: null, text: '', report: null, submitting: false, failure: null, toast: 0, notice: 'recorded',
 }
 
 describe('FeedbackDialogController', () => {
   it('starts closed with no toast', () => {
     const { controller } = bench()
 
-    expect(controller.state.getSnapshot()).toEqual({
-      target: null, category: null, text: '', submitting: false, failure: null, toast: 0,
-    })
+    expect(controller.state.getSnapshot()).toEqual(CLOSED_STATE)
   })
 
   it('opens with an empty draft and drops the draft on dismiss', () => {
@@ -189,8 +207,134 @@ describe('FeedbackDialogController', () => {
 
     controller.open({ kind: 'session' })
     controller.dispose()
-    expect(controller.state.getSnapshot()).toEqual({
-      target: null, category: null, text: '', submitting: false, failure: null, toast: 0,
+    expect(controller.state.getSnapshot()).toEqual(CLOSED_STATE)
+  })
+})
+
+describe('FeedbackDialogController GitHub issue preview', () => {
+  it('previews the draft without recording or filing anything', async () => {
+    const { controller, submit, issues } = bench()
+    controller.open({ kind: 'session' })
+    controller.edit({ category: 'service-stability' })
+    controller.edit({ text: '  slow  ' })
+
+    await controller.previewReport()
+
+    expect(issues.draft).toHaveBeenCalledWith({ text: 'slow', category: 'service-stability' })
+    expect(controller.state.getSnapshot()).toMatchObject({
+      submitting: false,
+      report: { ...DRAFT, includeSessionId: false, recorded: false },
     })
+    expect(submit).not.toHaveBeenCalled()
+    expect(issues.report).not.toHaveBeenCalled()
+    expect(issues.open).not.toHaveBeenCalled()
+  })
+
+  it('lets the human edit the preview and opt the Session id in and out', async () => {
+    const { controller } = bench()
+    controller.open({ kind: 'session' })
+    await controller.previewReport()
+
+    controller.editReport({ title: 'Slow replies', body: 'edited' })
+    controller.includeSessionId(true)
+    expect(controller.state.getSnapshot().report).toMatchObject({
+      title: 'Slow replies', body: `edited\n${sessionIdLine(SESSION)}`, includeSessionId: true,
+    })
+
+    controller.includeSessionId(false)
+    expect(controller.state.getSnapshot().report).toMatchObject({ body: 'edited', includeSessionId: false })
+    expect(controller.state.getSnapshot().report?.body).not.toContain(SESSION)
+  })
+
+  it('records, files the confirmed text, opens the issue, and acknowledges', async () => {
+    const { controller, submit, issues } = bench()
+    controller.open({ kind: 'session' })
+    controller.edit({ text: 'slow' })
+    await controller.previewReport()
+    controller.editReport({ title: 'Edited title' })
+
+    await controller.confirmReport()
+
+    expect(submit).toHaveBeenCalledWith({ kind: 'session' }, { text: 'slow' })
+    expect(issues.report).toHaveBeenCalledWith({ title: 'Edited title', body: DRAFT.body })
+    expect(issues.open).toHaveBeenCalledWith(ISSUE_URL)
+    expect(controller.state.getSnapshot()).toMatchObject({ target: null, report: null, toast: 1, notice: 'issue-created' })
+  })
+
+  it('opens the prefilled page when the Host could not file the issue itself', async () => {
+    const page = 'https://github.com/Morrowmake/stitch-harness/issues/new?title=slow&body=b'
+    const { controller, issues } = bench(undefined, () => Promise.resolve({ ok: true, value: { kind: 'browser', url: page } }))
+    controller.open({ kind: 'session' })
+    await controller.previewReport()
+
+    await controller.confirmReport()
+
+    expect(issues.open).toHaveBeenCalledWith(page)
+    expect(controller.state.getSnapshot()).toMatchObject({ target: null, notice: 'issue-opened' })
+  })
+
+  it('keeps the preview on a failed report and does not record twice on retry', async () => {
+    let fail = true
+    const { controller, submit, issues } = bench(undefined, () => Promise.resolve(fail
+      ? { ok: false, error: { code: 'gateway/internal', message: 'boom' } }
+      : { ok: true, value: { kind: 'created', url: ISSUE_URL } }))
+    controller.open({ kind: 'session' })
+    await controller.previewReport()
+
+    await controller.confirmReport()
+    expect(controller.state.getSnapshot()).toMatchObject({
+      failure: 'gateway/internal', submitting: false, report: { recorded: true },
+    })
+    expect(issues.open).not.toHaveBeenCalled()
+
+    fail = false
+    await controller.confirmReport()
+    expect(submit).toHaveBeenCalledTimes(1)
+    expect(issues.report).toHaveBeenCalledTimes(2)
+    expect(controller.state.getSnapshot()).toMatchObject({ target: null, notice: 'issue-created' })
+  })
+
+  it('files nothing when the remark cannot be recorded', async () => {
+    const { controller, issues } = bench(() => Promise.resolve({ ok: false, error: { code: 'session-not-found', message: 'gone' } }))
+    controller.open({ kind: 'session' })
+    await controller.previewReport()
+
+    await controller.confirmReport()
+
+    expect(issues.report).not.toHaveBeenCalled()
+    expect(controller.state.getSnapshot()).toMatchObject({ failure: 'session-not-found', report: { recorded: false } })
+  })
+
+  it('returns from the preview to the form, keeping the draft', async () => {
+    const { controller } = bench()
+    controller.open({ kind: 'session' })
+    controller.edit({ text: 'slow' })
+    await controller.previewReport()
+
+    controller.closeReport()
+
+    expect(controller.state.getSnapshot()).toMatchObject({ target: { kind: 'session' }, text: 'slow', report: null })
+  })
+
+  it('previews an already recorded typed remark and files it without recording again', async () => {
+    const { controller, submit, issues } = bench()
+
+    await controller.openReport('typed remark')
+    expect(issues.draft).toHaveBeenCalledWith({ text: 'typed remark' })
+    expect(controller.state.getSnapshot()).toMatchObject({ target: { kind: 'session' }, report: { recorded: true } })
+
+    await controller.confirmReport()
+    expect(submit).not.toHaveBeenCalled()
+    expect(issues.report).toHaveBeenCalledOnce()
+  })
+
+  it('closes a typed remark preview instead of returning to a form that would record it again', async () => {
+    const { controller, issues } = bench()
+    await controller.openReport('typed remark')
+
+    controller.closeReport()
+
+    expect(controller.state.getSnapshot()).toMatchObject({ target: null, report: null })
+    expect(issues.report).not.toHaveBeenCalled()
   })
 })

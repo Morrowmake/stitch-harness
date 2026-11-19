@@ -6,8 +6,6 @@ The credential seam of [dsh-credentials](../../packages/credentials/credentials)
 
 Source: [`packages/credentials/credentials/src/index.ts`](../../packages/credentials/credentials/src/index.ts)
 
-The DeepSeek account grant is one such record; its sign-in, request credentials, and Platform session are documented in [account.md](account.md).
-
 ## Identity
 
 A reference names one credential as a POSIX-style environment-variable name. The brand prevents callers from mixing credential references with other strings passed between packages or processes; construction validates the shell-identifier syntax.

@@ -36,6 +36,16 @@ function assertSupportedTarget(target) {
 }
 
 /**
+ * Return the local completion record filename for one packaged target.
+ * @param {'mac-arm64' | 'mac-x64' | 'win-x64'} target - Supported Desktop target name.
+ * @returns {string} Filename stored beside electron-builder artifacts.
+ */
+export function desktopBuildRecordFilename(target) {
+  assertSupportedTarget(target)
+  return `${target}-release.json`
+}
+
+/**
  * Return the mutable preparation and artifact directories owned by one release target.
  * @param {'mac-arm64' | 'mac-x64' | 'win-x64'} target - Supported Desktop target name.
  * @param {NodeJS.ProcessEnv} environment - Packaging environment with an optional absolute cache directory.

@@ -10,7 +10,7 @@
 
 import { brandString } from '@deepseek-ai/dsh-brand'
 import { CONTEXT_WINDOW_EXCEEDED_CODE, EMPTY_RESPONSE_CODE, isContextWindowExceededError, isQuotaExceededError, LlmError, QUOTA_EXCEEDED_CODE } from '@deepseek-ai/dsh-llm'
-import type { BuiltinLlmFailureCode, FinishReason, StreamChunk, TokenUsage, ToolCallId } from '@deepseek-ai/dsh-llm'
+import type { BuiltinLlmFailureCode, FinishReason, LlmFailure, StreamChunk, TokenUsage, ToolCallId } from '@deepseek-ai/dsh-llm'
 import { isContextOverflow } from '@earendil-works/pi-ai/utils/overflow'
 import type { AssistantMessage, AssistantMessageEvent, Usage as PiUsage } from '@earendil-works/pi-ai'
 import { toPiReplayState } from './replay.ts'
@@ -135,6 +135,14 @@ export function mapStopReason(message: AssistantMessage, contextWindow?: number)
   }
 }
 
+/** Per-attempt account binding applied while translating one stream. */
+export interface AttemptBinding {
+  /** Signed-in account recorded in the replay state (design D4). */
+  account?: string
+  /** Adds captured `status`/`providerRetryAfterMs` to an error finish. */
+  enrich?: (failure: LlmFailure) => LlmFailure
+}
+
 /**
  * Translate the pi-ai event stream into StreamChunks. pi-ai never throws
  * mid-stream — failures arrive as `error` events, which become error/aborted
@@ -145,6 +153,7 @@ export function mapStopReason(message: AssistantMessage, contextWindow?: number)
  *   in-band terminal error an aborted finish.
  * @param requestedModel - request model identity recorded for durable replay.
  * @param prefixDigest - request-context digest recorded for durable replay.
+ * @param binding - the serving account of a pooled attempt: names it in the replay state and enriches error finishes with captured hints.
  * @returns the harness chunks, ending with `usage` then `finish`; throws
  *   `LlmError` (`STREAM_CLOSED`) if the source ends without a terminal event, or
  *   `MALFORMED_RESPONSE` when completed tool arguments are invalid. Length-limited
@@ -156,6 +165,7 @@ export async function* toStreamChunks(
   callerSignal?: AbortSignal,
   requestedModel?: string,
   prefixDigest?: string,
+  binding?: AttemptBinding,
 ): AsyncGenerator<StreamChunk> {
   // pi-ai contentIndex ↔ our block index map 1:1 (both count blocks from 0
   // in stream order), but we track ids per index for tool calls.
@@ -230,19 +240,24 @@ export async function* toStreamChunks(
         yield {
           type: 'finish',
           reason: mapStopReason(event.message, contextWindow),
-          replayState: toPiReplayState(event.message, requestedModel, prefixDigest),
+          replayState: toPiReplayState(event.message, requestedModel, prefixDigest, binding?.account),
         }
         return
       case 'error':
         // In-stream error delivery (pi-ai's style) → error finish chunk
         // (the harness's other sanctioned error path besides throwing).
         yield { type: 'usage', usage: mapUsage(event.error.usage) }
-        yield {
-          type: 'finish',
-          reason: mapStopReason(
+        {
+          const reason = mapStopReason(
             callerSignal?.aborted ? { ...event.error, stopReason: 'aborted' } : event.error,
             contextWindow,
-          ),
+          )
+          yield {
+            type: 'finish',
+            reason: reason.kind === 'error' && binding?.enrich !== undefined
+              ? { ...reason, failure: binding.enrich(reason.failure) }
+              : reason,
+          }
         }
         return
       // no default: AssistantMessageEvent is pi-ai's closed union; a new

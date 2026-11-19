@@ -7,8 +7,6 @@ kind: "package-reference"
 
 English | [中文](README.zh.md)
 
-Desktop product events use the optional [product analytics service](../product-analytics/README.md); ordinary Web interactions are excluded.
-
 ## Summary
 
 The dsh web client sidebar lets users recognize the active build, start a new session, collapse navigation to a 56px rail, browse Workspaces and Sessions, and open Settings. It preserves a bottom-pinned Settings entry and hides idle scrollbars without moving browser rows. New Session uses an explicitly selected Workspace, then the current Session's Workspace, then the most recently active Workspace; if none exists, it opens a blank New Session page. Deployments can replace the brand mark or name while retaining the navigation controls and rail geometry.
@@ -82,7 +80,7 @@ On Desktop, the official navigation controls report `sidebar_menu_click` with `m
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The shell is pure composition: `SidebarRootComponentProps` composes the layout owner share, the global `useSessions` and `useWorkspaces` hooks, the declared brand, the `sidebar.workspaces` and `sidebar.settings` child slots, and injected navigation callbacks. The sidebar declares the `sidebar.panel.icon` Component Factory, which owns the `sidebar.panellist` list, and the `sidebar.panel.trailing` Component Factory, which owns the `sidebar.panellist.trailing` list; panel rows and the More menu render a panel's registered icon through the first, and panel rows its trailing content through the second. Panel metadata is derived from list registrations and locale changes; selection belongs to the layout store. The injected `trackEntryClick(attributes)` forwards to `ctx.get('productAnalytics')?.track('sidebar_menu_click', attributes)`, and `selectPanel` only selects, so each control supplies its own entry and position.
+The shell is pure composition: `SidebarRootComponentProps` composes the layout owner share, the global `useSessions` and `useWorkspaces` hooks, the declared brand, the `sidebar.workspaces` and `sidebar.settings` child slots, and injected navigation callbacks. The sidebar declares the `sidebar.panel.icon` Component Factory, which owns the `sidebar.panellist` list, and the `sidebar.panel.trailing` Component Factory, which owns the `sidebar.panellist.trailing` list; panel rows and the More menu render a panel's registered icon through the first, and panel rows its trailing content through the second. Panel metadata is derived from list registrations and locale changes; selection belongs to the layout store.
 
 Expanded navigation uses 8px outer gutters, hover and selected fills inset 3px on each side, and a 16px leading cell with a 6px label gap. New Session centers its content; its row keeps 4px side margins and a 6px bottom margin. Navigation adds a further 4px outside the scrollport and an 8px gap inside it that scrolls away. The logo row has no bottom margin; its content starts 16px from the column's left edge, with 5px between mark and name. Only the macOS non-fullscreen top toggle shifts 4px right while expanded, retaining that offset throughout its fade-out. Collapsed geometry stays independent.
 

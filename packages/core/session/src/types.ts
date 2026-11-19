@@ -437,6 +437,50 @@ export interface SessionEventMap {
    * so tolerating concurrent writers needs a signal beyond the log.
    */
   'session/end-seed': { inherited?: true }
+  /**
+   * Legacy record from the removed DeepSeek session-log upload: the endpoint
+   * accepted one delivery through `throughSeq`. Nothing appends it any more;
+   * it stays declared so released logs that contain it still load and migrate.
+   */
+  'session-log-deepseek/delivery-accepted': {
+    /** Session identity the accepted delivery carried; inherited fork markers retain the parent's id. */
+    sessionId: SessionId
+    /** Accepted Session format generation; absence identifies version 0. */
+    sessionFormatVersion?: number
+    /** Last canonical event included in the accepted request. */
+    throughSeq: SessionSeq
+  }
+  /**
+   * Legacy record from the removed DeepSeek search provider: the secret-free
+   * auxiliary Messages request recorded before one search dispatch. Nothing
+   * appends it any more; it stays declared so released logs that contain it
+   * still load and migrate.
+   */
+  'web/deepseek-search-llm-request': {
+    /** Fully resolved Messages endpoint. */
+    readonly endpoint: string
+    /** `anthropic-version` header value. */
+    readonly apiVersion: string
+    /** Exact JSON body sent to the provider. */
+    readonly body: {
+      readonly model: string
+      readonly max_tokens: number
+      readonly messages: readonly [{
+        readonly role: 'user'
+        readonly content: readonly [{
+          readonly type: 'text'
+          readonly text: string
+        }]
+      }]
+      readonly tools: readonly [{
+        readonly type: 'web_search_20250305'
+        readonly name: 'web_search'
+        readonly max_uses: number
+      }]
+      /** Thinking mode for the auxiliary turn; the provider sent `disabled`, and absence means it omitted the field. */
+      readonly thinking?: { readonly type: 'disabled' }
+    }
+  }
 }
 
 /** The appendable event-type keys of {@link SessionEventMap}, plugin-merged extensions included. */

@@ -24,11 +24,11 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-The optional [custom plugin indexes bundle](../../experimental/plugin-market-bundle/README.md) mounts the service as the `plugin-market` row; shipped profiles leave the bundle off. Like `plugin-manager`, the row is disabled without a profile, and it waits for `pluginManager`. No index source is configured by default, so the Host sends no index request until a user adds one.
+The optional [custom plugin indexes bundle](../../experimental/plugin-market-bundle/README.md) mounts the service as the `plugin-market` row; shipped profiles leave the bundle off. Like `plugin-manager`, the row is disabled without a profile, and it waits for `pluginManager`. The default index source is the Stitch plugin index, `DEFAULT_PLUGIN_INDEX` (`https://raw.githubusercontent.com/Morrowmake/stitch-plugins/main/index.json`, generated from the [`Morrowmake/stitch-plugins`](https://github.com/Morrowmake/stitch-plugins) repository, whose README explains how to submit a plugin). Mounting the service sends no request: the Host reads an index only when Discover or the `plugin_market` tool searches it. Removing the default in Discover writes the remaining list, including an empty one, to the profile entry, so it stays removed.
 
 | Config | Default | Meaning |
 |---|---|---|
-| `indexes` | `[]` | Canonical index source URLs in display order. Discover, Settings, and `setIndexes` change this field without remounting this service or `plugin-manager`. |
+| `indexes` | `[DEFAULT_PLUGIN_INDEX]` | Canonical index source URLs in display order. Discover, Settings, and `setIndexes` change this field without remounting this service or `plugin-manager`. |
 | `fetchTimeoutMs` | `15000` | Deadline for each HTTP(S) index or detail file request, including the response body. |
 | `maxBytes` | `134217728` | Largest accepted index file. |
 | `cacheTtlMs` | `600000` | Lifetime of a successfully read index document, a detail read result, and a repository's default-branch commit. |

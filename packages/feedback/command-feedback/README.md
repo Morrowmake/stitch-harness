@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-command-feedback` lets a user tell the harness what they think of a session. Typing `/feedback` plus a remark records it and acknowledges the session and anonymous user ids; the Web feedback dialog records a category and an optional description through the `sessionFeedback` Host Remote. Recording is immediate and never starts model work: the model neither sees the remark nor is interrupted by it. The package also owns the fixed category taxonomy every feedback surface files under. It ships with the standard `dsh` base and needs no configuration; headless, ACP, and JSON-RPC entry points provide no slash commands.
+`dsh-command-feedback` lets a user tell the harness what they think of a session. `/feedback` plus a remark records it and acknowledges the session id; the Web dialog records a category and optional description through the `sessionFeedback` Host Remote. Recording never starts model work, and the model never sees the remark. Feedback stays in the local Session log until the user confirms a previewed GitHub report, filed on the Stitch repository through the `gh` CLI or a prefilled page. The package owns the shared category taxonomy and ships with the standard `dsh` base; headless, ACP, and JSON-RPC have no slash commands.
 
 ## Table of Contents
 
@@ -29,11 +29,11 @@ Users can record feedback from the Web client out of the box: the `/feedback` co
 
 ### The `/feedback` command
 
-Type `/feedback` followed by your remark and send it. A successful entry is acknowledged with the receiving session id and the anonymous user id:
+Type `/feedback` followed by your remark and send it. A successful entry is acknowledged with the receiving session id:
 
 | Input | Result |
 |---|---|
-| `/feedback the diff view is unreadable` | Record the remark and acknowledge with two lines: `Feedback recorded for session {sessionId}` and `Anonymous user: {userId}.` |
+| `/feedback the diff view is unreadable` | Record the remark and acknowledge with `Feedback recorded for session {sessionId}.` |
 | `/feedback` | A usage error: `Feedback text is required. Usage: /feedback <text>`. Whitespace-only input counts as empty. |
 
 Surrounding whitespace is trimmed, but the remark is otherwise kept exactly as typed: no truncation, case folding, or command parsing — `/feedback /plan felt slow` records that literal text. Each command records its own entry; nothing is merged or replaced.
@@ -54,6 +54,20 @@ In the Web client a bare `/feedback` — picked from the composer menu or typed 
 | `other` | Anything else |
 
 The ids are durable log vocabulary shared with per-message feedback; each surface owns its localized labels.
+
+<a id="reporting-on-github"></a>
+### Reporting on GitHub
+
+The Web dialog's **Report on GitHub…** button, and a typed `/feedback <text>` once the Host has recorded it, open an editable preview of a GitHub issue. Nothing leaves the machine until the user clicks the confirm button; closing the preview sends nothing. Confirming records the remark first (unless `/feedback <text>` already did) and then files the issue against the repository named by the `FEEDBACK_REPOSITORY` constant in [`src/github-issue.ts`](src/github-issue.ts), `Morrowmake/stitch-harness`.
+
+| Remote method | Result |
+|---|---|
+| `sessionFeedback.draftIssue({ text?, category? })` | `{ title, body }`: the title is the remark's first line (at most 80 characters) or `Stitch feedback`; the body holds only the remark, the category, the Stitch version, and the OS. Sends nothing. |
+| `sessionFeedback.reportIssue({ title, body })` | `{ kind: 'created', url }` when `gh` filed the issue, or `{ kind: 'browser', url }` with a prefilled new-issue page the client opens in a new tab. |
+
+The body never carries session content, session ids, paths, or model names. The preview's **Include session id** box, off by default, appends a `- Session id: …` line the user can see and edit before confirming.
+
+`reportIssue` runs `gh auth status --hostname github.com` and then `gh issue create --repo Morrowmake/stitch-harness --title <title> --body <body>` as argv arrays without a shell, with 10 s and 30 s deadlines. It uses the Host `subprocess` provider when one is mounted, otherwise Node's `execFile`; `GH_TOKEN`, `GITHUB_TOKEN`, `GH_CONFIG_DIR`, and `GH_HOST` are forwarded and prompts are disabled. When `gh` is missing, unauthenticated, fails, times out, or prints no issue URL, the answer is the prefilled `https://github.com/Morrowmake/stitch-harness/issues/new?title=…&body=…` page instead. That URL stays within 7000 characters: an oversized body is cut and ends with a note saying Stitch shortened it.
 
 ### Recording feedback from your own UI
 
@@ -84,13 +98,14 @@ The remark is one append-only fact in the session log, owned by the event rather
 
 ### How a remark is recorded
 
-The producer trims the text, records blank text as absent, and writes one event into the session log even when the entry carries neither text nor category; the `/feedback` handler rejects empty input itself and is otherwise a thin wrapper over that same producer, and the `sessionFeedback.record` Remote resolves the live Session by id and calls it too, answering `session-not-found` when no live owner carries the id. Neither path starts model work. The write is eager but not flushed: the acknowledgement means the entry reached the log, not the disk. The first accepted command remark for a harness home also mints the anonymous user id the acknowledgement reports. The exact producer contract lives in [`src/index.ts`](src/index.ts); the event payload, the taxonomy, and the Remote vocabulary live in [`src/types.ts`](src/types.ts).
+The producer trims the text, records blank text as absent, and writes one event into the session log even when the entry carries neither text nor category; the `/feedback` handler rejects empty input itself and is otherwise a thin wrapper over that same producer, and the `sessionFeedback.record` Remote resolves the live Session by id and calls it too, answering `session-not-found` when no live owner carries the id. Neither path starts model work. The write is eager but not flushed: the acknowledgement means the entry reached the log, not the disk. The exact producer contract lives in [`src/index.ts`](src/index.ts); the event payload, the taxonomy, and the Remote vocabulary live in [`src/types.ts`](src/types.ts).
 
 ### Source map
 
 | File | Role |
 |---|---|
 | [`src/index.ts`](src/index.ts) | Plugin entry: `recordFeedback` producer, the `sessionFeedback` Remote service, `/feedback` command registration |
+| [`src/github-issue.ts`](src/github-issue.ts) | `FEEDBACK_REPOSITORY`, the issue preview, the `gh` runners, and the prefilled new-issue URL with its truncation |
 | [`src/types.ts`](src/types.ts) | `feedback/record` event declaration, the category taxonomy, and the Remote request and result types |
 
 </details>
@@ -104,7 +119,6 @@ Read these pages when the package-level contract is not enough. They cover the c
 
 - [dsh-commands](../../interaction/commands/README.md) — the registry that discovers the global command and its `recordInput` semantics.
 - [Session persistence subsystem](../../../docs/subsystems/persistence.md) — how appended events become durable and what a flush barrier means.
-- [Anonymous user identity](../../identity/anonymous-user-id/README.md) — the id the acknowledgement reports.
 - [ui-message-feedback](../../client/ui-message-feedback/README.md) — the Web feedback dialog that records through the `sessionFeedback` Remote.
 - [Feedback package map](../README.md) — where log-only capture sits next to per-message feedback.
 
@@ -140,6 +154,9 @@ These limits define where session feedback is a poor fit or behaves differently 
 - **No amend or withdraw** — the session log is append-only and this package adds no tombstone, so a mistaken entry stays recorded and can only be superseded by a later one.
 - **No explicit durability barrier** — the acknowledgement follows the append, not a flush, so an entry recorded immediately before a crash can be lost with any other unflushed tail. A consumer that needs a barrier awaits `ctx.sessions.flush(session)`.
 - **No visible acknowledgement on a fresh session** — the web transcript renders command rows only once a session is active, so a typed `/feedback <text>` on a still-blank session records the event but shows no acknowledgement row; the dialog's toast does not depend on the transcript.
+- **GitHub reports leave the machine** — a confirmed report is public on GitHub under the user's `gh` account or browser session; the remark cannot be withdrawn through Stitch.
+- **A late `gh` success can duplicate** — when `gh issue create` exceeds its deadline after GitHub already accepted the issue, the user is still offered the prefilled page and can file it twice.
+- **Shortened browser reports** — a body too long for the prefilled URL is cut; the user pastes anything missing on the GitHub page.
 - **Web only among the shipped entry points** — headless mode, ACP automation, and JSON-RPC provide no command adapter, so `/feedback` is unavailable there.
 
 <a id="dev-note"></a>
@@ -151,6 +168,7 @@ These limits define where session feedback is a poor fit or behaves differently 
 This Dev Note is working context for maintainers; it is explicitly non-authoritative. Shipped behavior, limits, and rationale live in the sections above and the package code.
 
 - The acknowledgement sentences and the category order are pinned by [`tests/command-feedback.spec.ts`](tests/command-feedback.spec.ts); changing them changes user-visible copy.
+- The issue body format, the `gh` argv, and the URL bound are pinned by [`tests/github-issue.spec.ts`](tests/github-issue.spec.ts). A rebrand repoints `FEEDBACK_REPOSITORY` alone.
 - A retrieval surface remains the open direction behind the first limitation; nothing in the current contract reserves a format for it.
 
 </details>

@@ -4,7 +4,8 @@
  * through, and the human-facing `/feedback` command. Recording appends one
  * authoritative log-only event and does not start model work. The append is
  * eager but unflushed, so acknowledgement reports that the entry is logged,
- * not that it reached disk.
+ * not that it reached disk. The same Remote previews and files a GitHub issue
+ * for a remark once the human confirms it.
  * @module @deepseek-ai/dsh-command-feedback
  */
 
@@ -13,16 +14,29 @@ import { brandString } from '@deepseek-ai/dsh-brand'
 import type { CommandDefinitionId } from '@deepseek-ai/dsh-commands/types'
 import type { CommandInvocation, CommandResult } from '@deepseek-ai/dsh-commands'
 import type { Session } from '@deepseek-ai/dsh-session'
-import { getOrCreateAnonymousUserId } from '@deepseek-ai/dsh-anonymous-user-id'
 import { TypertRemoteService, Remote } from '@deepseek-ai/dsh-typert-protocol'
+import {
+  draftFeedbackIssue,
+  execFileRunner,
+  feedbackEnvironment,
+  reportFeedbackIssue,
+  subprocessRunner,
+  type FeedbackSubprocessSeam,
+} from './github-issue.ts'
 import type {
   FeedbackCategory,
   FeedbackRecord,
+  SessionFeedbackIssue,
+  SessionFeedbackIssueDraftRequest,
   SessionFeedbackRecordRequest,
   SessionFeedbackRecordResult,
+  SessionFeedbackReportIssueResult,
 } from './types.ts'
 
 export type * from './types.ts'
+export type {
+  FeedbackEnvironment, FeedbackProcessResult, FeedbackProcessRunner, FeedbackSubprocessSeam,
+} from './github-issue.ts'
 
 /**
  * Every feedback category in the order product surfaces present them; each
@@ -68,8 +82,8 @@ export function recordFeedback(session: Session, entry: FeedbackRecord): void {
  * Validate, record, and acknowledge one feedback entry. Returning an error
  * leaves no `feedback/record` event.
  * @param invocation - receiving agent, raw command input, and UI cancellation.
- * @returns an acknowledgement containing the receiving session and anonymous
- * user ids, or a usage error when no feedback text was supplied.
+ * @returns an acknowledgement naming the receiving session, or a usage
+ * error when no feedback text was supplied.
  */
 function executeFeedbackCommand(invocation: CommandInvocation): CommandResult {
   if (invocation.rawInput.trim().length === 0) {
@@ -78,11 +92,14 @@ function executeFeedbackCommand(invocation: CommandInvocation): CommandResult {
   recordFeedback(invocation.agent.session, { text: invocation.rawInput })
   return {
     kind: 'success',
-    text: `Feedback recorded for session ${invocation.agent.session.id}\nAnonymous user: ${getOrCreateAnonymousUserId()}.`,
+    text: `Feedback recorded for session ${invocation.agent.session.id}.`,
   }
 }
 
-/** Host Remote through which a product surface records a Session-level remark. */
+/**
+ * Host Remote through which a product surface records a Session-level remark
+ * and, after the human confirms a preview, reports it as a GitHub issue.
+ */
 export class SessionFeedbackService extends TypertRemoteService {
   static inject = ['sessions']
 
@@ -107,6 +124,31 @@ export class SessionFeedbackService extends TypertRemoteService {
     }
     recordFeedback(session, request)
     return Promise.resolve({ ok: true, value: { recorded: true } })
+  }
+
+  /**
+   * Preview a remark as a GitHub issue without sending anything. The body
+   * names only the remark, its category, the Stitch version, and the OS.
+   * @param request - the remark text and category.
+   * @returns an editable title and Markdown body.
+   */
+  @Remote('draftIssue')
+  draftIssue(request: SessionFeedbackIssueDraftRequest): Promise<SessionFeedbackIssue> {
+    return Promise.resolve(draftFeedbackIssue(request, feedbackEnvironment()))
+  }
+
+  /**
+   * File a confirmed issue on the feedback repository: through an installed,
+   * authenticated `gh` CLI (run by the Host `subprocess` provider when one is
+   * mounted, else by Node without a shell), or else as a prefilled new-issue
+   * page the caller opens.
+   * @param issue - the title and body the human confirmed.
+   * @returns `created` with the issue URL, or `browser` with the prefilled page URL.
+   */
+  @Remote('reportIssue')
+  reportIssue(issue: SessionFeedbackIssue): Promise<SessionFeedbackReportIssueResult> {
+    const subprocess = this.ctx.get('subprocess') as FeedbackSubprocessSeam | undefined
+    return reportFeedbackIssue(issue, subprocess === undefined ? execFileRunner : subprocessRunner(subprocess))
   }
 }
 

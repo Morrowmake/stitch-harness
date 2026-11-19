@@ -39,12 +39,26 @@ pnpm run mock:llm \
   --partial-text "discard this half"
 ```
 
-将发布的 DeepSeek 适配器指向服务器；它会向服务器 `/v1` 根路径下的 `/messages` 发送请求：
+服务器使用 Anthropic Messages 协议，在其 `/v1` 根路径下响应 `/messages`。用一个 patch 文件（例如 `mock.patch.yml`）把 pi-ai 路由指向它：
+
+```yaml
+- id: llm-pi-ai
+  config:
+    providers:
+      mock:
+        api: anthropic-messages
+        baseURL: http://127.0.0.1:8000/v1
+        apiKeyEnv: MOCK_API_KEY
+        models:
+          - id: mock-model
+- id: agent-default-model
+  config:
+    provider: mock
+    model: mock-model
+```
 
 ```sh
-DEEPSEEK_BASE_URL=http://127.0.0.1:8000/v1 \
-DEEPSEEK_API_KEY=mock-key \
-pnpm dsh --profile headless "test provider recovery"
+MOCK_API_KEY=mock-key pnpm dsh --profile headless --patch ./mock.patch.yml "test provider recovery"
 ```
 
 仓库脚本将 JSONL 写入 stdout：`ready` 记录携带以 `/v1` 结尾的 base URL 与随机种子，后续请求/结果记录同时命名脚本行为与实际选中的具体行为。本包不公开可安装的二进制命令。

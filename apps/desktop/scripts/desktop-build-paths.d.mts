@@ -1,4 +1,5 @@
-import type { DesktopAutoUpdateTarget } from '@deepseek-ai/dsh-desktop-publisher/desktop-auto-update-environment.mjs'
+/** Name of one supported Desktop build target. */
+export type DesktopBuildTarget = 'mac-arm64' | 'mac-x64' | 'win-x64'
 
 /** Mutable target directories plus shared download and package caches. */
 export interface DesktopTargetBuildPaths {
@@ -29,7 +30,14 @@ export function resolveDesktopBuildTarget(
   env?: NodeJS.ProcessEnv,
   hostPlatform?: NodeJS.Platform,
   hostArch?: string,
-): DesktopAutoUpdateTarget
+): DesktopBuildTarget
+
+/**
+ * Return the local completion record filename for one packaged target.
+ * @param target - Supported Desktop target name.
+ * @returns Filename stored beside electron-builder artifacts.
+ */
+export function desktopBuildRecordFilename(target: DesktopBuildTarget): string
 
 /**
  * Return the mutable preparation and artifact directories owned by one release target.
@@ -37,7 +45,7 @@ export function resolveDesktopBuildTarget(
  * @param environment - Packaging environment with an optional absolute cache directory.
  * @returns Target paths plus shared download and package caches.
  */
-export function desktopTargetBuildPaths(target: DesktopAutoUpdateTarget, environment?: NodeJS.ProcessEnv): DesktopTargetBuildPaths
+export function desktopTargetBuildPaths(target: DesktopBuildTarget, environment?: NodeJS.ProcessEnv): DesktopTargetBuildPaths
 
 /**
  * Return the platform and architecture of the payload one release target prepares.
@@ -45,7 +53,7 @@ export function desktopTargetBuildPaths(target: DesktopAutoUpdateTarget, environ
  * @param target - Supported Desktop target name.
  * @returns Platform and architecture of the prepared payload.
  */
-export function desktopTargetPlatform(target: DesktopAutoUpdateTarget): {
+export function desktopTargetPlatform(target: DesktopBuildTarget): {
   readonly platform: 'darwin' | 'win32'
   readonly arch: 'arm64' | 'x64'
 }

@@ -9,7 +9,7 @@
 - Python 3.10 或更高版本
 - Git
 - Linux x64、Linux arm64、arm64 上的 macOS 14 或更高版本，或 Windows x64
-- DeepSeek 兼容的 API endpoint 与凭据
+- 某个模型提供方的 API 密钥，例如 Anthropic、OpenAI 或 DeepSeek
 - 隔离的 workspace 与隔离的 Harness home
 
 ## 安装 SDK
@@ -43,7 +43,17 @@ python -m pip install deepseek-harness-sdk
 
 ## 运行检入示例
 
-导出凭据；使用兼容代理时再设置 endpoint：
+默认不配置任何模型提供方。请在示例 home 的 `sdk-minimal` profile patch（`<dsh-home>/profiles/sdk-minimal/cordis.patch.yml`）中声明一个；自定义网关见[模型指南](providers.zh.md)：
+
+```yaml
+- id: llm-pi-ai
+  config:
+    providers:
+      anthropic:
+        apiKeyEnv: ANTHROPIC_API_KEY
+```
+
+然后导出凭据以及示例选择的路由：
 
 <div>
 <a id="linux-与-macos-1"></a>
@@ -53,13 +63,13 @@ python -m pip install deepseek-harness-sdk
 ::: code-group
 
 ```sh [Linux/macOS]
-export DEEPSEEK_API_KEY=sk-your-key-here
-# export DEEPSEEK_BASE_URL=http://127.0.0.1:8000/v1
+export ANTHROPIC_API_KEY=sk-your-key-here
+export DSH_PROVIDER=anthropic DSH_MODEL=claude-sonnet-4-5
 ```
 
 ```powershell [Windows PowerShell]
-$env:DEEPSEEK_API_KEY = "sk-your-key-here"
-# $env:DEEPSEEK_BASE_URL = "http://127.0.0.1:8000/v1"
+$env:ANTHROPIC_API_KEY = "sk-your-key-here"
+$env:DSH_PROVIDER = "anthropic"; $env:DSH_MODEL = "claude-sonnet-4-5"
 ```
 
 :::
@@ -103,8 +113,8 @@ from deepseek_harness import DeepSeekHarness
 workspace = Path("/absolute/path/to/disposable-workspace").resolve()
 dsh_home = Path("/absolute/path/to/example-dsh-home").resolve()
 with DeepSeekHarness(
-    provider="deepseek-official",
-    model="deepseek-v4-flash",
+    provider="anthropic",
+    model="claude-sonnet-4-5",
     max_tokens=49_152,
     cwd=str(workspace),
     dsh_home=str(dsh_home),
@@ -182,14 +192,14 @@ dsh plugin --profile sdk-minimal add file:C:/work/my-plugin-bundle
 | 属性 | 值 |
 |---|---|
 | 系统提示词 | `DSH_SYSTEM_PROMPT`，未设置时为 `You are a helpful software engineer assistant.` |
-| `minimal.py` 的模型 | `--model`，然后是 `DSH_MODEL`，最后是 `deepseek-v4-flash` |
+| `minimal.py` 的模型 | `--provider` 与 `--model`，然后是 `DSH_PROVIDER` 与 `DSH_MODEL`，须成对给出；没有默认值 |
 | 面向模型的工具 | Linux／macOS 上的持久 `bash` 或 Windows 上的 `pwsh`，以及 `read_image` |
 | Shell 超时 | 300 秒 |
 | 可选运行时上下文 | 不存在 |
 | 上下文压缩 | 自动执行；通过额外模型请求生成较早历史的摘要 |
 | 会话持久化 | `<dsh_home>/sessions` 下的未压缩 JSONL |
 
-该 profile 的唯一组合包会在空根之上插入完整配置树，且不包含 `dsh-base`，因此基础 profile 以后新增的工具不会隐式出现。它包含 SDK 协议、一个由环境配置的 DeepSeek 适配器、本地执行与持久化；文本文件工具、settings、托管凭据、OTel 遥测、Web 工具、subagent、本地指令发现均不存在。[DeepSeek 会话日志贡献器](../../../packages/session/session-log-deepseek/README.zh.md)默认随 DeepSeek 请求上传未接受的日志事件，每次请求最多 `maxBytes`（8 MiB）；在 profile patch 中设置 `session-log-deepseek.enabled: false` 可将其关闭。它固定使用 `danger-full-access`，因此按平台选择的持久 shell 可以修改运行时可见的任何路径；应使用一次性 checkout 或容器。
+该 profile 的唯一组合包会在空根之上插入完整配置树，且不包含 `dsh-base`，因此基础 profile 以后新增的工具不会隐式出现。它包含 SDK 协议、未配置任何提供方的 pi-ai 模型适配器、本地执行与持久化；文本文件工具、settings、托管凭据、Web 工具、subagent、本地指令发现均不存在。它固定使用 `danger-full-access`，因此按平台选择的持久 shell 可以修改运行时可见的任何路径；应使用一次性 checkout 或容器。
 
 图片读取需要支持图片输入的路由。自动压缩保留完整 Session 日志；模型与存储影响见[组合包参考](../../../packages/bundle/sdk-minimal/README.zh.md)。在这个 `sdk-minimal` 组合中，不支持的斜杠输入保持为普通提示词文本。
 

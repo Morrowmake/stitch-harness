@@ -1,7 +1,8 @@
 /**
  * Public vocabulary of Session-level feedback: the fixed category taxonomy,
- * the `feedback/record` event payload, and the `sessionFeedback.record`
- * Remote request and result types. Types only; the runtime category tuple is
+ * the `feedback/record` event payload, the `sessionFeedback.record` Remote
+ * request and result types, and the GitHub issue draft and report types.
+ * Types only; the runtime category tuple and the repository slug are
  * exported by the package entry, and a browser plugin imports types alone
  * because its bundle may not carry Host values.
  * @module @deepseek-ai/dsh-command-feedback/types
@@ -67,3 +68,30 @@ export interface SessionFeedbackSessionNotFound {
 export type SessionFeedbackRecordResult =
   | { readonly ok: true; readonly value: SessionFeedbackRecordValue }
   | { readonly ok: false; readonly error: SessionFeedbackSessionNotFound }
+
+/**
+ * Ask the Host for an editable GitHub issue preview of one remark. Nothing is
+ * sent anywhere; the reply only carries the text the human will review.
+ */
+export interface SessionFeedbackIssueDraftRequest {
+  /** Free-text remark; blank text yields a placeholder line. */
+  readonly text?: string
+  /** Category the human filed the remark under. */
+  readonly category?: FeedbackCategory
+}
+
+/** An issue title and Markdown body, as previewed or as confirmed by the human. */
+export interface SessionFeedbackIssue {
+  /** Issue title; a blank title is replaced by a generic one when filed. */
+  readonly title: string
+  /** Markdown issue body. */
+  readonly body: string
+}
+
+/**
+ * Where a confirmed issue ended up: `created` when the `gh` CLI filed it,
+ * `browser` when the human must finish filing it on a prefilled GitHub page.
+ */
+export type SessionFeedbackReportIssueResult =
+  | { readonly kind: 'created'; readonly url: string }
+  | { readonly kind: 'browser'; readonly url: string }

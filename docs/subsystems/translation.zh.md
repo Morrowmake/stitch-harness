@@ -50,9 +50,9 @@ Optional reasoning translation delegates Session-bound storage to the translator
 /**
  * Read accepted translation preferences and the current request limit without sending text.
  * @param signal - browser query cancellation or Remote contribution withdrawal.
- * @returns authoritative preferences, eligible routes, and maximum UTF-16 text length per request.
+ * @returns authoritative preferences and maximum UTF-16 text length per request.
  */
-@Remote async limits(signal: AbortSignal): Promise<CotTranslationSnapshot>
+@Remote limits(signal: AbortSignal): CotTranslationSnapshot
 
 /**
  * Translate one displayed fragment through the reader's selected provider.
@@ -74,13 +74,6 @@ Source: [`packages/experimental/client-ui-cot-translation/src/index.ts`](../../p
 One Host service with explicit routing, cancellation and quiescent unload.
 
 ```ts cordis-catalog
-/**
- * Inspect eligible native routes without inference; saved results remain readable for unavailable routes.
- * @param signal - optional caller cancellation, combined with service disposal.
- * @returns anonymous choices followed by eligible explicitly selected paid routes.
- */
-async availableProviders(signal?: AbortSignal): Promise<readonly TranslationProvider[]>
-
 /**
  * Resolve provider and source-language defaults without sending text.
  * @param request - consumer text, destination and optional routing choices.

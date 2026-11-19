@@ -1,15 +1,13 @@
 import type { FileSaveResult } from '@deepseek-ai/dsh-client-ui-file-actions/types'
-/** Origin-scoped boot, native directory selection, host paths of picked files, and update presentation with native confirmation actions. */
+/** Origin-scoped boot, native directory selection, host paths of picked files, and the opt-in update check. */
 
-import type { DesktopChannelState, DesktopChannelChangeResult } from '@deepseek-ai/dsh-client-ui-settings-general/types'
+import type { DesktopUpdateCheckResult } from '@deepseek-ai/dsh-client-ui-settings-general/types'
 import type { DesktopShortcutInput, ShortcutConfigSnapshot, ShortcutSaveResult } from '@deepseek-ai/dsh-client-shortcuts/protocol'
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
-import { DESKTOP_IPC, SCHEME, type DshDesktopProductApi, type DesktopUpdatePresentation } from './ipc.ts'
-import { PLATFORM_IPC } from './platform-ipc.ts'
+import { DESKTOP_IPC, SCHEME, type DshDesktopProductApi } from './ipc.ts'
 import { markDocumentPlatform, syncWindowFullscreen } from './preload-platform.ts'
 import { syncNativeTheme } from './preload-theme.ts'
 import { syncWindowsAppearance } from './preload-windows.ts'
-import { installMandatoryUpdateOverlay } from './preload-mandatory-overlay.ts'
 import { createDesktopBrowserBridge } from './preload-browser.ts'
 import type { FileDragHandle } from '@deepseek-ai/dsh-util-file-drag'
 
@@ -66,41 +64,20 @@ function createProductApi(): DshDesktopProductApi {
       },
     },
     updates: {
-      channels: {
-        get: () => ipcRenderer.invoke(DESKTOP_IPC.updatesChannelGet) as Promise<DesktopChannelState>,
-        set: channel => ipcRenderer.invoke(DESKTOP_IPC.updatesChannelSet, channel) as Promise<DesktopChannelChangeResult>,
-        subscribe(listener) {
-          const handle = (_event: Electron.IpcRendererEvent, state: DesktopChannelState): void => { listener(state) }
-          ipcRenderer.on(DESKTOP_IPC.updatesChannelChanged, handle)
-          return () => { ipcRenderer.off(DESKTOP_IPC.updatesChannelChanged, handle) }
-        },
-      },
-      status: () => ipcRenderer.invoke(DESKTOP_IPC.updatesStatus) as Promise<DesktopUpdatePresentation>,
-      open: () => ipcRenderer.invoke(DESKTOP_IPC.updatesOpen) as Promise<void>,
+      getPreference: () => ipcRenderer.invoke(DESKTOP_IPC.updatesPreferenceGet) as Promise<boolean>,
+      setPreference: enabled => ipcRenderer.invoke(DESKTOP_IPC.updatesPreferenceSet, enabled) as Promise<boolean>,
       subscribe(listener) {
-        const handle = (_event: Electron.IpcRendererEvent, state: DesktopUpdatePresentation): void => { listener(state) }
-        ipcRenderer.on(DESKTOP_IPC.updatesPresentation, handle)
-        return () => { ipcRenderer.off(DESKTOP_IPC.updatesPresentation, handle) }
+        const handle = (_event: Electron.IpcRendererEvent, enabled: boolean): void => { listener(enabled) }
+        ipcRenderer.on(DESKTOP_IPC.updatesPreferenceChanged, handle)
+        return () => { ipcRenderer.off(DESKTOP_IPC.updatesPreferenceChanged, handle) }
       },
+      check: () => ipcRenderer.invoke(DESKTOP_IPC.updatesCheck) as Promise<DesktopUpdateCheckResult>,
     },
   }
 }
 
 if (location.protocol === `${SCHEME}:` && location.hostname === 'app') {
-  contextBridge.exposeInMainWorld('dshOnboarding', {
-    hasApiKey: () => ipcRenderer.invoke(DESKTOP_IPC.onboardingApiKey) as Promise<boolean>,
-    setActive: (active: boolean) => { ipcRenderer.send(DESKTOP_IPC.onboardingActive, active) },
-  })
-  ipcRenderer.on(DESKTOP_IPC.enterWorkspace, () => {
-    const body = document.body
-    const previous = body.getAttribute('tabindex')
-    body.tabIndex = -1
-    body.focus({ preventScroll: true })
-    if (previous === null) body.removeAttribute('tabindex')
-    else body.setAttribute('tabindex', previous)
-  })
   syncWindowsAppearance()
-  if (process.platform === 'win32') installMandatoryUpdateOverlay()
   contextBridge.exposeInMainWorld('__DSH_DIRECTORY_PICKER__', {
     pick: () => ipcRenderer.invoke(DESKTOP_IPC.directoryPick) as Promise<string | null>,
   })
@@ -113,11 +90,6 @@ if (location.protocol === `${SCHEME}:` && location.hostname === 'app') {
   contextBridge.exposeInMainWorld('dshDesktopBoot', {
     ready: () => ipcRenderer.invoke(DESKTOP_IPC.boot) as Promise<unknown>,
     failed: (message: string) => ipcRenderer.invoke(DESKTOP_IPC.bootFailed, message) as Promise<void>,
-  })
-  contextBridge.exposeInMainWorld('dshPlatform', {
-    open: (page: 'usage' | 'top-up', bounds: { x: number; y: number; width: number; height: number }) => ipcRenderer.invoke(PLATFORM_IPC.open, page, bounds),
-    setBounds: (bounds: { x: number; y: number; width: number; height: number }) => ipcRenderer.invoke(PLATFORM_IPC.bounds, bounds),
-    close: () => ipcRenderer.invoke(PLATFORM_IPC.close),
   })
 }
 

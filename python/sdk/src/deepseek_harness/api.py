@@ -21,8 +21,8 @@ class DeepSeekHarnessConfig:
     commands do not rewrite this object.
     """
 
-    provider: str = "deepseek-official"
-    model: str = "deepseek-v4-flash"
+    provider: str | None = None
+    model: str | None = None
     reasoning_effort: str | None = None
     max_tokens: int | None = None
     cwd: str | None = None

@@ -272,6 +272,39 @@ type SessionFeedbackRecordResult =
   | { readonly ok: false; readonly error: SessionFeedbackSessionNotFound }
 ```
 
+```ts type-equiv
+/**
+ * Ask the Host for an editable GitHub issue preview of one remark. Nothing is
+ * sent anywhere; the reply only carries the text the human will review.
+ */
+interface SessionFeedbackIssueDraftRequest {
+  /** Free-text remark; blank text yields a placeholder line. */
+  readonly text?: string
+  /** Category the human filed the remark under. */
+  readonly category?: FeedbackCategory
+}
+```
+
+```ts type-equiv
+/** An issue title and Markdown body, as previewed or as confirmed by the human. */
+interface SessionFeedbackIssue {
+  /** Issue title; a blank title is replaced by a generic one when filed. */
+  readonly title: string
+  /** Markdown issue body. */
+  readonly body: string
+}
+```
+
+```ts type-equiv
+/**
+ * Where a confirmed issue ended up: `created` when the `gh` CLI filed it,
+ * `browser` when the human must finish filing it on a prefilled GitHub page.
+ */
+type SessionFeedbackReportIssueResult =
+  | { readonly kind: 'created'; readonly url: string }
+  | { readonly kind: 'browser'; readonly url: string }
+```
+
 ## 数据与并发
 
 当前条目由 payload 中 `sessionId` 与所属 Session 匹配的权威反馈事件归约得到。每个条目携带好评或差评、可选备注、可选分类、Host 分配的 `createdAt`/`updatedAt` 时间戳及自己的 opaque version。version 只能用于相等比较，且只与目标消息比较；调用方不能排序或自行合成它。
@@ -286,11 +319,13 @@ fork 种子可以包含父 Session 的反馈事件，但 payload 保留父级 `s
 
 ## 持久化与 Remote 约定
 
-成功的消息反馈变更会等待权威持久化完成：live 操作通过所属 Session 追加，并要求有 `ctx.sessions.flush` 监听器参与；cold 操作通过写句柄追加并 flush。持久化故障会原样传播，不会报告成功。`maxNoteBytes` 为必填项，按 UTF-8 字节限制备注文本；Web Host 组合将其设为 `8192`。该包通过 `TypertRemoteService` 与 `@Remote` 发布 Host `messageFeedback.list`、`messageFeedback.put` 和 `messageFeedback.delete` 一元 Remote 约定；`command-feedback` 以同样方式发布面向 live Session 的 Session 级备注 `sessionFeedback.record`。下方生成的 Cordis API 是方法级权威。
+成功的消息反馈变更会等待权威持久化完成：live 操作通过所属 Session 追加，并要求有 `ctx.sessions.flush` 监听器参与；cold 操作通过写句柄追加并 flush。持久化故障会原样传播，不会报告成功。`maxNoteBytes` 为必填项，按 UTF-8 字节限制备注文本；Web Host 组合将其设为 `8192`。该包通过 `TypertRemoteService` 与 `@Remote` 发布 Host `messageFeedback.list`、`messageFeedback.put` 和 `messageFeedback.delete` 一元 Remote 约定；`command-feedback` 以同样方式发布面向 live Session 的 Session 级备注 `sessionFeedback.record`，以及用于 GitHub 报告的 `sessionFeedback.draftIssue` 与 `sessionFeedback.reportIssue`。下方生成的 Cordis API 是方法级权威。
+
+`draftIssue` 返回可编辑的标题，以及只包含评价、分类、Stitch 版本与操作系统的正文；它不读取 Session，也不发送任何内容。`reportIssue` 把确认后的标题与正文提交到 `FEEDBACK_REPOSITORY`（`Morrowmake/stitch-harness`）指定的仓库：`gh auth status` 成功时通过 `gh issue create` 提交，由 Host `subprocess` 提供方或 Node 的 `execFile` 以 argv、不经 shell 并在时限内运行；否则返回最长 7000 个字符的预填 `issues/new` URL，必要时截断正文并附加说明。两个方法都不向 Session 日志追加内容；弹窗在报告前先通过 `record` 记录。
 
 插件释放会关闭操作接纳，并排空已进入各 Session 队列的工作。
 
-默认情况下，[`session-log-deepseek`](../../packages/session/session-log-deepseek/README.zh.md) 会在后续符合条件的 DeepSeek 请求中，把反馈作为普通 `dsh_session_log` 后缀的一部分传送；组合可用 `enabled: false` 禁用它。记录反馈不会触发 LLM 请求，也不会单独上传 `dsh_feedback`。对于非 DeepSeek 路由，[OTel 后端](../../packages/session/session-telemetry-otel/README.zh.md)可以将权威日志前缀释放至已记录的反馈。命令确认文本确认记录并标识 Session 与匿名用户，不报告遥测策略或投递结果。
+反馈只保留在本地：记录反馈不会触发 LLM 请求或任何上传，也不会被发送给任何提供方或遥测后端。命令确认文本确认记录并标识 Session。
 
 ## Web 界面
 
@@ -301,6 +336,8 @@ fork 种子可以包含父 Session 的反馈事件，但 payload 保留父级 `s
 每个 Session 一个 `MessageFeedbackController`，支撑该 Session 内所有消息的控件：一次 `list` 读取即填充整段对话，且延迟到首次 hover 或 focus 才发起，而非挂载时触发。每次变更把该 controller 最后观察到的版本作为 `ifVersion` 发送；`version-conflict` 响应携带权威条目，controller 据此对账而不重新拉取。变更按 Session 串行，排队操作与已提交版本比较。注入的 `retract` 操作会在该队列内重新检查已提交评分，并在并发变更后变为无操作，因此陈旧 UI 无法绕过弹窗记录裸评分。`connection/reset` 只刷新已读取过的 Session。
 
 任一未记录的评分都会打开该 Session 的反馈弹窗，即 `conversation.input.overlay` 的 `feedback-dialog` 条目：共用的 Modal 卡片，里面是七个分类标签和一个详情框。提交会 put 所选评分，带上所选分类与去除首尾空白的描述，两者也可都不带；成功会关闭弹窗并显示确认 toast，失败则保留弹窗与草稿并显示警告 toast。不带文本的 `/feedback`（`ui-commands` 以 `action` 路由的一个装饰）为 Session 打开同一个弹窗，随后通过 `sessionFeedback.record` 记录；`/feedback <text>` 仍走宿主命令路径。再次点击已记录的评分会直接撤回，不打开弹窗。
+
+**在 GitHub 上报告…**会把弹窗切换为由 `sessionFeedback.draftIssue` 起草的可编辑议题预览，并提供默认关闭的**附带会话 ID**复选框。确认时先像「提交」一样记录草稿，再调用 `sessionFeedback.reportIssue`，并在新标签页中打开返回的 GitHub 页面；点击确认之前不会提交任何内容。输入的 `/feedback <text>` 成功后，`command/executed` 事件携带提交的命令行，弹窗为该文本打开同一个已记录的预览，因此确认时只提交议题。
 
 ## 边界与限制
 
@@ -313,10 +350,11 @@ fork 种子可以包含父 Session 的反馈事件，但 payload 保留父级 `s
 - Web 控制器不消费反馈日志事件，因此另一个标签页的评分要等到重连或下一次冲突响应才可见，不会立即出现。
 - 弹窗不预先校验 `maxNoteBytes`；针对消息的超长描述在提交时以 `note-too-large` 失败，而不是在输入过程中。Session 级备注没有大小上限，`/feedback` 命令从来也没有。
 - `sessionFeedback.record` 只服务 live Session，否则回答 `session-not-found`；弹窗打开期间 Session 退役时，弹窗会报告该失败。
+- 确认后的 GitHub 报告是公开的，无法通过 Stitch 撤回。`gh issue create` 超过时限而 GitHub 实际已接受议题时，仍会返回预填页面，用户可能重复提交。
 
 ## 导出日志中的反馈
 
-本节面向从导出日志中筛选已评价 Session 的使用方。记录字段以及哪些反馈释放日志前缀由 [OTel 后端](../../packages/session/session-telemetry-otel/README.zh.md#use-this-package)负责；去重由[会话遥测子系统](session-telemetry.zh.md)负责，导出的 `data` 与权威日志的差异由[脱敏 waterfall](session-telemetry.zh.md#session-telemetryrecord--waterfall)负责。反馈特有的 `data` 字段如下：
+本节面向从导出的会话日志中筛选已评价 Session 的使用方。反馈特有的 `data` 字段如下：
 
 | 事件 | 评价对象 | `data` | 含义 |
 |---|---|---|---|
@@ -376,7 +414,7 @@ Source: [`packages/feedback/message-feedback/src/index.ts`](../../packages/feedb
 
 ### `ctx.sessionFeedback` — `SessionFeedbackService`
 
-Host Remote through which a product surface records a Session-level remark.
+Host Remote through which a product surface records a Session-level remark and, after the human confirms a preview, reports it as a GitHub issue.
 
 ```ts cordis-catalog
 /**
@@ -386,6 +424,24 @@ Host Remote through which a product surface records a Session-level remark.
  * Session carries the id.
  */
 @Remote('record') record(request: SessionFeedbackRecordRequest): Promise<SessionFeedbackRecordResult>
+
+/**
+ * Preview a remark as a GitHub issue without sending anything. The body
+ * names only the remark, its category, the Stitch version, and the OS.
+ * @param request - the remark text and category.
+ * @returns an editable title and Markdown body.
+ */
+@Remote('draftIssue') draftIssue(request: SessionFeedbackIssueDraftRequest): Promise<SessionFeedbackIssue>
+
+/**
+ * File a confirmed issue on the feedback repository: through an installed,
+ * authenticated `gh` CLI (run by the Host `subprocess` provider when one is
+ * mounted, else by Node without a shell), or else as a prefilled new-issue
+ * page the caller opens.
+ * @param issue - the title and body the human confirmed.
+ * @returns `created` with the issue URL, or `browser` with the prefilled page URL.
+ */
+@Remote('reportIssue') reportIssue(issue: SessionFeedbackIssue): Promise<SessionFeedbackReportIssueResult>
 ```
 
 Source: [`packages/feedback/command-feedback/src/index.ts`](../../packages/feedback/command-feedback/src/index.ts)

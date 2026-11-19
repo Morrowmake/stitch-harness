@@ -40,10 +40,10 @@ export interface SdkRunSpec {
   cwd: string
   /** Parent origin directory recorded independently of the child's effective directory. */
   originCwd?: string | undefined
-  /** Provider route the child runtime initializes with. */
-  provider: string
-  /** Model the child runtime initializes with. */
-  model: string
+  /** Provider route the child runtime initializes with; omission uses the child runtime's default model. */
+  provider?: string | undefined
+  /** Model the child runtime initializes with; omission uses the child runtime's default model. */
+  model?: string | undefined
   /** Optional adapter-owned reasoning effort sent in the child runtime's initialize handshake. */
   reasoningEffort?: ReasoningEffortId
   /** Optional per-request output-token cap sent in the child runtime's initialize handshake. */
@@ -245,8 +245,8 @@ export async function startSdkRun(request: SubagentStartRequest, spec: SdkRunSpe
     disposeEofGraceMs: spec.disposeEofGraceMs,
     disposeGraceMs: spec.disposeGraceMs,
     cwd: spec.originCwd ?? spec.cwd,
-    provider: spec.provider,
-    model: spec.model,
+    ...spec.provider === undefined ? {} : { provider: spec.provider },
+    ...spec.model === undefined ? {} : { model: spec.model },
     ...spec.reasoningEffort === undefined ? {} : { reasoningEffort: spec.reasoningEffort },
     ...spec.maxTokens === undefined ? {} : { maxTokens: spec.maxTokens },
   })

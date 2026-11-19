@@ -80,6 +80,9 @@ export interface Config extends PresetSelectionConfig {
   maxDepth?: number | 'provider-managed'
 }
 
+/** An unset route field stays `undefined` so the child inherits that part of the parent's route. */
+const optionalRouteField: z<string | undefined> = z.string()
+
 export const Config: z<Config> = z.object({
   provider: z.string().required(),
   toolName: z.string().default('subagent'),
@@ -87,8 +90,8 @@ export const Config: z<Config> = z.object({
   modelDiscovery: z.boolean().default(false),
   // Prevent Schemastery from materializing omitted agentOptions as `{}`.
   agentOptions: z.object({
-    provider: z.string(),
-    model: z.string(),
+    provider: optionalRouteField,
+    model: optionalRouteField,
     reasoningEffort: z.string().min(1) as z<ReasoningEffortId | undefined>,
     maxTokens: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER),
   }).default(undefined as unknown as {

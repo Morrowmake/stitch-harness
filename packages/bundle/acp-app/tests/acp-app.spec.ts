@@ -24,9 +24,7 @@ describe('dsh-acp-app bundle', () => {
     expect(patches.find(patch => patch.id === 'session-title-llm')).toMatchObject({ disabled: true })
     const rows = patches.flatMap(patch => patch.insert ?? [])
     expect(rows.find(row => row.id === 'acp-app-startup')?.name).toBe('@deepseek-ai/dsh-acp-app')
-    expect(rows.find(row => row.id === 'acp')).toMatchObject({
-      inject: ['acpAppStartup'],
-      config: { provider: 'deepseek-official', model: 'deepseek-v4-flash' },
-    })
+    expect(rows.find(row => row.id === 'acp')).toMatchObject({ inject: ['acpAppStartup'] })
+    expect(rows.find(row => row.id === 'acp')).not.toHaveProperty('config')
   })
 })

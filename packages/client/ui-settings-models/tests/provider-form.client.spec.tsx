@@ -10,7 +10,7 @@ import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import { ModelsSection, providerCopy } from '../src/client/ModelsSection.tsx'
 import type { ModelsSectionInjected, ModelsSectionProps } from '../src/client/ModelsSection.tsx'
 import { CustomProviderCard } from '../src/client/CustomProviderCard.tsx'
-import { formatCapacity, parseCapacity } from '../src/client/DeepSeekModelsEditor.tsx'
+import { formatCapacity, parseCapacity } from '../src/client/model-drafts.ts'
 import { SettingsDescribeMirror } from '@deepseek-ai/dsh-client-ui-settings/src/client/settings-mirror.ts'
 import { ModelsSettingsStore, deriveKeyRef, protocolChoices, reasoningLevelChoices } from '../src/client/store.ts'
 import { createModelsOperations } from '../src/client/operations.ts'
@@ -159,9 +159,7 @@ const contexts = new WeakMap<object, PageContext>()
 function ctxWith(face: object): PageContext {
   const existing = contexts.get(face)
   if (existing !== undefined) return existing
-  const ctx = Object.assign(new Context(), { remote: { ...face,
-    session: { initializeDefaultModel: async () => ({ ok: true, value: undefined }) },
-  } })
+  const ctx = Object.assign(new Context(), { remote: { ...face } })
   contexts.set(face, ctx)
   return ctx
 }
@@ -975,21 +973,6 @@ describe('hand-declared providers', () => {
     return { ...scripted, onClose }
   }
 
-  it('creates a custom provider without changing the default model', async () => {
-    const { face, mutate, set, onClose } = mountCard()
-    const initialize = vi.spyOn(ctxWith(face).remote.session, 'initializeDefaultModel')
-    fireEvent.change(screen.getByLabelText(en.customRoute), { target: { value: 'acme-gateway' } })
-    fireEvent.change(screen.getByLabelText(en.baseUrl), { target: { value: 'https://gateway.example/v1' } })
-    fireEvent.change(screen.getByLabelText(en.keyInput), { target: { value: 'test-key' } })
-    fireEvent.click(screen.getByRole('button', { name: en.addModel }))
-    fireEvent.change(screen.getByLabelText(`${en.modelId} 1`), { target: { value: 'model' } })
-    fireEvent.click(screen.getByText(en.create))
-    await waitFor(() => { expect(onClose).toHaveBeenCalledWith(true) })
-    expect(mutate).toHaveBeenCalledOnce()
-    expect(set).toHaveBeenCalledOnce()
-    expect(initialize).not.toHaveBeenCalled()
-  })
-
   it('writes the whole profile and the key under the derived reference', async () => {
     const { mutate, set, onClose } = mountCard()
 
@@ -1338,6 +1321,17 @@ describe('hand-declared providers', () => {
 
     fireEvent.change(routeField, { target: { value: 'a1' } })
     expect(screen.queryByText(en.customRouteInvalid)).toBeNull()
+  })
+
+  it('refuses a route id containing the "--" account separator with its own reason', () => {
+    mountCard()
+    const routeField = screen.getByLabelText(en.customRoute)
+    fireEvent.change(routeField, { target: { value: 'acme--work' } })
+    expect(screen.getByText(en.customRouteReserved).className).toMatch(/error/)
+    expect(screen.queryByText(en.customRouteInvalid)).toBeNull()
+    expect(buttonNamed(en.create).disabled).toBe(true)
+    fireEvent.change(routeField, { target: { value: 'acme-work' } })
+    expect(screen.queryByText(en.customRouteReserved)).toBeNull()
   })
 
   it('styles a rejected route id as a fault and its guidance as a hint', () => {

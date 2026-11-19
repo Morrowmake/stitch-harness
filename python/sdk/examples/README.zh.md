@@ -17,7 +17,7 @@ python python/sdk/examples/minimal.py \
   "Inspect the repository and fix the failing tests."
 ```
 
-如需使用兼容代理，请设置 `DEEPSEEK_BASE_URL`；可通过 `DSH_MODEL` 设置脚本的默认模型，通过 `DSH_SYSTEM_PROMPT` 指定部署角色设定。`--model` 是唯一运行时模型选择，不要求匹配的环境变量；`--profile` 可以选择另一个提供 SDK 服务的 profile。所选 home 保存生成的 `sdk-minimal` profile，并在 `sessions/` 下保存未压缩 JSONL 会话日志；脚本绝不会隐式读取 `~/.dsh`。
+如需使用兼容代理，请设置 `DEEPSEEK_BASE_URL`；可通过 `DSH_PROVIDER` 与 `DSH_MODEL`（须同时设置）指定脚本默认的提供方路由和模型，通过 `DSH_SYSTEM_PROMPT` 指定部署角色设定。`--provider` 与 `--model` 是唯一运行时选择，须同时提供；二者都省略时使用运行时的默认模型。`--profile` 可以选择另一个提供 SDK 服务的 profile。所选 home 保存生成的 `sdk-minimal` profile，并在 `sessions/` 下保存未压缩 JSONL 会话日志；脚本绝不会隐式读取 `~/.dsh`。
 
 随附的 [`@deepseek-ai/dsh-sdk-minimal` 组合包](../../../packages/bundle/sdk-minimal/README.zh.md) 是该模式完整且显式的 Cordis 配置树。它只暴露：
 
@@ -31,7 +31,7 @@ python python/sdk/examples/minimal.py \
 <a id="compact-a-full-sdk-session"></a>
 ## 压缩完整 SDK Session
 
-[压缩示例](compact.py)使用完整 `sdk` profile。它将所选工作区的 `README.md` 读入 `Session.run()` 输入，通过同一方法执行 `/compact`，随后使用保留的上下文继续提问。模型凭据和 `DSH_MODEL` 默认值与极简示例一致，并且要求显式指定 home：
+[压缩示例](compact.py)使用完整 `sdk` profile。它将所选工作区的 `README.md` 读入 `Session.run()` 输入，通过同一方法执行 `/compact`，随后使用保留的上下文继续提问。模型凭据和 `DSH_PROVIDER`／`DSH_MODEL` 默认值与极简示例一致，并且要求显式指定 home：
 
 ```sh
 python python/sdk/examples/compact.py \

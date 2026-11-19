@@ -33,13 +33,13 @@ Choose it when automation should own the interaction: an out-of-process subagent
 
 ### Minimal configuration
 
-Every session the server creates uses the provider and model configured here. Both fields are optional so another agent or request listener can supply them; the runnable demo composition sets both. Stdout carries only protocol traffic, so keep logging off it.
+Every session the server creates uses the provider and model configured here when both are set, and otherwise the deployment default model of `dsh-agent-default-model` when that service is mounted. Without either, a prompt fails at its first model step with a message naming where to configure a provider. Stdout carries only protocol traffic, so keep logging off it.
 
 ```yaml
 - name: '@deepseek-ai/dsh-acp'
   config:
-    provider: deepseek-official
-    model: deepseek-v4-pro
+    provider: anthropic
+    model: claude-sonnet-4-5
 ```
 
 | Field | Default | Meaning |

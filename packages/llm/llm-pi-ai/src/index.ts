@@ -67,13 +67,18 @@ import type { AdapterRegistrationHandle, DirectoryRegistrationHandle, LlmConfigu
 import type {} from '@deepseek-ai/dsh-fs'
 import { deepEqualJson } from '@deepseek-ai/dsh-util-values'
 import { PiAiAdapter } from './adapter.ts'
-import { authContextFrom, credentialStoreFrom } from './auth.ts'
+import { authContextFrom } from './auth.ts'
+import { accountCredentialStore } from './accounts/store.ts'
+import { PoolDirectory } from './accounts/directory.ts'
+import { parseRecordKey } from './accounts/keys.ts'
+import { AccountPool } from './accounts/router.ts'
+import type { AccountsRuntime } from './accounts/runtime.ts'
+import LlmAccountsRemote from './accounts/service.ts'
 import { catalogProvider, catalogProviderIds } from './catalog.ts'
 import { assertServiceable, Config, resolveProfiles } from './config.ts'
 import type { ResolvedPiAiProviderProfile } from './config.ts'
 import { discoverModels } from './discovery.ts'
 import type { StoredModelDiscoveryProfile } from './discovery.ts'
-import { registerPiAiFlows } from './login.ts'
 import { providerDefaultsOf } from './provider-data.ts'
 import type { PiAiRequestHeaderContext } from './types.ts'
 
@@ -117,6 +122,14 @@ declare module '@deepseek-ai/cordis' {
 }
 
 const NS = 'llm-pi-ai'
+
+/** Per route, the account metadata that shapes its picker entries and pool. */
+function accountsFactsOf(profiles: ReadonlyMap<string, ResolvedPiAiProviderProfile>): Map<string, unknown> {
+  return new Map([...profiles].map(([route, profile]) => [
+    route,
+    { accounts: profile.accounts ?? {}, defaultAccount: profile.defaultAccount },
+  ]))
+}
 
 /**
  * The registry captures these per route; a change here must re-register.
@@ -248,11 +261,18 @@ export function apply(ctx: Context, config: Config): void {
   // One store and one ambient context for the whole plugin instance: both read
   // through `ctx` per call, so they stay correct across the collection rebuilds
   // a configuration change causes, and a sign-in survives one.
-  const auth = { credentials: credentialStoreFrom(ctx), authContext: authContextFrom(ctx) }
+  const auth = {
+    credentials: accountCredentialStore(ctx),
+    authContext: authContextFrom(ctx),
+    accountCredentials: (account: string) => accountCredentialStore(ctx, account),
+  }
+  const accountDirectory = new PoolDirectory(ctx, profiles)
+  const pool = new AccountPool(accountDirectory, Date.now, (message) => { ctx.logger.debug(message) })
   const adapter = new PiAiAdapter({
     profiles,
     resolveApiKey,
     auth,
+    pool,
     prepareHeaders: (request, headers) => ctx.waterfall('llm-pi-ai/request-headers', request, headers, () => headers),
     resolveAttachments: () => ctx.get('attachments'),
     resolveImageAccess: (attachments, ref) => resolveImageAttachmentAccess(
@@ -270,12 +290,48 @@ export function apply(ctx: Context, config: Config): void {
       ctx.logger.debug(`llm-pi-ai: omitted stale thinking from ${count} assistant message(s) for route "${provider}/${model}"`)
     },
   })
-  // Independent of the route set: signing in is what makes a route worth
-  // adding, so the flows are offered before any profile names their provider.
-  // Scoped to the authorization seam rather than injected outright, because a
-  // composition without it (headless, ACP) simply has no surface to sign in
-  // from, while everything else this plugin does still works.
-  ctx.inject(['authorization'], (authorized) => { registerPiAiFlows(authorized, auth) })
+  const runtime: AccountsRuntime = {
+    directory: accountDirectory,
+    health: pool.health,
+    sticky: pool.sticky,
+    models: (_route, account) => adapter.accountModels(account),
+    settingsNs,
+    routes: () => new Map([...profiles()].map(([route, profile]) => [route, { displayName: profile.displayName }])),
+    onObservation: cb => pool.onObservation(cb),
+    onLimited: cb => pool.onLimited(cb),
+    applyResetHint: (route, account, resetsAt) => { pool.health.applyResetHint(route, account, resetsAt) },
+    attachUsage: usage => pool.attachUsage(usage),
+  }
+  // The `llmAccounts` Remote: account views, per-account sign-in, usage.
+  ctx.plugin(LlmAccountsRemote, runtime)
+  // A stored account appearing or vanishing changes the route's accounts (and
+  // its pinned picker entries); any write (sign-in, refresh) also clears the
+  // account's cooldowns and sign-in state.
+  const knownAccounts = new Map<string, string>()
+  ctx.on('credentials/record-updated', (key) => {
+    const parsed = parseRecordKey(key)
+    if (parsed === undefined) return
+    accountDirectory.invalidate()
+    pool.health.clear(parsed.route, parsed.account)
+    if (!profiles().has(parsed.route)) return
+    void accountDirectory.forRoute(parsed.route).then((accounts) => {
+      const ids = accounts.map(account => account.id).sort().join(',')
+      if (knownAccounts.get(parsed.route) === ids) return
+      knownAccounts.set(parsed.route, ids)
+      ctx.emit('llm/models-updated', parsed.route)
+    }, (error: unknown) => { ctx.logger.debug(`llm-pi-ai: could not list accounts of "${parsed.route}": ${String(error)}`) })
+  })
+  // Account metadata (pooled, pinned, allowlist, default) shapes the picker.
+  let accountFacts = accountsFactsOf(profiles())
+  const ensureAccountFacts = (): void => {
+    const next = accountsFactsOf(profiles())
+    const changed = [...new Set([...accountFacts.keys(), ...next.keys()])]
+      .filter(route => !deepEqualJson(accountFacts.get(route), next.get(route)))
+    accountFacts = next
+    if (changed.length === 0) return
+    accountDirectory.invalidate()
+    for (const route of changed) if (profiles().has(route)) ctx.emit('llm/models-updated', route)
+  }
   // The full installed catalog is configurable from the moment the plugin
   // mounts — dormant or not — so configuration surfaces can offer every
   // pi-ai provider before any route exists. Hand-declared routes join it as
@@ -352,7 +408,7 @@ export function apply(ctx: Context, config: Config): void {
   ensureRegistrationFacts()
 
   ctx.on('loader/volatile-update', () => {
-    try { ensureRegistrationFacts(); ensureDirectory() }
+    try { ensureRegistrationFacts(); ensureDirectory(); ensureAccountFacts() }
     catch (error) {
       ctx.logger.error('llm-pi-ai: configuration conflicts with an existing provider route')
       ctx.logger.error(error)

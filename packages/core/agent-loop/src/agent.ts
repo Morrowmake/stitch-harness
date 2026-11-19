@@ -293,7 +293,8 @@ export class ReactLoopAgent implements Agent {
     const claimed = this.inbox.claim(target, position.turn)
     const selection = this.model.current()
     if (selection === undefined) {
-      throw new Error(`agent "${this.id}" has no provider/model: set AgentOptions.provider and AgentOptions.model or record a model selection`)
+      throw new Error(`No model provider configured for agent "${this.id}". Add one in Settings → Models, or set provider/model`
+        + ' for agent-default-model in your profile patch; SDK callers set AgentOptions.provider and AgentOptions.model or record a model selection')
     }
     const toolSet = await this.loopCtx.tools.resolve({ agent: this, modelSelection: selection, signal })
     try {

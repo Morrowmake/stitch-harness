@@ -10,14 +10,6 @@
       config:
         assetRoot: !!js process.cwd() + '/office-skills'
 
-- id: llm-deepseek
-  config:
-    thinking: enabled
-    reasoningEffort: high
-    maxTokens: 8192
-    models:
-      - id: deepseek-v4-flash
-
 - id: tool-bash
   disabled: true
 

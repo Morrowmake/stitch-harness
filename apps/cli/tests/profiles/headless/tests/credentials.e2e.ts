@@ -51,7 +51,7 @@ async function startAnthropicServer() {
 
 const credentials = JSON.stringify({
   version: 1,
-  refs: { DEEPSEEK_API_KEY: savedKey, ANTHROPIC_API_KEY: savedKey },
+  refs: { STITCH_TEST_API_KEY: savedKey, ANTHROPIC_API_KEY: savedKey },
   records: {
     'llm-pi-ai/anthropic': { kind: 'api-key', key: savedKey },
     'llm-pi-ai/openai-codex': {
@@ -59,6 +59,18 @@ const credentials = JSON.stringify({
     },
   },
 }) + '\n'
+
+/** Route the default agent through an Anthropic Messages pi-ai route on the mock server. */
+function mockRoutePatch(baseURL: string, extra: object[] = []): string {
+  return JSON.stringify([
+    { id: 'agent-default-model', config: { provider: 'mock', model: 'mock-model' } },
+    { id: 'llm-pi-ai', config: { providers: { mock: {
+      apiKeyEnv: 'STITCH_TEST_API_KEY', api: 'anthropic-messages', baseURL,
+      models: [{ id: 'mock-model', contextWindow: 32_768, maxTokens: 1024 }],
+    } } } },
+    ...extra,
+  ])
+}
 
 describe('headless credential policy', { retry: 0 }, () => {
   it.each([
@@ -71,15 +83,14 @@ describe('headless credential policy', { retry: 0 }, () => {
       const result = await runLoaderSmoke({
         label: `headless credentials: ${scenario.name}`,
         tempDirPrefix: 'headless-credentials-', binScript, tsconfigPath, sourceImport: 'tsx/esm',
-        configPath: '', binArgs: ['headless', 'Reply briefly.'], processTimeoutMs,
-        env: {
-          DEEPSEEK_API_KEY: scenario.launch, DEEPSEEK_BASE_URL: server.baseURL, DSH_TELEMETRY_DISABLED: '1',
-        },
+        configPath: '', binArgs: ['headless', '--patch', './route.patch.json', 'Reply briefly.'], processTimeoutMs,
+        env: { STITCH_TEST_API_KEY: scenario.launch },
         prepare: async (cwd) => {
           await mkdir(join(cwd, '.dsh'), { recursive: true })
           await writeFile(join(cwd, '.dsh', '.credentials.yaml'), credentials, { mode: 0o600 })
-          if (scenario.project !== undefined) await writeFile(join(cwd, '.env'), `DEEPSEEK_API_KEY=${scenario.project}\n`)
-          if (scenario.home !== undefined) await writeFile(join(cwd, '.dsh', '.env'), `DEEPSEEK_API_KEY=${scenario.home}\n`)
+          await writeFile(join(cwd, 'route.patch.json'), mockRoutePatch(server.baseURL))
+          if (scenario.project !== undefined) await writeFile(join(cwd, '.env'), `STITCH_TEST_API_KEY=${scenario.project}\n`)
+          if (scenario.home !== undefined) await writeFile(join(cwd, '.dsh', '.env'), `STITCH_TEST_API_KEY=${scenario.home}\n`)
         },
         inspect: async (cwd) => {
           expect(await readFile(join(cwd, '.dsh', '.credentials.yaml'), 'utf8')).toBe(credentials)
@@ -105,7 +116,7 @@ describe('headless credential policy', { retry: 0 }, () => {
           ANTHROPIC_API_KEY: launchKey, ANTHROPIC_AUTH_TOKEN: undefined, ANTHROPIC_OAUTH_TOKEN: undefined,
           ANTHROPIC_FEDERATION_RULE_ID: undefined, ANTHROPIC_ORGANIZATION_ID: undefined,
           ANTHROPIC_IDENTITY_TOKEN_FILE: undefined, ANTHROPIC_SERVICE_ACCOUNT_ID: undefined, ANTHROPIC_WORKSPACE_ID: undefined,
-          DEEPSEEK_API_KEY: undefined, DSH_TELEMETRY_DISABLED: '1',
+          STITCH_TEST_API_KEY: undefined,
         },
         prepare: async (cwd) => {
           await mkdir(join(cwd, '.dsh'), { recursive: true })
@@ -143,16 +154,16 @@ describe('headless credential policy', { retry: 0 }, () => {
         label: `headless credential boundary: ${mode}`,
         tempDirPrefix: 'headless-credential-boundary-', binScript, tsconfigPath, sourceImport: 'tsx/esm',
         configPath: '',
-        binArgs: ['headless', ...restoring ? ['--patch', './auth.patch.json'] : [], 'Reply briefly.'],
+        binArgs: ['headless', '--patch', './route.patch.json', 'Reply briefly.'],
         processTimeoutMs, expectedExitCode: missing ? 1 : 0,
-        env: { DEEPSEEK_API_KEY: empty ? '' : missing ? undefined : launchKey, DEEPSEEK_BASE_URL: server.baseURL, DSH_TELEMETRY_DISABLED: '1' },
+        env: { STITCH_TEST_API_KEY: empty ? '' : missing ? undefined : launchKey },
         prepare: async (cwd) => {
           await mkdir(join(cwd, '.dsh'), { recursive: true })
           await writeFile(join(cwd, '.dsh', '.credentials.yaml'), document, { mode: 0o600 })
-          if (empty) await writeFile(join(cwd, '.env'), `DEEPSEEK_API_KEY=${projectKey}\n`)
-          if (restoring) await writeFile(join(cwd, 'auth.patch.json'), JSON.stringify(
-            ['credentials', 'authorization', 'deepseek-account'].map(id => ({ id, disabled: false })),
-          ))
+          if (empty) await writeFile(join(cwd, '.env'), `STITCH_TEST_API_KEY=${projectKey}\n`)
+          await writeFile(join(cwd, 'route.patch.json'), mockRoutePatch(server.baseURL, restoring
+            ? ['credentials', 'authorization'].map(id => ({ id, disabled: false }))
+            : []))
         },
         inspect: async (cwd) => {
           expect(await readFile(join(cwd, '.dsh', '.credentials.yaml'), 'utf8')).toBe(document)
@@ -172,24 +183,24 @@ describe('headless credential policy', { retry: 0 }, () => {
     }
   }, processTimeoutMs + 15_000)
 
-  it.each([
-    { provider: 'deepseek-account', model: 'deepseek-v4-flash', code: 'ACCOUNT_SIGN_IN_REQUIRED' },
-    { provider: 'openai-codex', model: 'gpt-5.4', code: 'PI_AI_ERROR: Provider is not configured: openai-codex' },
-  ])('fails without saved sign-in for $provider', async ({ provider, model, code }) => {
+  it('fails without saved sign-in for openai-codex', async () => {
+    const provider = 'openai-codex'
+    const model = 'gpt-5.4'
+    const code = 'PI_AI_ERROR: Provider is not configured: openai-codex'
     const result = await runLoaderSmoke({
       label: `headless saved sign-in: ${provider}`,
       tempDirPrefix: 'headless-saved-sign-in-', binScript, tsconfigPath, sourceImport: 'tsx/esm',
       configPath: '', binArgs: ['headless', '--patch', './auth.patch.json', 'Reply briefly.'],
       processTimeoutMs, expectedExitCode: 1,
-      env: { DEEPSEEK_API_KEY: undefined, OPENAI_API_KEY: undefined, DSH_TELEMETRY_DISABLED: '1' },
+      env: { OPENAI_API_KEY: undefined },
       prepare: async (cwd) => {
         await mkdir(join(cwd, '.dsh'), { recursive: true })
         await writeFile(join(cwd, '.dsh', '.credentials.yaml'), credentials, { mode: 0o600 })
         await writeFile(join(cwd, 'auth.patch.json'), JSON.stringify([
           { id: 'agent-default-model', config: { provider, model } },
-          ...provider === 'openai-codex' ? [{ id: 'llm-pi-ai', config: { providers: {
+          { id: 'llm-pi-ai', config: { providers: {
             [provider]: { models: [{ id: model, contextWindow: 32_768, maxTokens: 1024 }] },
-          } } }] : [],
+          } } },
         ]))
       },
       inspect: async (cwd) => {

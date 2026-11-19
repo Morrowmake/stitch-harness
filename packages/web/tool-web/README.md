@@ -33,12 +33,14 @@ Choose this package when the model should discover current information or read a
 
 ### Minimal configuration
 
-Load the web service, at least one backend, and this package; both tools register by default. The DeepSeek backend below requires [`dsh-deepseek-auth`](../../account/deepseek-auth/README.md) for its credentials.
+Load the web service, at least one backend, and this package; both tools register by default. The keyless search backend below needs no account or credential.
 
 ```yaml
 - name: '@deepseek-ai/dsh-web'
-- name: '@deepseek-ai/dsh-deepseek-auth'
-- name: '@deepseek-ai/dsh-web-deepseek-api'
+  config:
+    searchProvider: keyless
+- name: '@deepseek-ai/dsh-web-search-keyless'
+- name: '@deepseek-ai/dsh-web-fetch-http'
 - name: '@deepseek-ai/dsh-tool-web'
 ```
 
@@ -80,7 +82,7 @@ Tool registration follows product enablement, not backend availability: a tool s
 <a id="search-readiness"></a>
 ### Search and fetch readiness
 
-Each model step admits `web_search` and `web_fetch`, and so declares, describes, and dispatches them, only while `ctx.web.searchReady()` and `ctx.web.fetchReady()` answer true for the chat route of the step's model selection. The service asks only the provider that `search()` or `fetch()` would select; a provider that does not implement readiness counts as ready, and a selection failure also answers true, so the stable-registration errors above still reach the model. [`dsh-web-search-deepseek`](../web-search-deepseek/README.md#authentication) and [`dsh-web-deepseek-api`](../web-deepseek-api/README.md#authentication) are not ready when the step's operation has no credential. The shipped HTTP fetch provider needs no credential, so `web_fetch` stays admitted while it is selected. The check runs for every step, so a model switch or a newly stored key applies to the next step. A step that does not admit a tool also leaves it out of PTC program bindings, and a call to it fails as `UNKNOWN_TOOL`.
+Each model step admits `web_search` and `web_fetch`, and so declares, describes, and dispatches them, only while `ctx.web.searchReady()` and `ctx.web.fetchReady()` answer true for the chat route of the step's model selection. The service asks only the provider that `search()` or `fetch()` would select; a provider that does not implement readiness counts as ready, and a selection failure also answers true, so the stable-registration errors above still reach the model. A credentialed provider reports not ready when the step's operation has no credential. The shipped HTTP fetch provider needs no credential, so `web_fetch` stays admitted while it is selected. The check runs for every step, so a model switch or a newly stored key applies to the next step. A step that does not admit a tool also leaves it out of PTC program bindings, and a call to it fails as `UNKNOWN_TOOL`.
 
 ### Failures and recovery
 
@@ -208,7 +210,7 @@ Withholding removes the tool's schema and its prompt guidance from the request.
 
 #### KV Cache effect
 
-On a DeepSeek route, a returning web tool is loaded as a deferred addition that keeps the cached prefix; removing it while the route stays the same changes the declared tools and prevents reuse from there. Routes without tool-update support send the complete tool list, so either change prevents reuse from the tool declarations. A model switch already invalidates the cache.
+Routes send the complete tool list, so a returning or withdrawn web tool changes the tool declarations and prevents reuse from there. A model switch already invalidates the cache.
 
 ### Search result
 
@@ -274,7 +276,7 @@ Append-only; newly visible content follows the reusable request prefix and does 
 These limits define when the tools are incomplete or need deployment cooperation. They are current package constraints.
 
 - **There is no batch-wide native-search counter** — `searchMaxQueries` bounds `ctx.web.search` calls, but a provider may perform several native searches inside each call; for example a model-backed provider configured with `maxUses` can permit up to `searchMaxQueries × maxUses` native searches, and `searchMaxResults` limits only the combined sources returned to the caller. Deployments control cost through these independent consumer and provider settings because the service does not know provider-internal search units.
-- **One failed query fails the whole call** — queries in one call run concurrently, and the first provider failure aborts the rest and discards results that already succeeded. A provider rate limit therefore fails the call; [`dsh-web-deepseek-api`](../web-deepseek-api/README.md#known-limitations-and-deferred-work) paces its own Search requests to the account's 5 QPS limit within one process.
+- **One failed query fails the whole call** — queries in one call run concurrently, and the first provider failure aborts the rest and discards results that already succeeded. A provider rate limit therefore fails the call.
 - **HTML→markdown conversion omits inputs it cannot safely represent** — [turndown](https://github.com/mixmark-io/turndown) converts at most `fetchMaxOutputChars` source characters through a real DOM. A 512-level nesting guard and conversion exceptions produce a fixed omission marker instead of raw HTML; table `colspan` remains unsupported because GFM has no spanning-cell representation ([archived dependency decision](../../../.agents/notes/archived/simplification/2026-07-26-turndown-for-tool-web-html-markdown.md)).
 - **The model-facing API is minimal by design, with promotions deferred** — `max_results` stays a config bound (not a model argument), and `web_fetch` takes only `url` (no `format`/`prompt`/LLM-summarization mode); both are named later steps in [the seam Agent Note](../../../.agents/notes/implemented/architecture/2026-06-24-web-capability-seam.md).
 - **Fetches do not request approval** — the shipped `cordis`, `code`, and `standard` presets expose `web_fetch` in every sandbox and approval mode. The HTTP provider does not restrict destination addresses, so a model can reach loopback and private-network hosts and send data to any reachable URL. Deployments that need per-call confirmation must add a `tools/pre-execute` policy or disable fetch.

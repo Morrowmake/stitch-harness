@@ -72,9 +72,9 @@ await using harness = new DeepSeekHarness({
   profile: 'sdk',
   dshHome: '/absolute/path/to/dsh-home',
   patches: ['./automation.cordis.yml'],
-  provider: 'deepseek-official',
-  model: 'deepseek-v4-flash',
-  reasoningEffort: brandString<ReasoningEffortId>('max'),
+  provider: 'anthropic',
+  model: 'claude-sonnet-4-5',
+  reasoningEffort: brandString<ReasoningEffortId>('high'),
   maxTokens: 49_152,
 })
 const result = await harness.run('say hi')

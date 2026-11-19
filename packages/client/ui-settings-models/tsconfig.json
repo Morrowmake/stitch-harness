@@ -12,12 +12,6 @@
       "path": "../../util/text-search"
     },
     {
-      "path": "../config"
-    },
-    {
-      "path": "../../../vendor/schemastery"
-    },
-    {
       "path": "../../../vendor/cordis"
     },
     {
@@ -40,9 +34,6 @@
     },
     {
       "path": "../../api/remotes/tsconfig.client.json"
-    },
-    {
-      "path": "../product-analytics/tsconfig.client.json"
     }
   ]
 }

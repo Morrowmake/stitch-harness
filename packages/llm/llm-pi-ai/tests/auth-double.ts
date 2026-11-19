@@ -5,7 +5,7 @@ import type { PiAiAuthInjection } from '../src/adapter.ts'
  * The auth injectables for tests that exercise streaming rather than
  * authentication: an in-process credential store and an ambient context that
  * finds nothing. A test needing real records builds the store over
- * `ctx.credentials` instead, through `credentialStoreFrom`.
+ * `ctx.credentials` instead, through `accountCredentialStore`.
  * @param seed - credentials to start with, by pi-ai provider id.
  * @returns the injection to hand `PiAiAdapter`, with its store readable.
  */

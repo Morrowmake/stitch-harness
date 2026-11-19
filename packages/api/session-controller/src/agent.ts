@@ -467,11 +467,12 @@ export class ApiSessionAgentController {
 
   private agentOptions(): AgentOptions {
     const defaults = this.ctx.agentDefaultModel
-    // A Session that records no selection or request follows default changes.
+    // A Session that records no selection or request follows default changes;
+    // while no default is configured the Agent loop reports the missing model at its first step.
     return {
-      get provider() { return defaults.currentSelection().provider },
-      get model() { return defaults.currentSelection().model },
-      get reasoningEffort() { return defaults.currentSelection().reasoningEffort },
+      get provider() { return defaults.configuredSelection()?.provider },
+      get model() { return defaults.configuredSelection()?.model },
+      get reasoningEffort() { return defaults.configuredSelection()?.reasoningEffort },
     }
   }
 

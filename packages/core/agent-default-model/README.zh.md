@@ -29,25 +29,25 @@ kind: "package-reference"
 
 ### 配置默认值
 
-组合要求提供 provider 和模型。即使没有挂载配置编辑器，消费者也可读取即时引用。
+provider 和模型初始均未设置：在用户配置提供方之前，部署没有默认模型。即使没有挂载配置编辑器，消费者也可读取即时引用。
 
 ```yaml
 - name: '@deepseek-ai/dsh-agent-default-model'
   config:
-    provider: deepseek
-    model: deepseek-chat
+    provider: anthropic
+    model: claude-sonnet-4-5
 ```
 
 | 字段 | 默认值 | 含义 |
 |---|---|---|
-| `provider` | 必填 | 新 agent 使用的已注册提供方路由 |
-| `model` | 必填 | 新 agent 使用的、由提供方持有的模型 id |
+| `provider` | 未设置 | 新 agent 使用的已注册提供方路由 |
+| `model` | 未设置 | 新 agent 使用的、由提供方持有的模型 id |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-agent-default-model) 列出所有接受的字段。`reasoningEffort` 是可选的；保存不含此字段的选择，会从 profile 的完整配置覆盖中移除此字段。
 
 ### 读取与更改默认值
 
-`currentSelection()` 为新创建的 agent 返回一份独立的 `{ provider, model, reasoningEffort? }`；`saveSelection()` 为后续 agent 保存完整选择。
+`currentSelection()` 为新创建的 agent 返回一份独立的 `{ provider, model, reasoningEffort? }`；provider 或模型未设置时，它抛出带 `NO_DEFAULT_MODEL` 代码和可操作说明的 `HarnessError`。`configuredSelection()` 返回同一选择，未设置时返回 `undefined`，供模型目录等无需模型也须工作的界面使用。`saveSelection()` 为后续 agent 保存完整选择。
 
 ```text
 const selection = ctx.agentDefaultModel.currentSelection()
@@ -75,6 +75,7 @@ await ctx.agentDefaultModel.saveSelection({ provider, model, reasoningEffort: 'h
 | 文件 | 职责 |
 |---|---|
 | [`src/index.ts`](src/index.ts) | 即时默认选择与 profile 写入 |
+| [`src/no-default-model.ts`](src/no-default-model.ts) | `NO_DEFAULT_MODEL` 错误代码及其可操作说明 |
 
 ### 行为说明
 

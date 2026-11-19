@@ -7,10 +7,12 @@
  * action that opens the dialog, one surface per Session backs every entry in
  * that Session, a reconnect refreshes only Sessions that were already read,
  * and registration plus surface disposal ride the plugin fiber (HMR safety).
- * The node half stays inert.
+ * A typed `/feedback <text>` the Host recorded opens the GitHub issue
+ * preview, which files through `sessionFeedback.reportIssue` and opens only
+ * GitHub pages. The node half stays inert.
  */
 import { Context, Service } from '@deepseek-ai/cordis'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup } from '@testing-library/react'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
@@ -35,8 +37,7 @@ const seeded: MessageFeedbackItem = {
   updatedAt: 1,
 }
 
-/** Boot the plugin over fake faces; the Remote namespaces record every call. */
-async function bench(options: { recordResult?: unknown; recordCarrier?: unknown } = {}) {
+async function bench(options: { recordResult?: unknown; recordCarrier?: unknown; reportResult?: unknown } = {}) {
   const ctx = new Context()
   const calls: { method: string; request: unknown }[] = []
   // The generated face wraps every business result in the carrier envelope.
@@ -65,6 +66,14 @@ async function bench(options: { recordResult?: unknown; recordCarrier?: unknown 
       calls.push({ method: 'record', request })
       if (options.recordCarrier !== undefined) return Promise.resolve(options.recordCarrier)
       return carried(options.recordResult ?? { ok: true as const, value: { recorded: true as const } })
+    },
+    draftIssue: (request: unknown) => {
+      calls.push({ method: 'draftIssue', request })
+      return carried({ title: 'preview title', body: 'preview body' })
+    },
+    reportIssue: (request: unknown) => {
+      calls.push({ method: 'reportIssue', request })
+      return carried(options.reportResult ?? { kind: 'created' as const, url: 'https://github.com/Morrowmake/stitch-harness/issues/9' })
     },
   }
   new RemoteService(ctx)
@@ -176,6 +185,53 @@ describe('ui-message-feedback browser plugin', () => {
     expect(b.calls).toEqual([])
     await b.fiber.dispose()
     expect(b.ctx.get('feedbackUi')).toBeUndefined()
+  })
+
+  it('offers a typed /feedback remark the Host recorded as a GitHub issue preview, filed only on confirm', async () => {
+    const opened = vi.spyOn(window, 'open').mockReturnValue(null)
+    try {
+      const b = await bench()
+      await b.fiber.await()
+      const dialog = b.dialogEntry()!.inject!(sid('s1'))
+
+      b.ctx.emit('command/executed', sid('s1'), 'feedback', { kind: 'error', text: 'usage' }, '/feedback')
+      b.ctx.emit('command/executed', sid('s1'), 'plan', { kind: 'success' }, '/plan slow')
+      expect(b.calls).toEqual([])
+
+      b.ctx.emit('command/executed', sid('s1'), 'feedback', { kind: 'success', text: 'ok' }, '/feedback  the diff is slow ')
+      await vi.waitFor(() => {
+        expect(dialog.hooks.dialog.getSnapshot().report).toMatchObject({ title: 'preview title', recorded: true })
+      })
+      expect(b.calls).toEqual([{ method: 'draftIssue', request: { text: 'the diff is slow' } }])
+      expect(opened).not.toHaveBeenCalled()
+
+      dialog.editReport({ body: 'edited body' })
+      await dialog.confirmReport()
+
+      expect(b.calls.map(call => call.method)).toEqual(['draftIssue', 'reportIssue'])
+      expect(b.calls[1]?.request).toEqual({ title: 'preview title', body: 'edited body' })
+      expect(opened).toHaveBeenCalledWith('https://github.com/Morrowmake/stitch-harness/issues/9', '_blank', 'noopener,noreferrer')
+      expect(dialog.hooks.dialog.getSnapshot()).toMatchObject({ target: null, notice: 'issue-created' })
+    } finally {
+      opened.mockRestore()
+    }
+  })
+
+  it('opens only GitHub pages the Host answers with', async () => {
+    const opened = vi.spyOn(window, 'open').mockReturnValue(null)
+    try {
+      const b = await bench({ reportResult: { kind: 'browser', url: 'https://example.test/elsewhere' } })
+      await b.fiber.await()
+      const dialog = b.dialogEntry()!.inject!(sid('s1'))
+      b.ctx.feedbackUi.openSession(sid('s1'))
+      await dialog.previewReport()
+      await dialog.confirmReport()
+
+      expect(b.calls.map(call => call.method)).toEqual(['draftIssue', 'record', 'reportIssue'])
+      expect(opened).not.toHaveBeenCalled()
+    } finally {
+      opened.mockRestore()
+    }
   })
 
   it('records a Session remark through the sessionFeedback Remote and a message judgment through put', async () => {

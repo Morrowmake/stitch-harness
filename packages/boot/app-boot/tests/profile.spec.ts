@@ -198,34 +198,31 @@ describe('resolveProfileDir', () => {
   })
 })
 
-it('composes current profile, home, and overlay files with telemetry precedence', () => {
+it('composes current profile, home, and overlay files in precedence order', () => {
   const home = tmp()
-  const installAnchor = stageInstallation({ base: { patch: '- insert:\n  - id: session-telemetry-otel\n    name: telemetry\n' } })
+  const installAnchor = stageInstallation({ base: { patch: '- insert:\n  - id: sample\n    name: sample\n' } })
   const dir = resolveProfileDir('test', home)
   initProfile(dir, ['base'])
   const patchPath = join(dir, 'application.patch.yml')
-  writeFileSync(patchPath, '- id: session-telemetry-otel\n  disabled: true\n')
-  writeFileSync(join(home, PROFILE_PATCH_FILENAME), '- id: session-telemetry-otel\n  disabled: false\n')
+  writeFileSync(patchPath, '- id: sample\n  disabled: true\n')
+  writeFileSync(join(home, PROFILE_PATCH_FILENAME), '- id: sample\n  disabled: true\n')
   const overlayPath = join(home, 'overlay.yml')
-  writeFileSync(overlayPath, '- id: session-telemetry-otel\n  disabled: false\n')
+  writeFileSync(overlayPath, '- id: sample\n  disabled: false\n')
   const context = {
     name: 'test', dir, patchPath, installAnchor, home, cwd: home,
     startedBundles: ['base'],
-    overlayPaths: [overlayPath], telemetryDisabledEnv: 'false',
+    overlayPaths: [overlayPath],
   }
+  expect(composeEntries([readProfilePatches('test', context)])[0]?.disabled).toBe(false)
+  writeFileSync(overlayPath, '- id: sample\n  disabled: true\n')
   expect(composeEntries([readProfilePatches('test', context)])[0]?.disabled).toBe(true)
-  const enabled = { ...context, telemetryDisabledEnv: undefined }
-  expect(composeEntries([readProfilePatches('test', enabled)])[0]?.disabled).toBe(false)
-  writeFileSync(overlayPath, '- id: session-telemetry-otel\n  disabled: true\n')
-  expect(composeEntries([readProfilePatches('test', enabled)])[0]?.disabled).toBe(true)
   rmSync(overlayPath)
-  expect(() => readProfilePatches('test', enabled)).toThrow(`failed to read overlay ${overlayPath}`)
-  writeFileSync(join(home, PROFILE_PATCH_FILENAME), '- id: session-telemetry-otel\n  disabled: true\n')
-  expect(composeEntries([readProfilePatches('test', { ...enabled, overlayPaths: [] })])[0]?.disabled).toBe(true)
+  expect(() => readProfilePatches('test', context)).toThrow(`failed to read overlay ${overlayPath}`)
+  expect(composeEntries([readProfilePatches('test', { ...context, overlayPaths: [] })])[0]?.disabled).toBe(true)
   writeFileSync(join(home, PROFILE_PATCH_FILENAME), '[]\n')
-  expect(composeEntries([readProfilePatches('test', { ...enabled, overlayPaths: [] })])[0]?.disabled).toBe(true)
-  writeFileSync(patchPath, '- id: session-telemetry-otel\n  disabled: false\n')
-  expect(composeEntries([readProfilePatches('test', { ...enabled, overlayPaths: [] })])[0]?.disabled).toBe(false)
+  expect(composeEntries([readProfilePatches('test', { ...context, overlayPaths: [] })])[0]?.disabled).toBe(true)
+  writeFileSync(patchPath, '- id: sample\n  disabled: false\n')
+  expect(composeEntries([readProfilePatches('test', { ...context, overlayPaths: [] })])[0]?.disabled).toBe(false)
 })
 
 describe('initProfile', () => {

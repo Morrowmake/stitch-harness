@@ -34,14 +34,8 @@
     - id: llm
       name: '@deepseek-ai/dsh-llm'
 
-    - id: deepseek-llm-api-extensions
-      name: '@deepseek-ai/dsh-deepseek-llm-api-extensions'
-
     - id: session
       name: '@deepseek-ai/dsh-session'
-
-    - id: session-log-deepseek
-      name: '@deepseek-ai/dsh-session-log-deepseek'
 
     - id: typert
       name: '@deepseek-ai/dsh-typert-registry'
@@ -82,16 +76,12 @@
     - id: agent
       name: '@deepseek-ai/dsh-agent'
 
-    - id: plugin-package-inventory-deepseek
-      name: '@deepseek-ai/dsh-plugin-package-inventory-deepseek'
-
     # The transport-independent default for Agents created by entry points.
-    # Settings may supply a saved selection; consumers read it at creation time.
+    # Provider and model stay unset until the user configures a provider: a
+    # saved selection (Settings → Models, or a profile patch on this row)
+    # supplies them, and consumers read it at creation time.
     - id: agent-default-model
       name: '@deepseek-ai/dsh-agent-default-model'
-      config:
-        provider: deepseek-official
-        model: deepseek-flash
 
     - id: jobs
       name: '@deepseek-ai/dsh-jobs-local'
@@ -117,25 +107,15 @@
     - id: authorization
       name: '@deepseek-ai/dsh-authorization'
 
-    - id: deepseek-account
-      name: '@deepseek-ai/dsh-deepseek-account'
-      config:
-        desktopPlatform: !!js "ctx.get('profileContext')?.name === 'desktop' && ['darwin', 'win32'].includes(process.platform) ? process.platform : null"
-
-    # DeepSeek model routes and web providers ask this service for the API key or the account sign-in of each request.
-    - id: deepseek-auth
-      name: '@deepseek-ai/dsh-deepseek-auth'
-
     - id: credentials
       name: '@deepseek-ai/dsh-credentials-local'
 
-    # The pi-ai multi-provider twin, mounted dormant: zero routes (and no extra
-    # models in the picker) until a `llm-pi-ai:` settings section supplies provider
-    # profiles — then those routes register live, keys resolving per request
-    # through their apiKeyEnv references, and drop again when the section empties.
-    # Supplying those profiles is exactly what the web Models page does. Which
-    # adapters exist is composition; which providers run is the user's settings
-    # document.
+    # The multi-provider LLM adapter through which all model access runs. It
+    # mounts with zero routes until a `llm-pi-ai:` settings section supplies
+    # provider profiles — then those routes register live, keys resolving per
+    # request through their apiKeyEnv references, and drop again when the
+    # section empties. Supplying those profiles is exactly what the web Models
+    # page does; which providers run is the user's settings document.
     - id: llm-pi-ai
       name: '@deepseek-ai/dsh-llm-pi-ai'
 
@@ -199,38 +179,6 @@
       config:
         writeEveryEvents: 200
         writeIntervalMs: 5000
-
-    - id: otel
-      name: '@deepseek-ai/dsh-otel'
-
-    # OTel releases a Session-log prefix only after explicit user feedback,
-    # regardless of model provider. Ordinary activity never triggers capture.
-    # DSH_TELEMETRY_OTLP_URL overrides the production endpoint. A non-empty
-    # DSH_TELEMETRY_DISABLED — any value, including '0'/'false' — opts the
-    # process out (the launchers patch the row disabled; config cannot disable
-    # a row). Exports carry the harness home's anonymous user id ($DSH_HOME/.anonymous-user-id,
-    # random UUID; delete the file to reset the identity) as the Resource's
-    # user.id. Byte-bounded batching may turn an authorized prefix into
-    # several HTTP requests. Requests run serially; each has its own 1s
-    # transport timeout and 1.5s watchdog. A watchdog does not release the
-    # active request slot. The outer 3s shutdown deadline stops queued sends;
-    # large prefixes or an unsettled transport may leave records unsent.
-    # Every CLI exit path drains by disposing the root on SIGINT/SIGTERM.
-    - id: session-telemetry-otel
-      name: '@deepseek-ai/dsh-session-telemetry-otel'
-      config:
-        mode: !!js process.env.DSH_TELEMETRY_MODE || 'FEEDBACK_ONLY'
-        shutdownTimeoutMillis: 3000
-        maxRequestBytes: 4000000
-        exporter:
-          url: !!js process.env.DSH_TELEMETRY_OTLP_URL ?? 'https://dsh-otel-collector.deepseeksvc.com/v1/logs'
-          compression: gzip
-          timeoutMillis: 1000
-        processor:
-          scheduledDelayMillis: 10000
-          maxQueueSize: 2048
-          maxExportBatchSize: 2048
-          exportTimeoutMillis: 1500
 
     - id: subprocess
       name: '@deepseek-ai/dsh-subprocess-local'
@@ -323,11 +271,6 @@
 
     - id: tool-skill
       name: '@deepseek-ai/dsh-tool-skill'
-
-    # CLI app plugins register their entry skill and its pinned upstream files
-    # with this Service, which downloads nothing until one registers.
-    - id: upstream-skills
-      name: '@deepseek-ai/dsh-upstream-skills'
 
     - id: commands
       name: '@deepseek-ai/dsh-commands'
@@ -474,40 +417,23 @@
 
     # The shared base enables the stable model-facing web_search and web_fetch
     # tools. The Web app disables this host row and composes both tools per agent
-    # preset; products with a stricter network policy override tool-web. Search
-    # composes no fixed provider, so dsh-web selects per model provider route:
-    # legacy Messages search (deepseek-official) for a conversation on a DeepSeek
-    # model route, because DeepSeek makes no per-search charge for it, and the
-    # DeepSeek Search API (deepseek-search-api) for every other route. Fetch
-    # defaults to the
-    # anonymous local fetcher (http). The DeepSeek Search and Fetch APIs
-    # (deepseek-search-api, deepseek-fetch-api) follow the conversation: on the
-    # deepseek-account route they send the account token to that route's
-    # origin, and otherwise the API key of the DeepSeek API-key route to its
-    # origin, so a DEEPSEEK_API_KEY alone serves both without a sign-in.
-    # searchBaseURL / searchApiKeyEnv (fetch* for Fetch) pin one capability to
-    # its own endpoint and key instead.
-    # Legacy Messages search uses its own endpoint, with the account token or
-    # DEEPSEEK_API_KEY.
-    # Anonymous fetch accepts only public
+    # preset; products with a stricter network policy override tool-web. Fetch
+    # defaults to the anonymous local fetcher (http), which accepts only public
     # HTTP(S) destinations, resolves and validates every destination, and pins
-    # every actual connection. This composition gives web_search 60s whichever
-    # provider serves it; the provider-neutral tool default remains 30s. The Web
-    # search provider and Web fetch provider
-    # menus on the Web search and fetch settings page select a provider for each
+    # every actual connection. Search defaults to the keyless provider (no
+    # account or API key). This composition gives
+    # web_search 60s whichever provider serves it; the provider-neutral tool
+    # default remains 30s. The Web search provider and Web fetch provider menus
+    # on the Web search and fetch settings page select a provider for each
     # capability in place of these defaults.
     - id: web
       name: '@deepseek-ai/dsh-web'
       config:
+        searchProvider: keyless
         fetchProvider: http
 
-    - id: web-search-deepseek
-      name: '@deepseek-ai/dsh-web-search-deepseek'
-      config:
-        apiKeyEnv: DEEPSEEK_API_KEY
-
-    - id: web-deepseek-api
-      name: '@deepseek-ai/dsh-web-deepseek-api'
+    - id: web-search-keyless
+      name: '@deepseek-ai/dsh-web-search-keyless'
 
     - id: web-fetch-http
       name: '@deepseek-ai/dsh-web-fetch-http'
@@ -552,13 +478,3 @@
     # overlay can pin another workspace.
     - id: fs-sandbox
       name: '@deepseek-ai/dsh-fs-sandbox'
-
-    # The native DeepSeek adapter. No key or endpoint is inlined: both resolve per
-    # request from the `llm-deepseek:` settings section over this entry, with the
-    # key coming from the credential store below. Thinking defaults are a deployment
-    # choice.
-    - id: llm-deepseek
-      name: '@deepseek-ai/dsh-llm-deepseek-api-key'
-
-    - id: llm-deepseek-account
-      name: '@deepseek-ai/dsh-llm-deepseek-account'

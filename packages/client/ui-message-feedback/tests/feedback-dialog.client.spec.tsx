@@ -5,7 +5,9 @@
  * category through the injected verb; Submit routes to the controller and
  * stays enabled with an empty draft; a failure code renders a warning toast;
  * and the acknowledgement toast mounts from the toast sequence and retires
- * through dismissToast once its fade completes.
+ * through dismissToast once its fade completes. The GitHub issue preview
+ * shows the editable title and body, the Session id opt-in (off), and files
+ * only through the confirm button.
  */
 import { useSyncExternalStore } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -24,12 +26,18 @@ const t = makeTranslate(zh, commonZh)
 /** Render the entry over a fixed state and recording verbs. */
 function mount(overrides: Partial<FeedbackDialogState> = {}) {
   const state: FeedbackDialogState = {
-    target: { kind: 'session' }, category: null, text: '', submitting: false, failure: null, toast: 0,
+    target: { kind: 'session' }, category: null, text: '', report: null, submitting: false, failure: null,
+    toast: 0, notice: 'recorded',
     ...overrides,
   }
   const verbs = {
     edit: vi.fn(),
     submit: vi.fn(() => Promise.resolve()),
+    previewReport: vi.fn(() => Promise.resolve()),
+    editReport: vi.fn(),
+    includeSessionId: vi.fn(),
+    closeReport: vi.fn(),
+    confirmReport: vi.fn(() => Promise.resolve()),
     dismiss: vi.fn(),
     dismissFailure: vi.fn(),
     dismissToast: vi.fn(),
@@ -149,5 +157,59 @@ describe('FeedbackDialog', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('opens the GitHub preview from the form without submitting', () => {
+    const ui = mount({ text: 'slow' })
+
+    fireEvent.click(ui.getByRole('button', { name: zh['report.open'] }))
+
+    expect(ui.previewReport).toHaveBeenCalledTimes(1)
+    expect(ui.submit).not.toHaveBeenCalled()
+  })
+
+  it('renders the editable preview with the Session id opt-in off and files only on confirm', () => {
+    const report = { title: 'slow', body: 'slow\n\n---\n- Category: none', includeSessionId: false, recorded: false }
+    const ui = mount({ text: 'slow', report })
+
+    expect(ui.getByRole('dialog', { name: zh['report.title'] })).toBeTruthy()
+    expect(ui.getByText(zh['report.hint'])).toBeTruthy()
+    const title = ui.getByLabelText(zh['report.issueTitle']) as HTMLInputElement
+    const body = ui.getByLabelText(zh['report.issueBody']) as HTMLTextAreaElement
+    expect(title.value).toBe(report.title)
+    expect(body.value).toBe(report.body)
+    const optIn = ui.getByLabelText(zh['report.includeSessionId']) as HTMLInputElement
+    expect(optIn.checked).toBe(false)
+    expect(ui.queryByRole('group', { name: zh['dialog.categories'] })).toBeNull()
+
+    fireEvent.change(title, { target: { value: 'Slow replies' } })
+    expect(ui.editReport).toHaveBeenCalledWith({ title: 'Slow replies' })
+    fireEvent.change(body, { target: { value: 'edited' } })
+    expect(ui.editReport).toHaveBeenCalledWith({ body: 'edited' })
+    fireEvent.click(optIn)
+    expect(ui.includeSessionId).toHaveBeenCalledWith(true)
+    expect(ui.confirmReport).not.toHaveBeenCalled()
+
+    fireEvent.click(ui.getByRole('button', { name: zh['report.back'] }))
+    expect(ui.closeReport).toHaveBeenCalledTimes(1)
+    fireEvent.click(ui.getByRole('button', { name: zh['report.confirm'] }))
+    expect(ui.confirmReport).toHaveBeenCalledTimes(1)
+    expect(ui.submit).not.toHaveBeenCalled()
+  })
+
+  it('shows the report failure copy and the filed-issue acknowledgements', () => {
+    const report = { title: 't', body: 'b', includeSessionId: false, recorded: true }
+    const failed = mount({ report, failure: 'gateway/internal' })
+    expect(failed.getByRole('alert').textContent).toBe(zh['error.report'])
+    // A recorded remark has no form to return to, so the footer closes the dialog too.
+    expect(failed.getAllByRole('button', { name: commonZh.close })).toHaveLength(2)
+    cleanup()
+
+    const created = mount({ target: null, toast: 1, notice: 'issue-created' })
+    expect(created.getByRole('alert').textContent).toBe(zh['toast.issueCreated'])
+    cleanup()
+
+    const opened = mount({ target: null, toast: 1, notice: 'issue-opened' })
+    expect(opened.getByRole('alert').textContent).toBe(zh['toast.issueOpened'])
   })
 })

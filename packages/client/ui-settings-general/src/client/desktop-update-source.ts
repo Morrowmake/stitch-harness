@@ -1,52 +1,69 @@
-/** Client-owned observation of the optional Desktop preload. */
+/** Client-owned observation of the Desktop update-check preference and the last explicit check. */
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
-import type { DesktopUpdateBridge, DesktopUpdateView } from '../types.ts'
+import type { DesktopUpdateBridge, DesktopUpdateCheckResult } from '../types.ts'
 
-/** Owns one preload subscription across both sidebar locations. */
+/** Accepted preference, save feedback, and the outcome of the latest 'Check now'. */
+export interface DesktopUpdateSnapshot {
+  /** Persisted preference; undefined until the shell answers. */
+  readonly enabled?: boolean
+  readonly saving: boolean
+  readonly saveFailed: boolean
+  readonly check: { readonly phase: 'idle' } | { readonly phase: 'checking' }
+    | { readonly phase: 'done'; readonly result: DesktopUpdateCheckResult }
+}
+
+/** Owns one preload subscription shared by every mounted General view. */
 export class DesktopUpdateSource {
-  /** Framework-observed carrier status shared by both sidebar controls. */
-  readonly store = createSnapshotStore<DesktopUpdateView>({ failed: false, opening: false })
+  /** Framework-observed state of the Settings row. */
+  readonly store = createSnapshotStore<DesktopUpdateSnapshot>({ saving: false, saveFailed: false, check: { phase: 'idle' } })
   private live = true
   private received = false
-  private openingOperation: symbol | undefined
-  private readonly unsubscribe: (() => void) | undefined
+  private readonly unsubscribe: () => void
 
-  /** @param bridge - Optional isolated Electron API, absent in ordinary browsers. */
-  constructor(private readonly bridge: DesktopUpdateBridge | undefined) {
-    this.unsubscribe = bridge?.subscribe((presentation) => {
+  /** @param bridge - Isolated Electron API, present only in Desktop. */
+  constructor(private readonly bridge: DesktopUpdateBridge) {
+    this.unsubscribe = bridge.subscribe((enabled) => {
       if (!this.live) return
       this.received = true
-      const previous = this.store.getSnapshot()
-      const startedDownload = presentation.phase === 'downloading' && previous.presentation?.phase !== 'downloading'
-      if (startedDownload) this.openingOperation = undefined
-      this.store.set({ ...previous, presentation, failed: false, opening: startedDownload ? false : previous.opening })
+      this.patch({ enabled })
     })
-    void bridge?.status().then((presentation) => {
-      if (this.live && !this.received) this.store.set({ ...this.store.getSnapshot(), presentation })
+    void bridge.getPreference().then((enabled) => {
+      if (!this.received) this.patch({ enabled })
     }, () => {
-      if (this.live && !this.received) this.store.set({ ...this.store.getSnapshot(), failed: true })
+      // The toggle stays unavailable until the shell reports a value.
     })
   }
 
-  /** Invoke one user action; subsequent clicks join the shell-owned operation. */
-  open(): void {
-    if (!this.live || this.bridge === undefined) return
-    const state = this.store.getSnapshot()
-    if (state.opening || (state.presentation !== undefined && state.presentation.configurationError === undefined
-      && ['checking', 'verifying', 'installing'].includes(state.presentation.phase))) return
-    const operation = Symbol()
-    this.openingOperation = operation
-    this.store.set({ ...state, opening: true })
-    void this.bridge.open().catch(() => {
-      if (this.live && this.openingOperation === operation) this.store.set({ ...this.store.getSnapshot(), failed: true })
-    }).finally(() => {
-      if (this.live && this.openingOperation === operation) {
-        this.openingOperation = undefined
-        this.store.set({ ...this.store.getSnapshot(), opening: false })
-      }
-    })
+  /**
+   * Persist an explicit choice; the shell checks immediately when it is turned on.
+   * @param enabled - New preference.
+   * @returns After the shell confirms or rejects the save.
+   */
+  async setEnabled(enabled: boolean): Promise<void> {
+    if (!this.live || this.store.getSnapshot().saving) return
+    this.patch({ saving: true, saveFailed: false })
+    try {
+      const accepted = await this.bridge.setPreference(enabled)
+      this.patch({ enabled: accepted, saving: false })
+    } catch (_error) {
+      this.patch({ saving: false, saveFailed: true })
+    }
   }
 
-  /** Detach the carrier and ignore any pending status or action completion. */
-  dispose(): void { this.live = false; this.unsubscribe?.() }
+  /** Run one check now, regardless of the preference, and keep its result for display. */
+  async check(): Promise<void> {
+    if (!this.live || this.store.getSnapshot().check.phase === 'checking') return
+    this.patch({ check: { phase: 'checking' } })
+    let result: DesktopUpdateCheckResult
+    try { result = await this.bridge.check() } catch (_error) { result = { kind: 'failed' } }
+    this.patch({ check: { phase: 'done', result } })
+  }
+
+  /** Detach the shell subscription and ignore late IPC responses. */
+  dispose(): void { this.live = false; this.unsubscribe() }
+
+  /** Late IPC responses after `dispose` are dropped here. */
+  private patch(next: Partial<DesktopUpdateSnapshot>): void {
+    if (this.live) this.store.set({ ...this.store.getSnapshot(), ...next })
+  }
 }

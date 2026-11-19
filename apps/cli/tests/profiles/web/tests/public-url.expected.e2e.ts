@@ -53,10 +53,8 @@ function spawnWeb(root: string, patch: string, interrupt: string, flags: string[
     cwd: root,
     env: {
       ...process.env,
-      DEEPSEEK_API_KEY: 'keyless-web-public-url-no-call',
       DSH_AGENTS_HOME: join(root, '.agents'),
       DSH_HOME: join(root, 'home'),
-      DSH_TELEMETRY_DISABLED: '1',
       NODE_NO_WARNINGS: '1',
       WEB_INTERRUPT_FILE: interrupt,
     },

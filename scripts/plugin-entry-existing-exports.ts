@@ -8,7 +8,6 @@
  */
 export const EXISTING_PLUGIN_ENTRY_EXPORTS = {
   '@deepseek-ai/dsh-acp-app': ['ACP_APP_STARTUP_SERVICE'],
-  '@deepseek-ai/dsh-action-cards': ['isPluginStopping'],
   '@deepseek-ai/dsh-agent': [
     'AgentModel', 'agentCarrier', 'agentEvents', 'assembleContextFor', 'emitAgentEvent', 'foldConsumedWork',
     'installModelSelection', 'modelSelectionProjectionDefinition',
@@ -64,7 +63,6 @@ export const EXISTING_PLUGIN_ENTRY_EXPORTS = {
     'DEFAULT_TOOL_ALIASES', 'KNOWN_EVENTS', 'MODS_API_VERSION', 'SERVED_EVENTS', 'defineMod',
   ],
   '@deepseek-ai/dsh-experimental-forge': ['changeRequestKey'],
-  '@deepseek-ai/dsh-experimental-inspector': ['resolveInspectorOptions', 'startInspector'],
   '@deepseek-ai/dsh-experimental-worktree': [
     'CREATED_RECORD', 'createdWorktreeSchema', 'generatedWorktreeName', 'worktreeProjection',
   ],
@@ -79,7 +77,6 @@ export const EXISTING_PLUGIN_ENTRY_EXPORTS = {
   '@deepseek-ai/dsh-host-directory-picker-browse': ['boundedInsert', 'fullyQualified', 'raceAbort'],
   '@deepseek-ai/dsh-host-directory-picker-native': ['pickNativeDirectory'],
   '@deepseek-ai/dsh-host-plugin-inventory': ['pluginEntryId', 'readPluginInventory'],
-  '@deepseek-ai/dsh-host-product-telemetry-otel': ['Config'],
   '@deepseek-ai/dsh-host-webserver': [
     'bindUrlHost', 'isLoopbackHost', 'isWildcardHost', 'normalizeBindAddress', 'renderIndexInjections',
   ],
@@ -136,7 +133,6 @@ export const EXISTING_PLUGIN_ENTRY_EXPORTS = {
     'interruptedTurnClosers', 'isAppendSurfaceEvent', 'isReplacementSurfaceEvent', 'isSurfaceEligibleType',
     'isSurfaceEvent', 'pluginRecordOf', 'snapshotSessionEvent',
   ],
-  '@deepseek-ai/dsh-session-log-deepseek': ['acceptedThrough'],
   '@deepseek-ai/dsh-session-log-export': [
     'DEFAULT_SESSION_LOG_COMPRESSION_LEVEL', 'SESSION_LOG_EXPORT_PATH', 'SESSION_LOG_FILENAME', 'flushLiveSessionLog',
     'formatSessionMarkdown', 'readSessionLogText', 'serializeSessionLog', 'sessionLogExportDeps',
@@ -154,9 +150,6 @@ export const EXISTING_PLUGIN_ENTRY_EXPORTS = {
     'DEFAULT_CANDIDATE_LIMIT', 'DEFAULT_MAX_REFERENCE_BYTES', 'MAX_REFERENCES', 'SESSION_REFERENCE_SCHEME',
     'decodeSessionReferenceUri', 'encodeSessionReferenceUri', 'formatSessionReferenceMention',
     'parseSessionReferenceText',
-  ],
-  '@deepseek-ai/dsh-session-telemetry-otel': [
-    'Config', 'DEFAULT_SHUTDOWN_TIMEOUT_MILLIS', 'DEFAULT_TELEMETRY_MODE', 'SessionTelemetryMode',
   ],
   '@deepseek-ai/dsh-session-title': [
     'SessionTitleProviderId', 'fallbackSessionTitle', 'foldSessionTitle', 'normalizeSessionTitle',
@@ -228,17 +221,7 @@ export const EXISTING_PLUGIN_ENTRY_EXPORTS = {
   '@deepseek-ai/dsh-user-approval': ['APPROVAL_POLICIES', 'ApprovalRequestId', 'setApprovalPolicy'],
   '@deepseek-ai/dsh-user-questions': ['TIMED_WAIT_PARAMETER', 'isTimedAskUserQuestionSchema'],
   '@deepseek-ai/dsh-web-app': ['internals'],
-  '@deepseek-ai/dsh-web-deepseek-api': [
-    'DEEPSEEK_DEFAULT_COUNT', 'DEEPSEEK_FETCH_API_PROVIDER_ID', 'DEEPSEEK_SEARCH_API_PROVIDER_ID',
-    'DEEPSEEK_SEARCH_REQUESTS_PER_SECOND', 'DEEPSEEK_WEB_API_BASE_URL', 'DeepSeekFetchApiProvider',
-    'DeepSeekSearchApiProvider', 'mapSearchResponse',
-  ],
   '@deepseek-ai/dsh-web-fetch-http': ['DEFAULT_USER_AGENT', 'HttpFetchProvider', 'LOCAL_FETCH_PROVIDER_ID'],
-  '@deepseek-ai/dsh-web-search-deepseek': [
-    'DEEPSEEK_DEFAULT_API_VERSION', 'DEEPSEEK_DEFAULT_BASE_URL', 'DEEPSEEK_DEFAULT_MAX_TOKENS',
-    'DEEPSEEK_DEFAULT_MAX_USES', 'DEEPSEEK_DEFAULT_MODEL', 'DEEPSEEK_PROVIDER_ID', 'DeepSeekSearchProvider',
-    'WEB_SEARCH_DEEPSEEK_SETTINGS_NAMESPACE',
-  ],
   '@deepseek-ai/dsh-webhook': ['WebhookDeliveryId', 'WebhookRuleId', 'WebhookSourceId'],
   '@deepseek-ai/dsh-workflow-ptc': ['materializeFromRealm', 'validateMeta'],
   '@deepseek-ai/dsh-workspace': [

@@ -39,12 +39,26 @@ pnpm run mock:llm \
   --partial-text "discard this half"
 ```
 
-Point the shipping DeepSeek adapter at the server; it sends requests to `/messages` beneath the server's `/v1` root:
+The server speaks the Anthropic Messages protocol, answering `/messages` beneath its `/v1` root. Point a pi-ai route at it with a patch file, for example `mock.patch.yml`:
+
+```yaml
+- id: llm-pi-ai
+  config:
+    providers:
+      mock:
+        api: anthropic-messages
+        baseURL: http://127.0.0.1:8000/v1
+        apiKeyEnv: MOCK_API_KEY
+        models:
+          - id: mock-model
+- id: agent-default-model
+  config:
+    provider: mock
+    model: mock-model
+```
 
 ```sh
-DEEPSEEK_BASE_URL=http://127.0.0.1:8000/v1 \
-DEEPSEEK_API_KEY=mock-key \
-pnpm dsh --profile headless "test provider recovery"
+MOCK_API_KEY=mock-key pnpm dsh --profile headless --patch ./mock.patch.yml "test provider recovery"
 ```
 
 The repository script writes JSONL to stdout: a `ready` record carries the `/v1` base URL and random seed, followed by request/result records that name both the scripted behavior and the concrete behavior selected. The package exposes no installable binary.

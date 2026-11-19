@@ -11,6 +11,7 @@ import { describe, expect, it, onTestFinished } from 'vitest'
 import { workspaceDependencyPaths, type PrimaryRuntimeManifest } from '@deepseek-ai/dsh-tool-workspace-dependencies'
 
 import { messagesResponse } from './fixtures/messages-response.ts'
+import { MOCK_ROUTE, MOCK_ROUTE_KEY_ENV, mockRouteRow } from './fixtures/profile-environment.ts'
 
 const repoRoot = fileURLToPath(new URL('../../../../../', import.meta.url))
 const launch = resolveExampleLaunch({
@@ -18,6 +19,12 @@ const launch = resolveExampleLaunch({
   mode: 'lib',
 })
 
+/** Write a launch patch serving {@link MOCK_ROUTE} from the local model fixture on `port`. */
+async function writeRoutePatch(root: string, port: number): Promise<string> {
+  const path = join(root, 'route.patch.yml')
+  await writeFile(path, JSON.stringify([mockRouteRow(`http://127.0.0.1:${port}`)]))
+  return path
+}
 
 function waitForLine(
   lines: string[],
@@ -100,12 +107,14 @@ describe('Python SDK dsh profile keyless smoke', () => {
     await new Promise<void>(resolve => modelServer.listen(0, '127.0.0.1', resolve))
     const address = modelServer.address()
     if (address === null || typeof address === 'string') throw new Error('model server did not bind a TCP port')
+    const routePatch = await writeRoutePatch(root, address.port)
     // The line-predicate protocol driving below is the genuinely custom part;
     // execa owns spawn, the deadline, and exit settlement around it.
     const child = execa(launch.command, [
       ...launch.args,
       '--profile',
       'sdk',
+      '--patch', routePatch,
       ...(editorEnabled ? ['--patch', editorPatch] : []),
       ...(patchEnabled ? ['--patch', fsPatch] : []),
       ...(ptc ? ['--patch', join(repoRoot, 'apps/cli/config/examples/ptc.yml')] : []),
@@ -115,10 +124,8 @@ describe('Python SDK dsh profile keyless smoke', () => {
         ...launch.env,
         DSH_HOME: join(root, '.dsh'),
         DSH_PERMISSION_MODE: 'danger-full-access',
-        DSH_TELEMETRY_DISABLED: '1',
         DSH_TOOLS_MODE: ptc ? 'native' : 'ptc',
-        DEEPSEEK_API_KEY: 'keyless-smoke-no-call',
-        DEEPSEEK_BASE_URL: `http://127.0.0.1:${address.port}`,
+        [MOCK_ROUTE_KEY_ENV]: 'keyless-smoke-no-call',
         ...(envValue === undefined ? {} : { DSH_MAX_TOKENS_AS_SUCCESS: envValue }),
       },
       timeout: 35_000,
@@ -143,8 +150,7 @@ describe('Python SDK dsh profile keyless smoke', () => {
         method: 'initialize',
         params: {
           cwd: root,
-          provider: 'deepseek-official',
-          model: 'deepseek-v4-pro',
+          ...MOCK_ROUTE,
           reasoningEffort: 'max',
           maxTokens: 1234,
         },
@@ -255,12 +261,11 @@ describe('Python SDK dsh profile keyless smoke', () => {
   }, 40_000)
 
   it.each([
-    { label: 'boots the standalone minimal profile through its generated manifest', editorEnabled: false, imageEnabled: false, optOut: false, offloadEnabled: false },
-    { label: 'executes the documented editor opt-in patch with sdk-minimal', editorEnabled: true, imageEnabled: false, optOut: false, offloadEnabled: false },
-    { label: 'sends a read_image result to the model with sdk-minimal', editorEnabled: false, imageEnabled: true, optOut: false, offloadEnabled: false },
-    { label: 'offloads an over-budget image and continues with sdk-minimal', editorEnabled: false, imageEnabled: true, optOut: false, offloadEnabled: true },
-    { label: 'retains the previous tools through the documented opt-out patch', editorEnabled: false, imageEnabled: false, optOut: true, offloadEnabled: false },
-  ])('$label', async ({ editorEnabled, imageEnabled, optOut, offloadEnabled }) => {
+    { label: 'boots the standalone minimal profile through its generated manifest', editorEnabled: false, imageEnabled: false, optOut: false },
+    { label: 'executes the documented editor opt-in patch with sdk-minimal', editorEnabled: true, imageEnabled: false, optOut: false },
+    { label: 'sends a read_image result to the model with sdk-minimal', editorEnabled: false, imageEnabled: true, optOut: false },
+    { label: 'retains the previous tools through the documented opt-out patch', editorEnabled: false, imageEnabled: false, optOut: true },
+  ])('$label', async ({ editorEnabled, imageEnabled, optOut }) => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-python-sdk-minimal-'))
     onTestFinished(() => rm(root, { recursive: true, force: true }))
     const editorPatch = join(root, 'editor.patch.yml')
@@ -277,14 +282,6 @@ describe('Python SDK dsh profile keyless smoke', () => {
       expect(yaml).toBeDefined()
       await writeFile(editorPatch, yaml!)
     }
-    if (offloadEnabled) await writeFile(editorPatch, [
-      '- id: llm-deepseek',
-      '  config:',
-      '    apiKeyEnv: DEEPSEEK_API_KEY',
-      '    maxRequestFilesBytes: 1',
-      '    imageOffloadByteQuantum: 1',
-      '',
-    ].join('\n'))
     const editorFile = join(root, 'editor.txt')
     if (imageEnabled) await writeFile(join(root, 'red.png'), Buffer.from(
       'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC', 'base64',
@@ -296,16 +293,6 @@ describe('Python SDK dsh profile keyless smoke', () => {
     ] : []
     const modelRequests: Record<string, unknown>[] = []
     const modelServer = createServer((request, response) => {
-      if (imageEnabled && request.url?.endsWith('/files')) {
-        request.resume()
-        response.writeHead(200, { 'content-type': 'application/json' })
-        response.end(JSON.stringify({
-          id: 'file-minimal-image', type: 'file', size_bytes: 69,
-          created_at: new Date().toISOString(),
-          filename: 'red.png', mime_type: 'image/png',
-        }))
-        return
-      }
       let body = ''
       request.setEncoding('utf8')
       request.on('data', (chunk: string) => { body += chunk })
@@ -326,19 +313,20 @@ describe('Python SDK dsh profile keyless smoke', () => {
     await new Promise<void>(resolve => modelServer.listen(0, '127.0.0.1', resolve))
     const address = modelServer.address()
     if (address === null || typeof address === 'string') throw new Error('model server did not bind a TCP port')
+    const routePatch = await writeRoutePatch(root, address.port)
     const child = execa(launch.command, [
       ...launch.args,
       '--profile',
       'sdk-minimal',
-      ...(editorEnabled || optOut || offloadEnabled ? ['--patch', editorPatch] : []),
+      '--patch', routePatch,
+      ...(editorEnabled || optOut ? ['--patch', editorPatch] : []),
     ], {
       cwd: repoRoot,
       env: {
         ...launch.env,
         DSH_HOME: join(root, '.dsh'),
         DSH_SYSTEM_PROMPT: 'Minimal allowlist prompt.',
-        DEEPSEEK_API_KEY: 'keyless-smoke-no-call',
-        DEEPSEEK_BASE_URL: `http://127.0.0.1:${address.port}`,
+        [MOCK_ROUTE_KEY_ENV]: 'keyless-smoke-no-call',
       },
       timeout: 35_000,
       killSignal: 'SIGKILL',
@@ -360,7 +348,7 @@ describe('Python SDK dsh profile keyless smoke', () => {
         jsonrpc: '2.0',
         id: 1,
         method: 'initialize',
-        params: { cwd: root, provider: 'deepseek-official', model: imageEnabled ? 'deepseek-flash' : 'deepseek-v4-pro' },
+        params: { cwd: root, ...MOCK_ROUTE },
       })}\n`)
       await waitForLine(lines, value => value.id === 1, () => stderr)
       child.stdin.write(`${JSON.stringify({
@@ -400,17 +388,8 @@ describe('Python SDK dsh profile keyless smoke', () => {
         }[]
         const imageResult = messages.flatMap(message => message.content)
           .find(block => block.type === 'tool_result' && block.tool_use_id === 'minimal-image-read')
-        if (offloadEnabled) {
-          expect(offloads).toHaveLength(1)
-          expect(offloads[0]).toMatchObject({ data: { targets: [{ imageIndexes: [0] }] } })
-          expect(imageResult?.content?.some(block => block.type === 'image')).toBe(false)
-          expect(JSON.stringify(imageResult?.content)).toContain('red.png')
-        } else {
-          expect(offloads).toEqual([])
-          expect(imageResult?.content).toEqual(expect.arrayContaining([
-            { type: 'image', source: { type: 'file', file_id: 'file-minimal-image' } },
-          ]))
-        }
+        expect(offloads).toEqual([])
+        expect(imageResult?.content?.some(block => block.type === 'image')).toBe(true)
         const stored = await readdir(join(root, '.dsh', 'attachments', 'v1', 'objects'), { recursive: true })
         expect(stored.some(file => /[a-f0-9]{64}$/u.test(file))).toBe(true)
       }
@@ -456,7 +435,7 @@ describe('Python SDK dsh profile keyless smoke', () => {
       ...launch.args, '--profile', 'sdk', '--patch', patch,
     ], {
       cwd: repoRoot,
-      env: { ...launch.env, DSH_HOME: home, DSH_TELEMETRY_DISABLED: '1', DEEPSEEK_API_KEY: 'keyless-no-call' },
+      env: { ...launch.env, DSH_HOME: home },
       stdin: 'pipe',
       stripFinalNewline: false,
       timeout: 25_000,
@@ -498,7 +477,6 @@ describe('Python SDK dsh profile keyless smoke', () => {
         env: {
           ...launch.env,
           DSH_HOME: join(root, '.dsh'),
-          DEEPSEEK_API_KEY: 'keyless-smoke-no-call',
           DSH_MAX_TOKENS_AS_SUCCESS: 'sometimes',
         },
         stdin: 'ignore',
@@ -574,13 +552,16 @@ it.each(['unset', 'empty', 'full', 'python-only', 'python-only-patched', 'wrong-
   if (mode === 'python-only-patched') await cp(packagedSkills, patchedSkills, { recursive: true })
   // This patch replaces the row's config with only assetRoot; the skill-office default keeps directing the model to
   // the bundled environment.
-  await writeFile(cliPatch, JSON.stringify(mode === 'python-only-patched' ? [{ id: 'skill-office', config: { assetRoot: patchedSkills } }] : []))
+  await writeFile(cliPatch, JSON.stringify([
+    mockRouteRow(`http://127.0.0.1:${address.port}`),
+    ...mode === 'python-only-patched' ? [{ id: 'skill-office', config: { assetRoot: patchedSkills } }] : [],
+  ]))
   const officeLaunch = resolveExampleLaunch({
     srcBin: fileURLToPath(new URL('../../../src/bin.ts', import.meta.url)), mode: 'lib',
     configArgs: ['--profile', 'sdk', '--patch', cliPatch],
     env: { DSH_HOME: home, DSH_PRIMARY_RUNTIME: mode === 'unset' ? undefined : mode === 'empty' ? '' : source + '/',
-      DSH_PERMISSION_MODE: 'danger-full-access', DSH_TELEMETRY_DISABLED: '1',
-      DEEPSEEK_API_KEY: 'local-fixture', DEEPSEEK_BASE_URL: `http://127.0.0.1:${address.port}` },
+      DSH_PERMISSION_MODE: 'danger-full-access',
+      [MOCK_ROUTE_KEY_ENV]: 'local-fixture' },
   })
   const child = execa(officeLaunch.command, officeLaunch.args, { cwd: repoRoot, env: officeLaunch.env, timeout: 60_000, reject: false })
   onTestFinished(async () => { child.kill('SIGKILL'); await child })
@@ -597,7 +578,7 @@ it.each(['unset', 'empty', 'full', 'python-only', 'python-only-patched', 'wrong-
     child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', id, method, params })}\n`)
     return waitForLine(lines, value => value.id === id, () => stderr)
   }
-  expect(await send(1, 'initialize', { cwd: root, provider: 'deepseek-official', model: 'deepseek-v4-pro' })).toHaveProperty('result')
+  expect(await send(1, 'initialize', { cwd: root, ...MOCK_ROUTE })).toHaveProperty('result')
   await send(2, 'session/prompt', { sessionId: 'office', contentBlocks: [{ type: 'text', text: 'Query workspace dependencies.' }] })
   await waitForLine(lines, (value) => {
     const params = value.params as { sessionId?: string; event?: { type?: string } } | undefined

@@ -26,9 +26,9 @@
 /llm-adapters/use-it-from-cordis-yml:
   en: b83c91da871dca8c
   zh: d21046627e3cb0c4
-/llm-adapters/reference-implementations:
-  en: e05d4b0a901e8ef0
-  zh: 9516cebb3e5c3692
+/llm-adapters/reference-implementation:
+  en: 61c192041c4111d1
+  zh: 931b47b884d379b9
 /llm-adapters/error-handling:
   en: 08670c0bc7b8f494
   zh: 37312af73d0acf91

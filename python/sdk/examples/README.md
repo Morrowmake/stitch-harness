@@ -17,21 +17,21 @@ python python/sdk/examples/minimal.py \
   "Inspect the repository and fix the failing tests."
 ```
 
-Set `DEEPSEEK_BASE_URL` for a compatible proxy, `DSH_MODEL` for the script's default model, or `DSH_SYSTEM_PROMPT` for the deployment persona. `--model` is the single runtime model selection; no matching environment variable is required. `--profile` can select another SDK-serving profile. The selected home stores the generated `sdk-minimal` profile and uncompressed JSONL session logs under `sessions/`; the script never reads `~/.dsh` implicitly.
+Set `DEEPSEEK_BASE_URL` for a compatible proxy, `DSH_PROVIDER` and `DSH_MODEL` (together) for the script's default provider route and model, or `DSH_SYSTEM_PROMPT` for the deployment persona. `--provider` and `--model` are the single runtime selection and must be given together; with neither, the runtime's default model applies. `--profile` can select another SDK-serving profile. The selected home stores the generated `sdk-minimal` profile and uncompressed JSONL session logs under `sessions/`; the script never reads `~/.dsh` implicitly.
 
 The shipped [`@deepseek-ai/dsh-sdk-minimal` bundle](../../../packages/bundle/sdk-minimal/README.md) is the complete explicit Cordis tree for this mode. It exposes exactly:
 
 - owner-scoped persistent `bash` on Linux/macOS or `pwsh` on Windows
 - `read_image` for PNG/JPEG/WebP/GIF files, with an image-capable model
 
-The bundle does not include `dsh-base`, so every additional row is an explicit profile change. Runtime context, text file tools, local instruction discovery, settings, managed credentials, telemetry, Web tools, subagents, and the full default tool roster are absent. The tree retains SDK startup and JSON-RPC serving, one environment-configured DeepSeek adapter, local execution, and JSONL persistence. [Automatic context compaction](../../../packages/bundle/sdk-minimal/README.md#model-experience) summarizes older history through an additional model request while preserving the complete log. This minimal composition leaves unsupported slash input on the ordinary prompt path.
+The bundle does not include `dsh-base`, so every additional row is an explicit profile change. Runtime context, text file tools, local instruction discovery, settings, managed credentials, Web tools, subagents, and the full default tool roster are absent. The tree retains SDK startup and JSON-RPC serving, one environment-configured DeepSeek adapter, local execution, and JSONL persistence. [Automatic context compaction](../../../packages/bundle/sdk-minimal/README.md#model-experience) summarizes older history through an additional model request while preserving the complete log. This minimal composition leaves unsupported slash input on the ordinary prompt path.
 
 The persistent PTY can modify any path available to the runtime process, so use a disposable checkout or container.
 
 <a id="compact-a-full-sdk-session"></a>
 ## Compact a full SDK Session
 
-The [compaction example](compact.py) uses the full `sdk` profile. It reads `README.md` from the selected workspace into a `Session.run()` prompt, executes `/compact` through the same method, then asks a follow-up using the retained context. It uses the same model credentials and `DSH_MODEL` default as the minimal example, and requires an explicit home:
+The [compaction example](compact.py) uses the full `sdk` profile. It reads `README.md` from the selected workspace into a `Session.run()` prompt, executes `/compact` through the same method, then asks a follow-up using the retained context. It uses the same model credentials and `DSH_PROVIDER`/`DSH_MODEL` defaults as the minimal example, and requires an explicit home:
 
 ```sh
 python python/sdk/examples/compact.py \

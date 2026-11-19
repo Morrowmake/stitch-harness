@@ -22,6 +22,6 @@ description: "个性化推荐的卡片改由回答里的 action-card 代码块�
 ## 迁移
 
 1. 从 profile 的 `cordis.patch.yml` 里 `id: action-cards` 条目中删除 `queuedMessageLimit`；条目里不再有其他内容时，删除整个条目。
-2. 在注册卡片种类的插件里，从 `ctx.actionCards.register()` 中去掉 `skill` 与 `invitation`，并把它的 Skill 改为要求在最终回答末尾写一个 `action-card` 代码块、邀请句写在代码块之前，做法同 [`official-plugins.md`](../../../../packages/experimental/plugin-recommendations/skills/official-plugins.md)。
+2. 在注册卡片种类的插件里，从 `ctx.actionCards.register()` 中去掉 `skill` 与 `invitation`，并把它的 Skill 改为要求在最终回答末尾写一个 `action-card` 代码块、邀请句写在代码块之前，做法同官方 plugin-recommendations skill（`official-plugins.md`）。
 3. 插件读取提议或决定、记录决定或调用 `act()` 的地方，把 `callId` 改为 `cardId`。
 4. 提一个某个种类的 Skill 会以卡片回应的问题；卡片出现在回答下方、过程区没有 `propose_action` 调用，即迁移完成。

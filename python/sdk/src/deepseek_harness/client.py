@@ -152,8 +152,8 @@ class HarnessClient:
         self,
         *,
         cwd: str,
-        provider: str,
-        model: str,
+        provider: str | None = None,
+        model: str | None = None,
         reasoning_effort: str | None = None,
         max_tokens: int | None = None,
         approval_requests: bool = False,
@@ -164,11 +164,12 @@ class HarnessClient:
         return one-operation decisions through respond(). Omission preserves the
         runtime's composed approval answerers.
         """
-        payload: JsonObject = {
-            "cwd": str(Path(cwd).resolve()),
-            "provider": provider,
-            "model": model,
-        }
+        if (provider is None) != (model is None):
+            raise ValueError("initialize provider and model must be given together")
+        payload: JsonObject = {"cwd": str(Path(cwd).resolve())}
+        if provider is not None:
+            payload["provider"] = provider
+            payload["model"] = model
         if approval_requests:
             payload["approvalRequests"] = True
         if reasoning_effort is not None:

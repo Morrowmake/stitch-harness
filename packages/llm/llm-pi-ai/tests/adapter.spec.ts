@@ -495,7 +495,8 @@ describe('PiAiAdapter provider routing', () => {
       },
     })
     const result = await assemble(ctx, { provider: 'gateway', model: 'gateway-model', messages: [] })
-    expect(result.finish).toEqual({ kind: 'error', failure: { message: `500 ${body}`, code: 'SERVER' } })
+    // The captured response status rides on the error finish (account pool capture).
+    expect(result.finish).toEqual({ kind: 'error', failure: { message: `500 ${body}`, code: 'SERVER', status: 500 } })
   })
 
   it('uses the resolved catalog context window for usage-based overflow detection', async () => {

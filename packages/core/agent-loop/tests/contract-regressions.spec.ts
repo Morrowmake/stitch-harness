@@ -451,7 +451,7 @@ describe('adapter registration, routing, and accepted-input ownership', () => {
     const turnEnd = agent.session.snapshotEvents().findLast(event => event.type === 'turn/end')
     expect(turnEnd?.type === 'turn/end' && turnEnd.data.reason.kind === 'error'
       ? turnEnd.data.reason.error.message
-      : undefined).toContain('has no provider/model')
+      : undefined).toContain('No model provider configured')
     expect(turnEnd?.type === 'turn/end' && turnEnd.data.reason.kind === 'error'
       ? turnEnd.data.reason.error.message
       : undefined).toContain('record a model selection')

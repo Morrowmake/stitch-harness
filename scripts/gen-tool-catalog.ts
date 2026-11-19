@@ -38,8 +38,7 @@ import type { ImageAttachmentLimits, ImageAttachmentRef, SaveImageAttachment, St
 import UserQuestionService from '@deepseek-ai/dsh-user-questions'
 import PlanModeController from '@deepseek-ai/dsh-plan-mode'
 import WebRuntime from '@deepseek-ai/dsh-web'
-import DeepSeekAuth from '@deepseek-ai/dsh-deepseek-auth'
-import * as WebDeepSeekApi from '@deepseek-ai/dsh-web-deepseek-api'
+import * as WebSearchKeyless from '@deepseek-ai/dsh-web-search-keyless'
 import * as WebFetchLocal from '@deepseek-ai/dsh-web-fetch-http'
 import SubagentRuntime from '@deepseek-ai/dsh-subagent'
 import type { SubagentProvider } from '@deepseek-ai/dsh-subagent'
@@ -753,11 +752,9 @@ const TOOL_PACKAGES: ToolPackage[] = [
     writes: ['tool/call', 'tool/result'],
     async mount(ctx) {
       // Mount search and fetch providers so both tools register. Their schemas
-      // do not depend on provider identity or availability. The DeepSeek
-      // provider starts only beside the authentication service.
+      // do not depend on provider identity or availability.
       await ctx.plugin(WebRuntime)
-      await ctx.plugin(DeepSeekAuth)
-      await ctx.plugin(WebDeepSeekApi)
+      await ctx.plugin(WebSearchKeyless)
       await ctx.plugin(WebFetchLocal)
       await ctx.plugin(ToolWeb)
     },

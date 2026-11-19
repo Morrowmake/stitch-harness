@@ -9,7 +9,7 @@
  */
 
 import { LlmError } from '@deepseek-ai/dsh-llm'
-import type { AssistantMessage as HarnessAssistantMessage, ModelMessageSource, ReplayEnvelope } from '@deepseek-ai/dsh-llm'
+import type { AssistantMessage as HarnessAssistantMessage, ModelMessageSource, ReplayEnvelope, RequestMessage } from '@deepseek-ai/dsh-llm'
 import type { Api, AssistantMessage, ToolCall, Usage as PiUsage } from '@earendil-works/pi-ai'
 import type { PrefixDigests } from './prefix-binding.ts'
 
@@ -35,6 +35,12 @@ export interface PiAiReplayResponse {
   stopReason: AssistantMessage['stopReason']
   /** Digest of the request context this response was generated from; see `prefix-binding.ts`. */
   prefixDigest?: string
+  /**
+   * Signed-in (OAuth) account that produced this response. Encrypted reasoning
+   * and signatures may be account-bound, so a request served by another
+   * account replays the message provider-neutral. Absent = legacy/unbound.
+   */
+  account?: string
 }
 
 /** The validated halves of one pi-ai replay envelope. */
@@ -77,9 +83,15 @@ function emptyPiUsage(): PiUsage {
  * @param message - completed native pi-ai assistant response.
  * @param requestedModel - request identity stored in the assistant source; defaults to the native model.
  * @param prefixDigest - digest of the request context, recorded when the protocol binds thinking to it.
+ * @param account - the signed-in account that produced the response, when a pooled attempt served it.
  * @returns the versioned lossless-JSON replay projection.
  */
-export function toPiReplayState(message: AssistantMessage, requestedModel = message.model, prefixDigest?: string): ReplayEnvelope {
+export function toPiReplayState(
+  message: AssistantMessage,
+  requestedModel = message.model,
+  prefixDigest?: string,
+  account?: string,
+): ReplayEnvelope {
   const response: PiAiReplayResponse = {
     kind: 'pi-ai',
     version: 2,
@@ -91,6 +103,7 @@ export function toPiReplayState(message: AssistantMessage, requestedModel = mess
     ...message.providerThinkingLevel === undefined ? {} : { providerThinkingLevel: message.providerThinkingLevel },
     stopReason: message.stopReason,
     ...prefixDigest === undefined ? {} : { prefixDigest },
+    ...account === undefined ? {} : { account },
   }
   return {
     response,
@@ -138,6 +151,7 @@ function readReplayState(value: unknown): PiAiReplayState {
   if (response['responseId'] !== undefined && typeof response['responseId'] !== 'string') return invalidReplay('responseId must be a string')
   if (response['providerThinkingLevel'] !== undefined && typeof response['providerThinkingLevel'] !== 'string') return invalidReplay('providerThinkingLevel must be a string')
   if (response['prefixDigest'] !== undefined && typeof response['prefixDigest'] !== 'string') return invalidReplay('prefixDigest must be a string')
+  if (response['account'] !== undefined && typeof response['account'] !== 'string') return invalidReplay('account must be a string')
   const blocks = envelope['blocks']
   if (!Array.isArray(blocks)) return invalidReplay('blocks must be an array')
   for (const [index, value] of blocks.entries()) {
@@ -275,4 +289,30 @@ export function toPiAssistant(
     onDegrade?.(error.message)
     return foreignAssistant(message)
   }
+}
+
+/**
+ * Bind replay state to the serving account (design D4): an assistant message
+ * whose replay state names a different account loses that state, so it
+ * replays provider-neutral. Costs one prompt-cache miss on an account switch.
+ * @param messages - the request history.
+ * @param account - the serving OAuth account; `undefined` for API-key/ambient serving.
+ * @param onDegrade - told once per unbound message.
+ * @returns the same array when nothing needed unbinding.
+ */
+export function bindReplayToAccount(
+  messages: RequestMessage[],
+  account: string | undefined,
+  onDegrade?: (reason: string) => void,
+): RequestMessage[] {
+  const bound = messages.map((message) => {
+    if (message.role !== 'assistant') return message
+    const state = message.source.replayState as { response?: { account?: unknown } } | undefined
+    const owner = state?.response?.account
+    if (typeof owner !== 'string' || owner === account) return message
+    onDegrade?.('account switched')
+    const { replayState: _dropped, ...source } = message.source
+    return { ...message, source }
+  })
+  return bound.some((message, index) => message !== messages[index]) ? bound : messages
 }

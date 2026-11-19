@@ -16,7 +16,6 @@ import type { ImageAttachmentRef, SaveImageAttachment, StoredImageAttachment } f
 import FileSystem from '@deepseek-ai/dsh-fs-local'
 import { LlmAdapter, LlmRuntime, type ToolCallId } from '@deepseek-ai/dsh-llm'
 import type { GenerateOptions, StreamChunk, ImageBlock, LlmImageRequestPricing, LlmResolvedModelInfo } from '@deepseek-ai/dsh-llm'
-import { deepSeekImageTokens } from '@deepseek-ai/dsh-llm-deepseek'
 import { estimateContent } from '@deepseek-ai/dsh-token-meter/estimate'
 import { createMcpToolDefinition } from '@deepseek-ai/dsh-mcp-client'
 import { Session, type SessionId } from '@deepseek-ai/dsh-session'
@@ -30,6 +29,8 @@ import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import * as SpillPolicy from '../src/index.ts'
 
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADElEQVQImWNgZGIGAAAOAAeCcsnOAAAAAElFTkSuQmCC', 'base64')
+/** Fixed per-image visual cost the fixture route prices every (1×1) image at. */
+const IMAGE_TOKENS = 184
 
 class TestAttachments extends AttachmentStore {
   readonly imageLimits = {
@@ -61,9 +62,7 @@ class VisionAdapter extends LlmAdapter {
     return Promise.resolve({ provider, id: model, name: model, inputModalities: ['text', 'image'] })
   }
   override imageRequestPricing(): LlmImageRequestPricing {
-    return { priceImages: images => images.map(({ attachment }) => ({
-      visualTokens: deepSeekImageTokens(attachment.width, attachment.height), text: '',
-    })) }
+    return { priceImages: images => images.map(() => ({ visualTokens: IMAGE_TOKENS, text: '' })) }
   }
   stream(_options: GenerateOptions): AsyncIterable<StreamChunk> { throw new Error('fixture does not stream') }
 }
@@ -126,8 +125,7 @@ describe('multimodal spill', () => {
     const paths = [...saved.matchAll(/\[Image: ("[^"\n]+")/g)].map(match => JSON.parse(match[1]!) as string)
     expect(paths).toHaveLength(2)
     for (const path of paths) expect(await readFile(path)).toEqual(PNG)
-    const visual = result.content.filter((block): block is ImageBlock => block.type === 'image')
-      .reduce((total, block) => total + deepSeekImageTokens(block.attachment.width, block.attachment.height) + 4, 0)
+    const visual = result.content.filter((block): block is ImageBlock => block.type === 'image').length * (IMAGE_TOKENS + 4)
     expect(visual + estimateContent(result.content.filter(block => block.type === 'text'))).toBeLessThanOrEqual(1000)
   })
 

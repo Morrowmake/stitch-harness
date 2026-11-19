@@ -14,7 +14,8 @@ import AuthorizationService from '@deepseek-ai/dsh-authorization'
 import LocalCredentialProvider from '@deepseek-ai/dsh-credentials-local'
 import { profileComposition } from '../../../settings/settings/tests/profile-composition.ts'
 import * as LlmPiAi from '@deepseek-ai/dsh-llm-pi-ai'
-import { recordKeyFor } from '../src/auth.ts'
+import { catalogProvider } from '../src/catalog.ts'
+import { loginMethods } from '../src/login.ts'
 import { assemble } from './assemble.ts'
 import { closeMockServers, mockServer, textEvents } from './mock-server.ts'
 import { brandString } from '@deepseek-ai/dsh-brand'
@@ -143,15 +144,15 @@ describe('llm-pi-ai real dormant composition', () => {
     expect(server.headers[0]?.authorization).toBe('Bearer key-from-store')
   })
 
-  it('offers OpenAI sign-in by API key only, while other subscription logins stay', async () => {
+  it('offers OpenAI Sign in with ChatGPT beside its key login, and no standing flow', async () => {
     const { ctx } = await loadComposition()
-    const methods = (provider: string): string[] | undefined => ctx.authorization.list()
-      .find(entry => entry.key === recordKeyFor(provider))?.methods.map(method => method.id)
+    const methods = (provider: string): string[] => loginMethods(catalogProvider(provider)).map(method => method.id)
 
-    // pi-ai's Sign in with ChatGPT needs an installation ID the harness does
-    // not supply, so the route offers only its key login.
-    expect(methods('openai')).toEqual(['api-key'])
+    // The per-account device id OpenAI's sign-in needs lives in that account's record.
+    expect(methods('openai')).toEqual(['oauth', 'api-key'])
     expect(methods('anthropic')).toEqual(['oauth', 'api-key'])
+    // Flows register per sign-in attempt only.
+    expect(ctx.authorization.list()).toEqual([])
   })
 
   it('uses settings-only route headers for model discovery', async () => {

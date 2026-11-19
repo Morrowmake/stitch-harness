@@ -91,13 +91,8 @@ describe('public Timeline storage', () => {
   it('accepts authenticated edit RPCs and contains invalid requests and cancellation', async () => {
     const f = await fixture()
     const owner = new Peer(f.ctx, { principal: { kind: 'owner' } })
-    const viewer = new Peer(f.ctx, {
-      principal: {
-        kind: 'share-viewer',
-        shareId: 'test-share',
-        actor: { providerId: 'test', tenantId: 'test', subjectId: 'reader' },
-      },
-    })
+    // Any non-owner principal; other plugins define their own kinds.
+    const viewer = new Peer(f.ctx, { principal: { kind: 'reader' } as never })
     const handle = vi.fn<(_channel: string, _rpc: ConnectionRpcHandler) => void>()
     f.ctx.provide('connection', { rpc: { handle } } as never)
     f.ctx.provide('webServer', {} as never)

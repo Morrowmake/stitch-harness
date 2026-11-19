@@ -3,8 +3,9 @@ import { runInContext } from 'node:vm'
 import { JSDOM } from 'jsdom'
 import { expect, it, vi } from 'vitest'
 
-it.each(['welcome', 'update-dialog', 'mandatory-update'].flatMap(document => [false, true].map(dark => ({ document, dark }))))(
-  '$document applies the initial app palette and follows changes (dark=$dark)', ({ document, dark }) => {
+it.each([false, true])(
+  'update-dialog applies the initial app palette and follows changes (dark=%s)', (dark) => {
+    const document = 'update-dialog'
     const dom = new JSDOM(readFileSync(new URL(`../renderer/${document}.html`, import.meta.url), 'utf8'), { runScripts: 'outside-only' })
     const palette = Object.assign(new dom.window.EventTarget(), { matches: dark, media: '(prefers-color-scheme: dark)',
       onchange: null, addListener: vi.fn(), removeListener: vi.fn() })

@@ -45,16 +45,6 @@ it.each(['light', 'dark'] as const)('renders a 16px permission trigger and 14px 
   const horizontalCoverage = Array.from({ length: 6 }, (_, y) => ink(14, y + 9)).reduce((sum, value) => sum + value, 0)
   expect(verticalCoverage / 2).toBeCloseTo(1, 2)
   expect(horizontalCoverage / 2).toBeCloseTo(1, 2)
-
-  await page.keyboard.press('Escape')
-  await page.getByRole('button', { name: 'Account menu', exact: true }).click()
-  const accountMenu = page.getByRole('menu').filter({ has: page.getByRole('menuitem', { name: 'Settings', exact: true }) })
-  const accountIcons = accountMenu.getByRole('menuitem').locator('svg')
-  await expect.poll(() => accountIcons.count()).toBe(3)
-  for (const accountIcon of await accountIcons.all()) {
-    const accountBox = await accountIcon.boundingBox()
-    expect(accountBox && [accountBox.width, accountBox.height]).toEqual([14, 14])
-  }
 })
 
 it('renders product icons from the sprite and swaps in a theme plugin replacement', async () => {

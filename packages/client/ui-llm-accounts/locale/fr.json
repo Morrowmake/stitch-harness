@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Comptes de fournisseur",
+    "description": "Section Comptes dans chaque carte de fournisseur pi-ai de la page Modèles (connexion, comptes à clé API, compte par défaut, pool, liste de modèles autorisés, barres d’utilisation) et badge d’utilisation du compositeur."
+  }
+}

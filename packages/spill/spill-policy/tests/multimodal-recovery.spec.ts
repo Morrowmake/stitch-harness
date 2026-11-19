@@ -1,26 +1,24 @@
-/** Real attachments, filesystem recovery, Node PTC, and DeepSeek image request bytes without a desktop or API key. */
+/** Real attachments, filesystem recovery, Node PTC, and pi-ai Anthropic Messages image request bytes without a desktop or API key. */
 import { executeModelToolFixture } from '@deepseek-ai/dsh-tool-testkit'
 import * as NativeToolExecutor from '@deepseek-ai/dsh-tool-executor-native'
 import * as PtcToolExecutor from '@deepseek-ai/dsh-tool-executor-ptc'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { createServer } from 'node:http'
+import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import { provideWorkingDirectoryFixture } from '@deepseek-ai/dsh-agent-loop-testkit'
 import type { Agent } from '@deepseek-ai/dsh-agent'
-import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import LocalAttachments from '@deepseek-ai/dsh-attachment-local'
 import FileSystem from '@deepseek-ai/dsh-fs-local'
 import * as ToolFs from '@deepseek-ai/dsh-tool-fs'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import {
-  createAssistantMessage, createToolResultMessage, createUserMessage, LlmAdapter, LlmRuntime,
-  resolveImageAttachmentAccess, type ToolCallId,
+  createAssistantMessage, createToolResultMessage, createUserMessage, LlmAdapter, LlmRuntime, type ToolCallId,
 } from '@deepseek-ai/dsh-llm'
-import type { ContentBlock, GenerateOptions, ImageBlock, StreamChunk, UserMessage } from '@deepseek-ai/dsh-llm'
-import { deepSeekImageRequestPricing, resolveAdapterOptions } from '@deepseek-ai/dsh-llm-deepseek'
-import { prepareImages } from '@deepseek-ai/dsh-llm-deepseek/src/images.ts'
-import { serialize } from '@deepseek-ai/dsh-llm-deepseek/src/serialize.ts'
+import type { ContentBlock, GenerateOptions, ImageBlock, LlmImageRequestPricing, StreamChunk, UserMessage } from '@deepseek-ai/dsh-llm'
+import * as LlmPiAi from '@deepseek-ai/dsh-llm-pi-ai'
 import { createMcpToolDefinition } from '@deepseek-ai/dsh-mcp-client'
 import NodeRuntime from '@deepseek-ai/dsh-ptc-runtime-node'
 import Sandbox from '@deepseek-ai/dsh-sandbox-local'
@@ -41,10 +39,47 @@ const CAP = 12500
 const MODEL = 'vision-fixture'
 const LONG = `${'X'.repeat(100)}\n`.repeat(600)
 const SMALL = 'S'.repeat(36000)
-const connection = resolveAdapterOptions({ models: [{ id: MODEL, inputModalities: ['text', 'image'] }] })
+/** Fixed per-image visual cost the fixture route prices every retained image at. */
+const IMAGE_TOKENS = 1024
+const pricing: LlmImageRequestPricing = { priceImages: images => images.map(() => ({ visualTokens: IMAGE_TOKENS, text: '' })) }
 const text = (value: string): ContentBlock => ({ type: 'text', text: value })
 const textOf = (content: readonly ContentBlock[]): string => content.filter(block => block.type === 'text').map(block => block.text).join('')
 const imagesOf = (content: readonly ContentBlock[]): ImageBlock[] => content.filter((block): block is ImageBlock => block.type === 'image')
+
+/** Anthropic Messages content block as captured on the wire. */
+interface WireBlock {
+  type: string
+  content?: string | WireBlock[]
+  source?: { type: string; data?: string }
+}
+
+/** Captured Anthropic Messages request body. */
+interface WireRequest {
+  messages: { content: string | WireBlock[] }[]
+}
+
+/** Local provider stand-in that records each request body and refuses it. */
+async function captureServer(): Promise<{ url: string; bodies: WireRequest[] }> {
+  const bodies: WireRequest[] = []
+  const server = createServer((request, response) => {
+    const chunks: Buffer[] = []
+    request.on('data', (chunk: Buffer) => { chunks.push(chunk) })
+    request.on('end', () => {
+      bodies.push(JSON.parse(Buffer.concat(chunks).toString('utf8')) as WireRequest)
+      response.writeHead(401, { 'content-type': 'application/json' })
+      response.end(JSON.stringify({ type: 'error', error: { type: 'authentication_error', message: 'capture only' } }))
+    })
+  })
+  const listening = Promise.withResolvers<undefined>()
+  server.listen(0, '127.0.0.1', () => { listening.resolve(undefined) })
+  await listening.promise
+  onTestFinished(() => {
+    const closed = Promise.withResolvers<undefined>()
+    server.close(() => { closed.resolve(undefined) })
+    return closed.promise
+  })
+  return { url: `http://127.0.0.1:${(server.address() as AddressInfo).port}`, bodies }
+}
 
 async function setup(mode: 'native' | 'ptc' = 'native', maxInlineTokens = CAP) {
   const root = await mkdtemp(join(tmpdir(), 'dsh-image-recovery-'))
@@ -63,10 +98,12 @@ async function setup(mode: 'native' | 'ptc' = 'native', maxInlineTokens = CAP) {
   await ctx.plugin(SessionProjections)
   await ctx.plugin(SessionStore)
   await ctx.plugin(LlmRuntime)
-  const access = (ref: ImageAttachmentRef) => resolveImageAttachmentAccess(
-    ctx.attachments, path => ctx.fs.processPathFromHostPath(path), ref,
-  )
-  const pricing = deepSeekImageRequestPricing(connection, MODEL, access)
+  vi.stubEnv('CAPTURE_API_KEY', 'capture-key')
+  const capture = await captureServer()
+  await ctx.plugin(LlmPiAi, { providers: { capture: {
+    api: 'anthropic-messages', baseURL: capture.url, apiKeyEnv: 'CAPTURE_API_KEY', cacheRetention: 'none',
+    models: [{ id: MODEL, input: ['text', 'image'] }],
+  } } })
   class VisionRoute extends LlmAdapter {
     override async resolveModel(provider: string, model: string) {
       return { provider, id: model, name: model, inputModalities: ['text', 'image'] as Array<'text' | 'image'> }
@@ -113,12 +150,15 @@ async function setup(mode: 'native' | 'ptc' = 'native', maxInlineTokens = CAP) {
       createToolResultMessage({ callId, content, isError: false }),
       ...contexts,
     ]
-    const prepared = await prepareImages(history, connection, MODEL, ctx.attachments, access, new AbortController().signal)
-    const body = serialize({ provider: 'vision', model: MODEL, messages: history }, connection, prepared.messages, prepared.versions, access)
-    const blocks = body.messages.flatMap(message => message.content.flatMap(block => block.type === 'tool_result' ? block.content : [block]))
+    const before = capture.bodies.length
+    for await (const chunk of ctx.llm.stream({ provider: 'capture', model: MODEL, messages: history })) void chunk
+    const body = capture.bodies[before]
+    if (body === undefined) throw new Error('capture route received no request')
+    const blocks = body.messages.flatMap(message => typeof message.content === 'string' ? [] : message.content)
+      .flatMap(block => block.type === 'tool_result' && Array.isArray(block.content) ? block.content : [block])
     const images = blocks.filter(block => block.type === 'image')
     return Promise.all(images.map(async (block) => {
-      if (block.source.type !== 'base64') throw new Error('expected prepared inline image bytes')
+      if (block.source?.type !== 'base64' || block.source.data === undefined) throw new Error('expected prepared inline image bytes')
       const data = Buffer.from(block.source.data, 'base64')
       const { dominant } = await sharp(data).stats()
       return dominant.r > 200 ? 'red' : dominant.g > 200 ? 'green' : dominant.b > 200 ? 'blue' : 'unexpected'
@@ -167,7 +207,7 @@ describe('multimodal recovery through real providers', () => {
     expect(await requestImages(result.content)).toEqual(['green'])
   })
 
-  it('retains two distinct end images in both the tool result and DeepSeek request', async () => {
+  it('retains two distinct end images in both the tool result and the provider request', async () => {
     const { execute, originals, cost, requestImages } = await setup()
     const result = await execute('ends')
     expect(result.isError).toBe(false)
