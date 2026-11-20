@@ -20,6 +20,13 @@ function requireAgent(exec: ToolExecution): Agent {
 export function apply(ctx: Context): void {
   ctx.tools.register(defineTool({
     name: 'cordis_inspect',
+    shortPrompt: {
+      summary: 'Look up Stitch\'s runtime APIs before writing or configuring a plugin',
+      rules: [{
+        text: 'To change Stitch itself, read the stitch-doc skill first, then use cordis_inspect and plugin_manager.',
+        when: ['plugin_manager'],
+      }],
+    },
     description: 'Inspect runtime APIs before writing or configuring plugins. Omit query to discover providers, methods, and input schemas; '
       + 'then query an exact entry from that directory. Read-only: cannot invoke business Service methods or modify the runtime. '
       + 'Client queries require a connected page.',

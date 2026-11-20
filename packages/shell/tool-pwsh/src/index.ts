@@ -428,6 +428,12 @@ export function apply(ctx: Context, config: Config = {}): void {
     return defineTool({
       name: 'pwsh',
       description: pwshDescription(escalationModes.length > 0),
+      shortPrompt: {
+        summary: 'Run PowerShell commands (Get-ChildItem, Select-String, git, etc.)',
+        // Search tools, when mounted, bring their own file-search rule.
+        rules: [{ text: 'Use PowerShell for file operations like listing, searching, and finding files.', unless: ['glob', 'grep'] }],
+        order: ctx.systemPrompt.getSectionOrder('TOOL_PWSH'),
+      },
       /* jscpd:ignore-start -- deliberate mirror of dsh-tool-bash's parameter surface (pwsh-tool-and-executor Agent Note). */
       parameters: {
         description: {

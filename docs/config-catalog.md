@@ -2601,7 +2601,7 @@ export interface PresetSpec {
 ## `@deepseek-ai/dsh-persona`
 
 - `inject`: `systemPrompt`
-- `source`: [`packages/preset/persona/src/index.ts:30`](../packages/preset/persona/src/index.ts)
+- `source`: [`packages/preset/persona/src/index.ts:35`](../packages/preset/persona/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config: the persona text this composition contributes. */
@@ -2626,6 +2626,14 @@ export interface Config {
    * tools whose schema descriptions suffice. Sections not named here are untouched.
    */
   omitSections?: string[]
+  /**
+   * Follow the prefix with a generated short prompt: a `<tools>` list and `<rules>` list built from the short-prompt
+   * contributions of the tools mounted in this persona's agent scope, and leave out the long guidance sections those
+   * contributions replace. Other prompt sections are untouched.
+   */
+  shortPrompt?: boolean
+  /** The persona's own rules, closing the generated `<rules>` list. Used only with {@link Config.shortPrompt}. */
+  rules?: string[]
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-persona -->
@@ -3764,7 +3772,7 @@ export interface Config {
 
 ## `@deepseek-ai/dsh-system-prompt`
 
-- `source`: [`packages/core/system-prompt/src/index.ts:266`](../packages/core/system-prompt/src/index.ts)
+- `source`: [`packages/core/system-prompt/src/index.ts:268`](../packages/core/system-prompt/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config: the deployment-authored fragment of the system prompt (see {@link Config.personaPrefix} for its contract). */
@@ -4106,7 +4114,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-tool-bash-persistent`
 
 - `inject`: `tools` · `terminals` · `workingDirectory`
-- `source`: [`packages/shell/tool-bash-persistent/src/index.ts:448`](../packages/shell/tool-bash-persistent/src/index.ts)
+- `source`: [`packages/shell/tool-bash-persistent/src/index.ts:453`](../packages/shell/tool-bash-persistent/src/index.ts)
 
 ```ts config-catalog
 /** Configuration for the persistent Bash tool. */
@@ -4371,7 +4379,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-tool-pwsh-persistent`
 
 - `inject`: `tools` · `terminals` · `workingDirectory`
-- `source`: [`packages/shell/tool-pwsh-persistent/src/index.ts:458`](../packages/shell/tool-pwsh-persistent/src/index.ts)
+- `source`: [`packages/shell/tool-pwsh-persistent/src/index.ts:463`](../packages/shell/tool-pwsh-persistent/src/index.ts)
 
 ```ts config-catalog
 /** Configuration for the persistent pwsh tool. */
@@ -4453,7 +4461,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-tool-str-replace-editor`
 
 - `inject`: `tools` · `fs`
-- `source`: [`packages/fs/tool-str-replace-editor/src/index.ts:511`](../packages/fs/tool-str-replace-editor/src/index.ts)
+- `source`: [`packages/fs/tool-str-replace-editor/src/index.ts:515`](../packages/fs/tool-str-replace-editor/src/index.ts)
 
 ```ts config-catalog
 /** Configuration for the string-replacement editor tool. */

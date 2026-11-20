@@ -1,11 +1,9 @@
 # Sandbox CI: the keyless real-kernel confinement proofs, plus the darwin
 # unit-parity job (unit-darwin) that needs the matrix's macOS image. This
-# master-only reference stays outside the pull-request verdict; rationale lives in
-# .agents/notes/implemented/process/2026-07-21-serial-cross-platform-ci-reference.md.
+# master-only reference stays outside the pull-request verdict.
 # A separate workflow from ci.yml because the axis is different — the e2e jobs
 # fan out over OS×runner (kernel capabilities), not node versions. The Landlock
-# launcher is built from native/system on each Landlock leg and installed
-# from the same tarballs the main-repository release workflow publishes.
+# launcher is built from native/system on each Landlock leg.
 name: Sandbox
 
 on:
@@ -99,25 +97,6 @@ jobs:
           # Both platform files must have RUN — a self-skip (runner missing on
           # the very platform that exists to prove it) is a failure, not a pass.
           echo "$out" | grep -qE 'Test Files[[:space:]]+2 passed \(2\)'
-
-      # Publish-path rehearsal, Landlock legs only. Build the launcher on its
-      # native architecture, then install the local native and harness tarballs
-      # together so registry state cannot mask source/package drift.
-      - name: Build packages for the pack rehearsal
-        if: matrix.runner == 'landlock'
-        run: pnpm run build:official
-
-      - name: Packed-distribution e2e (pack → install → confine)
-        if: matrix.runner == 'landlock'
-        env:
-          NO_COLOR: 1
-        run: |
-          set -u +e -o pipefail
-          out=$(pnpm exec vitest run --config vitest.e2e.config.ts \
-            packages/sandbox/sandbox-local/tests/packed-install.e2e.ts 2>&1); status=$?
-          echo "$out"
-          [ "$status" -eq 0 ]
-          echo "$out" | grep -qE 'Test Files[[:space:]]+1 passed \(1\)'
 
   # The unit suite runs on ubuntu in ci.yml's test job; macos-latest is this
   # workflow's only darwin runner, so the platform-dependent unit expectations

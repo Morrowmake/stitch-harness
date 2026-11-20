@@ -32,15 +32,13 @@ Install dependencies from the repo root:
 pnpm install
 ```
 
-The install also configures worktree-local Lefthook hooks through `scripts/install-lefthook.mjs`. The [worktree-local hooks Agent Note](../.agents/notes/implemented/process/2026-07-27-worktree-local-lefthook.md) owns the hook-path safety contract.
+The install also configures the Lefthook Git hooks (`lefthook.yml`) by running `lefthook install`.
 
 If the hooks are missing because dependencies were restored from cache or `postinstall` was skipped, install them manually:
 
 ```sh
-node scripts/install-lefthook.mjs
+pnpm exec lefthook install
 ```
-
-If the wrapper rejects existing Git configuration or reports a stale lock, follow its diagnostic and the linked Agent Note rather than editing worktree metadata speculatively. After moving a checkout, rerun the wrapper to regenerate the owned path.
 
 Run typecheck once after a fresh clone:
 
@@ -100,7 +98,7 @@ Choose the command by what the change needs:
 | Type checks without the Web and Desktop artifacts | `pnpm run typecheck` |
 | Lint or documentation code-block checks | `pnpm run lint` or `pnpm run doc-typecheck`; each prepares `host-contracts` itself |
 
-PR artifact builders run `build:artifacts`; required Linux and Windows normal builds and public `typecheck` also check the repository-wide test and script programs. CI benchmark preparation additionally uses `--noCheck` for its disposable library outputs, relying on those required builds for diagnostics; other artifact builders keep package checking ([rationale](../.agents/notes/implemented/process/2026-10-05-pr-artifact-typechecks.md)).
+PR artifact builders run `build:artifacts`; required Linux and Windows normal builds and public `typecheck` also check the repository-wide test and script programs.
 
 Both tsdown passes match `vendor/*`, `packages/*/*`, and `apps/cli`; the Host pass also matches `apps/desktop-host`. They neither scan build artifacts to discover Client packages nor maintain a Host/Client package filter list. Package-local tsdown configs select entries for the current phase through `STITCH_BUILD_FACE`: an ordinary Client plugin produces both its Node loader and browser bundle during the Client phase; `api-remotes` uses `hostPhase: true` to produce its Host entry early and only its browser bundle during the Client phase. Tsdown consumes only the JavaScript emitted to `lib/types` by the preceding tsc phase. Tsdown builds the matched workspace members concurrently, so `apps/desktop`, whose main bundle inlines workspace devDependencies from their `lib/` output, bundles in its own step after the Host pass ([Desktop README](../apps/desktop/README.md#bundled-workspace-dependencies)).
 
@@ -120,7 +118,7 @@ If a relevant local check consumes built package output, build once first:
 pnpm run build
 ```
 
-`pnpm run hygiene` includes `publint`, which validates package entrypoints against the built `lib/*.js` files, and `verify-node-next-types`, which validates built declarations against a temporary NodeNext consumer. A fresh worktree has no bundled JS or declarations until `pnpm run build` runs; ordinary commits and pushes do not require that build unless their selected checks consume it.
+`pnpm run hygiene` includes `verify-node-next-types`, which validates built declarations against a temporary NodeNext consumer. A fresh worktree has no bundled JS or declarations until `pnpm run build` runs; ordinary commits and pushes do not require that build unless their selected checks consume it.
 
 ### Environment variables
 
@@ -177,12 +175,6 @@ The one-shot Headless coding agent needs a configured provider route; the demo u
 
 ```sh
 pnpm stitch --profile headless "summarize this workspace"
-```
-
-The PTC mode demo runs the same headless profile with code presentation enabled:
-
-```sh
-pnpm run demo:ptc -- "summarize this workspace"
 ```
 
 ### Application commands

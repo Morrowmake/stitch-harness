@@ -413,6 +413,12 @@ export function apply(ctx: Context, config: Config = {}): void {
     return defineTool({
       name: 'bash',
       description: bashDescription(),
+      shortPrompt: {
+        summary: 'Run shell commands (ls, rg, find, git, etc.)',
+        // Search tools, when mounted, bring their own file-search rule.
+        rules: [{ text: 'Use bash for file operations like ls, rg, find.', unless: ['glob', 'grep'] }],
+        order: ctx.systemPrompt.getSectionOrder('TOOL_BASH'),
+      },
       parameters: {
         description: {
           type: 'string',

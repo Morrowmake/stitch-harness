@@ -1,5 +1,8 @@
 version: 2
 
+# Security updates only: `open-pull-requests-limit: 0` disables routine version-update
+# pull requests, while Dependabot security updates (enabled in the repository settings)
+# still open pull requests for dependencies with known vulnerabilities.
 updates:
   - package-ecosystem: "npm"
     directory: "/"
@@ -7,35 +10,17 @@ updates:
       # Vendored Cordis sources follow vendor/README.md instead of registry updates.
       - "vendor/**"
     schedule:
-      interval: "cron"
-      cronjob: "0 4 * * *"
-      timezone: "Asia/Shanghai"
-    cooldown:
-      default-days: 30
-    labels:
-      - "kind/dependency"
-      - "area/infra"
+      interval: "weekly"
+    open-pull-requests-limit: 0
 
   - package-ecosystem: "uv"
     directory: "/python/sdk"
     schedule:
-      interval: "cron"
-      cronjob: "0 4 * * *"
-      timezone: "Asia/Shanghai"
-    cooldown:
-      default-days: 30
-    labels:
-      - "kind/dependency"
-      - "area/infra"
+      interval: "weekly"
+    open-pull-requests-limit: 0
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "cron"
-      cronjob: "0 4 * * *"
-      timezone: "Asia/Shanghai"
-    cooldown:
-      default-days: 30
-    labels:
-      - "kind/dependency"
-      - "area/infra"
+      interval: "weekly"
+    open-pull-requests-limit: 0

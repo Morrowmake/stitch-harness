@@ -105,13 +105,40 @@ jobs:
       - name: Lint
         run: pnpm run lint
 
+  # Keyless replay of recorded sessions through the shipped profiles
+  # (snapshots/). No model API key is needed.
+  snapshot:
+    name: snapshot tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v5.0.0
+
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install (immutable)
+        run: pnpm install --frozen-lockfile
+
+      - name: Build native addon
+        run: pnpm run build:native-system
+
+      - name: Snapshot tests
+        run: pnpm run test:snapshot
+
   # Single stable required check for branch protection. Every job in this
   # workflow is listed in `needs`; the status function lets the verdict report
   # failed or skipped needs without outliving a cancelled run.
   all-checks-passed:
     name: all checks passed
     runs-on: ubuntu-24.04
-    needs: [build, test, lint]
+    needs: [build, test, lint, snapshot]
     if: ${{ !cancelled() }}
     steps:
       - name: Fail if any needed job did not succeed

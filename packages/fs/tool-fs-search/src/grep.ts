@@ -20,6 +20,7 @@ import type { GrepMatch } from './search-core.ts'
 import { SearchError, previewLine, retainGrepMatches, runRipgrep, toWorkdirRelative, trySaveFormattedResult } from './search-core.ts'
 import { grepSearchMeta, searchViewFromMeta } from './presentation.ts'
 import { acceptedDirectCallValue } from './direct-call.ts'
+import { SEARCH_SHORT_PROMPT_RULES } from './glob.ts'
 
 /**
  * Default cap on flat matches retained inline by one `grep` call (the
@@ -285,6 +286,7 @@ export function applyGrepTool(ctx: Context, caps: GrepToolCaps): void {
 
   const tool = defineTool({
     name: 'grep',
+    shortPrompt: { summary: 'Search file contents', rules: SEARCH_SHORT_PROMPT_RULES, order: ctx.systemPrompt.getSectionOrder('TOOL_GREP') },
     description: 'Search file contents with a ripgrep regular expression. Returns matching lines with line numbers, grouped by file. '
       + `Returns up to ${caps.maxMatches} matches; a larger result reports where the complete match list was saved.`,
     parameters: {

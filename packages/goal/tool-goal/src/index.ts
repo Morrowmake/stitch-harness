@@ -191,10 +191,20 @@ export function apply(ctx: Context, config: Config): void {
     order: ctx.systemPrompt.getSectionOrder('TOOL_GOAL'),
     text: guidance(resolved.blockedAfterConsecutiveRounds),
   })
+  const shortPrompt = {
+    summary: 'Read, create, or update the session goal for long-running work',
+    rules: [
+      'Create a goal only for long-running objectives, not single-turn work.',
+      'Mark a goal complete only when its objective is actually achieved.',
+    ],
+    order: ctx.systemPrompt.getSectionOrder('TOOL_GOAL'),
+    replaces: ['tool:goal'],
+  }
 
   ctx.tools.register(defineTool({
     name: 'get_goal',
     description: GET_DESCRIPTION,
+    shortPrompt,
     parameters: {},
     output: GOAL_OUTPUT,
     execute(_args, exec) {
@@ -207,6 +217,7 @@ export function apply(ctx: Context, config: Config): void {
   ctx.tools.register(defineTool({
     name: 'create_goal',
     description: CREATE_DESCRIPTION,
+    shortPrompt,
     parameters: {
       objective: {
         type: 'string',
@@ -234,6 +245,7 @@ export function apply(ctx: Context, config: Config): void {
   ctx.tools.register(defineTool({
     name: 'update_goal',
     description: 'Update the current goal.',
+    shortPrompt,
     parameters: {
       goal_id: { type: 'string', required: true, description: 'Exact id returned by get_goal.' },
       revision: { type: 'number', required: true, description: 'Exact positive revision returned by get_goal.' },

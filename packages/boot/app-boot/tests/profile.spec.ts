@@ -31,7 +31,7 @@ import {
   type Profile,
   type RuntimeResolution,
 } from '../src/index.ts'
-import { COMPONENT_PRESETS, PROFILE_TEMPLATES } from '@deepseek-ai/dsh-official-bundles'
+import { PROFILE_TEMPLATES } from '@deepseek-ai/dsh-official-bundles'
 import { installRuntimeInterception } from '../src/profile-resolution/resolver.ts'
 
 const tempRoots: string[] = []
@@ -389,9 +389,9 @@ describe('loadProfile', () => {
       '@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-headless', 'custom-bundle',
     ])
     loadProfile('t', 'headless', anchor, customHome)
-    // A list carrying dsh-web-app without any component adopts the Standard components right after it.
+    // A list carrying dsh-web-app without any component stays as written: an all-off Custom selection is valid.
     expect(readProfileManifest('t', custom).dsh?.profile?.bundles).toEqual([
-      '@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', ...COMPONENT_PRESETS.standard, '@deepseek-ai/dsh-headless', 'custom-bundle',
+      '@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-headless', 'custom-bundle',
     ])
   })
 

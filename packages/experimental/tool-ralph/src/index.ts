@@ -418,6 +418,11 @@ export function apply(ctx: Context, config: Config): void {
   ctx.tools.register(defineTool({
     name: 'ralph',
     description: DESCRIPTION,
+    shortPrompt: {
+      summary: 'Run a fresh-agent Ralph loop toward one objective',
+      rules: ['Use ralph only when the user explicitly asks for a Ralph loop.'],
+      order: ctx.systemPrompt.getSectionOrder('TOOL_RALPH'),
+    },
     parameters: {
       objective: {
         type: 'string',

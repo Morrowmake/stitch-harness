@@ -77,6 +77,11 @@ export function applyReadTool(ctx: Context, caps: ReadToolCaps): void {
   ctx.tools.register(defineTool({
     name: 'read',
     description: 'Read a UTF-8 text file and return line-numbered content.',
+    shortPrompt: {
+      summary: 'Read a text file with line numbers',
+      rules: ['Use read to examine files instead of cat or sed.', 'Read a file before you edit it.'],
+      order: ctx.systemPrompt.getSectionOrder('TOOL_READ'),
+    },
     parameters: {
       file_path: { type: 'string', required: true, description: 'Path to read, resolved by the filesystem backend.' },
       offset: { type: 'number', description: '1-based first line to return. Defaults to 1.' },

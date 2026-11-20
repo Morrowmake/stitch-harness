@@ -39,6 +39,10 @@ export function apply(ctx: Context, config: Config): void {
       + 'This tool returns the child\'s name; a later completion notice includes its final answer. '
       + 'The child does not accept follow-up messages. Start independent tasks together and continue useful work while they run. '
       + 'When only waiting for their results remains, end your turn instead of polling.',
+    shortPrompt: {
+      summary: 'Delegate a self-contained task to an external agent',
+      rules: ['Give delegated tasks full context; the child does not see this conversation.'],
+    },
     parameters: {
       runtime: {
         type: 'string',

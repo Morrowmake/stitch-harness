@@ -90,6 +90,11 @@ var { connectCua } = await import(${ptcBridgeUrl});
 var cua = connectCua(() => tools.cua);
 \`\`\``
   } }
+  // Both tools keep the long section: it carries the cua method catalog they cannot be used without.
+  const shortPrompt = {
+    rules: ['Verify each desktop action\'s outcome from fresh state.'], order: prompt.order, replaces: [],
+  }
+  const rawTool: ToolDefinition = { ...tool, shortPrompt: { ...shortPrompt, summary: 'Observe and operate desktop applications' } }
   const register = (scope: Context, definition: ToolDefinition, instructions: PromptSection): (() => void) => {
     const removeTool = scope.tools.register(definition)
     let removePrompt: () => void
@@ -97,7 +102,7 @@ var cua = connectCua(() => tools.cua);
     catch (error) { removeTool(); throw error }
     return () => { try { removePrompt() } finally { removeTool() } }
   }
-  if (config.agentPreset === false) return register(ctx, tool, rawPrompt)
+  if (config.agentPreset === false) return register(ctx, rawTool, rawPrompt)
   return ctx.inject(['tools', 'agents', 'systemPrompt'], (base) => {
     const scopes = new Map<Agent, { scope: Scope; current?: { definition: ToolDefinition; remove: () => void } }>()
     let program: ToolDefinition | undefined
@@ -108,7 +113,7 @@ var cua = connectCua(() => tools.cua);
       base.get('agentPresets')?.composedPreset(agent.ctx) === config.agentPreset ? 'raw' : 'program'
     const sync = (agent: Agent): void => {
       const mode = modeOf(agent)
-      const definition = mode === 'raw' ? tool : program
+      const definition = mode === 'raw' ? rawTool : program
       let entry = scopes.get(agent)
       if (entry?.current?.definition === definition) return
       if (entry?.current !== undefined) { entry.current.remove(); delete entry.current }
@@ -150,6 +155,7 @@ var cua = connectCua(() => tools.cua);
                   name: 'cua_run_code', description: programDescription, runtime: consumer.ptcRuntime,
                   tools: [tool], limits: config.standaloneRunCode.executor,
                 })
+                definition.shortPrompt = { ...shortPrompt, summary: 'Run a TypeScript program that operates desktop applications' }
                 // Hosts without a model (MCP frontends) end an Agent's environment with the runtime's owner release.
                 consumer.provide('cuaPrograms', {
                   release: (agent: Agent) => consumer.ptcRuntime.release(agent),

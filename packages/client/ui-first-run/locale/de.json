@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Ersteinrichtung",
-    "description": "Zeigt die Ersteinrichtung einmal pro Profil – Modellanbieter (zuerst lokales Ollama und LM Studio, beliebiger OpenAI-kompatibler Server, gehostete Anbieter), Standardmodell sowie Komponenten Minimal / Standard / Benutzerdefiniert – und öffnet sie erneut über die Plugins-Seite und Einstellungen → Modelle."
+    "description": "Zeigt die Ersteinrichtung einmal pro Profil – Modellanbieter (zuerst lokales Ollama und LM Studio, beliebiger OpenAI-kompatibler Server, gehostete Anbieter), Standardmodell sowie Komponenten Standard / Benutzerdefiniert – und öffnet sie erneut über die Plugins-Seite und Einstellungen → Modelle."
   }
 }

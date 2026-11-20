@@ -210,6 +210,13 @@ export function apply(ctx: Context, config: Config): void {
     const providerSource = config.modelDiscovery === true ? ' Use a provider id listed by `list_subagent_models`.' : ''
     const definition = defineTool({
       name: toolName,
+      shortPrompt: {
+        summary: subagentProvider.inheritsParentContext
+          ? 'Hand a task to a helper agent that starts from your conversation'
+          : 'Hand a self-contained task to a helper agent',
+        rules: ['Delegate only work that can run independently.'],
+        order: ctx.systemPrompt.getSectionOrder('TOOL_SUBAGENT'),
+      },
       description: wording.description
         + ' This tool starts an independently managed subagent and immediately returns its name. If you are still online when it finishes, the runtime automatically delivers its completion notice. The notice includes the final answer unless the child sent you a message just before finishing.'
         + (subagentProvider.prepareContinuable !== undefined

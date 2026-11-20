@@ -9,7 +9,7 @@ kind: "package-bundle"
 
 ## 概述
 
-用简短的提示词替换默认预设中冗长的工具指引。此组件属于 Minimal 组件组合。
+用简短的提示词替换默认预设中冗长的工具指引。提示词根据每个会话中已挂载的工具生成，因此可与任意组件选择组合。简短提示词是 Custom 中的开关，在 Standard 组合中关闭。
 
 ## 目录
 
@@ -37,7 +37,7 @@ kind: "package-bundle"
 
 [`cordis.patch.yml`](cordis.patch.yml) 启用 [dsh-web-app](../../bundle/web-app/README.zh.md) 以 `# component: short-prompt` 标记并保持禁用的行，并挂载 `component-short-prompt` 标记行，打开[智能体预设](../../preset/agent-preset-registry/README.zh.md)中的 `component: short-prompt` 门控。这些行在 dsh-web-app 与 dsh-base 中保留原有 id、位置和配置，后续 profile 补丁仍可照常定位它们。
 
-受它控制的预设行：`persona-short`。
+受它控制的预设行：`persona-short`。该行以 `shortPrompt: true`、一句点明 Stitch 的开场白和结尾规则“Be concise, and show file paths clearly.”挂载 [dsh-persona](../../preset/persona/README.zh.md)；由于开场白已点明 Stitch，它省略 `harness:identity` 段落。每个工具通过其工具定义的 `shortPrompt` 字段带来自己的摘要与规则，因此启用某个组件会加入其工具的行，停用则会移除。
 
 </details>
 
@@ -53,17 +53,34 @@ kind: "package-bundle"
 <a id="model-experience"></a>
 ## 模型体验
 
-默认（Standard）预设用一段 Pi 规模的简短提示词替换原有人设，并省略核心 shell 与文件工具的使用指引（`tool:bash`、`tool:pwsh`、`tool:read`、`tool:write`、`tool:edit`、`tool:apply_patch`）。其他所有提示词内容——其他组件的工具指引以及计划模式、团队策略等策略——和运行时上下文（工作目录、沙箱与审批策略、技能目录、AGENTS.md）仍会发送给模型；工具定义不变。
+通过默认（Standard）预设间接影响。模型看到：
+
+```text
+You are a coding agent running inside Stitch, an agent harness you can modify while it runs. Help the user inspect files, run commands, and change code. The model is {{model}}.
+
+<tools>
+- <tool>: <one-line summary>
+
+Additional tools may be available.
+</tools>
+
+<rules>
+- <the mounted tools' rules>
+- Be concise, and show file paths clearly.
+</rules>
+```
+
+每个已挂载工具一行（共享摘要的工具共用一行，例如 `job_list / job_output / job_kill`）。未挂载 glob 与 grep 时，shell 工具会加入“Use bash for file operations like ls, rg, find.”（Windows 上为“Use PowerShell for file operations like listing, searching, and finding files.”）；挂载它们后，由搜索工具的规则取而代之。声明了简短贡献的工具，其冗长指引段落会被省略。其他所有提示词内容保持不变：其他组件的策略（如计划模式或团队策略）、未声明简短贡献的工具的冗长指引，以及运行时上下文（工作目录、日期与时间、沙箱与审批策略、技能目录、AGENTS.md）。工具 schema 不变。
 
 #### KV Cache 影响
 
-切换组件会改变之后新建会话的组合；已有会话保留其开始时使用的预设修订版本。
+切换组件会改变之后新建会话的组合；已有会话保留其开始时使用的预设修订版本。在会话内，生成的工具列表在挂载或移除工具之前逐字节保持稳定。
 
 ## 已知限制与暂缓工作
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- 只有 Standard 预设使用简短提示词；PTC、Minimal 和 Creator 预设保留各自的人设。
+- 只有 Standard 预设使用简短提示词；PTC、Minimal 和 Creator 智能体预设保留各自的人设。
 
 -----
 

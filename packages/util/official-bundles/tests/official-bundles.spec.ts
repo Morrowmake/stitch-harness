@@ -13,7 +13,6 @@ describe('Shipped profile templates', () => {
     expect(PROFILE_TEMPLATES).toEqual({
       acp: { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-acp-app'] },
       web: { bundles: [...COMPONENT_HOST_BUNDLES, ...COMPONENT_PRESETS.standard] },
-      'web-minimal': { bundles: [...COMPONENT_HOST_BUNDLES, ...COMPONENT_PRESETS.minimal] },
       headless: { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-headless'] },
       sdk: { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-sdk-app'] },
       'sdk-minimal': { bundles: ['@deepseek-ai/dsh-sdk-minimal'] },
@@ -27,9 +26,8 @@ describe('Shipped profile templates', () => {
 })
 
 describe('Component sets', () => {
-  it('names one package per component and keeps Minimal inside the always-available core plus its own panels', () => {
+  it('names one package per component and leaves the short prompt out of Standard', () => {
     expect(new Set(COMPONENT_BUNDLES).size).toBe(COMPONENTS.length)
-    expect(COMPONENT_PRESETS.minimal).toEqual(['files', 'terminal', 'browser', 'jobs', 'workspace-tracking', 'context-helpers', 'presets', 'short-prompt'].map(component))
     expect(COMPONENT_PRESETS.standard).not.toContain(component('short-prompt'))
     expect(COMPONENTS.filter(item => item.requires.length > 0).map(item => [item.id, item.requires]))
       .toEqual([['agent-teams', ['subagents']], ['workflows', ['subagents']]])
@@ -38,8 +36,9 @@ describe('Component sets', () => {
   it('classifies a bundle list by its component set, ignoring every other bundle', () => {
     expect(matchComponentPreset([...COMPONENT_HOST_BUNDLES, ...COMPONENT_PRESETS.standard, OPTIONAL_BUNDLES[0]!]))
       .toEqual({ preset: 'standard', enabled: COMPONENT_PRESETS.standard })
-    expect(matchComponentPreset([...COMPONENT_PRESETS.minimal].reverse()).preset).toBe('minimal')
-    expect(matchComponentPreset(COMPONENT_PRESETS.minimal.slice(1))).toEqual({ preset: 'custom', enabled: COMPONENT_PRESETS.minimal.slice(1) })
+    expect(matchComponentPreset([...COMPONENT_PRESETS.standard].reverse()).preset).toBe('standard')
+    expect(matchComponentPreset(COMPONENT_PRESETS.standard.slice(1))).toEqual({ preset: 'custom', enabled: COMPONENT_PRESETS.standard.slice(1) })
+    expect(matchComponentPreset(COMPONENT_HOST_BUNDLES)).toEqual({ preset: 'custom', enabled: [] })
   })
 })
 

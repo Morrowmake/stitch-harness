@@ -434,6 +434,10 @@ function registerStrReplaceEditor(ctx: Context, config: ResolvedConfig): void {
   ctx.tools.register(defineTool({
     name: 'str_replace_editor',
     description: config.description,
+    shortPrompt: {
+      summary: 'View, create, and edit files',
+      rules: ['Include enough context in old_str to match exactly one place.'],
+    },
     parameters: {
       command: {
         type: 'string',

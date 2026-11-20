@@ -46,6 +46,10 @@ export function installTools(ctx: Context, config: Config, storage: TimelineStor
           name: 'timeline_tree',
           description:
             'Start and select a new task tree, or select an existing tree for the goal. Add or edit tasks with timeline_tasks.',
+          shortPrompt: {
+            summary: 'Plan and track multi-step work as a task tree',
+            rules: ['Start or reuse a task tree before substantive multi-step work.'],
+          },
           parameters: {
             action: { type: 'string', required: true, enum: ['start', 'select'] },
             id: {
@@ -124,6 +128,7 @@ export function installTools(ctx: Context, config: Config, storage: TimelineStor
       name: 'timeline_tasks',
       description:
         'Patch tasks in one tree. Send parents and children in the same batch when adding a branch. Groups derive status and progress from their leaves. The batch is atomic and omitted tasks and fields stay unchanged.',
+      shortPrompt: { summary: 'Plan and track multi-step work as a task tree' },
       parameters: {
         tree: {
           type: 'string',
@@ -271,6 +276,10 @@ export function installTools(ctx: Context, config: Config, storage: TimelineStor
           name: 'timeline_pull',
           description:
             'Check what remains before closing the current goal. Returns active or pending leaves in priority order, or blocked leaves if none are runnable. Paused leaves are counted but never suggested.',
+          shortPrompt: {
+            summary: 'Check what remains before closing the current goal',
+            rules: ['Before a final answer on planned work, save progress and call timeline_pull.'],
+          },
           parameters: {
             tree: {
               type: 'string',
@@ -352,6 +361,7 @@ export function installTools(ctx: Context, config: Config, storage: TimelineStor
           name: 'timeline_read',
           description:
             'Read the selected plan, its discussions, and up to three recent reports. Filter by task for details or status for a short leaf list. Read a report or discussion by ID with report or annotation alone.',
+          shortPrompt: { summary: 'Plan and track multi-step work as a task tree' },
           parameters: {
             tree: {
               type: 'string',
@@ -502,6 +512,7 @@ export function installTools(ctx: Context, config: Config, storage: TimelineStor
           name: 'timeline_reply',
           description:
             'Save one reply after addressing a discussion. For pause or continue, record the requested state on affected leaves before confirming it, or reply with the blocker. A reply alone leaves task state unchanged.',
+          shortPrompt: { summary: 'Reply to a discussion on the plan' },
           parameters: {
             id: {
               type: 'string',

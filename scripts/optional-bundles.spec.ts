@@ -265,8 +265,8 @@ describe('optional bundles', () => {
     expect(composed.some(entry => entry.id === 'time-context')).toBe(false)
   })
 
-  it.each(['web', 'web-minimal'] as const)('composes the %s template, and every component over it, without patch warnings', (template) => {
-    const names = PROFILE_TEMPLATES[template]!.bundles
+  it('composes the web template, and every component over it, without patch warnings', () => {
+    const names = PROFILE_TEMPLATES.web!.bundles
     const warnings: string[] = []
     composeEntries(names.map(name => bundle(name).patches), warning => warnings.push(warning))
     expect(warnings).toEqual([])

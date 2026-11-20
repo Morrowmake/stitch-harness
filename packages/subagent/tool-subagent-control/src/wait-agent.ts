@@ -90,6 +90,7 @@ export function registerWaitAgent(ctx: Context): void {
   ctx.tools.register(defineTool({
     name: 'wait_agent',
     description: 'Wait for input at your next step, including agent messages, completion notifications, and user steering. Returns immediately if new input is pending. `timedOut: false` means new input is pending. Pending input is delivered to the model after code execution finishes.',
+    shortPrompt: { summary: 'Wait for agent messages or other new input' },
     parameters: {
       timeout_ms: {
         type: 'integer',

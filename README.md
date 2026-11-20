@@ -10,7 +10,7 @@ Stitch is provider-neutral and private by default:
 
 - **No account, no telemetry.** Stitch sends nothing anywhere except the requests you make to the model provider you chose.
 - **Any model provider.** Local models (Ollama, LM Studio, any OpenAI-compatible server) or hosted providers (Anthropic, OpenAI, Google, OpenRouter, DeepSeek, and more), with API keys or subscription sign-in where the provider offers one.
-- **Choose what you install.** The installer lets you pick components; the minimal install has only the read, write, edit, and bash tools plus the self-modification kernel.
+- **Choose what you install.** On first run you pick your components: Standard turns on everything Stitch ships by default; Custom starts from just the core (the read, write, edit, and bash tools plus the self-modification kernel) and lets you switch on each component you want.
 - **Keyless web search.** Web search uses DuckDuckGo with a Marginalia fallback, or your own SearXNG instance.
 
 Stitch is based on [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) and its **everything-is-a-plugin** architecture, powered by [Cordis](https://github.com/cordiverse/cordis).

@@ -16,7 +16,7 @@ import { boundContextSummary, createUserMessage, type ContentBlock } from '@deep
 import type { ContextFormed, MessageId } from '@deepseek-ai/dsh-llm'
 import { TextRetainer } from '@deepseek-ai/dsh-output-retention'
 import { defineTool, ToolArgsError } from '@deepseek-ai/dsh-tools'
-import type { GenericCallView, ToolDefinition, ToolExecution } from '@deepseek-ai/dsh-tools'
+import type { GenericCallView, ToolDefinition, ToolExecution, ToolShortPrompt } from '@deepseek-ai/dsh-tools'
 import type { JobId } from '@deepseek-ai/dsh-jobs'
 import type { JobEvent, JobView, JobRead } from '@deepseek-ai/dsh-jobs'
 import type { Agent } from '@deepseek-ai/dsh-agent'
@@ -320,6 +320,14 @@ export function apply(ctx: Context, config: Config): void {
     text: 'Track every background job id you start. You are notified in-session when a job finishes — do not busy-poll or sleep on one; keep working on independent steps and do not duplicate a running job\'s work. Before giving a final answer, collect every still-relevant job with job_output (set wait: true only when you are genuinely blocked on it), and job_kill jobs that stopped mattering.',
   })
 
+  // The job tools share one short-prompt line, listed in this order, and replace the guidance above.
+  const shortPrompt = (position: number): ToolShortPrompt => ({
+    summary: 'Check on, read, or stop background commands',
+    rules: ['Run long commands in the background and check them with job_output instead of waiting.'],
+    order: ctx.systemPrompt.getSectionOrder('TOOL_JOBS') + position,
+    replaces: ['tool:jobs'],
+  })
+
   // Live jobs whose kill the model itself requested through `job_kill`: that
   // tool result is the model's delivery, so the settlement notice would only
   // repeat it. A wait needs no entry here — the registry reports a settlement
@@ -432,6 +440,7 @@ export function apply(ctx: Context, config: Config): void {
 
   ctx.tools.register(defineTool({
     name: 'job_output',
+    shortPrompt: shortPrompt(1),
     description: 'Read a background job: output since the previous read for stream jobs, or the result of a finished final-output job.',
     // A timed-out wait returns job state rather than a TOOL_TIMEOUT error, so
     // this tool owns its deadline instead of using ToolDefinition.timeoutMs.
@@ -547,6 +556,7 @@ export function apply(ctx: Context, config: Config): void {
 
   ctx.tools.register(defineTool({
     name: 'job_list',
+    shortPrompt: shortPrompt(0),
     description: 'List your background jobs (running and finished) with their ids, kinds, and statuses.',
     parameters: {},
     // Listing reads a status snapshot and consumes no output cursor or completion notice.
@@ -569,6 +579,7 @@ export function apply(ctx: Context, config: Config): void {
 
   ctx.tools.register(defineTool({
     name: 'job_kill',
+    shortPrompt: shortPrompt(2),
     description: 'Request cancellation of a running background job.',
     parameters: {
       job_id: { type: 'string', required: true, description: 'Job id returned by the tool that started the background work.' },

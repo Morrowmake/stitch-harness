@@ -20,7 +20,7 @@ const hostedRunners = new Set([
 const majorOnlyActions = new Set(['actions/configure-pages@v6', 'actions/upload-pages-artifact@v5', 'actions/deploy-pages@v5'])
 
 describe('CI workflow', () => {
-  it('runs build, test, and lint on hosted Ubuntu for pull requests and master pushes', () => {
+  it('runs build, test, lint, and snapshot on hosted Ubuntu for pull requests and master pushes', () => {
     const workflow = loadWorkflow('.github/workflows/ci.yml')
     if (!isRecord(workflow.on) || !isRecord(workflow.jobs)) throw new TypeError('CI must define triggers and jobs')
     expect(Object.keys(workflow.on).sort()).toEqual(['pull_request', 'push', 'workflow_dispatch'])
@@ -30,8 +30,10 @@ describe('CI workflow', () => {
       group: '${{ github.workflow }}-${{ github.ref }}',
       'cancel-in-progress': "${{ github.event_name == 'pull_request' }}",
     })
-    expect(Object.keys(workflow.jobs).sort()).toEqual(['all-checks-passed', 'build', 'lint', 'test'])
-    for (const [name, command] of [['build', 'pnpm run build'], ['test', 'pnpm run test'], ['lint', 'pnpm run lint']] as const) {
+    expect(Object.keys(workflow.jobs).sort()).toEqual(['all-checks-passed', 'build', 'lint', 'snapshot', 'test'])
+    for (const [name, command] of [
+      ['build', 'pnpm run build'], ['test', 'pnpm run test'], ['lint', 'pnpm run lint'], ['snapshot', 'pnpm run test:snapshot'],
+    ] as const) {
       const job = workflowJob(workflow, name)
       if (!Array.isArray(job.steps)) throw new TypeError(`${name} must define steps`)
       const steps = job.steps.filter(isRecord)
@@ -92,31 +94,6 @@ describe('CI workflow', () => {
     expect(scripts.scripts.typecheck).toBe('tsx scripts/build.ts --scope typecheck')
   })
 
-  it('selects artifact builds only for PR release and API rehearsals', () => {
-    const official = "${{ github.event_name == 'pull_request' && 'pnpm run build:artifacts --profile official' || 'pnpm run build:official' }}"
-    const vendor = "${{ github.event_name == 'pull_request' && 'pnpm exec tsx scripts/compile-referenced-projects.ts host-libraries' || 'pnpm run build:lib:host' }}"
-    for (const [file, jobName, expected] of [
-      ['release.yml', 'pack', official],
-      ['release-vendor.yml', 'pack', vendor],
-      ['e2e.yml', 'e2e', official],
-    ] as const) {
-      const job = workflowJob(loadWorkflow('.github/workflows/' + file), jobName)
-      if (!Array.isArray(job.steps)) throw new TypeError(`${jobName} must define steps`)
-      const step = job.steps.filter(isRecord).find(candidate => typeof candidate.run === 'string'
-        && (candidate.run.includes('build:artifacts') || candidate.run.includes('host-libraries')))
-      expect(step?.run).toBe(expected)
-      for (const event of ['pull_request', 'push', 'workflow_dispatch']) {
-        const expression = expected.slice('${{ '.length, -' }}'.length)
-        const selected: unknown = runInNewContext(expression, { github: { event_name: event } }, { timeout: 1000 })
-        expect(selected).toBe(event === 'pull_request'
-          ? file === 'release-vendor.yml'
-            ? 'pnpm exec tsx scripts/compile-referenced-projects.ts host-libraries'
-            : 'pnpm run build:artifacts --profile official'
-          : file === 'release-vendor.yml' ? 'pnpm run build:lib:host' : 'pnpm run build:official')
-      }
-    }
-  })
-
   it('selects PR artifact compilation inside the Python executable builder', () => {
     const job = workflowJob(loadWorkflow('.github/workflows/build-exe-for-python-sdk.yml'), 'build')
     if (!Array.isArray(job.steps)) throw new TypeError('Python runtime builder must define steps')
@@ -140,7 +117,7 @@ describe('CI workflow', () => {
     }
   })
 
-  it.each(['e2e.yml', 'release.yml', 'release-vendor.yml'])(
+  it.each(['e2e.yml'])(
     '%s cancels superseded validation runs without crossing workflow or ref boundaries', (name) => {
       const workflow = loadWorkflow('.github/workflows/' + name)
       expect(workflow.concurrency).toEqual({
@@ -159,7 +136,7 @@ describe('CI workflow', () => {
   })
 
   it('does not cancel release or deployment transactions', () => {
-    for (const name of ['python-release.yml', 'docs-pages.yml']) {
+    for (const name of ['python-release.yml']) {
       expect(loadWorkflow('.github/workflows/' + name).concurrency).toMatchObject({ 'cancel-in-progress': false })
     }
   })
@@ -199,28 +176,6 @@ describe('CI workflow', () => {
     })
   })
 
-  it('splits both Wine TypeScript faces and retains their aggregate heap budgets', () => {
-    const wineGates = readFileSync(resolve(root, 'scripts/wine-windows-gates.sh'), 'utf8')
-
-    const references = wineGates.indexOf(
-      'wine_node "$scratch/logs/host-references.log" --import tsx/esm scripts/compile-referenced-projects.ts host',
-    )
-    const aggregate = wineGates.indexOf(
-      'wine_node "$scratch/logs/host-tsc.log" --max-old-space-size=8192 "$tsc_js" -p tsconfig.host.json --pretty false',
-    )
-    const metadata = wineGates.indexOf('wine_node "$scratch/logs/host-typert.log" --import tsx/esm scripts/generate-typert.ts')
-    expect(metadata).toBeGreaterThan(-1)
-    expect(references).toBeGreaterThan(metadata)
-    expect(aggregate).toBeGreaterThan(references)
-    expect(wineGates).not.toContain('-b tsconfig.host.json')
-    const clientReferences = wineGates.indexOf('wine_node "$scratch/logs/client-references.log" --import tsx/esm scripts/compile-referenced-projects.ts client')
-    const clientAggregate = wineGates.indexOf('wine_node "$scratch/logs/client-tsc.log" --max-old-space-size=8192 "$tsc_js" -p tsconfig.client.json --pretty false')
-    expect(clientReferences).toBeGreaterThan(aggregate)
-    expect(clientAggregate).toBeGreaterThan(clientReferences)
-    expect(wineGates).not.toContain('-b tsconfig.client.json')
-    expect(wineGates).toContain('  "$scratch/logs/client-references.log" \\')
-  })
-
   it('keeps supported LSP source under native Windows coverage', () => {
     const config = readFileSync(resolve(root, 'vitest.config.ts'), 'utf8')
 
@@ -253,7 +208,7 @@ describe('CI workflow', () => {
   })
 
   it('builds SSH executables only for explicit manual or release requests', () => {
-    for (const file of workflowFiles.filter(name => name !== 'publish-ssh-helper.yml')) {
+    for (const file of workflowFiles) {
       const workflow = loadWorkflow('.github/workflows/' + file)
       if (!isRecord(workflow.jobs)) continue
       expect(Object.values(workflow.jobs), file).not.toContainEqual(expect.objectContaining({ uses: './.github/workflows/build-exe-for-ssh-helper.yml' }))
@@ -263,7 +218,7 @@ describe('CI workflow', () => {
     expect(Object.keys(workflow.on).sort()).toEqual(['workflow_call', 'workflow_dispatch'])
   })
 
-  it('requires SSH helper acceptance before uploading artifacts or publishing', () => {
+  it('requires SSH helper acceptance before uploading artifacts', () => {
     const workflow = loadWorkflow('.github/workflows/build-exe-for-ssh-helper.yml')
     const build = workflowJob(workflow, 'build')
     if (!Array.isArray(build.steps)) throw new Error('SSH build must define its verification steps')
@@ -277,51 +232,6 @@ describe('CI workflow', () => {
     expect(transport).toBeGreaterThan(artifact)
     expect(upload).toBeGreaterThan(transport)
     for (const index of [artifact, transport, landlock, upload]) expect(steps[index]).not.toHaveProperty('continue-on-error', true)
-    const publish = loadWorkflow('.github/workflows/publish-ssh-helper.yml')
-    expect(publish.permissions).toEqual({ contents: 'read' })
-    expect(workflowJob(publish, 'build')).toMatchObject({ needs: 'validate', with: { release: true } })
-    const verify = workflowJob(publish, 'verify')
-    expect(verify.needs).toEqual(['validate', 'build'])
-    expect(verify).not.toHaveProperty('if')
-    expect(verify).not.toHaveProperty('permissions')
-    if (!Array.isArray(verify.steps)) throw new Error('Release verification must define steps')
-    const verification = verify.steps.findIndex(step => isRecord(step) && String(step.run).includes('scripts/ssh-helper/release.ts'))
-    const checksums = verify.steps.findIndex(step => isRecord(step) && String(step.uses).startsWith('actions/upload-artifact@'))
-    expect(verification).toBeGreaterThan(-1)
-    expect(checksums).toBeGreaterThan(verification)
-    expect(verify.steps[verification]).not.toHaveProperty('continue-on-error', true)
-    const publication = workflowJob(publish, 'publish')
-    expect(publication).toMatchObject({ if: 'inputs.publish', needs: ['validate', 'verify'], permissions: { contents: 'write' } })
-    for (const requested of [false, true]) {
-      expect(runInNewContext(String(publication.if), { inputs: { publish: requested } }, { timeout: 1000 })).toBe(requested)
-    }
-  })
-
-  it('validates any ref by default but refuses publication without the matching SSH release tag', () => {
-    const workflow = loadWorkflow('.github/workflows/publish-ssh-helper.yml')
-    if (!isRecord(workflow.on)) throw new Error('SSH release must define triggers')
-    expect(Object.keys(workflow.on)).toEqual(['workflow_dispatch'])
-    expect(workflowEvent(workflow, 'workflow_dispatch').inputs).toMatchObject({ publish: { type: 'boolean', default: false } })
-    const validate = workflowJob(workflow, 'validate')
-    expect(validate.steps).toContainEqual(expect.objectContaining({ id: 'source', env: { PUBLISH: '${{ inputs.publish }}' } }))
-    const source = nodeStepSource(validate, 'source')
-    const evaluate = (publish: boolean, type: string, name: string): string => {
-      let output = ''
-      runInNewContext(source, {
-        process: { env: { PUBLISH: String(publish), GITHUB_REF_TYPE: type, GITHUB_REF_NAME: name, GITHUB_OUTPUT: 'output' } },
-        readFileSync: () => JSON.stringify({ version: '1.2.3' }),
-        execFileSync: () => `${'a'.repeat(40)}\n`,
-        appendFileSync: (_path: string, text: string) => { output += text },
-      }, { timeout: 1000 })
-      return output
-    }
-    const expected = `version=1.2.3\ncommit=${'a'.repeat(40)}\n`
-    expect(evaluate(false, 'branch', 'worktree/helper')).toBe(expected)
-    expect(evaluate(false, 'tag', 'arbitrary-tag')).toBe(expected)
-    expect(evaluate(true, 'tag', 'stitch-v1.2.3')).toBe(expected)
-    for (const [type, name] of [['branch', 'stitch-v1.2.3'], ['tag', 'stitch-v1.2.2'], ['tag', 'dsh-v1.2.3'], ['tag', 'python-v1.2.3']] as const) {
-      expect(() => evaluate(true, type, name)).toThrow('Publication requires the matching stitch-v<version> tag')
-    }
   })
 
   it('validates the SSH native matrix before allocating runners', () => {
@@ -470,7 +380,14 @@ describe('bubblewrap preparation script', () => {
   })
 })
 
-describe('DeepSeek e2e workflow', () => {
+describe('E2E workflow', () => {
+  it('runs only on manual dispatch', () => {
+    const workflow = loadWorkflow('.github/workflows/e2e.yml')
+    if (!isRecord(workflow.on)) throw new TypeError('e2e workflow must define triggers')
+    expect(workflow.name).toBe('E2E (real model API)')
+    expect(Object.keys(workflow.on)).toEqual(['workflow_dispatch'])
+  })
+
   it('prepares bubblewrap from the pinned payload without a package transaction', () => {
     const workflow = loadWorkflow('.github/workflows/e2e.yml')
     const e2e = workflowJob(workflow, 'e2e')
@@ -667,131 +584,33 @@ describe('Python release workflows', () => {
       expect(test?.run).toContain('if ($LASTEXITCODE -ne 0) { throw')
     }
   })
-
-  it('uses the shared macOS deployment-target check in GitLab', () => {
-    const workflow = loadWorkflow('.gitlab-ci.yml')
-    const runtimeWheel = workflow['.runtime-wheel']
-    if (!isRecord(runtimeWheel) || !Array.isArray(runtimeWheel.script)) {
-      throw new TypeError('GitLab CI must define the runtime wheel script')
-    }
-    const runtimeScript: unknown[] = runtimeWheel.script
-    const macosCheck = runtimeScript.find(
-      step => typeof step === 'string' && step.includes('${PLATFORM#macos-}'),
-    )
-    if (typeof macosCheck !== 'string') {
-      throw new TypeError('GitLab CI must check the macOS deployment target')
-    }
-
-    expect(macosCheck).toContain('scripts/check-macos-deployment-target.py')
-    expect(macosCheck).toContain('lipo "$payload" -verify_arch')
-    expect(macosCheck).toContain('"$EXE" "$EXE-rg" "$EXE-spawn-helper"')
-  })
-
-  it('builds the macOS x64 wheel on the matching GitLab runner', () => {
-    const workflow = loadWorkflow('.gitlab-ci.yml')
-    const macosX64 = workflow['runtime-macos-x64']
-    const publish = workflow['publish-python']
-    if (!isRecord(macosX64) || !isRecord(publish) || !Array.isArray(publish.needs)) {
-      throw new TypeError('GitLab CI must define the macOS x64 runtime and publication jobs')
-    }
-
-    expect(macosX64.tags).toEqual(['macos-x64'])
-    expect(macosX64.variables).toMatchObject({ PKG_TARGET: 'node24-macos-x64', PLATFORM: 'macos-x64' })
-    expect(publish.needs).toContainEqual({ job: 'runtime-macos-x64', artifacts: true })
-    expect(JSON.stringify(publish.script)).toContain('macosx_14_0_x86_64.whl')
-  })
-
-  it('builds and black-box tests the Windows x64 wheel in GitLab', () => {
-    const workflow = loadWorkflow('.gitlab-ci.yml')
-    const windows = workflow['runtime-windows-x64']
-    const publish = workflow['publish-python']
-    if (!isRecord(windows) || !Array.isArray(windows.before_script) || !Array.isArray(windows.script)
-      || !isRecord(publish) || !Array.isArray(publish.needs)) {
-      throw new TypeError('GitLab CI must define the Windows runtime and aggregate publication jobs')
-    }
-
-    expect(windows.tags).toEqual(['windows-x64'])
-    expect(windows.variables).toMatchObject({ PKG_TARGET: 'node24-win-x64', PLATFORM: 'win-x64' })
-    expect(JSON.stringify(windows.before_script)).toContain('.ci-python\\\\Scripts')
-    expect(JSON.stringify(windows.before_script)).toContain('[IO.Path]::PathSeparator')
-    expect(JSON.stringify(windows.script)).toContain('win_amd64.whl')
-    expect(JSON.stringify(windows.script)).toContain('--scenario all --installed-wheel')
-    expect(publish.needs).toContainEqual({ job: 'runtime-windows-x64', artifacts: true })
-  })
-})
-
-describe('npm release rehearsals', () => {
-  it('keeps pack and dependency verification in the PR release workflows on hosted Linux', () => {
-    for (const file of ['release.yml', 'release-vendor.yml']) {
-      const workflow = loadWorkflow(`.github/workflows/${file}`)
-      if (!isRecord(workflow.jobs) || !isRecord(workflow.on)) throw new TypeError(`${file} must define on and jobs`)
-      expect(Object.keys(workflow.on).sort()).toEqual(['pull_request', 'push', 'workflow_dispatch'])
-      expect(Object.keys(workflow.jobs).sort()).toEqual(file === 'release.yml' ? ['dependencies', 'pack'] : ['pack'])
-      for (const job of Object.values(workflow.jobs)) expect(job).toMatchObject({ 'runs-on': 'ubuntu-24.04' })
-      expect(JSON.stringify(workflow)).not.toContain('secrets.')
-    }
-  })
-
-  it('runs dependency policy and npm layout checks in the Stitch release workflow', () => {
-    const dependencies = workflowJob(loadWorkflow('.github/workflows/release.yml'), 'dependencies')
-    if (!Array.isArray(dependencies.steps)) throw new TypeError('Stitch release workflow must define dependency steps')
-    const commands = dependencies.steps.flatMap(step =>
-      isRecord(step) && typeof step.run === 'string' ? [step.run] : [])
-    // Both verifications run from one step so the lane pays their longer half.
-    const combined = commands.find(command => command.includes('verify-package-dependencies'))
-    expect(combined).toContain('verify-npm-install-layout')
-    expect(combined).toContain('wait "$dependencies_pid"')
-    expect(commands).not.toContain('pnpm run verify-package-dependencies')
-    expect(commands).not.toContain('pnpm run verify-npm-install-layout')
-  })
-})
-
-describe('Documentation site publication', () => {
-  it('keeps Pages deployment dispatch-only from the matching stitch-v tag', () => {
-    const workflow = loadWorkflow('.github/workflows/docs-pages.yml')
-    const build = workflowJob(workflow, 'build')
-    const deploy = workflowJob(workflow, 'deploy')
-    if (!isRecord(workflow.on) || !isRecord(workflow.env) || !Array.isArray(build.steps)) {
-      throw new TypeError('Documentation deployment must define on, env, and build steps')
-    }
-
-    // The site presents a released snapshot: a merge must never publish it, and
-    // publication must never appear as a PR check.
-    expect(Object.keys(workflow.on)).toEqual(['workflow_dispatch'])
-    expect(build['runs-on']).toBe('ubuntu-24.04')
-    const steps = build.steps.filter(isRecord)
-    const verify = steps.find(step => step.name === 'Verify release tag')
-    const verifyScript = verify?.run
-    if (typeof verifyScript !== 'string') throw new TypeError('Documentation deployment must verify its release tag')
-    expect(workflow.env.DOCS_REPOSITORY_REF).toBe('master')
-    expect(deploy.environment).toMatchObject({ name: 'github-pages' })
-    if (process.platform === 'win32') return
-
-    const { version } = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8')) as { version: string }
-    const verdict = (type: string, name: string): number | null =>
-      spawnSync('bash', ['-c', verifyScript], { cwd: root, env: { ...process.env, GITHUB_REF_TYPE: type, GITHUB_REF_NAME: name }, encoding: 'utf8' }).status
-    expect(verdict('tag', `stitch-v${version}`)).toBe(0)
-    for (const [type, name] of [['branch', `stitch-v${version}`], ['tag', `dsh-v${version}`], ['tag', 'stitch-v0.0.0'], ['branch', 'master']] as const) {
-      expect(verdict(type, name), `${type} ${name}`).not.toBe(0)
-    }
-  })
 })
 
 describe('Git hooks', () => {
-  it('leaves frozen Agent Note sidecars to the archive verifier', () => {
+  it('keeps hooks fast: no archived-note checks and no pre-push typecheck', () => {
     const lefthook = loadWorkflow('lefthook.yml')
 
-    for (const hookName of ['pre-commit', 'pre-merge-commit']) {
-      const hook = lefthook[hookName]
-      if (!isRecord(hook) || !Array.isArray(hook.jobs)) {
-        throw new TypeError(`lefthook must define ${hookName} jobs`)
-      }
-      const pairing: unknown = hook.jobs.find(
-        (job: unknown) => isRecord(job) && job.name === 'translation pairing (staged records)',
-      )
+    expect(lefthook).not.toHaveProperty('pre-push')
+    expect(JSON.stringify(lefthook)).not.toContain('archived')
+    expect(JSON.stringify(lefthook)).toContain('translation pairing (staged records)')
+  })
+})
 
-      expect(pairing).toMatchObject({ exclude: ['.agents/notes/archived/**'] })
-    }
+describe('trimmed optional workflows', () => {
+  it('runs the Python lanes only for Python-related changes', () => {
+    const workflow = loadWorkflow('.github/workflows/ci-python.yml')
+    if (!isRecord(workflow.on) || !isRecord(workflow.on.pull_request)) throw new TypeError('CI Python must run on pull requests')
+    expect(workflow.on.pull_request.paths).toEqual(expect.arrayContaining(['python/**', 'packages/sdk/**']))
+  })
+
+  it('tests the native addon on Node 24 only, without Docker or a pack rehearsal', () => {
+    const text = readFileSync(resolve(workflowDirectory, 'node-addon-system.yml'), 'utf8')
+    expect(text).not.toMatch(/docker run|pack-release|node-version: (?:20|22|26)\b/u)
+  })
+
+  it('drops the packed-install rehearsal from the sandbox proofs', () => {
+    const text = readFileSync(resolve(workflowDirectory, 'sandbox.yml'), 'utf8')
+    expect(text).not.toMatch(/packed-install|build:official/u)
   })
 })
 

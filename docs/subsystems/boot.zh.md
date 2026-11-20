@@ -326,7 +326,7 @@ Manage profile files and apply their declared reload lifecycle.
 @Remote setBundlesEnabled(changes: Record<string, boolean>): Promise<ChangeResult>
 
 /** Read which named component set the profile selects.
- * @returns `minimal` or `standard` when the enabled components equal that set, otherwise `custom`, with the enabled components.
+ * @returns `standard` when the enabled components equal that set, otherwise `custom`, with the enabled components.
  */
 @Remote componentPreset(): Promise<ComponentPresetMatch>
 

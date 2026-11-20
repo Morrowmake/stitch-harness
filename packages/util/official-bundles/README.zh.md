@@ -41,7 +41,7 @@ kind: "package-library"
 
 ### 组件
 
-`src/components.ts` 定义 Web 与 Desktop 的功能组件：`COMPONENTS` 按显示与层顺序列出每个官方组件组合包，每个组件在 `COMPONENT_HOST_BUNDLES`（`dsh-base` + `dsh-web-app`）之上开启一整项功能；`COMPONENT_PRESETS` 命名首次运行选择器提供的 `minimal` 与 `standard` 组合，其中 `standard` 复现随附的 `web` profile。`matchComponentPreset` 把 profile 的组合包列表归类为其中一个组合或 `custom`；`closeBundleChanges` 按 `dsh.bundle.requires` 闭合一次启用变更：启用某个组合包会启用其前置包，停用某个组合包会停用所有依赖它的组合包。子代理提供方 `@deepseek-ai/dsh-subagent-claude-code` 与 `@deepseek-ai/dsh-subagent-codex` 是随安装附带的普通 `OPTIONAL_BUNDLES`，[产品使用检查](../../../scripts/verify-product-use.ts)针对 Web 将它们与其他可选选择一起组合，不执行提供方。
+`src/components.ts` 定义 Web 与 Desktop 的功能组件：`COMPONENTS` 按显示与层顺序列出每个官方组件组合包，每个组件在 `COMPONENT_HOST_BUNDLES`（`dsh-base` + `dsh-web-app`）之上开启一整项功能；`COMPONENT_PRESETS` 命名首次运行选择器提供的 `standard` 组合，它复现随附的 `web` profile。`matchComponentPreset` 把 profile 的组合包列表归类为 `standard` 或 `custom`；`closeBundleChanges` 按 `dsh.bundle.requires` 闭合一次启用变更：启用某个组合包会启用其前置包，停用某个组合包会停用所有依赖它的组合包。子代理提供方 `@deepseek-ai/dsh-subagent-claude-code` 与 `@deepseek-ai/dsh-subagent-codex` 是随安装附带的普通 `OPTIONAL_BUNDLES`，[产品使用检查](../../../scripts/verify-product-use.ts)针对 Web 将它们与其他可选选择一起组合，不执行提供方。
 
 -----
 

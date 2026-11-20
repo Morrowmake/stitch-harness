@@ -8,6 +8,7 @@ import { execa } from 'execa'
 import yaml from 'js-yaml'
 import { expect, it } from 'vitest'
 import { stringifyEntryYaml } from '@deepseek-ai/cordis-plugin-include'
+import { PROFILE_TEMPLATES } from '@deepseek-ai/dsh-official-bundles'
 import { assertInstalledTree, createPackedInstallation } from './packed-installation.ts'
 
 const root = fileURLToPath(new URL('../../../..', import.meta.url))
@@ -29,7 +30,7 @@ it.skipIf(!built)('loads the packed GitHub example with its explicitly installed
   expect(existsSync(join(installation, 'node_modules', adapter))).toBe(false)
   await writeFile(join(profile, 'package.json'), JSON.stringify({
     name: 'packed-webhook-profile', private: true, dependencies: {},
-    dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'] } },
+    dsh: { profile: { bundles: PROFILE_TEMPLATES.web!.bundles } },
   }))
   const profileDependencies = new Set([runtime, adapter])
   for (const name of profileDependencies) {

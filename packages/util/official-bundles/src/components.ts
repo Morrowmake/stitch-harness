@@ -1,8 +1,8 @@
 /**
  * Components: the official feature bundles a Web (and Desktop) profile composes over `dsh-base` + `dsh-web-app`.
  * Each component is one bundle package that switches a whole feature on (tools, panels, commands, skills, settings
- * UI); turning it off removes the feature from the composition. The Standard set reproduces the shipped default; the
- * Minimal set is the small kernel the first-run picker offers.
+ * UI); turning it off removes the feature from the composition. The Standard set reproduces the shipped default; Custom is
+ * any other selection.
  * @module @deepseek-ai/dsh-official-bundles/components
  */
 
@@ -28,7 +28,7 @@ export type ComponentId =
   | 'short-prompt'
 
 /** Named component sets offered by the picker. */
-export type ComponentPresetName = 'minimal' | 'standard'
+export type ComponentPresetName = 'standard'
 
 /** One official component. */
 export interface ComponentDefinition {
@@ -41,8 +41,6 @@ export interface ComponentDefinition {
    * the bundle declares the same packages in `dsh.bundle.requires`.
    */
   readonly requires: readonly ComponentId[]
-  /** Member of the Minimal set. */
-  readonly minimal: boolean
   /** Member of the Standard set (the shipped default composition). */
   readonly standard: boolean
 }
@@ -50,38 +48,38 @@ export interface ComponentDefinition {
 const PACKAGE_PREFIX = '@deepseek-ai/dsh-component-'
 
 function component(
-  id: ComponentId, sets: { minimal: boolean; standard: boolean }, requires: readonly ComponentId[] = [],
+  id: ComponentId, sets: { standard: boolean }, requires: readonly ComponentId[] = [],
 ): ComponentDefinition {
   return { id, packageName: `${PACKAGE_PREFIX}${id}`, requires, ...sets }
 }
 
-const BOTH = { minimal: true, standard: true }
-const STANDARD_ONLY = { minimal: false, standard: true }
+const STANDARD = { standard: true }
+const OPTIONAL = { standard: false }
 
 /**
  * Every official component in display and layer order. Display text, description and icon come from each package's
  * `locale/<lang>.json` `meta` and `icon` (read through `pluginManager.listBundles()`).
  */
 export const COMPONENTS: readonly ComponentDefinition[] = [
-  component('files', BOTH),
-  component('terminal', BOTH),
-  component('browser', BOTH),
-  component('search-tools', STANDARD_ONLY),
-  component('web', STANDARD_ONLY),
-  component('jobs', BOTH),
-  component('planning', STANDARD_ONLY),
-  component('goals', STANDARD_ONLY),
-  component('schedules', STANDARD_ONLY),
-  component('subagents', STANDARD_ONLY),
-  component('agent-teams', STANDARD_ONLY, ['subagents']),
-  component('workflows', STANDARD_ONLY, ['subagents']),
-  component('office', STANDARD_ONLY),
-  component('workspace-tracking', BOTH),
-  component('mcp', STANDARD_ONLY),
-  component('context-helpers', BOTH),
-  component('presets', BOTH),
+  component('files', STANDARD),
+  component('terminal', STANDARD),
+  component('browser', STANDARD),
+  component('search-tools', STANDARD),
+  component('web', STANDARD),
+  component('jobs', STANDARD),
+  component('planning', STANDARD),
+  component('goals', STANDARD),
+  component('schedules', STANDARD),
+  component('subagents', STANDARD),
+  component('agent-teams', STANDARD, ['subagents']),
+  component('workflows', STANDARD, ['subagents']),
+  component('office', STANDARD),
+  component('workspace-tracking', STANDARD),
+  component('mcp', STANDARD),
+  component('context-helpers', STANDARD),
+  component('presets', STANDARD),
   // Replaces the long per-tool prompt guidance of the default preset with a short complete prompt.
-  component('short-prompt', { minimal: true, standard: false }),
+  component('short-prompt', OPTIONAL),
 ]
 
 /** Component bundle package names in layer order. */
@@ -89,7 +87,6 @@ export const COMPONENT_BUNDLES: readonly string[] = COMPONENTS.map(item => item.
 
 /** Component package names per named set, in layer order. */
 export const COMPONENT_PRESETS: Readonly<Record<ComponentPresetName, readonly string[]>> = {
-  minimal: COMPONENTS.filter(item => item.minimal).map(item => item.packageName),
   standard: COMPONENTS.filter(item => item.standard).map(item => item.packageName),
 }
 
@@ -98,7 +95,7 @@ export const COMPONENT_HOST_BUNDLES: readonly string[] = ['@deepseek-ai/dsh-base
 
 /** Which named set the profile's enabled components equal, or `custom`. */
 export interface ComponentPresetMatch {
-  /** `minimal` / `standard` when the enabled components equal that set exactly, otherwise `custom`. */
+  /** `standard` when the enabled components equal that set exactly, otherwise `custom`. */
   readonly preset: ComponentPresetName | 'custom'
   /** Enabled component package names, in {@link COMPONENTS} order. */
   readonly enabled: readonly string[]
@@ -112,7 +109,7 @@ export interface ComponentPresetMatch {
 export function matchComponentPreset(bundles: readonly string[]): ComponentPresetMatch {
   const selected = new Set(bundles)
   const enabled = COMPONENT_BUNDLES.filter(name => selected.has(name))
-  const named = (['standard', 'minimal'] as const).find(name =>
+  const named = (['standard'] as const).find(name =>
     COMPONENT_PRESETS[name].length === enabled.length && COMPONENT_PRESETS[name].every(item => selected.has(item)))
   return { preset: named ?? 'custom', enabled }
 }

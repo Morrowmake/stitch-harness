@@ -8,8 +8,8 @@ export interface ProfileTemplate {
 
 /**
  * The shipped profile templates auto-initialized on first use, by name. The `web` template (also Desktop's profile)
- * is dsh-base + dsh-web-app + the Standard component set; `web-minimal` is the same host with the Minimal set. Both
- * spell out `COMPONENT_PRESETS` (./components.ts) literally, because the product gates read these lists statically.
+ * is dsh-base + dsh-web-app + the Standard component set, spelled out from `COMPONENT_PRESETS` (./components.ts)
+ * literally, because the product gates read these lists statically.
  */
 export const PROFILE_TEMPLATES: Record<string, ProfileTemplate> = {
   acp: {
@@ -36,20 +36,6 @@ export const PROFILE_TEMPLATES: Record<string, ProfileTemplate> = {
       '@deepseek-ai/dsh-component-mcp',
       '@deepseek-ai/dsh-component-context-helpers',
       '@deepseek-ai/dsh-component-presets',
-    ],
-  },
-  'web-minimal': {
-    bundles: [
-      '@deepseek-ai/dsh-base',
-      '@deepseek-ai/dsh-web-app',
-      '@deepseek-ai/dsh-component-files',
-      '@deepseek-ai/dsh-component-terminal',
-      '@deepseek-ai/dsh-component-browser',
-      '@deepseek-ai/dsh-component-jobs',
-      '@deepseek-ai/dsh-component-workspace-tracking',
-      '@deepseek-ai/dsh-component-context-helpers',
-      '@deepseek-ai/dsh-component-presets',
-      '@deepseek-ai/dsh-component-short-prompt',
     ],
   },
   headless: {

@@ -166,10 +166,20 @@ export function apply(ctx: Context, config: Config = {}): void {
     order: ctx.systemPrompt.getSectionOrder('TOOL_PTY'),
     text: 'Use a terminal session only when work needs persistent terminal state or interactive stdin; prefer shell/read/write/edit for bounded one-shot operations. Track every terminal session id and close sessions that no longer matter. An inferred_idle or timeout result does not prove the foreground command exited.',
   })
+  const shortPrompt = {
+    summary: 'Open, use, and close persistent terminal sessions',
+    rules: [
+      'Use terminal sessions only for persistent shell state or interactive input.',
+      'Close terminal sessions you no longer need.',
+    ],
+    order: ctx.systemPrompt.getSectionOrder('TOOL_PTY'),
+    replaces: ['tool:pty'],
+  }
 
   ctx.tools.register(defineTool({
     name: 'terminal_open',
     description: 'Create a persistent, owner-isolated terminal session from a registered backend type. Use this for shell or REPL state that must survive across tool calls.',
+    shortPrompt,
     parameters: {
       type: { type: 'string', required: true, description: 'Registered terminal backend type, usually "shell".' },
       name: { type: 'string', description: 'Optional owner-local display name such as "main" or "gdb".' },
@@ -208,6 +218,7 @@ export function apply(ctx: Context, config: Config = {}): void {
     name: 'terminal_send',
     description: 'Send text to a persistent terminal. By default Enter is submitted and the call waits for a prompt, stdin wait, output silence, timeout, or session exit.'
       + (enableRunInBackground ? ' Background mode returns a job id for job_output/job_kill.' : ''),
+    shortPrompt,
     parameters: {
       sessionId: { type: 'string', required: true, description: 'Terminal session id returned by terminal_open or terminal_list.' },
       text: { type: 'string', required: true, description: 'UTF-8 text to write to the terminal.' },
@@ -311,6 +322,7 @@ export function apply(ctx: Context, config: Config = {}): void {
   ctx.tools.register(defineTool({
     name: 'terminal_read',
     description: 'Read a bounded page of retained output from a persistent terminal without sending input.',
+    shortPrompt,
     parameters: {
       sessionId: { type: 'string', required: true, description: 'Terminal session id.' },
       offset: { type: 'number', description: 'Newest-relative line offset (default 0).' },
@@ -344,6 +356,7 @@ export function apply(ctx: Context, config: Config = {}): void {
   ctx.tools.register(defineTool({
     name: 'terminal_signal',
     description: 'Send an allowed signal to the current foreground process group of a persistent terminal.',
+    shortPrompt,
     parameters: {
       sessionId: { type: 'string', required: true, description: 'Terminal session id.' },
       signal: { type: 'string', required: true, enum: ['SIGINT', 'SIGTERM', 'SIGKILL', 'SIGTSTP', 'SIGHUP'], description: 'Signal to deliver. Shell-targeted SIGKILL is rejected; use terminal_close.' },
@@ -369,6 +382,7 @@ export function apply(ctx: Context, config: Config = {}): void {
   ctx.tools.register(defineTool({
     name: 'terminal_close',
     description: 'Close one persistent terminal and wait until its captured owned process tree is gone.',
+    shortPrompt,
     parameters: {
       sessionId: { type: 'string', required: true, description: 'Terminal session id.' },
     },
@@ -400,6 +414,7 @@ export function apply(ctx: Context, config: Config = {}): void {
   ctx.tools.register(defineTool({
     name: 'terminal_list',
     description: 'List persistent terminal sessions owned by the current agent.',
+    shortPrompt,
     parameters: {},
     finalizeContent,
     output: {

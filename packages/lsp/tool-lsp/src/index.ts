@@ -109,6 +109,11 @@ export function apply(ctx: Context, config: Config): void {
     name: 'lsp',
     description:
       'Query a language server for precise code navigation. operation is one of goToDefinition, findReferences, goToImplementation, hover. line and character are one-based UTF-16 cursor coordinates. findReferences includes the declaration.',
+    shortPrompt: {
+      summary: 'Find definitions, references, implementations, or hover info with a language server',
+      rules: ['Use lsp when text matches are ambiguous or a change needs precise references.'],
+      order: ctx.systemPrompt.getSectionOrder('TOOL_LSP'),
+    },
     parameters: {
       operation: {
         type: 'string',

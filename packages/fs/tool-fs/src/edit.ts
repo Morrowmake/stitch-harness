@@ -85,6 +85,11 @@ export function applyEditTool(ctx: Context, sandbox: FsSandboxController): void 
   ctx.tools.register(defineTool({
     name: 'edit',
     description: 'Edit an existing UTF-8 text file by replacing literal text.',
+    shortPrompt: {
+      summary: 'Replace exact text in an existing file',
+      rules: ['Use edit for targeted changes; the old text must match exactly and appear once.'],
+      order: ctx.systemPrompt.getSectionOrder('TOOL_EDIT'),
+    },
     parameters: {
       file_path: {
         type: 'string', required: true,

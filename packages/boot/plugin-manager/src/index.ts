@@ -959,7 +959,7 @@ export class PluginManager extends TypertRemoteService {
   }
 
   /** Read which named component set the profile selects.
-   * @returns `minimal` or `standard` when the enabled components equal that set, otherwise `custom`, with the enabled components.
+   * @returns `standard` when the enabled components equal that set, otherwise `custom`, with the enabled components.
    */
   @Remote
   componentPreset(): Promise<ComponentPresetMatch> {

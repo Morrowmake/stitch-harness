@@ -53,6 +53,10 @@ export function registerListAgents(ctx: Context): ToolDefinition {
       + 'still a member you can message. '
       + 'While you remain active, you will be notified when a direct child finishes; there is no need to keep checking its status. '
       + 'Use send_message to continue the conversation.',
+    shortPrompt: {
+      summary: 'List the agents in your subagent tree',
+      rules: ['You are notified when a direct child finishes; do not poll its status.'],
+    },
     parameters: {},
     // Catalog observations are read-only and release their Session handles.
     isConcurrencySafe: () => true,

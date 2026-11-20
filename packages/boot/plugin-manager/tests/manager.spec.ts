@@ -782,8 +782,8 @@ it('names the component set the profile selects', async () => {
   expect(await manager.componentPreset()).toEqual({ preset: 'custom', enabled: [component('files')] })
   await manager.setBundlesEnabled(Object.fromEntries(COMPONENT_BUNDLES.map(name => [name, COMPONENT_PRESETS.standard.includes(name)])))
   expect(await manager.componentPreset()).toEqual({ preset: 'standard', enabled: COMPONENT_PRESETS.standard })
-  await manager.setBundlesEnabled(Object.fromEntries(COMPONENT_BUNDLES.map(name => [name, COMPONENT_PRESETS.minimal.includes(name)])))
-  expect(await manager.componentPreset()).toEqual({ preset: 'minimal', enabled: COMPONENT_PRESETS.minimal })
+  await manager.setBundlesEnabled(Object.fromEntries(COMPONENT_BUNDLES.map(name => [name, false])))
+  expect(await manager.componentPreset()).toEqual({ preset: 'custom', enabled: [] })
 })
 
 it('reports an overlay overriding a saved plugin toggle', async () => {

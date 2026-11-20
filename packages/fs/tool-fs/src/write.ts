@@ -73,6 +73,11 @@ export function applyWriteTool(ctx: Context, sandbox: FsSandboxController): void
   ctx.tools.register(defineTool({
     name: 'write',
     description: 'Create or fully replace a UTF-8 text file.',
+    shortPrompt: {
+      summary: 'Create or overwrite a file',
+      rules: ['Use write only for new files or complete rewrites.'],
+      order: ctx.systemPrompt.getSectionOrder('TOOL_WRITE'),
+    },
     parameters: {
       file_path: {
         type: 'string', required: true,

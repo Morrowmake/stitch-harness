@@ -374,10 +374,17 @@ function registerScheduleTools(ctx: Context): void {
 
   // Plugin configuration is fixed for the life of the Host service, so the description is read once.
   const targetDescription = targetHelp(ctx.schedule.deliveryLimits().newSessionIntervalSeconds)
+  const shortPrompt = {
+    summary: 'Create, list, view, or edit scheduled tasks',
+    order: ctx.systemPrompt.getSectionOrder('TOOL_SCHEDULE'),
+    replaces: ['tool:schedule'],
+  }
+  const managementShortPrompt = { ...shortPrompt, rules: ['Create or change scheduled tasks only at the user\'s explicit request.'] }
 
   ctx.tools.register(defineTool({
     name: 'schedule_create',
     description: CREATE_DESCRIPTION,
+    shortPrompt: managementShortPrompt,
     parameters: {
       title: {
         type: 'string',
@@ -400,6 +407,7 @@ function registerScheduleTools(ctx: Context): void {
   ctx.tools.register(defineTool({
     name: 'schedule_list',
     description: LIST_DESCRIPTION,
+    shortPrompt,
     parameters: {
       active: {
         type: 'boolean',
@@ -425,6 +433,7 @@ function registerScheduleTools(ctx: Context): void {
   ctx.tools.register(defineTool({
     name: 'schedule_view',
     description: VIEW_DESCRIPTION,
+    shortPrompt,
     parameters: {
       id: { type: 'string', required: true, description: 'Task id.' },
     },
@@ -441,6 +450,7 @@ function registerScheduleTools(ctx: Context): void {
   ctx.tools.register(defineTool({
     name: 'schedule_edit',
     description: EDIT_DESCRIPTION,
+    shortPrompt: managementShortPrompt,
     parameters: {
       id: { type: 'string', required: true, description: 'Task id.' },
       action: {

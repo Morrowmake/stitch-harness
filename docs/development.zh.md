@@ -34,15 +34,13 @@ pnpm 使用严格的符号链接布局，让未声明的依赖直接失败，而
 pnpm install
 ```
 
-安装过程还会通过 `scripts/install-lefthook.mjs` 配置 worktree 本地的 Lefthook 钩子。[worktree 本地钩子 Agent Note](../.agents/notes/implemented/process/2026-07-27-worktree-local-lefthook.zh.md) 负责钩子路径的安全约定。
+安装过程还会运行 `lefthook install`，配置 Lefthook Git 钩子（`lefthook.yml`）。
 
 如果依赖是从缓存恢复或 `postinstall` 被跳过而导致钩子缺失，请手动安装：
 
 ```sh
-node scripts/install-lefthook.mjs
+pnpm exec lefthook install
 ```
-
-如果包装脚本拒绝现有 Git 配置或报告陈旧锁，请遵循其诊断和所链接的 Agent Note，不要凭猜测编辑 worktree 元数据。移动检出目录后，请重新运行包装脚本以重新生成自有路径。
 
 新克隆后请先运行一次类型检查：
 
@@ -104,7 +102,7 @@ pnpm run build:web
 | 只做类型检查、不需要 Web 与 Desktop 产物 | `pnpm run typecheck` |
 | lint 或文档代码块检查 | `pnpm run lint` 或 `pnpm run doc-typecheck`；它们各自先准备 `host-contracts` |
 
-PR 产物 builder 运行 `build:artifacts`；必需的 Linux 与 Windows 普通构建以及公开 `typecheck` 还检查仓库级测试和脚本 program。CI benchmark 准备阶段还对其临时 library 输出使用 `--noCheck`，由这些必需构建负责诊断；其他产物 builder 保留包检查（[理由](../.agents/notes/implemented/process/2026-10-05-pr-artifact-typechecks.zh.md)）。
+PR 产物 builder 运行 `build:artifacts`；必需的 Linux 与 Windows 普通构建以及公开 `typecheck` 还检查仓库级测试和脚本 program。
 
 两次 tsdown 都匹配 `vendor/*`、`packages/*/*` 与 `apps/cli`，Host 阶段另外匹配 `apps/desktop-host`；两者都不扫描构建产物来发现 Client 包，也不维护 Host/Client 包过滤表。包内 tsdown 配置根据 `STITCH_BUILD_FACE` 决定当前阶段的入口：普通 Client 插件在 Client 阶段同时生成 Node loader 与 browser bundle；`api-remotes` 通过 `hostPhase: true` 提前生成 Host 入口，再在 Client 阶段只生成 browser bundle。tsdown 只消费 `lib/types` 中由前置 tsc 发射的 JavaScript。tsdown 并发构建匹配到的 workspace 成员；`apps/desktop` 的主进程 bundle 需要从工作区 devDependencies 的 `lib/` 产物内联这些包，因此在 Host 阶段之后单独一步打 bundle（[Desktop README](../apps/desktop/README.zh.md#bundled-workspace-dependencies)）。
 
@@ -124,8 +122,7 @@ Typert 通过 `tsconfig.host.json` 分析 Host 类型，在包编译之前生成
 pnpm run build
 ```
 
-`pnpm run hygiene` 包含 `publint`（用构建出的 `lib/*.js` 文件校验包入口点）和 `verify-node-next-types`（用一个临时的 NodeNext 消费方校验构建出的声明文件）。新 worktree 在 `pnpm run build` 运行之前没有打包的 JS 和声明文件；普通提交和推送无需构建，除非所选检查会使用这些产物。
-
+`pnpm run hygiene` 包含 `verify-node-next-types`（用一个临时的 NodeNext 消费方校验构建出的声明文件）。新 worktree 在 `pnpm run build` 运行之前没有打包的 JS 和声明文件；普通提交和推送无需构建，除非所选检查会使用这些产物。
 
 ### 环境变量
 
@@ -182,12 +179,6 @@ pnpm run build
 
 ```sh
 pnpm stitch --profile headless "summarize this workspace"
-```
-
-PTC mode 演示启用代码式工具展示，并运行同一个 headless profile：
-
-```sh
-pnpm run demo:ptc -- "summarize this workspace"
 ```
 
 ### 应用命令

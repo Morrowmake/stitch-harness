@@ -84,6 +84,7 @@ export function apply(ctx: Context, config: Config = {}): void {
 
   const skillTool = defineTool({
     name: 'skill',
+    shortPrompt: { summary: 'Load a skill\'s full instructions', rules: ['Load a skill with the skill tool before acting on a task it matches.'] },
     description: 'Load the full instructions for a skill. Call it before acting on a task that names or clearly matches a skill in the session skill catalog.',
     parameters: {
       name: { type: 'string', required: true, description: 'The exact skill name from the available skills list.' },

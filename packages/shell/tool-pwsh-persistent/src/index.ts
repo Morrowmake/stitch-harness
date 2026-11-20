@@ -427,6 +427,11 @@ function registerPersistentPwsh(ctx: Context, config: ResolvedConfig): void {
   ctx.tools.register(defineTool({
     name: 'pwsh',
     description: config.description,
+    shortPrompt: {
+      summary: 'Run PowerShell commands (Get-ChildItem, Select-String, git, etc.)',
+      // Search tools, when mounted, bring their own file-search rule.
+      rules: [{ text: 'Use PowerShell for file operations like listing, searching, and finding files.', unless: ['glob', 'grep'] }],
+    },
     parameters: {
       command: {
         type: 'string',

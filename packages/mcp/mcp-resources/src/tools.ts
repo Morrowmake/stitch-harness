@@ -34,6 +34,7 @@ export function registerResourceTools(ctx: Context, request: RequestResource): (
     yield ctx.tools.register(defineTool({
       name: 'list_mcp_resources',
       description: 'List resources available from an MCP server.',
+      shortPrompt: { summary: 'List and read resources from MCP servers' },
       parameters: listParameters,
       output,
       isConcurrencySafe: () => true,
@@ -44,6 +45,7 @@ export function registerResourceTools(ctx: Context, request: RequestResource): (
     yield ctx.tools.register(defineTool({
       name: 'list_mcp_resource_templates',
       description: 'List parameterized resource URI templates from an MCP server.',
+      shortPrompt: { summary: 'List and read resources from MCP servers' },
       parameters: listParameters,
       output,
       isConcurrencySafe: () => true,
@@ -54,6 +56,7 @@ export function registerResourceTools(ctx: Context, request: RequestResource): (
     yield ctx.tools.register(defineTool({
       name: 'read_mcp_resource',
       description: 'Read an MCP resource by URI from the named server. Use a listed URI or an expanded resource template.',
+      shortPrompt: { summary: 'List and read resources from MCP servers' },
       parameters: {
         server: listParameters.server,
         uri: { type: 'string', required: true, description: 'Resource URI to read.' },

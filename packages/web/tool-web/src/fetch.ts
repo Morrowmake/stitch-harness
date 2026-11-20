@@ -457,6 +457,7 @@ export function applyWebFetchTool(ctx: Context, timeoutMs: number, maxOutputChar
 
   ctx.tools.register(defineTool({
     name: 'web_fetch',
+    shortPrompt: { summary: 'Fetch a web page as text', rules: ['Cite the URLs you used.'], order: ctx.systemPrompt.getSectionOrder('TOOL_WEB_FETCH') },
     description: 'Fetch the content of a specific HTTP(S) URL and return it decoded to text.',
     parameters: {
       url: { type: 'string', required: true, description: 'The HTTP(S) URL to fetch.' },

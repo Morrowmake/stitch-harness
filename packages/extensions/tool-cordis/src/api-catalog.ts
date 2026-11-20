@@ -2614,7 +2614,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         signature: '@Remote componentPreset(): Promise<ComponentPresetMatch>',
         description: 'Read which named component set the profile selects.',
         parameters: [],
-        returns: '`minimal` or `standard` when the enabled components equal that set, otherwise `custom`, with the enabled components.',
+        returns: '`standard` when the enabled components equal that set, otherwise `custom`, with the enabled components.',
       },
       {
         signature: '@Remote installBundle(spec: string, options?: InstallBundleOptions): Promise<ChangeResult>',
@@ -10216,7 +10216,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ToolDefinition',
-    declaration: 'export interface ToolDefinition extends ToolSchema {\n    readonly output: ToolOutputDefinition;\n    execute(args: unknown, exec: ToolRunContext): Promise<unknown>;\n    projectContent?(exec: Readonly<ToolExecution>, result: Readonly<ToolExecutionResult>): ContentBlock[] | undefined;\n    finalizeContent?(exec: Readonly<ToolExecution>, result: Readonly<ToolExecutionResult>): ContentBlock[] | undefined;\n    timeoutMs?: number;\n    isConcurrencySafe?(args: unknown): boolean;\n    presentCall?(args: unknown): ToolCallView | undefined;\n    presentResult?(args: unknown, result: ToolResult): ToolResultView | undefined;\n}',
+    declaration: 'export interface ToolDefinition extends ToolSchema {\n    readonly output: ToolOutputDefinition;\n    execute(args: unknown, exec: ToolRunContext): Promise<unknown>;\n    projectContent?(exec: Readonly<ToolExecution>, result: Readonly<ToolExecutionResult>): ContentBlock[] | undefined;\n    finalizeContent?(exec: Readonly<ToolExecution>, result: Readonly<ToolExecutionResult>): ContentBlock[] | undefined;\n    timeoutMs?: number;\n    shortPrompt?: ToolShortPrompt;\n    isConcurrencySafe?(args: unknown): boolean;\n    presentCall?(args: unknown): ToolCallView | undefined;\n    presentResult?(args: unknown, result: ToolResult): ToolResultView | undefined;\n}',
   },
   {
     name: 'ToolDispatchExecution',
@@ -10325,6 +10325,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ToolSchema',
     declaration: 'export interface ToolSchema {\n    deferLoading?: true;\n    name: string;\n    description: string;\n    parameters: Record<string, unknown>;\n}',
+  },
+  {
+    name: 'ToolShortPrompt',
+    declaration: 'export interface ToolShortPrompt {\n    readonly summary?: string;\n    readonly rules?: readonly ToolShortPromptRule[];\n    readonly order?: number;\n    readonly replaces?: readonly string[];\n}',
+  },
+  {
+    name: 'ToolShortPromptRule',
+    declaration: 'export type ToolShortPromptRule = string | {\n    readonly text: string;\n    readonly when?: readonly string[];\n    readonly unless?: readonly string[];\n};',
   },
   {
     name: 'ToolSpec',

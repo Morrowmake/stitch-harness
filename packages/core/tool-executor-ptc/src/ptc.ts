@@ -264,6 +264,13 @@ export function createRunCodeTransport(
     name: toolName,
     // Getters below project the current program format; argument validation uses this static spec.
     description: TYPESCRIPT_FLAVOR.description,
+    // Named program tools carry their own capability description, so only the transport gets a summary.
+    ...options === undefined ? {
+      shortPrompt: {
+        summary: 'Run a TypeScript program that calls the available tools',
+        rules: ['Call tools inside programs as `await tools.name(args)`.'],
+      },
+    } : {},
     parameters: {
       code: { type: 'string', required: true, description: TYPESCRIPT_FLAVOR.codeDescription },
       description: {

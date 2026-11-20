@@ -1,6 +1,6 @@
 /**
- * Step 3, the component picker: Minimal, Standard (the shipped default), or a
- * custom set of ticks, applied in one batched plugin-manager change.
+ * Step 3, the component picker: Standard (the shipped default) or a custom set
+ * of ticks, applied in one batched plugin-manager change.
  */
 import { useEffect, useState, type ReactNode } from 'react'
 import { Button, Checkbox, SegmentedControl, StateDot } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -24,6 +24,8 @@ export interface ComponentsResult {
 export interface ComponentStepProps {
   readonly components: ComponentOperations
   readonly t: Translate<FirstRunKey>
+  /** Opened by the automatic first run: Custom then starts from Core alone instead of the current ticks. */
+  readonly firstRun: boolean
   readonly onApplied: (result: ComponentsResult) => void
 }
 
@@ -34,7 +36,7 @@ type Listed = { readonly status: 'loading' } | { readonly status: 'ready'; reado
  * @param props - operations, translator, and the applied callback.
  * @returns the step body.
  */
-export function ComponentStep({ components, t, onApplied }: ComponentStepProps): ReactNode {
+export function ComponentStep({ components, t, firstRun, onApplied }: ComponentStepProps): ReactNode {
   const [generation, setGeneration] = useState(0)
   const [listed, setListed] = useState<Listed>({ status: 'loading' })
   /** The user's explicit mode; `undefined` follows the profile's current set. */
@@ -70,7 +72,8 @@ export function ComponentStep({ components, t, onApplied }: ComponentStepProps):
   const choose = (next: ComponentPreset): void => {
     setMode(next)
     if (next !== 'custom') setSelection(presetSelection(list, next))
-    // Custom opens on the ticks shown now, which are Standard's unless the profile differs.
+    // In the first run Custom starts with only Core on; opened later it keeps the ticks shown now.
+    else if (firstRun) setSelection(new Set())
   }
   const apply = (): void => {
     const changes = bundleChanges(list, ticks)
@@ -93,7 +96,6 @@ export function ComponentStep({ components, t, onApplied }: ComponentStepProps):
       <p className={css.intro}>{t('components.intro')}</p>
       <SegmentedControl id="first-run-components" label={t('components.preset')} value={shownMode}
         options={[
-          { value: 'minimal', label: t('preset.minimal'), disabled: busy },
           { value: 'standard', label: t('preset.standard'), disabled: busy },
           { value: 'custom', label: t('preset.custom'), disabled: busy },
         ]}
@@ -101,13 +103,6 @@ export function ComponentStep({ components, t, onApplied }: ComponentStepProps):
       <div id={`first-run-components-${shownMode}-panel`} role="tabpanel" aria-labelledby={`first-run-components-${shownMode}`} className={css.group}>
         <div className={css.presets}>
           <p className={css.hint}>{t(`preset.${shownMode}Hint` as const)}</p>
-          {shownMode === 'custom'
-            ? (
-              <button type="button" className={css.link} disabled={busy} onClick={() => { setSelection(presetSelection(list, 'minimal')) }}>
-                {t('components.startFromMinimal')}
-              </button>
-            )
-            : null}
         </div>
         <p className={css.muted}>{t('components.core')}</p>
         <ul className={css.rows}>

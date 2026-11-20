@@ -84,7 +84,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | `@deepseek-ai/dsh-client-ui-entry-customization` | no | Customize plugin entries in the left sidebar, conversation views, and right sidebar, and quickly create new plugins. |
 | `@deepseek-ai/dsh-client-ui-file-actions` | no | Original-file saving and image clipboard actions for Web and Desktop |
 | `@deepseek-ai/dsh-client-ui-file-drag` | no | Application-owned file drag transfers and localized failure feedback |
-| `@deepseek-ai/dsh-client-ui-first-run` | no | First-run setup in the web client and the desktop app: a provider picker (local Ollama and LM Studio first, any OpenAI-compatible URL, then hosted providers with sign-in or API key, and a default model) followed by the Minimal / Standard / Custom component picker, also reachable from the Plugins page and Settings → Models |
+| `@deepseek-ai/dsh-client-ui-first-run` | no | First-run setup in the web client and the desktop app: a provider picker (local Ollama and LM Studio first, any OpenAI-compatible URL, then hosted providers with sign-in or API key, and a default model) followed by the Standard / Custom component picker, also reachable from the Plugins page and Settings → Models |
 | `@deepseek-ai/dsh-client-ui-goal` | no | Session goal surface: GoalBar docked above the composer, read from the goal session projection |
 | `@deepseek-ai/dsh-client-ui-input-trigger` | no | Input trigger pipeline: '/' and '@' detection, candidate menu, pick routing to registered sources |
 | `@deepseek-ai/dsh-client-ui-jobs` | no | Session panel background-job list with on-demand streaming record panels |

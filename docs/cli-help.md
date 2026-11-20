@@ -173,7 +173,7 @@ Example:
 <a id="stitch-web"></a>
 ## `stitch web`
 
-Invocations: `stitch web --help`, `stitch --profile web --help`, `stitch web-minimal --help`, `stitch --profile web-minimal --help`
+Invocations: `stitch web --help`, `stitch --profile web --help`
 
 ```text
 Usage: stitch --profile web [options]

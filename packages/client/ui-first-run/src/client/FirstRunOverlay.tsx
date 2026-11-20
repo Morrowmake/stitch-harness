@@ -105,7 +105,7 @@ function FirstRunDialog({ entry, operations, components, close, t }: {
           : null}
         {step === 'components'
           ? (
-            <ComponentStep components={components} t={t} onApplied={(result) => {
+            <ComponentStep components={components} t={t} firstRun={entry === 'first-run'} onApplied={(result) => {
               setSummary(current => ({ ...current, components: result }))
               advance('components')
             }} />
@@ -118,7 +118,7 @@ function FirstRunDialog({ entry, operations, components, close, t }: {
 }
 
 function DoneStep({ summary, entry, t }: { summary: Summary; entry: FlowEntry; t: Translate<FirstRunKey> }): ReactNode {
-  const presetLabels = { minimal: t('preset.minimal'), standard: t('preset.standard'), custom: t('preset.custom') }
+  const presetLabels = { standard: t('preset.standard'), custom: t('preset.custom') }
   return (
     <div className={css.group}>
       {entry === 'components' ? null : (

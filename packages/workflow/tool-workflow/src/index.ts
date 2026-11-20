@@ -333,6 +333,11 @@ export function apply(ctx: Context, config: Config): void {
   ctx.tools.register(defineTool({
     name: toolName,
     description: DESCRIPTION,
+    shortPrompt: {
+      summary: 'Run a JavaScript script that orchestrates many subagents',
+      rules: [`Use ${toolName} only when the user asks for a workflow or large multi-agent orchestration.`],
+      order: ctx.systemPrompt.getSectionOrder('TOOL_WORKFLOW'),
+    },
     parameters: {
       script: {
         type: 'string',

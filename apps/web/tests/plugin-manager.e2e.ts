@@ -13,7 +13,7 @@ import { HIDDEN_BUNDLES } from '@deepseek-ai/dsh-official-bundles'
 import { afterAll, beforeAll, describe, expect, it, onTestFailed, onTestFinished, vi } from 'vitest'
 import { join } from 'node:path'
 import {
-  SCAFFOLD_DEFAULTS_BUNDLE, assertFixtureInventory, captureStableAria, compareOrRefreshGolden,
+  SCAFFOLD_DEFAULTS_BUNDLE, SCAFFOLD_WEB_BUNDLES, assertFixtureInventory, captureStableAria, compareOrRefreshGolden,
   launchWebScaffold, seedSession, watchConsole, webSnapshotMode, type WebScaffold,
 } from './scaffold.ts'
 import {
@@ -33,7 +33,7 @@ const { version: officialVersion } = JSON.parse(await readFile(
 )) as { version: string }
 const MODE = webSnapshotMode()
 /** The profile manifest's bundles as the scaffold initializes them. */
-const SCAFFOLD_BUNDLES = ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', SCAFFOLD_DEFAULTS_BUNDLE]
+const SCAFFOLD_BUNDLES = [...SCAFFOLD_WEB_BUNDLES, SCAFFOLD_DEFAULTS_BUNDLE]
 
 describe('web e2e: plugin manager', () => {
   let scaffold: WebScaffold

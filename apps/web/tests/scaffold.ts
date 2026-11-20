@@ -86,6 +86,10 @@ import { provideCmdline } from '@deepseek-ai/dsh-cmdline'
 import { startPrefixProxy, type PrefixProxy } from './prefix-proxy.ts'
 import { REPO_ROOT, requireBuilt, requireDist } from './support.ts'
 import { brandString } from '@deepseek-ai/dsh-brand'
+import { PROFILE_TEMPLATES } from '@deepseek-ai/dsh-official-bundles'
+
+/** The shipped web bundles every scaffold profile starts from: dsh-base, dsh-web-app, and the Standard components. */
+export const SCAFFOLD_WEB_BUNDLES: readonly string[] = PROFILE_TEMPLATES.web!.bundles
 
 type AppBoot = typeof import('@deepseek-ai/dsh-app-boot')
 let builtAppBoot: AppBoot | undefined
@@ -724,7 +728,7 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
       // A real profile: the shipped web bundles plus each fixture package,
       // installed the way `stitch plugin add` leaves them.
       const dependencies: Record<string, string> = {}
-      const bundles = ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', ...options.profile?.bundles ?? []]
+      const bundles = [...SCAFFOLD_WEB_BUNDLES, ...options.profile?.bundles ?? []]
       for (const entry of options.profile?.packages ?? []) {
         const manifest = JSON.parse(await readFile(join(entry.dir, 'package.json'), 'utf8')) as { name: string }
         dependencies[manifest.name] = `file:${entry.dir}`

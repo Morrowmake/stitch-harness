@@ -45,6 +45,7 @@ export function apply(ctx: Context): void {
   ctx.tools.register(defineTool({
     name: 'enter_worktree',
     description: 'Change this session\'s working directory to a Git worktree of the checkout it is in. An existing worktree named name is entered as it is. Otherwise a new branch and worktree are created from a local commit, branch, or tag, and uncommitted files stay in the source checkout. exit_worktree returns to the source checkout.',
+    shortPrompt: { summary: 'Enter or leave a Git worktree for this session' },
     parameters: {
       name: { type: 'string', description: 'Worktree to enter, also the branch name and checkout directory of a new one: a few lowercase words joined by hyphens that describe the task, such as fix-login-retry. Omit to create a worktree with a generated name.' },
       from: { type: 'string', description: 'Local commit, branch, or tag a new worktree starts from. Defaults to HEAD; no fetch is performed. Fails when the worktree already exists.' },
@@ -72,6 +73,7 @@ export function apply(ctx: Context): void {
   ctx.tools.register(defineTool({
     name: 'exit_worktree',
     description: 'Change this session\'s working directory from the worktree it is in back to the checkout it entered that worktree from, and report the worktree left. The worktree and its branch remain.',
+    shortPrompt: { summary: 'Enter or leave a Git worktree for this session' },
     parameters: {},
     output: {
       schema: EXITED_SCHEMA,

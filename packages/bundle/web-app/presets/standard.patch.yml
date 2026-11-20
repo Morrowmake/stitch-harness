@@ -17,23 +17,20 @@
             name: '@deepseek-ai/dsh-persona'
             config:
               prefix: You are a coding agent powered by the {{model}} model.
-          # The short-prompt component's persona replaces the long persona and
-          # drops the core tools' (shell and file) usage guidance; every other
+          # The short-prompt component's persona replaces the long persona with a
+          # Pi-style prompt generated from the mounted tools' short contributions,
+          # dropping the long guidance those contributions replace; every other
           # component's prompt contributions (plan mode, team policy, ...) stay.
           - id: persona-short
             component: short-prompt
             name: '@deepseek-ai/dsh-persona'
             config:
-              prefix: |-
-                You are a coding agent powered by the {{model}} model. You help the user with software tasks by reading files, running commands, editing code, and writing new files.
-
-                Guidelines:
-                - Read a file before you edit it. Use edit for precise changes (the old text must match exactly); use write only for new files or complete rewrites.
-                - Use the shell tool to explore and search, for example with ls, grep, and find.
-                - Use the other tools when their descriptions fit the task.
-                - When you summarize your work, write plain text directly; do not run commands to display what you did.
+              prefix: You are a coding agent running inside Stitch, an agent harness you can modify while it runs. Help the user inspect files, run commands, and change code. The model is {{model}}.
+              shortPrompt: true
+              rules:
                 - Be concise, and show file paths clearly.
-              omitSections: ['tool:bash', 'tool:pwsh', 'tool:read', 'tool:write', 'tool:edit', 'tool:apply_patch']
+              # The prefix already names Stitch.
+              omitSections: ['harness:identity']
           - id: agent-instructions
             name: '@deepseek-ai/dsh-agent-instructions'
             config:

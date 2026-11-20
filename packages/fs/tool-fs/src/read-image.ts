@@ -289,6 +289,7 @@ export function applyReadImageTool(ctx: Context): void {
     name: 'read_image',
     description: 'Read a PNG/JPEG/WebP/GIF file and return the image itself. '
       + 'Large images are downscaled automatically; do not install image libraries or create thumbnails to inspect an image.',
+    shortPrompt: { summary: 'Read an image file so you can see it', order: ctx.systemPrompt.getSectionOrder('TOOL_READ') },
     parameters: {
       file_path: { type: 'string', required: true, description: 'Path to the image file, resolved by the filesystem backend.' },
     },

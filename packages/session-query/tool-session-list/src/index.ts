@@ -25,6 +25,7 @@ export function apply(ctx: Context): void {
   ctx.tools.register(defineTool({
     name: 'list_workspace',
     description: 'List workspaces in registry order, including empty workspaces. Returns IDs, titles, paths, and creation and update times.',
+    shortPrompt: { summary: 'List workspaces and their sessions' },
     parameters: pagination,
     output: {
       schema: {
@@ -50,6 +51,7 @@ export function apply(ctx: Context): void {
   ctx.tools.register(defineTool({
     name: 'list_session',
     description: 'List non-subagent sessions by latest human prompt time, newest first, then by ID. Returns IDs, available titles, and ISO creation and update times. Missing activity metadata uses creation time; unavailable titles are null.',
+    shortPrompt: { summary: 'List workspaces and their sessions' },
     parameters: {
       workspace_id: { type: 'string', description: 'Workspace ID from list_workspace. Lists only its member sessions. Omit to list sessions in every workspace and outside all workspaces.' },
       archived: { type: 'boolean', description: 'Return only archived sessions when true, otherwise only unarchived sessions. Defaults to false.' },

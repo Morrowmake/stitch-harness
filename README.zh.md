@@ -10,7 +10,7 @@ Stitch 默认不绑定任何模型提供商，并默认保护隐私：
 
 - **无需账号，没有遥测。** 除了你向自己选择的模型提供商发出的请求，Stitch 不会向任何地方发送数据。
 - **任意模型提供商。** 支持本地模型（Ollama、LM Studio 及任何 OpenAI 兼容服务器）和托管提供商（Anthropic、OpenAI、Google、OpenRouter、DeepSeek 等），可使用 API key，或在提供商支持时使用订阅登录。
-- **自选安装内容。** 安装程序允许你挑选组件；最小安装只包含 read、write、edit、bash 工具以及自我修改内核。
+- **自选安装内容。** 首次运行时由你挑选组件：标准启用 Stitch 默认提供的全部功能；自定义只从核心（read、write、edit、bash 工具以及自我修改内核）开始，由你逐个开启需要的组件。
 - **无需密钥的网页搜索。** 网页搜索使用 DuckDuckGo，并以 Marginalia 作为后备，也可使用你自己的 SearXNG 实例。
 
 Stitch 基于 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 及其**一切皆插件**的架构，由 [Cordis](https://github.com/cordiverse/cordis) 驱动。

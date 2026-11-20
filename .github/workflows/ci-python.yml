@@ -1,12 +1,19 @@
 name: CI Python
 
-# Python pull-request lanes run in their own workflow so a slow runtime build
-# does not keep the CI run in progress: GitHub re-runs failed jobs only after
-# every job of a run finishes, so each workflow can be re-run without waiting
-# for the others. Branch protection requires this workflow's "python checks
-# passed" verdict beside CI's "all checks passed".
+# Python lanes run in their own workflow so a slow runtime build does not keep
+# the CI run in progress. They run only when a pull request touches the Python
+# SDK, its runtime, or their build scripts, so "python checks passed" is not a
+# required branch-protection check.
 on:
   pull_request:
+    paths:
+      - 'python/**'
+      - 'packages/sdk/**'
+      - 'scripts/*python*'
+      - 'scripts/build-exe-for-python-sdk*'
+      - 'scripts/snapshots/python-sdk-single-exe/**'
+      - '.github/workflows/ci-python.yml'
+      - '.github/workflows/build-exe-for-python-sdk.yml'
 permissions:
   contents: read
 

@@ -167,6 +167,7 @@ export function apply(ctx: Context, config: Config): void {
   ctx.tools.register(defineTool({
     name: 'office_render',
     description: 'Render document pages, slides, or worksheet areas as images you can view.',
+    shortPrompt: { summary: 'Render document pages, slides, or worksheets as images' },
     parameters: RENDER_PARAMETERS,
     output: {
       schema: {
@@ -195,6 +196,10 @@ export function apply(ctx: Context, config: Config): void {
   ctx.tools.register(defineTool({
     name: 'office_convert',
     description: 'Convert a document to another format. Return a temporary file to copy to its destination with the shell.',
+    shortPrompt: {
+      summary: 'Convert a document to another format',
+      rules: ['Copy converted or recalculated Office files from their temporary path to the destination.'],
+    },
     parameters: CONVERT_PARAMETERS,
     output: fileOutput('convert', OUTPUT_FORMATS),
     isConcurrencySafe: () => false,
@@ -210,6 +215,10 @@ export function apply(ctx: Context, config: Config): void {
   ctx.tools.register(defineTool({
     name: 'office_recalculate',
     description: 'Recalculate spreadsheet formulas. Return a temporary workbook to copy to its destination with the shell.',
+    shortPrompt: {
+      summary: 'Recalculate spreadsheet formulas',
+      rules: ['Copy converted or recalculated Office files from their temporary path to the destination.'],
+    },
     parameters: RECALCULATE_PARAMETERS,
     output: fileOutput('recalculate', RECALCULATION_FORMATS),
     isConcurrencySafe: () => false,

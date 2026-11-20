@@ -35,7 +35,6 @@ export function createComponentOperations(ctx: Context): ComponentOperations {
           description: meta?.description === undefined ? '' : ctx.locale.resolveText(meta.description),
           ...meta?.icon === undefined ? {} : { icon: meta.icon },
           requires: component.requires.filter(id => byId.has(id)),
-          minimal: component.minimal,
           standard: component.standard,
           enabled: bundle.enabled,
         })

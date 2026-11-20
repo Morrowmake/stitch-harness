@@ -301,6 +301,12 @@ export function presentGlobResult(_args: { pattern: string; path?: string }, res
   return view
 }
 
+/** The short-prompt rule glob and grep share: prefer them over the mounted shell's own file search. */
+export const SEARCH_SHORT_PROMPT_RULES = [
+  { text: 'Use glob and grep instead of find and grep in bash.', when: ['glob', 'grep', 'bash'] },
+  { text: 'Use glob and grep instead of Get-ChildItem and Select-String in PowerShell.', when: ['glob', 'grep', 'pwsh'] },
+] as const
+
 /**
  * Register the `glob` tool and its scope-aware system-prompt guidance.
  *
@@ -320,6 +326,7 @@ export function applyGlobTool(ctx: Context, caps: GlobToolCaps): void {
   const overCapDescription = caps.sampleOverCapGlobResults ? 'is sampled across top-level entries' : 'keeps the first paths'
   const tool = defineTool({
     name: 'glob',
+    shortPrompt: { summary: 'Find files by name pattern', rules: SEARCH_SHORT_PROMPT_RULES, order: ctx.systemPrompt.getSectionOrder('TOOL_GLOB') },
     description: 'Find files, not directories, whose paths match a glob pattern, including hidden and ignored files. '
       + `Returns up to ${caps.maxResults} paths in modification-time order; a larger result ${overCapDescription} `
       + 'and reports where the complete list was saved.',

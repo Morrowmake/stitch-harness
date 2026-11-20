@@ -1,5 +1,5 @@
 ---
-description: "First-run setup for the Stitch web client and desktop app: a provider picker (local Ollama and LM Studio first, any OpenAI-compatible URL, hosted providers with sign-in or API key) with a default model, then the Minimal / Standard / Custom component picker, also reachable from the Plugins page and Settings → Models."
+description: "First-run setup for the Stitch web client and desktop app: a provider picker (local Ollama and LM Studio first, any OpenAI-compatible URL, hosted providers with sign-in or API key) with a default model, then the Standard / Custom component picker, also reachable from the Plugins page and Settings → Models."
 kind: "package-reference"
 ---
 
@@ -54,10 +54,10 @@ The step lists the new provider's models — the ones the flow already knows for
 
 ### Component step
 
-The picker reads the official components from `COMPONENTS` in `@deepseek-ai/dsh-official-bundles` and each bundle's title, description, icon, and selection from `pluginManager.listBundles()`; components the installation does not ship are left out. It opens on the profile's current selection, named Minimal, Standard, or Custom.
+The picker reads the official components from `COMPONENTS` in `@deepseek-ai/dsh-official-bundles` and each bundle's title, description, icon, and selection from `pluginManager.listBundles()`; components the installation does not ship are left out. It opens on the profile's current selection, named Standard or Custom.
 
-- **Minimal** and **Standard** select their sets; the list shows what each includes.
-- **Custom** keeps the current ticks (Standard's on a fresh profile) and enables the checkboxes; **Start from Minimal** resets the ticks to Minimal. Ticking a component ticks what it requires (Agent teams and Workflows tick Subagents); unticking a requirement unticks its dependents.
+- **Standard** selects the shipped default set; the list shows what it includes.
+- **Custom** enables the checkboxes, including the short-prompt switch Standard leaves off. In the automatic first run it starts with only Core on, every component unticked; opened later from the Plugins page or Settings it keeps the current ticks. Ticking a component ticks what it requires (Agent teams and Workflows tick Subagents); unticking a requirement unticks its dependents. A selection with no component on is valid and stays as applied.
 - **Apply** sends only the changed bundles in one `pluginManager.setBundlesEnabled` call. The Done step says when the Host reports that a restart is required.
 
 -----

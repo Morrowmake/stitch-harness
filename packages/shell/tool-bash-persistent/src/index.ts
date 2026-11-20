@@ -417,6 +417,11 @@ function registerPersistentBash(ctx: Context, config: ResolvedConfig): void {
   ctx.tools.register(defineTool({
     name: 'bash',
     description: config.description,
+    shortPrompt: {
+      summary: 'Run shell commands (ls, rg, find, git, etc.)',
+      // Search tools, when mounted, bring their own file-search rule.
+      rules: [{ text: 'Use bash for file operations like ls, rg, find.', unless: ['glob', 'grep'] }],
+    },
     parameters: {
       command: {
         type: 'string',

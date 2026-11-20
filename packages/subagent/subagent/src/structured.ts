@@ -83,6 +83,11 @@ export function attachStructuredRuntime(
 
   childCtx.tools.register({
     ...schemaEntry,
+    shortPrompt: {
+      summary: 'Report your final structured result',
+      rules: [`Report your final answer by calling ${STRUCTURED_OUTPUT_TOOL}, not as plain text.`],
+      order: childCtx.systemPrompt.getSectionOrder('STRUCTURED_OUTPUT'),
+    },
     output: {
       schema: {
         type: 'object',

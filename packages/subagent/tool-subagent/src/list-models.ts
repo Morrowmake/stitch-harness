@@ -104,6 +104,7 @@ export function registerListSubagentModels(ctx: Context): void {
     description:
       'Inspect the routes available for explicit subagent model selection. No arguments: authorized providers. '
       + '`provider`: that provider\'s authorized models. `provider` + `model`: that model and its reasoning efforts.',
+    shortPrompt: { summary: 'List the models available for subagents' },
     parameters: {
       provider: {
         type: 'string',

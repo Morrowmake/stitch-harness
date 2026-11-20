@@ -409,8 +409,8 @@ export type BundleDetail =
 
 /** Which named component set the profile's enabled components equal (`matchComponentPreset` of dsh-official-bundles). */
 export interface ComponentPresetMatch {
-  /** `minimal` / `standard` when the enabled components equal that set exactly, otherwise `custom`. */
-  readonly preset: 'minimal' | 'standard' | 'custom'
+  /** `standard` when the enabled components equal that set exactly, otherwise `custom`. */
+  readonly preset: 'standard' | 'custom'
   /** Enabled component package names, in component order. */
   readonly enabled: readonly string[]
 }

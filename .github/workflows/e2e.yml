@@ -1,40 +1,18 @@
-name: E2E (real DeepSeek API)
+name: E2E (real model API)
 
-# Real-API end-to-end suite (`pnpm run test:e2e`). Unlike ci.yml this job
-# consumes the DEEPSEEK_API_KEY_EXTERNAL secret (mapped to the env var
-# DEEPSEEK_API_KEY the tests read) and hits the external API at
-# https://api.deepseek.com/anthropic (DEEPSEEK_BASE_URL is pinned explicitly so a
-# stray repo-root .env can't redirect the run).
+# Real-API end-to-end suite (`pnpm run test:e2e`), run by hand only
+# (Actions → E2E → Run workflow). It consumes the DEEPSEEK_API_KEY_EXTERNAL
+# secret (mapped to the env var DEEPSEEK_API_KEY the tests read) and calls the
+# external API at https://api.deepseek.com/anthropic (DEEPSEEK_BASE_URL is
+# pinned so a stray repo-root .env can't redirect the run). The `key` job
+# reports whether the secret reaches this run; without it the suite is skipped.
 #
-# pull_request IS a trigger, but GitHub withholds repo secrets from BOTH forked
-# PRs and Dependabot PRs (the latter are same-repo, fork==false, but still
-# keyless). The `key` job reports whether DEEPSEEK_API_KEY_EXTERNAL reaches
-# this run; the e2e job runs only when it does, so a repository without the
-# secret (or an untrusted PR) skips the suite instead of failing. A job skipped
-# by a job-level `if:` reports as a SUCCESSFUL check, so the suite's self-skip
-# without a key can never pass as a green real-API run.
-#
-# SECURITY — NEVER change this trigger to `pull_request_target`. `pull_request`
-# checks out and runs the PR's HEAD code WITHOUT secrets for forks, which is what
-# keeps an untrusted fork from exfiltrating the key. `pull_request_target` runs
-# in the BASE repo's context WITH secrets while still able to check out untrusted
-# fork code — a textbook key-leak vector, especially once this repo is public.
-# The fork/secret model and its public-repo implications are recorded in
-# .agents/notes/implemented/testing/2026-06-19-real-api-e2e-ci.md.
-#
-# Note: scheduled triggers are auto-disabled after 60 days of repo inactivity;
-# push/pull_request/workflow_dispatch act as backstops.
+# SECURITY — NEVER add a `pull_request_target` trigger: it runs untrusted fork
+# code with repository secrets.
 on:
   workflow_dispatch:
-  push:
-    branches: [main, master]
-  pull_request:
-  schedule:
-    # 00:17 UTC nightly = 08:17 Asia/Shanghai — off the top-of-hour cron stampede.
-    - cron: '17 0 * * *'
 
-# Keep only the newest validation in each workflow/ref, including master
-# pushes, nightly runs, and manual dispatches.
+# Keep only the newest manual run per ref.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -129,7 +107,7 @@ jobs:
       # the built artifact under plain Node, resolving plugins through real package
       # exports — the shape a real consumer runs. That requires a prior build.
       - name: Build (lib for the e2e example bins)
-        run: ${{ github.event_name == 'pull_request' && 'pnpm run build:artifacts --profile official' || 'pnpm run build:official' }}
+        run: pnpm run build:official
 
       - name: Prepare Office runtime
         run: pnpm run prepare:primary-runtime --target linux-x64 --output .cache/e2e-office

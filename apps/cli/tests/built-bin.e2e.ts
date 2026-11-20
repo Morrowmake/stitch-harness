@@ -15,6 +15,7 @@ import { withFileLock, writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
 import { startMockLlmServer } from '@deepseek-ai/dsh-llm-mock-server'
 import { parseEntryYaml } from '@deepseek-ai/cordis-plugin-include'
 import { execa } from 'execa'
+import { PROFILE_TEMPLATES } from '@deepseek-ai/dsh-official-bundles'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { testProfileResolution } from './profiles/headless/tests/profile-resolution.ts'
 
@@ -705,7 +706,7 @@ describe.skipIf(!existsSync(dshBin))('dsh BUILT bin (node lib/bin.js, no tsx)', 
       }
       expect(manifest.dependencies).toEqual({})
       expect(manifest.dsh.profile).toEqual({
-        bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'],
+        bundles: PROFILE_TEMPLATES.web!.bundles,
       })
       expect(readFileSync(join(dir, 'cordis.patch.yml'), 'utf8')).toContain('[]')
       expect(readFileSync(join(dir, 'pnpm-workspace.yaml'), 'utf8')).toContain('nodeLinker: hoisted')

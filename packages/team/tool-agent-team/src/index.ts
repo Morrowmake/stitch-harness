@@ -114,9 +114,11 @@ export function apply(ctx: Context, config: Config = {}): void {
     order: ctx.systemPrompt.getSectionOrder('TEAM_POLICY'),
     text: ({ agent }) => enabled(agent) ? TEAM_POLICY : '',
   })
+  const shortPrompt = { summary: 'Create, list, read, or update tasks on the shared team board' }
   ctx.tools.register(defineTool({
     name: 'team_task_create',
     description: 'Create one unowned pending task on the shared Team task board.',
+    shortPrompt,
     parameters: {
       subject: { type: 'string', required: true, description: 'Concise task title.' },
       description: { type: 'string', required: true, description: 'Complete task details and acceptance criteria.' },
@@ -143,6 +145,7 @@ export function apply(ctx: Context, config: Config = {}): void {
   ctx.tools.register(defineTool({
     name: 'team_task_list',
     description: 'List shared tasks, including readiness, owner, revision, blockers, and write-scope warnings.',
+    shortPrompt,
     parameters: {
       status: {
         type: 'string',
@@ -184,6 +187,7 @@ export function apply(ctx: Context, config: Config = {}): void {
   ctx.tools.register(defineTool({
     name: 'team_task_get',
     description: 'Read the complete latest value of one shared task before changing or executing it.',
+    shortPrompt,
     parameters: {
       task_id: { type: 'string', required: true, description: 'Shared task id.' },
     },
@@ -200,6 +204,7 @@ export function apply(ctx: Context, config: Config = {}): void {
   ctx.tools.register(defineTool({
     name: 'team_task_update',
     description: 'Compare-and-set a shared task action using the latest revision from team_task_get or team_task_list.',
+    shortPrompt: { ...shortPrompt, rules: ['Read a team task\'s latest revision before updating it.'] },
     parameters: {
       task_id: { type: 'string', required: true, description: 'Shared task id.' },
       expected_revision: { type: 'integer', required: true, description: 'Current task revision used as the CAS precondition.' },

@@ -1,6 +1,6 @@
 /**
- * Pure component-selection rules for the component picker: the Minimal and
- * Standard sets, prerequisite auto-ticks, and the bundle changes a selection
+ * Pure component-selection rules for the component picker: the Standard
+ * set, prerequisite auto-ticks, and the bundle changes a selection
  * applies. The component list itself comes from the Host through
  * {@link ComponentOperations}.
  */
@@ -18,8 +18,6 @@ export interface ComponentEntry {
   readonly icon?: string
   /** Component ids that must be on for this one to work. */
   readonly requires: readonly string[]
-  /** Member of the Minimal set. */
-  readonly minimal: boolean
   /** Member of the Standard set (today's default composition). */
   readonly standard: boolean
   /** Whether the bundle is selected in the profile right now. */
@@ -27,7 +25,7 @@ export interface ComponentEntry {
 }
 
 /** The named sets the picker offers. */
-export type ComponentPreset = 'minimal' | 'standard' | 'custom'
+export type ComponentPreset = 'standard' | 'custom'
 
 /**
  * Close a selection over prerequisites: every ticked component's requirements are ticked too.
@@ -50,7 +48,7 @@ function withRequirements(components: readonly ComponentEntry[], selection: Read
 /**
  * The ticks of a named set.
  * @param components - the component list.
- * @param preset - `minimal` or `standard`.
+ * @param preset - `standard`.
  * @returns ticked component ids.
  */
 export function presetSelection(components: readonly ComponentEntry[], preset: Exclude<ComponentPreset, 'custom'>): Set<string> {
@@ -89,7 +87,7 @@ export function toggleComponent(
 }
 
 /**
- * Name a selection: Minimal or Standard when it equals that set exactly, else Custom.
+ * Name a selection: Standard when it equals that set exactly, else Custom.
  * @param components - the component list.
  * @param selection - ticked component ids.
  * @returns the matching set name.
@@ -97,7 +95,6 @@ export function toggleComponent(
 export function selectionPreset(components: readonly ComponentEntry[], selection: ReadonlySet<string>): ComponentPreset {
   const same = (other: ReadonlySet<string>): boolean => other.size === selection.size && [...other].every(id => selection.has(id))
   if (same(presetSelection(components, 'standard'))) return 'standard'
-  if (same(presetSelection(components, 'minimal'))) return 'minimal'
   return 'custom'
 }
 

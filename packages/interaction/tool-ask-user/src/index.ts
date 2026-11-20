@@ -38,6 +38,7 @@ export function apply(ctx: Context, config: Config = {}): void {
   }
   ctx.tools.register(defineTool({
     name: 'ask_user_question',
+    shortPrompt: { summary: 'Ask the user a question and wait for the answer' },
     description,
     parameters: {
       questions: {

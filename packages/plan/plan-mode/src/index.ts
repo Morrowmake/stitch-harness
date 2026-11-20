@@ -282,6 +282,7 @@ export class PlanModeController extends Service {
     ctx.tools.register(defineTool({
       name: EXIT_PLAN_MODE,
       description: EXIT_DESCRIPTION,
+      shortPrompt: { summary: 'Present your plan for review and leave plan mode' },
       parameters: {
         plan: { type: 'string', required: true, description: 'The complete plan, as markdown, starting with a # heading that names it.' },
       },

@@ -21,6 +21,7 @@ import type {} from '@deepseek-ai/dsh-session-title-llm'
 import type {} from '@deepseek-ai/dsh-skill'
 import type {} from '@deepseek-ai/dsh-tools'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { PROFILE_TEMPLATES } from '@deepseek-ai/dsh-official-bundles'
 import { textResponse, toolCallResponse } from '../../../packages/core/agent-loop/tests/mock-adapter.ts'
 
 const root = fileURLToPath(new URL('../../..', import.meta.url))
@@ -85,7 +86,7 @@ describe.skipIf(!existsSync(join(root, 'apps/cli/lib/bin.js')))('Official option
     const app = require(join(root, 'packages/boot/app-boot/lib/index.js')) as typeof import('@deepseek-ai/dsh-app-boot')
     const cmdline = require(join(root, 'packages/boot/cmdline/lib/index.js')) as typeof import('@deepseek-ai/dsh-cmdline')
     const directory = join(home, 'profiles', 'web')
-    app.initProfile(directory, ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'])
+    app.initProfile(directory, PROFILE_TEMPLATES.web!.bundles)
     await writeFile(join(directory, 'cordis.yml'), '[]\n')
     await writeFile(join(directory, 'cordis.patch.yml'), JSON.stringify([
       { id: 'agent-default-model', config: { provider: 'bundle-test', model: 'scripted' } },

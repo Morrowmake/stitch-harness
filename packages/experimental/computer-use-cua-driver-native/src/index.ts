@@ -125,7 +125,15 @@ export async function apply(ctx: Context): Promise<void> {
           }
         },
       })
-      inner.tools.register(definition)
+      inner.tools.register({
+        ...definition,
+        shortPrompt: {
+          summary: 'Operate desktop apps through Cua Driver',
+          rules: ['Take a fresh window snapshot before acting on a desktop app.', 'Verify each desktop action\'s outcome from fresh state.'],
+          order: inner.systemPrompt.getSectionOrder('TOOL_COMPUTER_USE'),
+          replaces: ['computer-use:cua-driver-native'],
+        },
+      })
     }
     inner.on('tools/execute', async (exec, next) => {
       if (!names.has(exec.name)) return next()

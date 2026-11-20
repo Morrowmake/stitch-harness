@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { JSON_SCHEMA, load as loadYaml } from 'js-yaml'
 import { rcompare } from 'semver'
-import { docsPages } from '../website/docs.ts'
+import { docsPages } from './doc-pages.ts'
 
 /** Repository root, resolved from this script rather than the invoking directory. */
 const REPOSITORY_ROOT = fileURLToPath(new URL('..', import.meta.url))

@@ -268,27 +268,6 @@ describe('gate graph validation', () => {
     await expect(runGates(subject, subject.length, execute)).resolves.toHaveLength(subject.length)
   })
 
-  it('uses the internal CI benchmark runner without changing the public benchmark scripts', () => {
-    const subject = withPnpmEntrypoint(() => gatesForMode('ci-bench'))
-    const { scripts } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as {
-      scripts: Record<string, string>
-    }
-
-    expect(scripts['check:ci:bench']).toBe('tsx scripts/run-gates.ts ci-bench')
-    expect(subject).toHaveLength(1)
-    expect(subject[0]).toMatchObject({
-      id: 'bench',
-      displayCommand: 'pnpm exec tsx scripts/run-ci-bench.ts',
-      args: ['/private/pnpm.cjs', 'exec', 'tsx', 'scripts/run-ci-bench.ts'],
-    })
-    expect(scripts['test:bench']).toBe('npm run build:bench && npm run build:web && npm run test:bench:built')
-    expect(scripts['build:bench']).toBe(
-      'npm run build:native-system && npm run build:lib && tsdown --config-loader native --config benchmarks/tsdown.config.ts',
-    )
-    expect(scripts['build:native-system']).toBe('tsx native/system/scripts/build.ts --host-addon-only')
-    expect(scripts['test:bench:built']).toBe('tsx scripts/run-bench-suite.ts')
-  })
-
   it('checks all maintained repository references locally and in CI', () => {
     const { scripts } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as {
       scripts: Record<string, string>
@@ -537,7 +516,7 @@ describe('gate graph validation', () => {
     expect(byId.get('coverage')?.needs).toContain('build')
     expect(byId.get('coverage-exempt-heavy')?.needs).toContain('build')
     expect(byId.get('coverage-exempt-heavy')?.args).toContain(
-      'scripts/install-lefthook.spec.ts',
+      'scripts/oxlint-contract.spec.ts',
     )
     expect(observational).not.toHaveLength(0)
     for (const gate of observational) {

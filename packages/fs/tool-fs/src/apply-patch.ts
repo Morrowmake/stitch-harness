@@ -27,6 +27,11 @@ export function applyApplyPatchTool(ctx: Context, sandbox: FsSandboxController):
     name: 'apply_patch',
     description: 'Create, update, delete, or move UTF-8 text files with one patch; '
       + 'prefer it over multiple edit calls when a change spans several files or separated regions.',
+    shortPrompt: {
+      summary: 'Create, update, delete, or move files with one patch',
+      rules: ['Use apply_patch for changes that span several files or regions.'],
+      order: ctx.systemPrompt.getSectionOrder('TOOL_APPLY_PATCH'),
+    },
     parameters: {
       input: { type: 'string', required: true,
         description: 'Patch text: start with *** Begin Patch and end with *** End Patch. '

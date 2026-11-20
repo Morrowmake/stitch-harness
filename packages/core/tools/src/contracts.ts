@@ -23,6 +23,37 @@ export interface ToolOutputDefinition {
   presentationMeta?(args: unknown, value: JsonValue): JsonValue
 }
 
+/**
+ * One rule of a tool's short-prompt contribution: plain text, or text shown only while the named tools are (or are
+ * not) mounted in the assembling scope.
+ */
+export type ToolShortPromptRule = string | {
+  /** The rule text. */
+  readonly text: string
+  /** Show the rule only while every named tool is mounted. */
+  readonly when?: readonly string[]
+  /** Hide the rule while any named tool is mounted. */
+  readonly unless?: readonly string[]
+}
+
+/**
+ * A tool's contribution to the generated short system prompt (the `shortPrompt` mode of `@deepseek-ai/dsh-persona`).
+ * Never model-visible otherwise.
+ */
+export interface ToolShortPrompt {
+  /**
+   * One-line summary without a final period. Tools with identical summaries share one line. Defaults to the first
+   * sentence of the description.
+   */
+  readonly summary?: string
+  /** Short usage rules; a rule several mounted tools declare renders once. */
+  readonly rules?: readonly ToolShortPromptRule[]
+  /** Placement among the tool lines and rules, usually the order of the tool's long guidance section; tools without one follow, by name. */
+  readonly order?: number
+  /** Long guidance sections this contribution replaces in the short prompt. Defaults to `tool:<name>`. */
+  readonly replaces?: readonly string[]
+}
+
 /** A registered tool: its schema plus the execution function. */
 export interface ToolDefinition extends ToolSchema {
   /** Mandatory canonical output declaration. */
@@ -68,6 +99,8 @@ export interface ToolDefinition extends ToolSchema {
    * cooperative implementation that can reach quiescence when the signal aborts.
    */
   timeoutMs?: number
+  /** Summary and rules for the generated short system prompt; see {@link ToolShortPrompt}. */
+  shortPrompt?: ToolShortPrompt
   /**
    * Pure synchronous classifier for overlap with sibling tool calls. Only
    * `true` opts in; omission, exceptions, non-`true` returns, and invalid

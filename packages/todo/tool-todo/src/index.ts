@@ -135,6 +135,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   })
   ctx.tools.register(defineTool({
     name: 'todo_write',
+    shortPrompt: { summary: 'Keep a short task list', rules: ['For multi-step work, keep the todo list current.'] },
     description: describe(allowParallel),
     parameters: {
       todos: {

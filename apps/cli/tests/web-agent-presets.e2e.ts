@@ -21,6 +21,8 @@ import { provideCmdline } from '@deepseek-ai/dsh-cmdline'
 import { type SessionId, SessionLogOffset } from '@deepseek-ai/dsh-session'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type { PatchOptions } from '@deepseek-ai/cordis-plugin-include'
+import type { EntryOptions } from '@deepseek-ai/cordis-plugin-loader'
+import { COMPONENT_PRESETS, PROFILE_TEMPLATES } from '@deepseek-ai/dsh-official-bundles'
 import { afterAll, beforeAll, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { bundlePatchPaths, composeEntries } from '@deepseek-ai/dsh-app-boot'
 import { createPluginProfile } from '../../desktop/src/project-manager.ts'
@@ -167,7 +169,7 @@ async function bootWeb(
   const profileDir = join(home, 'profiles', surface)
   await mkdir(profileDir, { recursive: true })
   if (surface === 'desktop') createPluginProfile(profileDir)
-  else if (profileBundles === undefined) initProfile(profileDir, ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'])
+  else if (profileBundles === undefined) initProfile(profileDir, PROFILE_TEMPLATES.web!.bundles)
   // Product Bundles are installed into the Profile, not the dsh app. Model
   // pnpm's package link for only the selected products; their own production
   // dependencies resolve from the linked workspace packages, while shared
@@ -185,9 +187,15 @@ async function bootWeb(
     patchPath: join(profileDir, 'cordis.patch.yml'),
     patches: [],
   }
+  // Without an explicit selection the profile carries the Standard component set, as the shipped web template does.
   let bundlePatches: PatchOptions[] = [
     ...loadOverlayPatches('dsh-test', BASE_PATCH),
     ...webPatches('dsh-test'),
+    ...COMPONENT_PRESETS.standard.flatMap((name) => {
+      const dir = join(REPO_ROOT, 'packages/component', name.slice('@deepseek-ai/dsh-component-'.length))
+      const manifest = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')) as { dsh: { bundle: { patch: string[] } } }
+      return bundlePatchPaths(dir, manifest.dsh.bundle).flatMap(file => loadOverlayPatches('dsh-test', file))
+    }),
   ]
   if (profileBundles !== undefined) {
     await writeFile(join(profileDir, 'package.json'), JSON.stringify({
@@ -213,7 +221,7 @@ async function bootWeb(
   return await boot('dsh-test', rootConfig, [...bundlePatches, ...overrides], async (bootCtx) => {
     bootCtx.provide('profileContext', { name: surface, dir: profileDir, patchPath: profile.patchPath,
       installAnchor: INSTALL_ANCHOR, home, cwd: home,
-      startedBundles: profileBundles ?? ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'],
+      startedBundles: profileBundles ?? PROFILE_TEMPLATES.web!.bundles,
       overlayPaths: [] })
     await bootCtx.plugin(PluginPackages, { resolution })
     bootCtx.provide('connection', {
@@ -879,7 +887,7 @@ describe.each(['web', 'desktop'] as const)('%s native subagent bundles', (surfac
     const root = await mkdtemp(join(tmpdir(), `dsh-${surface}-native-bundles-`))
     onTestFinished(async () => { await rm(root, { recursive: true, force: true }) })
     return await bootWeb(root, extra, installed.map(packageDir), [
-      '@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', ...installed.map(product => `@deepseek-ai/dsh-subagent-${product}`),
+      ...PROFILE_TEMPLATES.web!.bundles, ...installed.map(product => `@deepseek-ai/dsh-subagent-${product}`),
     ], surface)
   }
 
@@ -1019,7 +1027,7 @@ describe('the standard preset documentation skill', () => {
         utf8Bytes: afterCatalog.utf8Bytes - beforeCatalog.utf8Bytes,
         codePoints: afterCatalog.codePoints - beforeCatalog.codePoints,
         heuristicTokens: afterCatalog.heuristicTokens - beforeCatalog.heuristicTokens,
-      }).toEqual({ utf8Bytes: 500, codePoints: 500, heuristicTokens: 125 })
+      }).toEqual({ utf8Bytes: 496, codePoints: 496, heuristicTokens: 124 })
       const requestTexts = requests.flatMap(request => request.messages.flatMap(message =>
         message.content.flatMap(block => block.type === 'text' ? [block.text] : [])))
       expect(requestTexts.some(text => text.includes(definition.content))).toBe(false)
@@ -1413,6 +1421,88 @@ describe('a session keeps the preset it was created with', () => {
       await handle.dispose()
     }
   })
+})
+
+describe('the short-prompt component', () => {
+  const HOSTS = ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app']
+  const SHORT = '@deepseek-ai/dsh-component-short-prompt'
+  const ADDITIONS = ['@deepseek-ai/dsh-component-web', '@deepseek-ai/dsh-component-planning']
+  /** Answers every request and keeps the main requests' system prompts. */
+  class SystemCapture extends LlmAdapter {
+    readonly systems: string[] = []
+    override resolveModel(provider: string, model: string): Promise<LlmResolvedModelInfo> {
+      return Promise.resolve({ provider, id: model, name: model, context: { contextWindow: 100_000 } })
+    }
+
+    override async * stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
+      // The loop sends the rendered system prompt as the leading system-role message.
+      const [first] = options.messages
+      if (options.purpose === undefined) {
+        this.systems.push(first?.role === 'system' ? first.content.map(block => block.type === 'text' ? block.text : '').join('') : '')
+      }
+      yield { type: 'block-start', index: 0, blockType: 'text' }
+      yield { type: 'block-end', index: 0, block: { type: 'text', text: 'Ready.' } }
+      yield { type: 'finish', reason: { kind: 'stop' } }
+    }
+  }
+
+  /** The system prompt one request of a fresh `standard` session carries in the given composition. */
+  async function systemPrompt(bundles: readonly string[], platform: 'darwin' | 'win32'): Promise<string> {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-short-prompt-'))
+    onTestFinished(() => rm(root, { recursive: true, force: true }))
+    // The shell row follows the platform; pin it so both platforms' prompts are checked on any host.
+    const declaration = composeEntries([webPatches('short prompt')])
+      .find(row => row.id === 'preset-standard')!.config as { plugins: EntryOptions[] }
+    const shell: PatchOptions[] = [{
+      id: 'preset-standard',
+      config: { ...declaration, plugins: composeEntries([[{ insert: declaration.plugins },
+        { id: 'tool-bash', disabled: platform === 'win32' }, { id: 'tool-pwsh', disabled: platform !== 'win32' }]]) },
+    }]
+    const booted = await bootWeb(root, shell, [], [...HOSTS, ...bundles])
+    try {
+      const adapter = new SystemCapture()
+      booted.llm.registerAdapter(['short-prompt'], adapter)
+      const handle = await booted.agents.create({
+        sessionId: brandString<SessionId>(`short-prompt-${randomUUID()}`),
+        agentOptions: { provider: 'short-prompt', model: 'short-prompt-model' },
+        setup: agentCtx => booted.agentPresets.mount(agentCtx, 'standard').then(() => undefined),
+      })
+      try {
+        handle.agent.followup(createUserMessage({ content: [{ type: 'text', text: 'Reply with Ready.' }], source: { kind: 'user' } }))
+        await handle.agent.whenIdle()
+      } finally {
+        await handle.dispose()
+      }
+      expect(adapter.systems).toHaveLength(1)
+      return adapter.systems[0]!.replaceAll(root, '<profile-home>').replaceAll(REPO_ROOT.replace(/\/$/, ''), '<repo>')
+    } finally {
+      await booted.fiber.dispose()
+    }
+  }
+
+  it.each([
+    ['core', 'darwin', [SHORT]],
+    ['core', 'win32', [SHORT]],
+    ['core-web-planning', 'darwin', [...ADDITIONS, SHORT]],
+  ] as const)('generates the %s prompt on %s from the mounted tools', async (name, platform, bundles) => {
+    const prompt = await systemPrompt(bundles, platform)
+    await expect(prompt).toMatchFileSnapshot(`./expected/short-prompt/${name}.${platform}.md`)
+    expect(prompt).toMatch(/^You are a coding agent running inside Stitch, an agent harness you can modify while it runs\./)
+    expect(prompt).toContain(platform === 'win32' ? '- pwsh: ' : '- bash: ')
+    expect(prompt).not.toContain(platform === 'win32' ? 'bash' : 'pwsh')
+    // Tools of components that are off are never mentioned; enabling them adds their lines.
+    for (const tool of ['web_search', 'web_fetch', 'todo_write', 'glob', 'grep', 'subagent', 'create_goal', 'schedule_create']) {
+      expect(prompt.includes(tool)).toBe(name === 'core-web-planning' && ['web_search', 'web_fetch', 'todo_write'].includes(tool))
+    }
+  }, 120_000)
+
+  it('leaves the Standard composition on the long persona and tool guidance', async () => {
+    const prompt = await systemPrompt(COMPONENT_PRESETS.standard, 'darwin')
+    expect(prompt)
+      .toMatch(/^You are an AI agent powered by Stitch\.\n\nYou are a coding agent powered by the short-prompt-model model\.\n\n/)
+    expect(prompt).toContain('Check the [exit code: N] marker on every bash result; investigate failures before moving on.')
+    expect(prompt).not.toContain('<tools>')
+  }, 120_000)
 })
 
 afterAll(async () => { await ctx?.fiber.dispose() })

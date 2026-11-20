@@ -23,7 +23,7 @@ beforeAll(async () => {
   const files = [
     ...globSync('tsconfig*.json', { cwd: sourceRepositoryRoot }),
     '.oxlintrc.json', '.oxlintrc.staged.json', 'package.json', 'lefthook.yml',
-    'apps', 'native', 'packages', 'python', 'scripts', 'vendor', 'website',
+    'apps', 'native', 'packages', 'python', 'scripts', 'vendor',
   ]
   for (const path of files) {
     await cp(join(sourceRepositoryRoot, path), join(repositoryRoot, path), {
@@ -90,7 +90,6 @@ describe('Oxlint executable contract', () => {
       // probe carries the Client suffix to reach the Client aggregate.
       ['client package test', 'packages/client/ui-trajectory/tests', 'tsconfig.client.json', '.client.ts'],
       ['CLI profile test', 'apps/cli/tests/profiles/headless/tests', 'tsconfig.host.json'],
-      ['website', 'website', 'tsconfig.host.json'],
     ] as const
     const source = `export function probePromise(): Promise<void> {
   return Promise.resolve()
@@ -385,7 +384,7 @@ export function unrelatedRead(): void {
     const result = runOxlint([
       '--fix',
       '--no-error-on-unmatched-pattern',
-      'scripts/install-lefthook.mjs',
+      'scripts/libreoffice-packages.mjs',
     ])
 
     expect(result.error).toBeUndefined()

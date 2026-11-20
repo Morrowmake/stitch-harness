@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-first-run",
-  "description": "First-run setup in the web client and the desktop app: a provider picker (local Ollama and LM Studio first, any OpenAI-compatible URL, then hosted providers with sign-in or API key, and a default model) followed by the Minimal / Standard / Custom component picker, also reachable from the Plugins page and Settings → Models",
+  "description": "First-run setup in the web client and the desktop app: a provider picker (local Ollama and LM Studio first, any OpenAI-compatible URL, then hosted providers with sign-in or API key, and a default model) followed by the Standard / Custom component picker, also reachable from the Plugins page and Settings → Models",
   "version": "0.2.2-rc.5",
   "publishConfig": {
     "access": "public"

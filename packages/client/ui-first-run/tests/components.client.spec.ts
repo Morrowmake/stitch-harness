@@ -15,31 +15,29 @@ import { de, en, es, fr, ja, NS, pt, ru, zh } from '../src/client/locales.ts'
 import type { FirstRunEntryInjected, FirstRunOverlayInjected } from '../src/client/types.ts'
 import { FIRST_RUN_SETTINGS_NAMESPACE, FIRST_RUN_VERSION } from '../src/settings.ts'
 
-function entry(id: string, sets: { minimal: boolean; standard: boolean }, enabled: boolean, requires: string[] = []): ComponentEntry {
+function entry(id: string, sets: { standard: boolean }, enabled: boolean, requires: string[] = []): ComponentEntry {
   return { id, bundle: `pkg-${id}`, title: id, description: '', requires, enabled, ...sets }
 }
 
 const LIST = [
-  entry('files', { minimal: true, standard: true }, true),
-  entry('web', { minimal: false, standard: true }, true),
-  entry('subagents', { minimal: false, standard: true }, true),
-  entry('agent-teams', { minimal: false, standard: true }, true, ['subagents']),
-  entry('workflows', { minimal: false, standard: true }, true, ['subagents']),
-  entry('short-prompt', { minimal: true, standard: false }, false),
+  entry('files', { standard: true }, true),
+  entry('web', { standard: true }, true),
+  entry('subagents', { standard: true }, true),
+  entry('agent-teams', { standard: true }, true, ['subagents']),
+  entry('workflows', { standard: true }, true, ['subagents']),
+  entry('short-prompt', { standard: false }, false),
 ]
 
 describe('component selection', () => {
-  it('names the Minimal and Standard sets and the current state', () => {
-    expect([...presetSelection(LIST, 'minimal')]).toEqual(['files', 'short-prompt'])
+  it('names the Standard set and the current state', () => {
     expect([...presetSelection(LIST, 'standard')]).toEqual(['files', 'web', 'subagents', 'agent-teams', 'workflows'])
     expect(selectionPreset(LIST, currentSelection(LIST))).toBe('standard')
-    expect(selectionPreset(LIST, presetSelection(LIST, 'minimal'))).toBe('minimal')
     expect(selectionPreset(LIST, new Set(['files']))).toBe('custom')
+    expect(selectionPreset(LIST, new Set())).toBe('custom')
   })
 
   it('ticks prerequisites with a dependent and unticks dependents with a prerequisite', () => {
-    const minimal = presetSelection(LIST, 'minimal')
-    expect([...toggleComponent(LIST, minimal, 'agent-teams', true)].sort()).toEqual(['agent-teams', 'files', 'short-prompt', 'subagents'])
+    expect([...toggleComponent(LIST, new Set(), 'agent-teams', true)].sort()).toEqual(['agent-teams', 'subagents'])
     const standard = presetSelection(LIST, 'standard')
     expect([...toggleComponent(LIST, standard, 'subagents', false)]).toEqual(['files', 'web'])
     expect([...toggleComponent(LIST, standard, 'workflows', false)]).toEqual(['files', 'web', 'subagents', 'agent-teams'])
@@ -49,8 +47,8 @@ describe('component selection', () => {
 
   it('switches only the bundles a selection changes', () => {
     expect(bundleChanges(LIST, presetSelection(LIST, 'standard'))).toEqual({})
-    expect(bundleChanges(LIST, presetSelection(LIST, 'minimal'))).toEqual({
-      'pkg-web': false, 'pkg-subagents': false, 'pkg-agent-teams': false, 'pkg-workflows': false, 'pkg-short-prompt': true,
+    expect(bundleChanges(LIST, new Set(['short-prompt']))).toEqual({
+      'pkg-files': false, 'pkg-web': false, 'pkg-subagents': false, 'pkg-agent-teams': false, 'pkg-workflows': false, 'pkg-short-prompt': true,
     })
   })
 })

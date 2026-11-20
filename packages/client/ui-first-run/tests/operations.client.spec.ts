@@ -156,8 +156,8 @@ describe('component operations', () => {
     expect(listed).toEqual({
       ok: true,
       value: [
-        { id: 'files', bundle: files!.packageName, title: 'Files & preview', description: 'Tree', icon: 'data:image/svg+xml;base64,AA', requires: [], minimal: files!.minimal, standard: files!.standard, enabled: true },
-        { id: 'subagents', bundle: subagents!.packageName, title: 'subagents', description: '', requires: [], minimal: false, standard: true, enabled: false },
+        { id: 'files', bundle: files!.packageName, title: 'Files & preview', description: 'Tree', icon: 'data:image/svg+xml;base64,AA', requires: [], standard: files!.standard, enabled: true },
+        { id: 'subagents', bundle: subagents!.packageName, title: 'subagents', description: '', requires: [], standard: true, enabled: false },
       ],
     })
     mock.remote.pluginManager.listBundles.mockResolvedValue(refused('gateway/internal', 'no profile', {}))

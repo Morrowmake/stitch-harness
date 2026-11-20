@@ -46,6 +46,7 @@ export function apply(ctx: Context, config: Config = {}): void {
     description:
       'Send a message to an agent. A working agent receives it at its next step; an idle agent starts a new turn with it. '
       + 'Returns delivery confirmation.',
+    shortPrompt: { summary: 'Send a message to another agent' },
     parameters: {
       agent: {
         type: 'string',
@@ -128,6 +129,7 @@ export function apply(ctx: Context, config: Config = {}): void {
       'Ask a subagent to stop its current work. This call returns without waiting for it to stop. '
       + 'You can continue a local subagent\'s conversation later with send_message. '
       + 'External executions stop permanently and cannot receive follow-ups. Subagents it started will keep running.',
+    shortPrompt: { summary: 'Ask a subagent to stop its current work' },
     parameters: {
       agent: {
         type: 'string',
