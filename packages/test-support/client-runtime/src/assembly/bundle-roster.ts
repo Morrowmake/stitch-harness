@@ -26,7 +26,9 @@ import { ClientRoster, type ClientRosterRow } from './roster.ts'
 export const CLI_ANCHOR: string = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', '..', 'apps', 'cli', 'package.json')
 
 // This package does not depend on dsh-official-bundles; the CLI installation's copy is typed by the field read here.
-const officialBundles = createRequire(CLI_ANCHOR)('@deepseek-ai/dsh-official-bundles') as {
+// Node's require bypasses Vite and would resolve the package entry to `lib`, which exists only after a build; unit
+// suites run unbuilt, so this loads the exported source entry through Node's type stripping (it imports no package).
+const officialBundles = createRequire(CLI_ANCHOR)('@deepseek-ai/dsh-official-bundles/src/index.ts') as {
   PROFILE_TEMPLATES: Record<string, { bundles: readonly string[] } | undefined>
 }
 

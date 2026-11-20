@@ -5,7 +5,7 @@ Stitch is a fork of DeepSeek Harness. `AGENTS.md` (imported at the end) is the u
 ## How Stitch works
 
 - Work happens in GitHub pull requests against `master`. Keep each pull request to one change and describe it with `.github/pull_request_template.md`.
-- CI (`.github/workflows/ci.yml`) runs four checks: `pnpm run build`, `pnpm run test`, `pnpm run lint`, and `pnpm run test:snapshot`. These are the only required checks. Run the ones that match your change before you push.
+- CI (`.github/workflows/ci.yml`) runs four checks: `pnpm run build`, `pnpm run test`, `pnpm run lint`, and `pnpm run test:snapshot`. These are the only required checks. Run the ones that match your change before you push. Each CI job starts from a clean checkout: the `test` job runs the unit suites without any build, so a test that loads a package's `lib/` output passes locally only because of an earlier build and fails in CI; the `snapshot` job runs `pnpm run build:artifacts` first because replays load built Typert outputs.
 - Stitch does not publish to npm. Desktop installers for macOS and Windows are built unsigned by `desktop-release.yml` when a `stitch-v<version>` tag is pushed. Python wheels are built in CI but not published.
 - Record user-visible changes in `CHANGELOG.md` under "Unreleased".
 - Git hooks (`lefthook.yml`) lint staged files, check whitespace, check translation pairs, and guard `vendor/`. They install with `pnpm install`.

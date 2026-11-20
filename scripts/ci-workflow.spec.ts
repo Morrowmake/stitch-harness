@@ -84,6 +84,18 @@ describe('CI workflow', () => {
     expect(job.env).toEqual({ STITCH_COVERAGE_TEST_TIMEOUT_MS: '90000' })
   })
 
+  it('builds artifacts and prepares confinement before the snapshot replays', () => {
+    const job = workflowJob(loadWorkflow('.github/workflows/ci.yml'), 'snapshot')
+    if (!Array.isArray(job.steps)) throw new TypeError('CI snapshot job must define steps')
+    const steps = job.steps.filter(isRecord)
+    const preparation = steps.findIndex(step => step.run === 'bash scripts/prepare-ci-bubblewrap.sh')
+    const build = steps.findIndex(step => step.run === 'pnpm run build:artifacts')
+    const snapshot = steps.findIndex(step => step.run === 'pnpm run test:snapshot')
+    expect(preparation).toBeGreaterThanOrEqual(0)
+    expect(build).toBeGreaterThanOrEqual(0)
+    expect(snapshot).toBeGreaterThan(Math.max(preparation, build))
+  })
+
   it('keeps the library build scripts the release rehearsals call', () => {
     const scripts = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8')) as { scripts: Record<string, string> }
     const hostSteps = scripts.scripts['build:lib:host']!.split(' && ')
@@ -352,7 +364,7 @@ describe('bubblewrap preparation script', () => {
     expect(script).toContain('acquire_verified_archive "$BUBBLEWRAP_URL" "$BUBBLEWRAP_SHA256" "$archive"')
   })
 
-  it.each(['ci.yml:test', 'e2e.yml:e2e'])('%s caches the verified archive around its preparation', (lane) => {
+  it.each(['ci.yml:test', 'ci.yml:snapshot', 'e2e.yml:e2e'])('%s caches the verified archive around its preparation', (lane) => {
     const [name, jobName] = lane.split(':') as [string, string]
     const script = readFileSync(resolve(root, 'scripts/prepare-ci-bubblewrap.sh'), 'utf8')
     expect(script).toContain('readonly BUBBLEWRAP_CACHE_DIR="${HOME}/.cache/dsh-ci/bubblewrap"')

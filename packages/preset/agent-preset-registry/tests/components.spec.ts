@@ -1,16 +1,22 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
+import * as ComponentMarker from '../src/component.ts'
 import { agentOn, declare, harness, plugin } from './harness.ts'
 
 const contexts: Context[] = []
 afterEach(async () => { for (const ctx of contexts.splice(0)) await ctx.fiber.dispose() })
-async function setup() { const ctx = await harness(); contexts.push(ctx); return ctx }
-
-const marker = new URL('../src/component.ts', import.meta.url).href
+async function setup() {
+  const ctx = await harness()
+  contexts.push(ctx)
+  // The Loader imports a path natively, which resolves the marker's workspace imports to unbuilt `lib`
+  // outputs; a builtin keeps the source marker without native package resolution.
+  ctx.loader.builtins.component = ComponentMarker
+  return ctx
+}
 
 /** Mount or disable the `component-x` marker row in the Host Loader tree. */
 async function setMarker(ctx: Context, enabled: boolean) {
-  await ctx.loader.root.update([{ id: 'component-x', name: marker, config: { id: 'x' }, disabled: !enabled }])
+  await ctx.loader.root.update([{ id: 'component-x', name: 'cordis:component', config: { id: 'x' }, disabled: !enabled }])
 }
 
 async function tools(ctx: Context, session: string) {

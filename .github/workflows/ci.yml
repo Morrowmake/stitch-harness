@@ -106,7 +106,10 @@ jobs:
         run: pnpm run lint
 
   # Keyless replay of recorded sessions through the shipped profiles
-  # (snapshots/). No model API key is needed.
+  # (snapshots/). No model API key is needed. Replays boot the CLI, whose
+  # Typert loader imports each package's built `lib/typert.host.js`, so the
+  # job emits the artifacts first; recorded tool calls run confined, so it
+  # prepares bubblewrap like the unit test job.
   snapshot:
     name: snapshot tests
     runs-on: ubuntu-24.04
@@ -126,8 +129,26 @@ jobs:
       - name: Install (immutable)
         run: pnpm install --frozen-lockfile
 
-      - name: Build native addon
-        run: pnpm run build:native-system
+      - name: Restore verified bubblewrap archive
+        id: bubblewrap-cache
+        uses: actions/cache/restore@v6.1.0
+        with:
+          path: ~/.cache/dsh-ci/bubblewrap
+          key: bubblewrap-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/prepare-ci-bubblewrap.sh') }}
+
+      - name: Prepare bubblewrap
+        run: bash scripts/prepare-ci-bubblewrap.sh
+
+      - name: Save verified bubblewrap archive
+        if: steps.bubblewrap-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6.1.0
+        with:
+          path: ~/.cache/dsh-ci/bubblewrap
+          key: bubblewrap-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/prepare-ci-bubblewrap.sh') }}
+
+      # Includes the native addon the replays load.
+      - name: Build artifacts
+        run: pnpm run build:artifacts
 
       - name: Snapshot tests
         run: pnpm run test:snapshot
