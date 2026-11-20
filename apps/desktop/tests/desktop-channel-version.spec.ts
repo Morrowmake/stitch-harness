@@ -32,7 +32,7 @@ it.each(['arm64', 'x64'] as const)('embeds a prerelease build version in a signe
     STITCH_DESKTOP_MACOS_TEAM_ID: 'TEAMID1234',
     APPLE_KEYCHAIN_PROFILE: 'channel-test',
   }, 'darwin', arch)
-  expect(config.extraMetadata).toEqual({ dshDesktopAppId: 'com.example.channel-test', version })
+  expect(config.extraMetadata).toEqual({ name: 'stitch-desktop', dshDesktopAppId: 'com.example.channel-test', version })
   expect(config.publish).toBeNull()
 })
 

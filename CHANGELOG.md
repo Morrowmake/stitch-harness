@@ -29,6 +29,10 @@ Stitch release notes. Stitch is a fork of DeepSeek Harness 0.2.2-rc.5; changes m
 - Restored HostConnectionService.requestRejection for DSH 0.2.2-rc.5 plugin compatibility. It and `admit` work for plugins that inject only `connection`, as in rc.5.
 - Short-prompt component that trims the persona prompt while keeping other components' sections.
 
+### Fixed
+
+- The desktop app no longer quits silently at launch while DeepSeek Harness is running. The packaged app was named `@deepseek-ai/dsh-desktop`, so it shared DeepSeek Harness's Electron data directory and single-instance lock. It is now `stitch-desktop`, which also gives it its own Windows uninstall cleanup target and updater cache.
+
 ### Repository
 
 - Removed DeepSeek Harness release, benchmark, documentation-site, and decision-record machinery that Stitch does not use. `scripts/prune-upstream.sh` re-deletes it after an upstream merge.

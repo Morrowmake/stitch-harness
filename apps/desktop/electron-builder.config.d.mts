@@ -14,7 +14,7 @@ export interface DesktopElectronBuilderConfig {
     { readonly from: string, readonly to: 'dsh', readonly filter: readonly ['**/*'] },
     { readonly from: string, readonly to: 'dsh/node_modules', readonly filter: readonly ['**/*'] },
   ]
-  readonly extraMetadata: { readonly dshDesktopAppId: string }
+  readonly extraMetadata: { readonly name: typeof DESKTOP_PACKAGE_NAME, readonly dshDesktopAppId: string }
   readonly asarUnpack: readonly string[]
   readonly extraResources: readonly [
     { readonly from: string, readonly to: 'runtime' },
@@ -62,6 +62,9 @@ export interface DesktopElectronBuilderConfig {
   readonly artifactBuildCompleted: (artifact: { readonly file: string }) => Promise<void> | undefined
   readonly publish: readonly [{ readonly provider: 'generic', readonly url: string }] | null
 }
+
+/** Packaged manifest name; Electron derives app.name, userData and the single-instance lock from it. */
+export const DESKTOP_PACKAGE_NAME: 'stitch-desktop'
 
 /**
  * Create electron-builder configuration from one release environment.

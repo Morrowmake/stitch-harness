@@ -28,6 +28,13 @@ import { prepareWindowsAsarUnpack, verifyWindowsAsarUnpack } from './windows-asa
 import { recordPackagingEvent } from './packaging-run.mjs'
 
 /**
+ * Packaged manifest name. Electron derives app.name, userData and the single-instance lock from it, and
+ * electron-builder the Windows uninstall target and updater cache; the workspace name would share all of
+ * them with an installed DeepSeek Harness.
+ */
+export const DESKTOP_PACKAGE_NAME = 'stitch-desktop'
+
+/**
  * Create electron-builder configuration from one release environment.
  * @param {NodeJS.ProcessEnv} env - Packaging environment.
  * @param {NodeJS.Platform} hostPlatform - Build-host platform used when no explicit target is present.
@@ -102,6 +109,7 @@ export function createElectronBuilderConfig(
     appId,
     protocols: [{ name: 'Stitch', schemes: ['stitch'] }],
     extraMetadata: {
+      name: DESKTOP_PACKAGE_NAME,
       dshDesktopAppId: appId,
       ...buildVersion === productVersion ? {} : { version: buildVersion },
       ...packaged === undefined ? {} : { dshBuildCommit: packaged.commit, dshBuildDirty: packaged.dirty },
