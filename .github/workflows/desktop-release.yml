@@ -112,7 +112,7 @@ jobs:
           cache: pnpm
 
       # The Windows Computer Use helper is a self-contained .NET 10 publish.
-      - uses: actions/setup-dotnet@v5.4.0
+      - uses: actions/setup-dotnet@v6.0.0
         if: runner.os == 'Windows'
         with:
           dotnet-version: '10.0.x'
