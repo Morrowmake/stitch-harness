@@ -7,6 +7,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  rmSync,
   writeFileSync,
 } from 'node:fs'
 import { createRequire } from 'node:module'
@@ -19,6 +20,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import SubagentRuntime from '@deepseek-ai/dsh-subagent'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
+import { resolveProductCli } from '@deepseek-ai/dsh-product-cli'
 import type {
   SubprocessHandle,
   SubprocessOutcome,
@@ -44,6 +46,19 @@ const codexPackage = JSON.parse(readFileSync(
 )) as { version: string; bin: { codex: string } }
 const codexEntry = resolve(dirname(codexPackageJson), codexPackage.bin.codex)
 const codexPackageRoot = dirname(dirname(codexEntry))
+// Only the checkout's native package may answer: no PATH, home, or Stitch download.
+const isolatedResolveHome = mkdtempSync(join(tmpdir(), 'dsh-codex-resolve-home-'))
+const bundledCodex = await resolveProductCli('codex', {
+  bundledFrom: import.meta.url,
+  env: {},
+  homeDir: isolatedResolveHome,
+  dshHome: isolatedResolveHome,
+})
+rmSync(isolatedResolveHome, { recursive: true, force: true })
+if (!bundledCodex.found || bundledCodex.source !== 'bundled') {
+  throw new Error('real Codex specs need the @openai/codex native platform package installed in this checkout')
+}
+const codexExecutable = bundledCodex.path
 
 const roots: string[] = []
 const fixtures: ResponsesFixture[] = []
@@ -150,6 +165,7 @@ async function realHarness(
     env: instance.env,
     ...permissionMode === undefined ? {} : { permissionMode },
     disposeGraceMs: 2_000,
+    executablePath: codexExecutable,
   })
   const parent = {
     id: 'real-parent',
@@ -257,8 +273,7 @@ describe('real @openai/codex 0.153.4 product', () => {
     await run.dispose()
 
     expect(harness.spawnSpecs[0]?.argv).toEqual([
-      process.execPath,
-      codexEntry,
+      codexExecutable,
       'app-server',
       '--stdio',
     ])
@@ -304,6 +319,7 @@ describe('real @openai/codex 0.153.4 product', () => {
       env: safeInstance.env,
       permissionMode: 'never',
       disposeGraceMs: 2_000,
+      executablePath: codexExecutable,
     })
     const bypassFiber = await ctx.plugin(codex, {
       providerName: 'codex-bypass',
@@ -311,6 +327,7 @@ describe('real @openai/codex 0.153.4 product', () => {
       env: bypassInstance.env,
       permissionMode: 'dangerously-bypass-approvals-and-sandbox',
       disposeGraceMs: 2_000,
+      executablePath: codexExecutable,
     })
     const safeParent = {
       id: 'safe-parent',

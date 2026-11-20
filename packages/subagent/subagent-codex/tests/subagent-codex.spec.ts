@@ -1,18 +1,20 @@
 import { mountWorkingDirectoryFixture } from '../../subagent/tests/working-directory-fixture.ts'
 import { randomUUID } from 'node:crypto'
 import { startExternalActivation, externalTestParent } from '../../subagent/tests/external-activation-helpers.ts'
-import { readFileSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
+import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { dirname, join, resolve } from 'node:path'
 import { PassThrough } from 'node:stream'
 import { fileURLToPath } from 'node:url'
 import { Context } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import { parseEntryYaml } from '@deepseek-ai/cordis-plugin-include'
-import { describe, expect, it, vi } from 'vitest'
+import { afterAll, describe, expect, it, vi } from 'vitest'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
 import SubagentRuntime from '@deepseek-ai/dsh-subagent'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
+import { PRODUCT_CLIS } from '@deepseek-ai/dsh-product-cli'
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
 import type {
   SubprocessHandle,
@@ -76,6 +78,17 @@ const CODEX_PLATFORM_PACKAGES = [
   '@openai/codex-win32-arm64',
   '@openai/codex-win32-x64',
 ] as const
+
+const executableDir = mkdtempSync(join(tmpdir(), 'dsh-codex-executable-'))
+/** Configured native executable (no JS extension or shebang); spawned only through fakes. */
+const CONFIGURED_CODEX = join(executableDir, 'codex')
+writeFileSync(CONFIGURED_CODEX, 'not a real Codex binary\n')
+const CONFIGURED_CODEX_REAL = realpathSync(CONFIGURED_CODEX)
+const TEST_LAUNCH = { command: '/opt/codex', args: [] } as const
+
+afterAll(() => {
+  rmSync(executableDir, { recursive: true, force: true })
+})
 
 const fakeParent = {
   id: 'parent',
@@ -250,6 +263,7 @@ function runSpec(
 ): CodexRunSpec {
   return {
     cwd: process.cwd(),
+    launch: TEST_LAUNCH,
     permissionMode: DEFAULT_CODEX_PERMISSION_MODE,
     env: {},
     disposeGraceMs: DEFAULT_DISPOSE_GRACE_MS,
@@ -389,9 +403,11 @@ describe('task admission and package contracts', () => {
         `npm:@openai/codex@${CODEX_VERSION}-${packageName.slice('@openai/codex-'.length)}`,
       ]),
     ))
-    expect(codexAppServerArgv()).toEqual([
+    expect(codexAppServerArgv(TEST_LAUNCH)).toEqual(['/opt/codex', 'app-server', '--stdio'])
+    const wrapper = resolve(dirname(codexPackageJson), codexManifest.bin.codex)
+    expect(codexAppServerArgv({ command: process.execPath, args: [wrapper] })).toEqual([
       process.execPath,
-      resolve(dirname(codexPackageJson), codexManifest.bin.codex),
+      wrapper,
       'app-server',
       '--stdio',
     ])
@@ -402,6 +418,18 @@ describe('task admission and package contracts', () => {
       expect(lockfile).toContain(`  '@openai/codex@${CODEX_VERSION}-${suffix}':`)
       expect(lockfile).toContain(
         `      '${packageName}': '@openai/codex@${CODEX_VERSION}-${suffix}'`,
+      )
+    }
+    const codexCli = PRODUCT_CLIS.codex
+    expect(codexCli.minimumVersion).toBe(codexManifest.version)
+    expect(codexCli.downloadVersion).toBe(codexManifest.version)
+    expect(Object.keys(codexCli.packages).sort()).toEqual(CODEX_PLATFORM_PACKAGES
+      .map(packageName => packageName.slice('@openai/codex-'.length)).sort())
+    for (const [key, pinned] of Object.entries(codexCli.packages)) {
+      expect(pinned!.name).toBe('@openai/codex')
+      expect(pinned!.version).toBe(`${codexManifest.version}-${key}`)
+      expect(lockfile).toContain(
+        `  '@openai/codex@${codexManifest.version}-${key}':\n    resolution: {integrity: ${pinned!.integrity}}`,
       )
     }
 
@@ -486,6 +514,7 @@ describe('task admission and package contracts', () => {
       env: { STITCH_CODEX_INSTANCE: 'safe' },
       permissionMode: 'never',
       disposeGraceMs: 11,
+      executablePath: CONFIGURED_CODEX,
     })
     const bypassFiber = await ctx.plugin(codex, {
       providerName: 'codex-bypass',
@@ -493,6 +522,7 @@ describe('task admission and package contracts', () => {
       env: { STITCH_CODEX_INSTANCE: 'bypass' },
       permissionMode: 'dangerously-bypass-approvals-and-sandbox',
       disposeGraceMs: 29,
+      executablePath: CONFIGURED_CODEX,
     })
     expect(ctx.subagents.getProvider('codex-safe')).toBeDefined()
     expect(ctx.subagents.getProvider('codex-bypass')).toBeDefined()
@@ -607,7 +637,7 @@ describe('task admission and package contracts', () => {
     await ctx.plugin(LocalSubprocessRuntime)
     const child = fakeChild()
     vi.spyOn(ctx.subprocess, 'spawn').mockReturnValue(child.handle)
-    codex.apply(ctx, { env: {}, disposeGraceMs: 3_000 })
+    codex.apply(ctx, { env: {}, disposeGraceMs: 3_000, executablePath: CONFIGURED_CODEX })
     expect(ctx.subagents.getProvider('codex')).toBeDefined()
     const starting = startExternalActivation(ctx, 'codex', request())
     const initialize = await child.peer.nextMethod('initialize')
@@ -702,7 +732,7 @@ describe('task admission and package contracts', () => {
       await mountWorkingDirectoryFixture(ctx)
       await ctx.plugin(SubagentRuntime)
       await ctx.plugin(LocalSubprocessRuntime)
-      await ctx.plugin(codex, {})
+      await ctx.plugin(codex, { executablePath: CONFIGURED_CODEX })
       const spawn = vi.spyOn(ctx.subprocess, 'spawn')
       const controller = new AbortController()
       if (cancelled) controller.abort()
@@ -714,6 +744,23 @@ describe('task admission and package contracts', () => {
       }))).rejects.toThrow(cancelled
         ? 'request was aborted before app-server startup'
         : 'stage: initialize; category: unknown')
+      expect(spawn).not.toHaveBeenCalled()
+    } finally { await ctx.fiber.dispose() }
+  })
+
+  it('rejects a start whose configured executable does not exist before spawning', async () => {
+    const ctx = new Context()
+    try {
+      await ctx.plugin(SessionProjectionRegistry)
+      await mountWorkingDirectoryFixture(ctx)
+      await ctx.plugin(SubagentRuntime)
+      await ctx.plugin(LocalSubprocessRuntime)
+      const missing = join(executableDir, 'missing-codex')
+      await ctx.plugin(codex, { providerName: 'codex-missing', executablePath: missing })
+      const spawn = vi.spyOn(ctx.subprocess, 'spawn')
+      const start = startExternalActivation(ctx, 'codex-missing', request())
+      await expect(start).rejects.toMatchObject({ code: 'PRODUCT_CLI_UNAVAILABLE' })
+      await expect(start).rejects.toThrow(missing)
       expect(spawn).not.toHaveBeenCalled()
     } finally { await ctx.fiber.dispose() }
   })
@@ -1553,7 +1600,7 @@ describe('run lifecycle and quiescence', () => {
     child.peer.respond(threadStart, { thread: { id: 'thread-1', ephemeral: true } })
     const run = await starting
     expect(spawn).toHaveBeenCalledWith({
-      argv: codexAppServerArgv(),
+      argv: ['/opt/codex', 'app-server', '--stdio'],
       cwd: process.cwd(),
       stdio: { stdin: 'pipe', stdout: 'pipe', stderr: 'pipe' },
       graceMs: DEFAULT_DISPOSE_GRACE_MS,
@@ -1913,6 +1960,7 @@ describe('run lifecycle and quiescence', () => {
       request(undefined, controller.signal),
       {
         cwd: process.cwd(),
+        launch: { command: '/opt/codex', args: [] },
         permissionMode: DEFAULT_CODEX_PERMISSION_MODE,
         env: {},
         disposeGraceMs: 10,
@@ -1923,6 +1971,7 @@ describe('run lifecycle and quiescence', () => {
 
     const spawnFailure = startCodexRun(request(), {
       cwd: process.cwd(),
+      launch: { command: '/opt/codex', args: [] },
       permissionMode: DEFAULT_CODEX_PERMISSION_MODE,
       env: {},
       disposeGraceMs: 10,
@@ -2189,6 +2238,7 @@ describe('run lifecycle and quiescence', () => {
       env: { OPENAI_API_KEY: 'fake' },
       permissionMode: 'approve-for-me',
       disposeGraceMs: 25,
+      executablePath: CONFIGURED_CODEX,
     })
 
     const starting = startExternalActivation(ctx, 'codex-diagnostic', {
@@ -2234,6 +2284,7 @@ describe('run lifecycle and quiescence', () => {
       stopReason: 'error',
     })
     expect(spawn).toHaveBeenCalledWith(expect.objectContaining({
+      argv: [CONFIGURED_CODEX_REAL, 'app-server', '--stdio'],
       env: { OPENAI_API_KEY: 'fake' },
       graceMs: 25,
       cwd: process.cwd(),

@@ -39,6 +39,7 @@ import type { PluginPackageRef, PluginRowRef, PluginsSubject } from './slot-cont
 import type { ConfigPageForm } from './slot-contract.ts'
 import { UpdateDialog, VersionSection } from './versions.tsx'
 import { BundleDetailSection } from './BundleDetailSection.tsx'
+import { ProductCliSection } from './ProductCliSection.tsx'
 import { ClientSyncNotice } from './ClientSyncNotice.tsx'
 import css from './PluginManagerPage.module.css'
 
@@ -723,14 +724,16 @@ function RowDetail({ pkg, row, t, resolveText, onBack, renderSlot, renderFactory
  * and configure controls, unless the Host reports an error and no rows; and where it comes from.
  */
 function PackageDetail({
-  pkg, t, resolveText, busy, rowBusy, configured, configure, sections, renderSlot, renderFactory, inMore, versions, detail,
+  pkg, t, resolveText, busy, rowBusy, configured, configure, sections, renderSlot, renderFactory, inMore, versions, detail, productCli,
   onBack, onSetEnabled, onUninstall, onSetRowEnabled, onEnsureVersions, onCheckVersions, onUpdateVersion,
 }: {
   readonly pkg: PackageView
   /** The package's version check, when one started. */
   readonly versions: VersionCheck | undefined
-  /** The bundle's detail document section, shown first among the page's sections. */
+  /** The bundle's detail document section, shown first among the page's sections after the program section. */
   readonly detail: ReactNode
+  /** The program section of a bundle that runs a product CLI, shown before the detail document. */
+  readonly productCli: ReactNode
   readonly t: Translate
   readonly resolveText: ResolveText
   readonly busy: boolean
@@ -813,6 +816,7 @@ function PackageDetail({
       {pkg.error === undefined ? null : <p className={css.reason} role="status">{t('reasonLabel')}: {managementText(pkg.error, t)}</p>}
       {pkg.readOnlyReason === undefined ? null : <p className={css.reason} role="status">{managementText({ code: pkg.readOnlyReason }, t)}</p>}
       <div className={css.detailSections}>
+        {productCli}
         {detail}
         {configured
           ? (
@@ -1576,6 +1580,7 @@ export function PluginManagerPage(props: PluginManagerPageProps): ReactNode {
   const view = props.useStore(state => state.view), { setView, setTab } = props.actions
   const tabs = props.usePluginTabs(snapshot => snapshot)
   const bundleDetails = props.useBundleDetails(snapshot => snapshot)
+  const productClis = props.useProductClis(snapshot => snapshot)
   const language = props.useLocale(snapshot => snapshot.active)
   const selectedTab = props.useStore(state => state.tab)
   // A contributed tab that left the ledger falls back to Installed, and stays there when it returns.
@@ -1831,6 +1836,11 @@ export function PluginManagerPage(props: PluginManagerPageProps): ReactNode {
               renderFactory={props.renderFactorySlot}
               renderSlot={renderSlot}
               inMore={backToMore}
+              productCli={(
+                <ProductCliSection bundle={openPkg.name} state={productClis} t={t} ensure={props.ensureProductClis}
+                  retryRead={props.retryProductClis} download={props.downloadProductCli}
+                  cancel={props.cancelProductCliDownload} remove={props.removeProductCli} />
+              )}
               detail={(
                 <BundleDetailSection name={openPkg.name} version={openPkg.version}
                   language={language} details={bundleDetails} t={t}

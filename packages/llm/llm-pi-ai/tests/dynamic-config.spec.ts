@@ -91,11 +91,11 @@ describe('request-level dynamic profiles', () => {
     const failure = 'llm-pi-ai: provider "openrouter" model "111" needs an api; '
       + 'the installed catalog does not describe it, so set the route\'s api to the wire protocol its endpoint speaks'
 
-    expect(ctx.llm.listProviders()).toEqual([{ id: 'openrouter', name: 'openrouter' }])
+    expect(ctx.llm.listProviders()).toEqual([{ id: 'openrouter', name: 'OpenRouter' }])
     expect(ctx.llm.listConfigurableProviders()).toContainEqual({
-      provider: 'openrouter', displayName: 'openrouter', settingsNs: 'llm-pi-ai',
+      provider: 'openrouter', displayName: 'OpenRouter', settingsNs: 'llm-pi-ai',
       settingsPath: ['providers', 'openrouter'], declared: false,
-      defaultBaseURL: 'https://openrouter.ai/api/v1', nativeAuth: { env: ['OPENROUTER_API_KEY'], oauth: true },
+      defaultBaseURL: 'https://openrouter.ai/api/v1', nativeAuth: { env: ['OPENROUTER_API_KEY'], oauth: true, oauthName: 'OpenRouter' },
       error: failure,
     })
     expect((await ctx.llm.listModels('openrouter')).map(model => model.id)).toEqual([known.id])
@@ -117,7 +117,7 @@ describe('request-level dynamic profiles', () => {
     })
     await configurations.get(ctx)!.update({ providers: { openrouter: { api: 'openai-completions' } } })
     expect(diagnostics).toEqual([undefined])
-    expect(ctx.llm.listProviders()[0]).toEqual({ id: 'openrouter', name: 'openrouter' })
+    expect(ctx.llm.listProviders()[0]).toEqual({ id: 'openrouter', name: 'OpenRouter' })
     const repaired = await assemble(ctx, { provider: 'openrouter', model: '111', messages: [] })
     expect(repaired.message.content).toEqual([{ type: 'text', text: 'hello' }])
     expect(server.requests).toHaveLength(2)
@@ -138,7 +138,7 @@ describe('request-level dynamic profiles', () => {
     await expect(ctx.llm.resolveModelInfo('anthropic', 'removed-model')).rejects.toThrow('modelOverrides names "removed-model"')
     await expect(ctx.llm.resolveModelInfo('retired-route', 'anything')).rejects.toThrow('resolves no models')
     await configurations.get(ctx)!.replace({ providers: { anthropic: {} } })
-    expect(ctx.llm.listProviders()).toEqual([{ id: 'anthropic', name: 'anthropic' }])
+    expect(ctx.llm.listProviders()).toEqual([{ id: 'anthropic', name: 'Anthropic (Claude)' }])
     expect(ctx.llm.listConfigurableProviders().find(entry => entry.provider === 'retired-route')).toBeUndefined()
     expect(ctx.llm.listConfigurableProviders().find(entry => entry.provider === 'anthropic')?.error).toBeUndefined()
   })
@@ -163,12 +163,21 @@ describe('request-level dynamic profiles', () => {
     expect(directory.length).toBeGreaterThan(30)
     expect(directory).toContainEqual({
       provider: 'openai',
-      displayName: 'openai',
+      displayName: 'OpenAI',
       settingsNs: 'llm-pi-ai',
       settingsPath: ['providers', 'openai'],
       declared: false,
       defaultBaseURL: 'https://api.openai.com/v1',
-      nativeAuth: { env: ['OPENAI_API_KEY'], oauth: true },
+      nativeAuth: { env: ['OPENAI_API_KEY'], oauth: true, oauthName: 'ChatGPT Plus/Pro (OpenAI)' },
+    })
+    // Most-used first: OpenAI and Anthropic lead, Google follows, the rest trail alphabetically.
+    const order = directory.map(entry => entry.provider)
+    expect(order.slice(0, 3)).toEqual(['openai', 'anthropic', 'google'])
+    expect(order).not.toContain('openai-codex')
+    expect(order.indexOf('xai')).toBeLessThan(order.indexOf('openrouter'))
+    expect(order.indexOf('deepseek')).toBeLessThan(order.indexOf('ant-ling'))
+    expect(directory.find(entry => entry.provider === 'anthropic')).toMatchObject({
+      displayName: 'Anthropic (Claude)', nativeAuth: { oauth: true, oauthName: 'Claude Pro/Max (Anthropic)' },
     })
     await configurations.get(ctx)!.update({
       providers: { deepseek: { apiKeyEnv: 'PI_DYNAMIC_KEY', baseURL: server.url } },

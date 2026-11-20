@@ -47,6 +47,7 @@ export const API_REMOTE_FORWARDED_EVENTS = [
   { event: 'plugin-manager/changed', mode: 'emit' },
   { event: 'plugin-manager/install-log', mode: 'emit' },
   { event: 'plugin-manager/install-state', mode: 'emit' },
+  { event: 'plugin-manager/product-cli-state', mode: 'emit' },
   { event: 'plugin-manager/update-state', mode: 'emit' },
   { event: 'plugin-market/changed', mode: 'emit' },
   { event: 'settings/document-updated', mode: 'emit' },

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Install this Profile Bundle when a delegated task should run as a fresh, unattended Claude Code session in the parent workspace. Each run accepts one self-contained text task and returns the final answer or a safe failure diagnostic; reasoning, tool traffic, stderr, usage, and workspace diffs stay out of the parent Session. Native Claude settings and authentication remain authoritative, while Profile configuration selects the model, environment, and `permissionMode`. The platform-pinned runtime starts on demand and never falls back to the host `claude` executable. Choose it when isolation and genuine Claude Code behavior matter more than continuation or prompts.
+Install this Profile Bundle when a delegated task should run as a fresh, unattended Claude Code session in the parent workspace. Each run accepts one self-contained text task and returns the final answer or a safe failure diagnostic; reasoning, tool traffic, stderr, usage, and workspace diffs stay out of the parent Session. Native Claude settings and authentication remain authoritative, while Profile configuration selects the model, environment, and `permissionMode`. Stitch does not bundle the Claude Code CLI; each run uses the user's install or a Plugins download. Choose it when isolation and genuine Claude Code behavior matter more than continuation.
 
 ## Table of Contents
 
@@ -44,6 +44,7 @@ The layer inserts Host rows only, so any profile can select it, including the sh
 | `env` | `{}` | Explicit SDK/CLI environment layered over the credential-scrubbed parent environment |
 | `permissionMode` | `dontAsk` | Native non-interactive permission policy fixed for every run from this provider instance |
 | `disposeGraceMs` | `3000` | Grace between the shared managed-range owner's termination tiers |
+| `executablePath` | resolved | Optional non-empty path to the Claude Code executable; when set, no other location is searched |
 
 | `permissionMode` value | Native behavior |
 |---|---|
@@ -53,7 +54,11 @@ The layer inserts Host rows only, so any profile can select it, including the sh
 | `plan` | Run in native planning mode, deny execution approval, and return the completed plan as the final answer |
 | `bypassPermissions` | Explicitly set the SDK's dangerous confirmation and bypass permission checks |
 
-The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-subagent-claude-code) is the exhaustive source for every accepted field and its JSDoc. A configured `model` passes unchanged to every query from that provider instance; omission leaves native model selection in force. Credential-shaped ambient variables are removed before the explicit `env` overlay, so an API key intended for the child must be supplied there. The provider omits the SDK `settingSources` option, so Claude Code reads the host's normal user, project, and local settings relative to the selected child working directory. It does not copy or filter those files, create or modify login state, inspect `PATH`, or fall back to a host `claude` executable.
+The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-subagent-claude-code) is the exhaustive source for every accepted field and its JSDoc. A configured `model` passes unchanged to every query from that provider instance; omission leaves native model selection in force. Credential-shaped ambient variables are removed before the explicit `env` overlay, so an API key intended for the child must be supplied there. The provider omits the SDK `settingSources` option, so Claude Code reads the host's normal user, project, and local settings relative to the selected child working directory. It does not copy or filter those files or create or modify login state.
+
+### Installing the Claude Code CLI
+
+Before each run the provider resolves the executable through [`dsh-product-cli`](../product-cli/README.md#resolution-order): the configured `executablePath`, then a copy Stitch downloaded, then the user's install on `PATH` or in a well-known directory, then the platform package in a development checkout. Installs older than Claude Code 2.1.263 are skipped. Install it with `npm install -g @anthropic-ai/claude-code`, or open Plugins → Claude Code subagent and choose Download in the Program section. The resolved path passes to the SDK as `pathToClaudeCodeExecutable`.
 
 <a id="exposing-the-tool"></a>
 ### Exposing the tool
@@ -80,7 +85,7 @@ The completion notice contains the final Claude Code answer, or the stop reason 
 
 ### Failure and recovery
 
-An install that omits optional dependencies, uses an unsupported platform, or loses the selected payload leaves the provider dormant and fails the first delegation at the SDK startup boundary with a safe `query-start` / `unknown` failure fact; there is no host-CLI fallback. The original product error stays on the internal cause chain and in the provider's Host log. A cancelled run settles as `aborted`.
+When no usable executable is found, the run fails before anything starts with a `PRODUCT_CLI_UNAVAILABLE` error whose message names the Download button, its size, the install command, and any install that is too old; a missing configured `executablePath` produces a message naming that path. Install or download the CLI, or correct `executablePath`, and retry. Other startup failures report a safe `query-start` / `unknown` failure fact; the original product error stays on the internal cause chain and in the provider's Host log. A cancelled run settles as `aborted`.
 
 -----
 
@@ -135,7 +140,7 @@ Read these pages when the package-level contract is not enough. They move from t
 
 #### What the model sees
 
-The Claude Code child receives the standalone text task as one fresh SDK query. Its workspace is the selected child working directory; the selected provider instance fixes the query's configured model, environment, and non-interactive permission mode, while an omitted model and every other product setting come from native Claude configuration. The executable version comes from the Bundle's pinned SDK platform payload.
+The Claude Code child receives the standalone text task as one fresh SDK query. Its workspace is the selected child working directory; the selected provider instance fixes the query's configured model, environment, and non-interactive permission mode, while an omitted model and every other product setting come from native Claude configuration. The executable version is whichever resolved Claude Code is at least 2.1.263.
 
 #### Token effect
 
@@ -169,8 +174,8 @@ These limits define when this provider is a poor fit or needs special operationa
 - **One fresh query and process per run** — there is no continuation, resume, pooling, progress stream, or product-session persistence.
 - **Static instance selection** — Profile rows fix provider names, optional models, and tool bindings; calls cannot choose or change either a provider or model dynamically, and every exposed tool needs a unique `toolName`.
 - **Host settings are intentionally authoritative** — when `model` is omitted, project and user settings choose it; native settings always retain the remaining tools and behavior, and the provider does not provide a filtered or hermetic production mode.
-- **Authentication and account state remain native** — the Bundle supplies the CLI but does not create an account, log in, or rewrite Claude settings; configuration and authentication failures surface with their lifecycle stage and the safe `unknown` fallback rather than a separate public classification.
-- **The SDK platform payload is required at delegation time** — installs that omit optional dependencies, unsupported platforms, and missing or damaged payloads fail at the first query; there is no host-CLI fallback.
+- **Authentication and account state remain native** — the provider does not create an account, log in, or rewrite Claude settings; configuration and authentication failures surface with their lifecycle stage and the safe `unknown` fallback rather than a separate public classification.
+- **The CLI must be installed or downloaded first** — Stitch installations do not bundle it, and neither enabling the Bundle nor a failed delegation downloads it; a user install newer than the tested version runs as found.
 - **No human interaction path** — `AskUserQuestion` is disabled, permission prompts are denied, MCP elicitation is declined, and blocking dialogs fail closed instead of suspending.
 - **Assistant payload is final text only** — failed runs can also expose a separate safe diagnostic; reasoning, intermediate messages, tool traffic, usage, stderr, and workspace diffs remain outside the parent Session. Task identity and terminal results are retained in the parent log.
 - **No optional shared capabilities** — `agentPreset`, `agentOptions`, output schemas, and harness depth enforcement are rejected by the shared service for this provider.
@@ -184,7 +189,7 @@ These limits define when this provider is a poor fit or needs special operationa
 
 This Dev Note is working context for maintainers: open questions and undecided directions. It is explicitly non-authoritative — shipped behavior and limits live in the sections above and in the package code.
 
-- **Payload size disclosure** — the current darwin-arm64 platform payload packs to about 92 MB and unpacks to about 325 MB; these are disclosure numbers, not installation thresholds.
+- **Download size disclosure** — the Plugins download unpacks to about 199 MB on darwin-arm64 and about 219 MB on win32-x64; these are disclosure numbers, not installation thresholds.
 - **Version-pinned protocol** — the runtime dependency is pinned to Agent SDK 0.3.263; upgrading pins a new SDK version and requires re-running the keyless real-product and loader-composition evidence.
 
 </details>

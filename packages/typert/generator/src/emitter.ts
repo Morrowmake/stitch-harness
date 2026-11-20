@@ -817,6 +817,7 @@ class SchemaEmitter {
       case 'intersection': {
         const [head, ...tail] = node.types
         if (head === undefined) return 'z.unknown()'
+        this.assertSatisfiableIntersection(id, node.types)
         return tail.reduce(
           (left, right) => `z.intersection(${left}, ${this.typeSchema(right, substitutions)})`,
           this.typeSchema(head, substitutions),
@@ -1032,6 +1033,29 @@ class SchemaEmitter {
       this.fail(model.export.name, 'generic schema exports require a concrete declaration')
     }
     return name
+  }
+
+  /**
+   * A primitive intersected with an object that names JSON properties (the
+   * `string & { readonly __brand: 'X' }` idiom) admits no wire value: the
+   * primitive half rejects every object and the object half every primitive.
+   * Nominal brands must key their marker by a unique symbol, which the object
+   * projection erases.
+   */
+  private assertSatisfiableIntersection(subject: string, types: readonly TypeNodeId[]): void {
+    const resolved = types.map((type) => {
+      let node = this.renderer.node(type)
+      while (node.kind === 'parenthesized') node = this.renderer.node(node.type)
+      return node
+    })
+    const primitive = resolved.some(node => node.kind === 'literal'
+      || (node.kind === 'keyword' && ['string', 'number', 'bigint', 'boolean'].includes(node.name)))
+    const named = resolved.find(node => node.kind === 'object' && node.members.some(member =>
+      member.kind === 'property' && !member.static && member.visibility === 'public' && member.computed !== 'symbol'))
+    if (primitive && named?.kind === 'object') {
+      const names = named.members.filter(member => member.kind === 'property' && member.computed !== 'symbol').map(member => member.name)
+      this.fail(subject, `primitive intersected with named properties (${names.join(', ')}) admits no JSON value; key a nominal brand by a unique symbol (Branded<'Name'> from @deepseek-ai/dsh-brand)`)
+    }
   }
 
   private keywordSchema(name: string): string {

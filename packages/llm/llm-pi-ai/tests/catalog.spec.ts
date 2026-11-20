@@ -1271,15 +1271,16 @@ describe('configurable-provider directory', () => {
     expect(ctx.llm.listConfigurableProviders()).toHaveLength(catalogOnly)
   })
 
-  it('offers every installed catalog route, including one that only signs in', async () => {
+  it('offers every installed catalog route except a legacy one, including one that only signs in', async () => {
     const ctx = await harness({})
     const offered = ctx.llm.listConfigurableProviders().map(entry => entry.provider)
 
-    // `openai-codex` is the one installed provider that authenticates through
-    // OAuth alone. It is offered like any other because the collection now
-    // carries a durable credential store and a login flow writes into it, so
-    // the route has a posture that works rather than only one that fails.
-    expect(offered).toContain('openai-codex')
+    // `github-copilot` authenticates through a sign-in alone. It is offered
+    // like any other because the collection carries a durable credential store
+    // and a login flow writes into it. `openai-codex` is pi-ai's legacy ChatGPT
+    // route, superseded by `openai`'s own sign-in: not offered for new setups.
+    expect(offered).toContain('github-copilot')
+    expect(offered).not.toContain('openai-codex')
     expect(offered).toContain('anthropic')
     expect(offered).toContain('openai')
     expect(offered).toContain('azure')
@@ -1309,12 +1310,12 @@ describe('configurable-provider directory', () => {
 
     expect(ctx.llm.listConfigurableProviders()).toContainEqual({
       provider: 'openai-codex',
-      displayName: 'openai-codex',
+      displayName: 'OpenAI Codex (legacy)',
       settingsNs: 'llm-pi-ai',
       settingsPath: ['providers', 'openai-codex'],
       declared: false,
       defaultBaseURL: 'https://chatgpt.com/backend-api',
-      nativeAuth: { env: [], oauth: true },
+      nativeAuth: { env: [], oauth: true, oauthName: 'ChatGPT Plus/Pro, Codex (legacy)' },
     })
   })
 })

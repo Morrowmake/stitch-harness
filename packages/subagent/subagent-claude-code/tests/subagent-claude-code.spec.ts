@@ -1,8 +1,9 @@
 import { mountWorkingDirectoryFixture } from '../../subagent/tests/working-directory-fixture.ts'
 import { randomUUID } from 'node:crypto'
 import { startExternalActivation, externalTestParent } from '../../subagent/tests/external-activation-helpers.ts'
-import { readFileSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
+import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { dirname, join, resolve } from 'node:path'
 import { PassThrough } from 'node:stream'
 import { fileURLToPath } from 'node:url'
 import type {
@@ -17,6 +18,7 @@ import { Context } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import { parseEntryYaml } from '@deepseek-ai/cordis-plugin-include'
 import {
+  afterAll,
   afterEach,
   beforeEach,
   describe,
@@ -29,6 +31,7 @@ import type { Agent } from '@deepseek-ai/dsh-agent'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
 import SubagentRuntime from '@deepseek-ai/dsh-subagent'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
+import { PRODUCT_CLIS } from '@deepseek-ai/dsh-product-cli'
 import type {
   SubprocessHandle,
   SubprocessOutcome,
@@ -73,6 +76,16 @@ const CLAUDE_PLATFORM_PACKAGES = [
   '@anthropic-ai/claude-agent-sdk-win32-arm64',
   '@anthropic-ai/claude-agent-sdk-win32-x64',
 ] as const
+
+const executableDir = mkdtempSync(join(tmpdir(), 'dsh-claude-code-executable-'))
+/** Configured executable the provider hands to the mocked SDK; never run. */
+const CONFIGURED_CLAUDE = join(executableDir, 'claude')
+writeFileSync(CONFIGURED_CLAUDE, 'not a real Claude Code binary\n')
+const CONFIGURED_CLAUDE_REAL = realpathSync(CONFIGURED_CLAUDE)
+
+afterAll(() => {
+  rmSync(executableDir, { recursive: true, force: true })
+})
 
 vi.mock('@anthropic-ai/claude-agent-sdk', async importOriginal => ({
   ...await importOriginal<typeof import('@anthropic-ai/claude-agent-sdk')>(),
@@ -309,6 +322,7 @@ function fakeRun(
   const options: FakeRun['options'] = []
   const spec: ClaudeCodeRunSpec = {
     cwd: '/workspace',
+    executablePath: '/opt/claude',
     permissionMode: DEFAULT_CLAUDE_CODE_PERMISSION_MODE,
     env: { ANTHROPIC_API_KEY: 'fake-key' },
     disposeGraceMs: 5,
@@ -389,6 +403,17 @@ describe('task admission and package contracts', () => {
       )
       expect(lockfile).toContain(
         `      '${packageName}': ${CLAUDE_AGENT_SDK_VERSION}`,
+      )
+    }
+    const claudeCli = PRODUCT_CLIS['claude-code']
+    expect(claudeCli.minimumVersion).toBe(sdkManifest.claudeCodeVersion)
+    expect(claudeCli.downloadVersion).toBe(sdkManifest.claudeCodeVersion)
+    expect(Object.keys(claudeCli.packages).length).toBeGreaterThan(0)
+    for (const [key, pinned] of Object.entries(claudeCli.packages)) {
+      expect(pinned!.name).toBe(`@anthropic-ai/claude-agent-sdk-${key}`)
+      expect(pinned!.version).toBe(sdkManifest.version)
+      expect(lockfile).toContain(
+        `  '${pinned!.name}@${sdkManifest.version}':\n    resolution: {integrity: ${pinned!.integrity}}`,
       )
     }
 
@@ -511,6 +536,7 @@ describe('task admission and package contracts', () => {
       env: { STITCH_CLAUDE_INSTANCE: 'safe' },
       permissionMode: 'dontAsk',
       disposeGraceMs: 11,
+      executablePath: CONFIGURED_CLAUDE,
     })
     const bypassFiber = await ctx.plugin(claudeCode, {
       providerName: 'claude-bypass',
@@ -518,6 +544,7 @@ describe('task admission and package contracts', () => {
       env: { STITCH_CLAUDE_INSTANCE: 'bypass' },
       permissionMode: 'bypassPermissions',
       disposeGraceMs: 29,
+      executablePath: CONFIGURED_CLAUDE,
     })
     expect(ctx.subagents.getProvider('claude-safe')).toBeDefined()
     expect(ctx.subagents.getProvider('claude-bypass')).toBeDefined()
@@ -606,6 +633,10 @@ describe('task admission and package contracts', () => {
     for (const permissionMode of ['default', 'interactive', 'future-mode']) {
       expect(() => claudeCode.Config({ permissionMode } as never)).toThrow()
     }
+    expect(claudeCode.Config({}).executablePath).toBeUndefined()
+    expect(claudeCode.Config({ executablePath: '/opt/claude' }).executablePath)
+      .toBe('/opt/claude')
+    expect(() => claudeCode.Config({ executablePath: '' })).toThrow()
   })
 
   it('resolves the safe permission default when apply is called directly', async () => {
@@ -622,7 +653,7 @@ describe('task admission and package contracts', () => {
       options.spawnClaudeCodeProcess!(sdkSpawnOptions())
       return queryFrom([success('native model answer')])
     })
-    claudeCode.apply(ctx, { env: {}, disposeGraceMs: 3_000 })
+    claudeCode.apply(ctx, { env: {}, disposeGraceMs: 3_000, executablePath: CONFIGURED_CLAUDE })
     expect(ctx.subagents.getProvider('claude-code')).toBeDefined()
     const run = await startExternalActivation(ctx, 'claude-code', request())
     await expect(run.result).resolves.toEqual({
@@ -655,6 +686,7 @@ describe('task admission and package contracts', () => {
       },
       permissionMode: 'auto',
       disposeGraceMs: 29,
+      executablePath: CONFIGURED_CLAUDE,
     })
 
     vi.stubEnv('PATH', '/host/bin')
@@ -692,8 +724,8 @@ describe('task admission and package contracts', () => {
       expect.any(Error),
     )
     expect(resolveExecutable).not.toHaveBeenCalled()
-    expect(queryMock.mock.calls[1]?.[0].options)
-      .not.toHaveProperty('pathToClaudeCodeExecutable')
+    expect(queryMock.mock.calls[1]?.[0].options.pathToClaudeCodeExecutable)
+      .toBe(CONFIGURED_CLAUDE_REAL)
     expect(queryMock.mock.calls[1]?.[0].options.permissionMode).toBe('auto')
     expect(queryMock.mock.calls[1]?.[0].options.model)
       .toBe('claude-diagnostic-model')
@@ -705,6 +737,26 @@ describe('task admission and package contracts', () => {
       ANTHROPIC_API_KEY: 'provider-fake-key',
     })
     await run.dispose()
+    await ctx.fiber.dispose()
+  })
+
+  it('rejects a start whose configured executable does not exist before the SDK runs', async () => {
+    const ctx = new Context()
+    await ctx.plugin(SessionProjectionRegistry)
+    await mountWorkingDirectoryFixture(ctx)
+    await ctx.plugin(SubagentRuntime)
+    await ctx.plugin(LocalSubprocessRuntime)
+    const spawn = vi.spyOn(ctx.subprocess, 'spawn')
+    const missing = join(executableDir, 'missing-claude')
+    await ctx.plugin(claudeCode, {
+      providerName: 'claude-missing',
+      executablePath: missing,
+    })
+    const start = startExternalActivation(ctx, 'claude-missing', request())
+    await expect(start).rejects.toMatchObject({ code: 'PRODUCT_CLI_UNAVAILABLE' })
+    await expect(start).rejects.toThrow(missing)
+    expect(queryMock).not.toHaveBeenCalled()
+    expect(spawn).not.toHaveBeenCalled()
     await ctx.fiber.dispose()
   })
 
@@ -843,6 +895,7 @@ describe('query options and result mapping', () => {
     const diagnostics: string[] = []
     const spec: ClaudeCodeRunSpec = {
       cwd: '/workspace',
+      executablePath: '/opt/claude',
       model: 'claude-explicit-model',
       permissionMode: 'acceptEdits',
       env: {
@@ -871,7 +924,7 @@ describe('query options and result mapping', () => {
       permissionMode: 'acceptEdits',
       supportedDialogKinds: ['refusal_fallback_prompt'],
     })
-    expect(options).not.toHaveProperty('pathToClaudeCodeExecutable')
+    expect(options.pathToClaudeCodeExecutable).toBe('/opt/claude')
     expect(options).not.toHaveProperty('allowDangerouslySkipPermissions')
     expect(options.env).toMatchObject({
       HOST_VISIBLE: 'overridden',
@@ -935,6 +988,7 @@ describe('query options and result mapping', () => {
       const child = fakeChild()
       const options = claudeQueryOptions({
         cwd: '/workspace',
+        executablePath: '/opt/claude',
         permissionMode,
         env: {},
         disposeGraceMs: 17,
@@ -959,6 +1013,7 @@ describe('query options and result mapping', () => {
     const child = fakeChild()
     const options = claudeQueryOptions({
       cwd: '/workspace',
+      executablePath: '/opt/claude',
       permissionMode: 'plan',
       env: {},
       disposeGraceMs: 17,
@@ -1102,6 +1157,7 @@ describe('run publication, cancellation, and settlement', () => {
     let childIndex = 0
     const spec: ClaudeCodeRunSpec = {
       cwd: '/workspace',
+      executablePath: '/opt/claude',
       permissionMode: 'dontAsk',
       env: {},
       disposeGraceMs: 5,
@@ -1154,6 +1210,7 @@ describe('run publication, cancellation, and settlement', () => {
     })
     const run = await startClaudeCodeRun(request(), {
       cwd: '/workspace',
+      executablePath: '/opt/claude',
       permissionMode: DEFAULT_CLAUDE_CODE_PERMISSION_MODE,
       env: {},
       disposeGraceMs: 5,
@@ -1204,6 +1261,7 @@ describe('run publication, cancellation, and settlement', () => {
       })
       const run = await startClaudeCodeRun(request(), {
         cwd: '/workspace',
+        executablePath: '/opt/claude',
         permissionMode: DEFAULT_CLAUDE_CODE_PERMISSION_MODE,
         env: {},
         disposeGraceMs: 5,
@@ -1232,6 +1290,7 @@ describe('run publication, cancellation, and settlement', () => {
     let index = 0
     const spec: ClaudeCodeRunSpec = {
       cwd: '/workspace',
+      executablePath: '/opt/claude',
       permissionMode: 'dontAsk',
       env: {},
       disposeGraceMs: 5,
@@ -1283,6 +1342,7 @@ describe('run publication, cancellation, and settlement', () => {
       request(undefined, parentAbort.signal),
       {
         cwd: '/workspace',
+        executablePath: '/opt/claude',
         permissionMode: DEFAULT_CLAUDE_CODE_PERMISSION_MODE,
         env: {},
         disposeGraceMs: 5,
@@ -1549,6 +1609,7 @@ describe('run publication, cancellation, and settlement', () => {
 
     const run = await startClaudeCodeRun(request(), {
       cwd: '/workspace',
+      executablePath: '/opt/claude',
       permissionMode: DEFAULT_CLAUDE_CODE_PERMISSION_MODE,
       env: {},
       disposeGraceMs: 5,
@@ -1588,6 +1649,7 @@ describe('run publication, cancellation, and settlement', () => {
       request(undefined, controller.signal),
       {
         cwd: '/workspace',
+        executablePath: '/opt/claude',
         permissionMode: DEFAULT_CLAUDE_CODE_PERMISSION_MODE,
         env: {},
         disposeGraceMs: 5,
@@ -1613,6 +1675,7 @@ describe('run publication, cancellation, and settlement', () => {
 
     const run = await startClaudeCodeRun(request(), {
       cwd: '/workspace',
+      executablePath: '/opt/claude',
       permissionMode: DEFAULT_CLAUDE_CODE_PERMISSION_MODE,
       env: {},
       disposeGraceMs: 5,
@@ -1641,6 +1704,7 @@ describe('run publication, cancellation, and settlement', () => {
 
     const run = await startClaudeCodeRun(request(), {
       cwd: '/workspace',
+      executablePath: '/opt/claude',
       permissionMode: DEFAULT_CLAUDE_CODE_PERMISSION_MODE,
       env: {},
       disposeGraceMs: 5,

@@ -15,8 +15,8 @@
   en: d152484eb41ac6b4
   zh: 09388d293f9be9cb
 /deepseek-ai-dsh-client-ui-plugin-manager/use-this-package:
-  en: 2d126bdb0ef38be4
-  zh: 2390005566ea5e39
+  en: b4f5aacad618d623
+  zh: 056fe8525af9a399
 /deepseek-ai-dsh-client-ui-plugin-manager/use-this-package/installing-a-bundle:
   en: 7168556b473a0ddd
   zh: 3155416d2a82096a
@@ -27,8 +27,11 @@
   en: 76b0e8af85db92f7
   zh: 3bb566e8f3c6c80b
 /deepseek-ai-dsh-client-ui-plugin-manager/use-this-package/switching-one-row-of-a-bundle:
-  en: 2c338faf806bd469
-  zh: fe947a1b27382e5d
+  en: cd65aebdd18dde32
+  zh: d361e1cc87d1490b
+/deepseek-ai-dsh-client-ui-plugin-manager/use-this-package/claude-code-and-codex-programs:
+  en: 92e6a6d4b39e659b
+  zh: ca97cb255326b5bf
 /deepseek-ai-dsh-client-ui-plugin-manager/use-this-package/configuration-pages:
   en: 501cc3aaee34ea6c
   zh: 36599c3a716fb4f2

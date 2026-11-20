@@ -91,6 +91,8 @@ const sdkPackage = JSON.parse(readFileSync(
 }
 const platformPackage = `@anthropic-ai/claude-agent-sdk-${process.platform}-${process.arch}`
 const platformRoot = resolve(sdkRoot, '..', platformPackage.split('/')[1]!)
+// The provider would prefer a newer user install; this suite pins the
+// distributed 2.1.263 binary by configuring it explicitly.
 const claudeBin = join(
   platformRoot,
   process.platform === 'win32' ? 'claude.exe' : 'claude',
@@ -224,6 +226,7 @@ async function realHarness(
     env: instance.env,
     ...permissionMode === undefined ? {} : { permissionMode },
     disposeGraceMs: 3_000,
+    executablePath: claudeBin,
   })
   const parent = {
     id: 'real-parent',
@@ -396,6 +399,7 @@ describe('real Claude Agent SDK 0.3.263 and its distributed Claude Code 2.1.263 
       env: safeInstance.env,
       permissionMode: 'dontAsk',
       disposeGraceMs: 3_000,
+      executablePath: claudeBin,
     })
     const bypassFiber = await ctx.plugin(claudeCode, {
       providerName: 'claude-bypass',
@@ -403,6 +407,7 @@ describe('real Claude Agent SDK 0.3.263 and its distributed Claude Code 2.1.263 
       env: bypassInstance.env,
       permissionMode: 'bypassPermissions',
       disposeGraceMs: 3_000,
+      executablePath: claudeBin,
     })
     const safeParent = {
       id: 'safe-parent',

@@ -9,7 +9,7 @@ kind: "package-bundle"
 
 ## 概述
 
-当委派任务应在父工作区中以全新、无人值守的 Claude Code 会话运行时，安装这个 Profile Bundle。每次运行接受一个自包含文本任务，并返回最终答案或安全的失败诊断；推理、工具通信、stderr、用量信息和工作区差异不会进入父 Session。Claude 原生设置与身份验证继续是权威来源，而 Profile 配置选择模型、环境和 `permissionMode`。针对平台锁定的运行时仅在需要时启动，并且绝不会回退到宿主 `claude` 可执行文件。当隔离和真实 Claude Code 行为比续接或提示更重要时，选择本包。
+当委派任务应在父工作区中以全新、无人值守的 Claude Code 会话运行时，安装这个 Profile Bundle。每次运行接受一个自包含文本任务，并返回最终答案或安全的失败诊断；推理、工具通信、stderr、用量信息和工作区差异不会进入父 Session。Claude 原生设置与身份验证继续是权威来源，而 Profile 配置选择模型、环境和 `permissionMode`。Stitch 不捆绑 Claude Code CLI；每次运行使用用户自己的安装或从插件页下载的副本。当隔离和真实 Claude Code 行为比续接更重要时，选择本包。
 
 ## 目录
 
@@ -44,6 +44,7 @@ kind: "package-bundle"
 | `env` | `{}` | 叠加在已清理凭据的父环境之上的显式 SDK/CLI 环境 |
 | `permissionMode` | `dontAsk` | 为本提供方实例的每次运行固定的原生非交互权限策略 |
 | `disposeGraceMs` | `3000` | 共享 managed-range owner 各终止层级之间的宽限 |
+| `executablePath` | 自动解析 | 可选的 Claude Code 可执行文件非空路径；设置后不再搜索其他位置 |
 
 | `permissionMode` 值 | 原生行为 |
 |---|---|
@@ -53,7 +54,11 @@ kind: "package-bundle"
 | `plan` | 使用原生规划模式，拒绝执行审批，并把完整计划作为最终答案返回 |
 | `bypassPermissions` | 显式设置 SDK 的危险确认并跳过权限检查 |
 
-生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-subagent-claude-code)是每个受支持字段及其 JSDoc 的穷尽式真源。已配置的 `model` 会原样传给该提供方实例的每次 query；省略时保留原生模型选择。具有凭证特征的环境变量会在显式 `env` 覆盖生效前被移除，因此供子进程使用的 API 密钥必须在该配置中显式提供。提供方省略 SDK 的 `settingSources` 选项，因此 Claude Code 会相对于所选子级工作目录 读取宿主机常规的用户、项目与本地设置。它不会复制或过滤这些文件、创建或修改登录状态、检查 `PATH`，也不会回退到宿主 `claude` 可执行文件。
+生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-subagent-claude-code)是每个受支持字段及其 JSDoc 的穷尽式真源。已配置的 `model` 会原样传给该提供方实例的每次 query；省略时保留原生模型选择。具有凭证特征的环境变量会在显式 `env` 覆盖生效前被移除，因此供子进程使用的 API 密钥必须在该配置中显式提供。提供方省略 SDK 的 `settingSources` 选项，因此 Claude Code 会相对于所选子级工作目录 读取宿主机常规的用户、项目与本地设置。它不会复制或过滤这些文件，也不会创建或修改登录状态。
+
+### 安装 Claude Code CLI
+
+每次运行前，提供方通过 [`dsh-product-cli`](../product-cli/README.zh.md#resolution-order) 解析可执行文件：先是配置的 `executablePath`，然后是 Stitch 下载的副本，再是 `PATH` 或常见目录中的用户安装，最后是开发检出中的平台包。低于 Claude Code 2.1.263 的安装会被跳过。可以用 `npm install -g @anthropic-ai/claude-code` 安装，或在插件页 → Claude Code 子智能体的“程序”区域选择“下载”。解析出的路径以 `pathToClaudeCodeExecutable` 传给 SDK。
 
 <a id="exposing-the-tool"></a>
 ### 暴露工具
@@ -80,7 +85,7 @@ Bundle 将 `tool-subagent-claude-code` 作为 Host 条目插入，因此 `subage
 
 ### 失败与恢复
 
-省略 optional dependencies、当前平台不受支持或所选载荷缺失的安装会让提供方保持休眠，并在第一次委派时于 SDK 启动边界报告安全的 `query-start` / `unknown` 失败事实；不存在宿主 CLI 回退。原始产品错误只保留在内部 cause 链与提供方 Host 日志中。被取消的运行以 `aborted` 结算。
+找不到可用的可执行文件时，运行在启动任何进程之前以 `PRODUCT_CLI_UNAVAILABLE` 错误失败，其消息指出“下载”按钮、下载体积、安装命令以及任何过旧的安装；配置的 `executablePath` 不存在时，消息会指出该路径。安装或下载 CLI，或修正 `executablePath` 后重试。其他启动失败报告安全的 `query-start` / `unknown` 失败事实；原始产品错误只保留在内部 cause 链与提供方 Host 日志中。被取消的运行以 `aborted` 结算。
 
 -----
 
@@ -135,7 +140,7 @@ Bundle 将 `tool-subagent-claude-code` 作为 Host 条目插入，因此 `subage
 
 #### 模型看到什么
 
-Claude Code 子级会在一个全新的 SDK query 中接收独立文本任务。它的工作区是所选子级工作目录；所选提供方实例会固定已配置的模型、环境与非交互权限模式，而省略的模型及其余产品设置来自 Claude 原生配置。可执行版本来自 Bundle 锁定的 SDK 平台载荷。
+Claude Code 子级会在一个全新的 SDK query 中接收独立文本任务。它的工作区是所选子级工作目录；所选提供方实例会固定已配置的模型、环境与非交互权限模式，而省略的模型及其余产品设置来自 Claude 原生配置。可执行版本是解析到的、不低于 2.1.263 的 Claude Code。
 
 #### Token 影响
 
@@ -169,8 +174,8 @@ Claude Code 子级会在一个全新的 SDK query 中接收独立文本任务。
 - **每次运行均新建一个 query 和一个进程**——不支持续接、恢复、池化、进度流或产品会话持久化。
 - **静态选择实例**——Profile 配置项固定提供方名称、可选模型与工具绑定；调用无法动态选择或修改提供方与模型，而且每个公开工具都需要唯一的 `toolName`。
 - **宿主设置有意保持权威**——省略 `model` 时由项目与用户设置选择模型；原生设置始终保留其余工具和行为，本提供方不提供经过筛选或与宿主环境隔离的生产模式。
-- **身份验证与账户状态仍由原生机制管理**——Bundle 会提供 CLI，但不会创建账户、登录或改写 Claude 设置；配置与身份验证失败会公开其生命周期阶段与安全的 `unknown` 回退，而不会增加单独的公开分类。
-- **委派时必须存在 SDK 平台载荷**——省略 optional dependencies 的安装、不受支持的平台以及缺失或损坏的载荷都会在第一次 query 时失败；不会回退到宿主 CLI。
+- **身份验证与账户状态仍由原生机制管理**——提供方不会创建账户、登录或改写 Claude 设置；配置与身份验证失败会公开其生命周期阶段与安全的 `unknown` 回退，而不会增加单独的公开分类。
+- **必须先安装或下载 CLI**——Stitch 安装不捆绑它，启用 Bundle 或委派失败都不会下载；比测试版本更新的用户安装按发现结果运行。
 - **没有人工交互路径**——`AskUserQuestion` 被禁用，权限提示会被拒绝，MCP elicitation 会被拒绝，阻塞对话会以拒绝方式失败而不会挂起。
 - **assistant 载荷仅包含最终文本**——失败运行还可公开独立的安全诊断；推理、中间消息、工具通信、用量、stderr 与工作区差异不会进入父 Session。任务身份与终态结果保存在父日志中。
 - **没有可选的共享能力**——对于本提供方，共享服务会拒绝 `agentPreset`、`agentOptions`、输出 schema 和 harness 深度强制约束。
@@ -184,7 +189,7 @@ Claude Code 子级会在一个全新的 SDK query 中接收独立文本任务。
 
 本开发备注是维护者的工作上下文：开放问题与尚未决定的探索方向。它明确不具权威性——已交付的行为与限制以上文和包代码为准。
 
-- **载荷体积披露**——当前 darwin-arm64 平台载荷压缩后约 92 MB、解包后约 325 MB；这些是披露数字，不是安装阈值。
+- **下载体积披露**——插件页下载在 darwin-arm64 上解包后约 199 MB，在 win32-x64 上约 219 MB；这些是披露数字，不是安装阈值。
 - **版本锁定的协议**——运行时依赖锁定为 Agent SDK 0.3.263；升级会锁定新的 SDK 版本，并需要重新运行无密钥真实产品与 loader 组合证据。
 
 </details>

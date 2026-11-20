@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "First-run setup",
-    "description": "Shows the first-run setup once per profile — model provider (local Ollama and LM Studio first, any OpenAI-compatible server, hosted providers), default model, and Standard / Custom components — and opens it again from the Plugins page and Settings → Models."
+    "description": "Shows the first-run setup once per profile — model provider (Local AI on your computer or network first, then Subscriptions and API access), default model, and Standard / Custom components — and opens it again from the Plugins page and Settings → Models."
   }
 }

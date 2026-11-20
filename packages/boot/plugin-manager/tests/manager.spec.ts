@@ -17,7 +17,8 @@ import {
 } from '@deepseek-ai/dsh-app-boot'
 import { COMPONENT_BUNDLES, COMPONENT_PRESETS, OPTIONAL_BUNDLES } from '@deepseek-ai/dsh-official-bundles'
 import PluginManager, { type Config, type PluginChange, type PluginInstallLogChunk, type PluginInstallProgress, type PluginInstallRequestId } from '../src/index.ts'
-import type { PluginEntryId, PluginOperation } from '../src/types.ts'
+import type { PluginEntryId, PluginOperation, ProductCliId, ProductCliProgress, ProductCliStatus } from '../src/types.ts'
+import * as productCli from '@deepseek-ai/dsh-product-cli'
 import Hmr from '@deepseek-ai/dsh-hmr'
 import Timer from '@deepseek-ai/cordis-plugin-timer'
 import type { PatchOptions } from '@deepseek-ai/cordis-plugin-include'
@@ -2416,4 +2417,72 @@ it('reports profile read, lock, and disposal failures with error codes', async (
     name: 'PluginManagerError', code: 'PLUGIN_MANAGER_UNAVAILABLE',
   })
   expect(readFileSync(manifest, 'utf8')).toBe(saved)
+})
+
+it('lists product CLI statuses from the Stitch home and PATH without contacting a registry', async () => {
+  const { manager } = await fixture('startup')
+  const home = mkdtempSync(join(tmpdir(), 'plugin-manager-product-cli-'))
+  vi.stubEnv('STITCH_HOME', join(home, 'stitch'))
+  vi.stubEnv('HOME', home)
+  vi.stubEnv('PATH', join(home, 'bin'))
+  onTestFinished(() => { vi.unstubAllEnvs(); rmSync(home, { recursive: true, force: true }) })
+  const statuses = await manager.listProductClis()
+  expect(statuses.map(status => [status.id, status.bundle, status.downloaded])).toEqual([
+    ['claude-code', '@deepseek-ai/dsh-subagent-claude-code', false],
+    ['codex', '@deepseek-ai/dsh-subagent-codex', false],
+  ])
+})
+
+it('downloads a product CLI on request, announcing progress under its request id', async () => {
+  const { ctx, manager } = await fixture('startup', false, undefined, { registry: 'https://registry.example.test/' })
+  const progress: ProductCliProgress[] = []
+  ctx.on('plugin-manager/product-cli-state', (event) => { progress.push(event) })
+  const status = { id: 'codex', available: true, source: 'downloaded' } as ProductCliStatus
+  const download = vi.spyOn(productCli, 'downloadProductCli').mockImplementation((_id, options) => {
+    options?.onProgress?.({ phase: 'downloading', receivedBytes: 5, totalBytes: 10 })
+    return Promise.resolve('/stitch/data/product-cli/codex/0.153.4-darwin-arm64/vendor/codex')
+  })
+  const read = vi.spyOn(productCli, 'productCliStatus').mockResolvedValue(status)
+  onTestFinished(() => { download.mockRestore(); read.mockRestore() })
+  const requestId = '5b1c8a1e-0b62-4f6b-9a39-4c3b0f6e9a10' as PluginInstallRequestId
+  expect(await manager.downloadProductCli('codex', requestId)).toBe(status)
+  expect(download).toHaveBeenCalledWith('codex', expect.objectContaining({
+    registries: ['https://registry.example.test/', 'https://registry.npmmirror.com/'],
+  }))
+  expect(progress).toEqual([{ requestId, id: 'codex', phase: 'downloading', receivedBytes: 5, totalBytes: 10 }])
+  expect(await manager.cancelProductCliDownload(requestId)).toBe(false)
+})
+
+it('reports product CLI download failures, cancellation, and removal while busy as remote errors', async () => {
+  const { manager } = await fixture('startup')
+  const requestId = 'f8f7a9a8-5a0b-4d2e-9a07-7c0a1c8e2b11' as PluginInstallRequestId
+  const download = vi.spyOn(productCli, 'downloadProductCli')
+  onTestFinished(() => { download.mockRestore() })
+  download.mockRejectedValueOnce(new productCli.ProductCliDownloadError('integrity', 'mismatch'))
+  await expect(manager.downloadProductCli('claude-code', requestId)).rejects.toMatchObject({
+    code: 'plugin-manager/product-cli-download-failed', details: { reason: 'integrity' },
+  })
+  download.mockImplementationOnce((_id, options) => new Promise((_resolve, reject) => {
+    options?.signal?.addEventListener('abort', () => { reject(new productCli.ProductCliDownloadError('cancelled', 'cancelled')) })
+  }))
+  const running = manager.downloadProductCli('claude-code', requestId)
+  expect(await manager.cancelProductCliDownload(requestId)).toBe(true)
+  await expect(running).rejects.toMatchObject({ code: 'plugin-manager/product-cli-download-cancelled', details: { id: 'claude-code' } })
+  download.mockRejectedValueOnce(new Error('unexpected'))
+  await expect(manager.downloadProductCli('claude-code', requestId)).rejects.toThrow('unexpected')
+  await expect(manager.downloadProductCli('gemini' as ProductCliId, requestId)).rejects.toMatchObject({
+    code: 'plugin-manager/product-cli-download-failed', details: { reason: 'unsupported-platform' },
+  })
+  const remove = vi.spyOn(productCli, 'removeProductCli')
+  onTestFinished(() => { remove.mockRestore() })
+  remove.mockRejectedValueOnce(new productCli.ProductCliDownloadError('busy', 'downloading'))
+  await expect(manager.removeProductCli('codex')).rejects.toMatchObject({
+    code: 'plugin-manager/product-cli-download-failed', details: { reason: 'busy' },
+  })
+  remove.mockRejectedValueOnce(new Error('disk'))
+  await expect(manager.removeProductCli('codex')).rejects.toThrow('disk')
+  remove.mockResolvedValueOnce(undefined)
+  const read = vi.spyOn(productCli, 'productCliStatus').mockResolvedValue({ id: 'codex', downloaded: false } as ProductCliStatus)
+  onTestFinished(() => { read.mockRestore() })
+  expect(await manager.removeProductCli('codex')).toMatchObject({ downloaded: false })
 })

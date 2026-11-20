@@ -81,6 +81,8 @@ export type SubagentErrorCode =
   | 'SUBAGENT_CONTROL_PROJECTIONS_UNAVAILABLE'
   /** Listing children needs the Session store. */
   | 'SUBAGENT_CONTROL_SESSION_STORE_UNAVAILABLE'
+  /** A product provider found no usable Claude Code or Codex executable; install one, then retry. */
+  | 'PRODUCT_CLI_UNAVAILABLE'
 
 /** Typed failure for the subagent seam; `code` is one {@link SubagentErrorCode}. */
 export class SubagentError extends HarnessError {

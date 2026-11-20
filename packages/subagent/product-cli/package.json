@@ -1,0 +1,45 @@
+{
+  "name": "@deepseek-ai/dsh-product-cli",
+  "description": "Find a usable Claude Code or Codex executable, or download the pinned native CLI into the Stitch home",
+  "version": "0.2.2-rc.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Morrowmake/stitch-harness.git",
+    "directory": "packages/subagent/product-cli"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./types": {
+      "types": "./lib/types/types.d.ts",
+      "default": "./lib/types/types.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/types/types.js",
+    "lib/types/**/*.d.ts",
+    "lib/types/**/*.d.ts.map",
+    "lib/**/*.js.map",
+    "src"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@deepseek-ai/dsh-home-paths": "workspace:*",
+    "semver": "^7.8.5",
+    "tar": "^7.5.22"
+  },
+  "devDependencies": {
+    "@types/semver": "^7.8.0"
+  }
+}

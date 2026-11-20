@@ -11,6 +11,7 @@ A plugin index is one JSON file that lists installable Stitch bundles with their
 - [Turn on Discover](#turn-on)
 - [Browse and install](#browse-and-install)
 - [Running DeepSeek Harness plugins](#deepseek-harness-plugins)
+- [Claude Code and Codex subagents](#claude-code-and-codex)
 - [Publish an index](#publish-an-index)
 - [Generate an index with the reference generator](#generate-an-index)
 - [Index format reference](#index-format)
@@ -55,6 +56,11 @@ Some plugins still do not work:
 - A plugin whose Harness peer range is an exact version or below `0.2.0` fails the compatibility check. To install it anyway, approve that exact pair with `stitch plugin --profile web allow-version <package@version> --stitch-version <exact> --accept-risk`.
 - A plugin that runs a `dsh` executable fails, because Stitch installs only `stitch`.
 - A plugin that depends on DeepSeek services or on DeepSeek Harness packages that Stitch removed does not work.
+
+<a id="claude-code-and-codex"></a>
+## Claude Code and Codex subagents
+
+The **Claude Code subagent** and **Codex subagent** plugins run the real Claude Code or Codex program, which Stitch does not ship. Each plugin's page has a **Program** section that shows the copy Stitch found: your own install (for example from `npm install -g @anthropic-ai/claude-code` or `npm install -g @openai/codex`), a copy Stitch downloaded, or none. When none is found, or yours is too old, choose **Download** to fetch the pinned version (about 200–400 MB) into the Stitch home; **Remove** deletes only that download. Turning the plugin on never downloads anything, and a delegation without a program fails with a message that says how to install it.
 
 <a id="publish-an-index"></a>
 ## Publish an index

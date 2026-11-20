@@ -13,10 +13,12 @@ import {
   assertPositiveFinite,
   NO_START_CAPABILITIES,
   assertUsableCwd,
+  SubagentError,
   type ResolvedSubagentStartRequest,
   type SubagentCapabilities,
   type SubagentProvider,
 } from '@deepseek-ai/dsh-subagent'
+import { productCliMissingMessage, resolveProductCli } from '@deepseek-ai/dsh-product-cli'
 import {
   CLAUDE_CODE_PERMISSION_MODES,
   DEFAULT_CLAUDE_CODE_PERMISSION_MODE,
@@ -54,6 +56,12 @@ export interface Config {
   permissionMode?: ClaudeCodePermissionMode
   /** Grace in milliseconds between Claude Code managed-range termination tiers. */
   disposeGraceMs?: number
+  /**
+   * Claude Code executable to run. Omitted: a copy Stitch downloaded, then the
+   * user's own `claude` (PATH and well-known install locations) at or above the
+   * version the bundled Agent SDK needs, then the SDK's native package when installed.
+   */
+  executablePath?: string
 }
 
 export const Config: z<Config> = z.object({
@@ -63,9 +71,10 @@ export const Config: z<Config> = z.object({
   permissionMode: z.union([...CLAUDE_CODE_PERMISSION_MODES])
     .default(DEFAULT_CLAUDE_CODE_PERMISSION_MODE),
   disposeGraceMs: z.number().default(DEFAULT_DISPOSE_GRACE_MS),
+  executablePath: z.string().min(1),
 })
 
-type ResolvedConfig = Omit<Required<Config>, 'model'> & Pick<Config, 'model'>
+type ResolvedConfig = Omit<Required<Config>, 'model' | 'executablePath'> & Pick<Config, 'model' | 'executablePath'>
 /* jscpd:ignore-end */
 
 /* jscpd:ignore-start -- Cordis registration and shared-seam plumbing mirror
@@ -97,8 +106,19 @@ class ClaudeCodeProvider implements SubagentProvider {
       )
       throw failure
     }
+    const executable = await resolveProductCli('claude-code', {
+      executablePath: this.config.executablePath,
+      bundledFrom: import.meta.url,
+    })
+    if (request.signal.aborted) {
+      throw new Error('subagent-claude-code: request was aborted before SDK startup')
+    }
+    if (!executable.found) {
+      throw new SubagentError(productCliMissingMessage(executable), 'PRODUCT_CLI_UNAVAILABLE')
+    }
     const spec: ClaudeCodeRunSpec = {
       cwd,
+      executablePath: executable.path,
       ...this.config.model === undefined ? {} : { model: this.config.model },
       permissionMode: this.config.permissionMode,
       env: this.config.env,
@@ -124,6 +144,7 @@ export function apply(ctx: Context, config: Config): void {
   const resolved: ResolvedConfig = {
     providerName: config.providerName ?? DEFAULT_PROVIDER_NAME,
     ...config.model === undefined ? {} : { model: config.model },
+    ...config.executablePath === undefined ? {} : { executablePath: config.executablePath },
     env: config.env as Record<string, string>,
     permissionMode: config.permissionMode ?? DEFAULT_CLAUDE_CODE_PERMISSION_MODE,
     disposeGraceMs: config.disposeGraceMs as number,

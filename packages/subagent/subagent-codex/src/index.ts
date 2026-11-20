@@ -1,7 +1,8 @@
 /**
- * Profile-named Codex one-shot subagent provider. Every accepted run starts a
- * fresh official package-local Codex wrapper with `app-server --stdio` in the
- * delegating Session's workspace and publishes only after an ephemeral thread exists.
+ * Profile-named Codex one-shot subagent provider. Every accepted run resolves a
+ * Codex executable (configured, Stitch-downloaded, or the user's own install),
+ * starts it with `app-server --stdio` in the delegating Session's workspace,
+ * and publishes only after an ephemeral thread exists.
  *
  * @module @deepseek-ai/dsh-subagent-codex
  */
@@ -13,10 +14,12 @@ import {
   assertPositiveFinite,
   NO_START_CAPABILITIES,
   assertUsableCwd,
+  SubagentError,
   type ResolvedSubagentStartRequest,
   type SubagentCapabilities,
   type SubagentProvider,
 } from '@deepseek-ai/dsh-subagent'
+import { productCliMissingMessage, resolveProductCli } from '@deepseek-ai/dsh-product-cli'
 import {
   CODEX_PERMISSION_MODES,
   DEFAULT_CODEX_PERMISSION_MODE,
@@ -47,6 +50,12 @@ export interface Config {
   permissionMode?: CodexPermissionMode
   /** Grace in milliseconds between app-server managed-range termination tiers. */
   disposeGraceMs?: number
+  /**
+   * Codex executable to run. Omitted: a copy Stitch downloaded, then the user's
+   * own `codex` (PATH and well-known install locations) at or above the version
+   * the app-server protocol client is written against, then the native package when installed.
+   */
+  executablePath?: string
 }
 
 export const Config: z<Config> = z.object({
@@ -56,9 +65,10 @@ export const Config: z<Config> = z.object({
   permissionMode: z.union([...CODEX_PERMISSION_MODES])
     .default(DEFAULT_CODEX_PERMISSION_MODE),
   disposeGraceMs: z.number().default(DEFAULT_DISPOSE_GRACE_MS),
+  executablePath: z.string().min(1),
 })
 
-type ResolvedConfig = Omit<Required<Config>, 'model'> & Pick<Config, 'model'>
+type ResolvedConfig = Omit<Required<Config>, 'model' | 'executablePath'> & Pick<Config, 'model' | 'executablePath'>
 
 class CodexProvider implements SubagentProvider {
   readonly capabilities: SubagentCapabilities = NO_START_CAPABILITIES
@@ -70,7 +80,7 @@ class CodexProvider implements SubagentProvider {
     private readonly config: ResolvedConfig,
   ) {}
 
-  start(request: ResolvedSubagentStartRequest) {
+  async start(request: ResolvedSubagentStartRequest) {
     let cwd: string
     try {
       cwd = assertUsableCwd('subagent-codex', 'child cwd', request.cwd)
@@ -82,8 +92,19 @@ class CodexProvider implements SubagentProvider {
       }
       throw codexStartupFailure(error)
     }
+    const executable = await resolveProductCli('codex', {
+      executablePath: this.config.executablePath,
+      bundledFrom: import.meta.url,
+    })
+    if (request.signal.aborted) {
+      throw new Error('subagent-codex: request was aborted before app-server startup')
+    }
+    if (!executable.found) {
+      throw new SubagentError(productCliMissingMessage(executable), 'PRODUCT_CLI_UNAVAILABLE')
+    }
     const spec: CodexRunSpec = {
       cwd,
+      launch: executable.launch,
       ...this.config.model === undefined ? {} : { model: this.config.model },
       permissionMode: this.config.permissionMode,
       env: this.config.env,
@@ -95,7 +116,7 @@ class CodexProvider implements SubagentProvider {
         )
       },
     }
-    return startCodexRun(request, spec)
+    return await startCodexRun(request, spec)
   }
 }
 
@@ -108,6 +129,7 @@ export function apply(ctx: Context, config: Config): void {
   const resolved: ResolvedConfig = {
     providerName: config.providerName ?? DEFAULT_PROVIDER_NAME,
     ...config.model === undefined ? {} : { model: config.model },
+    ...config.executablePath === undefined ? {} : { executablePath: config.executablePath },
     env: config.env as Record<string, string>,
     permissionMode: config.permissionMode ?? DEFAULT_CODEX_PERMISSION_MODE,
     disposeGraceMs: config.disposeGraceMs as number,

@@ -11,6 +11,7 @@
 - [打开「发现」](#turn-on)
 - [浏览和安装](#browse-and-install)
 - [运行 DeepSeek Harness 插件](#deepseek-harness-plugins)
+- [Claude Code 与 Codex 子智能体](#claude-code-and-codex)
 - [发布索引](#publish-an-index)
 - [用参考生成器生成索引](#generate-an-index)
 - [索引格式参考](#index-format)
@@ -55,6 +56,11 @@ stitch plugin --profile web add <package>
 - Harness peer 范围是精确版本或低于 `0.2.0` 的插件无法通过兼容性检查。若仍要安装，用 `stitch plugin --profile web allow-version <package@version> --stitch-version <exact> --accept-risk` 批准这一确切的版本组合。
 - 运行 `dsh` 可执行文件的插件会失败，因为 Stitch 只安装 `stitch`。
 - 依赖 DeepSeek 服务或 Stitch 已删除的 DeepSeek Harness 包的插件无法工作。
+
+<a id="claude-code-and-codex"></a>
+## Claude Code 与 Codex 子智能体
+
+**Claude Code 子智能体**和 **Codex 子智能体**插件运行真实的 Claude Code 或 Codex 程序，Stitch 不随附这些程序。每个插件页面都有**程序**区域，显示 Stitch 找到的副本：你自己的安装（例如通过 `npm install -g @anthropic-ai/claude-code` 或 `npm install -g @openai/codex` 安装）、Stitch 下载的副本，或者没有。没有找到或你的版本过旧时，选择**下载**把锁定版本（约 200–400 MB）获取到 Stitch 主目录；**移除**只删除这份下载。打开插件从不下载任何内容；没有程序时委派会失败，并给出安装方法。
 
 <a id="publish-an-index"></a>
 ## 发布索引

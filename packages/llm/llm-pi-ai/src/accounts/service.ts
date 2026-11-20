@@ -17,6 +17,7 @@ import type { SettingsPathOp } from '@deepseek-ai/dsh-settings'
 import { Remote, RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import { catalogProvider } from '../catalog.ts'
 import { PROVIDER_DATA } from '../provider-data.generated.ts'
+import { apiNameOf } from '../provider-presentation.ts'
 import { AMBIENT_ACCOUNT, ENV_ACCOUNT, isAccountRoute, newAccountId, parseRecordKey, recordKeyFor } from './keys.ts'
 import { sessionKeyOf } from './runtime.ts'
 import type { AccountRuntime, AccountsRuntime } from './runtime.ts'
@@ -383,7 +384,7 @@ export default class LlmAccountsRemote extends TypertRemoteService {
       const serving = sessionId === undefined ? undefined : this.runtime.sticky.get(sessionKeyOf(sessionId, route))
       providers.push({
         provider: route,
-        displayName: routes.get(route)?.displayName ?? provider?.name ?? route,
+        displayName: routes.get(route)?.displayName ?? (provider === undefined ? route : apiNameOf(provider)),
         ...oauth === undefined ? {} : { oauth: { label: oauth.loginLabel ?? oauth.name } },
         // A provider whose key is one `*_API_KEY` value takes a plain key box;
         // multi-field credentials (AWS, Vertex, gateways) go through pi-ai's prompts.

@@ -1,0 +1,64 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/subagent/product-cli/README.md
+/:
+  en: 24efb0e1b628dd47
+  zh: 30db6b1fcd9cfb6e
+/deepseek-ai-dsh-product-cli:
+  en: 70ba70cd052f6485
+  zh: aa2b7b6b9076bf13
+/deepseek-ai-dsh-product-cli/summary:
+  en: a5cb2a4691028999
+  zh: 6743a6e481a7c9dc
+/deepseek-ai-dsh-product-cli/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 09388d293f9be9cb
+/deepseek-ai-dsh-product-cli/use-this-package:
+  en: 820a4389aa738fbb
+  zh: 291018c867c83589
+/deepseek-ai-dsh-product-cli/use-this-package/resolution-order:
+  en: 55d48a47481385f1
+  zh: b0868dffad4c3ab4
+/deepseek-ai-dsh-product-cli/use-this-package/status-download-and-remove:
+  en: 4380a36b29ed7f4d
+  zh: 65a30a3fbb35b292
+/deepseek-ai-dsh-product-cli/understand-the-implementation:
+  en: 42b15ac6321706aa
+  zh: 4ed0861911abaf5d
+/deepseek-ai-dsh-product-cli/understand-the-implementation/source-map:
+  en: 9dc20403217bcc44
+  zh: b5e7120d7c8d7cfb
+/deepseek-ai-dsh-product-cli/understand-the-implementation/integrity-and-atomic-install:
+  en: e737d2d32f5b0f65
+  zh: 10bb25ad26da1050
+/deepseek-ai-dsh-product-cli/understand-the-implementation/version-probing:
+  en: 601a94f751e62aa7
+  zh: b1d4c6da81e415cb
+/deepseek-ai-dsh-product-cli/further-exploration:
+  en: 797f9af4c7c49923
+  zh: f25f36e54ebfe1a5
+/deepseek-ai-dsh-product-cli/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-product-cli/model-experience/missing-cli-tool-error-indirectly:
+  en: 3e5c0fdb75b639a8
+  zh: 4c68f0e9cfa6fa66
+/deepseek-ai-dsh-product-cli/model-experience/missing-cli-tool-error-indirectly/what-the-model-sees:
+  en: 9a96a6e148f5d08a
+  zh: 3c907ab1d5e7c34d
+/deepseek-ai-dsh-product-cli/model-experience/missing-cli-tool-error-indirectly/what-the-model-sees/missing-claude-code:
+  en: f0d60e3834089fb7
+  zh: f0d60e3834089fb7
+/deepseek-ai-dsh-product-cli/model-experience/missing-cli-tool-error-indirectly/token-effect:
+  en: 3b4ef390883f2f75
+  zh: 15b46616a517c8c9
+/deepseek-ai-dsh-product-cli/model-experience/missing-cli-tool-error-indirectly/kv-cache-effect:
+  en: 997032948fd94af5
+  zh: b070dea661a65023
+/deepseek-ai-dsh-product-cli/known-limitations-and-deferred-work:
+  en: 17a52c93a7924200
+  zh: fc3281a8e13bdc99
+/deepseek-ai-dsh-product-cli/known-limitations-and-deferred-work/dev-note:
+  en: 4f7effabc9cdd456
+  zh: 78c52024f63e91be

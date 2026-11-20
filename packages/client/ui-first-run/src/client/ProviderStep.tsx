@@ -1,8 +1,10 @@
 /**
  * Step 1, the provider picker, local first: providers that already serve
- * requests, the local servers the Host finds on their default ports (probed
- * only while this step is open), any OpenAI-compatible URL, then the hosted
- * pi-ai providers with sign-in or an API key.
+ * requests; Local AI — the servers the Host finds on their default localhost
+ * ports (probed only while this step is open) and any OpenAI-compatible
+ * endpoint on this computer, the LAN, or a tailnet; then the hosted pi-ai
+ * providers, split into subscriptions (sign in with an existing plan) and API
+ * access (paste a key), in the Host's most-used-first order.
  */
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Button, Checkbox, Input, StateDot } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -12,6 +14,7 @@ import { TextSearchIndex } from '@deepseek-ai/dsh-util-text-search'
 import type { FirstRunKey } from './locales.ts'
 import type { ConfiguredProvider, FirstRunOperations, HostedProvider, Outcome } from './operations.ts'
 import { refusalText } from './errors.ts'
+import { hostedSections, type HostedEntry } from './provider-order.ts'
 import { SignInPanel } from './SignInPanel.tsx'
 import css from './first-run.module.css'
 
@@ -31,14 +34,17 @@ const KEYLESS_PLACEHOLDER = 'not-needed'
 const ROUTE_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/
 
 /**
- * A free route id for a custom server.
- * @param label - the name or host the user gave.
+ * A stable, free route id for a custom endpoint, derived from its host name:
+ * `gpu-box.tail1234.ts.net` gives `gpu-box-tail1234-ts-net`, an IP address
+ * gives `host-192-168-1-20`, and a repeated host gets `-2`, `-3`, ….
+ * @param host - the endpoint's host name.
  * @param taken - ids already in use.
  * @returns a valid, unused route id.
  */
-export function routeIdFor(label: string, taken: ReadonlySet<string>): string {
-  const slug = label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^[^a-z]+/, '').replace(/-+$/, '')
-  const base = ROUTE_PATTERN.test(slug) ? slug : 'custom'
+export function routeIdFor(host: string, taken: ReadonlySet<string>): string {
+  const slug = host.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+  const named = /^[0-9]/.test(slug) ? `host-${slug}` : slug
+  const base = ROUTE_PATTERN.test(named) ? named : 'custom'
   let candidate = base
   for (let index = 2; taken.has(candidate); index += 1) candidate = `${base}-${String(index)}`
   return candidate
@@ -52,7 +58,7 @@ export function routeIdFor(label: string, taken: ReadonlySet<string>): string {
 export function httpHost(value: string): string | undefined {
   if (!URL.canParse(value)) return undefined
   const url = new URL(value)
-  return url.protocol === 'http:' || url.protocol === 'https:' ? url.hostname : undefined
+  return url.protocol === 'http:' || url.protocol === 'https:' ? url.hostname.replace(/^\[|\]$/g, '') : undefined
 }
 
 /** Load state of one asynchronous list; a failed list shows its step's own localized sentence. */
@@ -110,9 +116,8 @@ export function ProviderStep({ operations, t, onReady }: ProviderStepProps): Rea
     <div className={css.step}>
       <p className={css.intro}>{t('provider.intro')}</p>
       {configuredList.length === 0 ? null : <ConfiguredGroup providers={configuredList} t={t} onReady={onReady} />}
-      <LocalGroup operations={operations} t={t} taken={configuredIds} onReady={onReady} />
-      <CustomGroup operations={operations} t={t} taken={taken} onReady={onReady} />
-      <HostedGroup hosted={hosted} retry={() => { setHostedGeneration(value => value + 1) }}
+      <LocalGroup operations={operations} t={t} configuredIds={configuredIds} taken={taken} onReady={onReady} />
+      <HostedGroups hosted={hosted} retry={() => { setHostedGeneration(value => value + 1) }}
         operations={operations} t={t} onReady={onReady} />
     </div>
   )
@@ -145,9 +150,25 @@ function ConfiguredGroup({ providers, t, onReady }: {
   )
 }
 
-function LocalGroup({ operations, t, taken, onReady }: {
+/** Head of one picker section: title, one-line hint, and an optional action. */
+function GroupHead({ title, hint, action }: { title: string; hint: string; action?: ReactNode }): ReactNode {
+  return (
+    <div className={css.groupHead}>
+      <span className={css.rowText}>
+        <h3 className={css.groupTitle}>{title}</h3>
+        <span className={css.detail}>{hint}</span>
+      </span>
+      {action}
+    </div>
+  )
+}
+
+function LocalGroup({ operations, t, configuredIds, taken, onReady }: {
   operations: FirstRunOperations
   t: Translate<FirstRunKey>
+  /** Routes already configured: a detected server among them is used as is. */
+  configuredIds: ReadonlySet<string>
+  /** Ids a custom endpoint's route must not take. */
   taken: ReadonlySet<string>
   onReady: (provider: ReadyProvider) => void
 }): ReactNode {
@@ -156,7 +177,7 @@ function LocalGroup({ operations, t, taken, onReady }: {
   const [busy, setBusy] = useState<string>()
   const [error, setError] = useState<string>()
   const use = (server: LocalProviderProbeView): void => {
-    if (taken.has(server.id)) {
+    if (configuredIds.has(server.id)) {
       onReady({ id: server.id, name: server.displayName, models: server.models })
       return
     }
@@ -171,48 +192,45 @@ function LocalGroup({ operations, t, taken, onReady }: {
   }
   return (
     <section className={css.group} aria-label={t('local.title')}>
-      <div className={css.groupHead}>
-        <h3 className={css.groupTitle}>{t('local.title')}</h3>
+      <GroupHead title={t('local.title')} hint={t('local.hint')} action={(
         <Button className={css.groupAction} variant="ghost" size="sm" disabled={probe.status === 'loading'}
           onClick={() => { setGeneration(value => value + 1) }}>
           {t('local.recheck')}
         </Button>
-      </div>
+      )} />
       {probe.status === 'loading' ? <p className={css.muted}><StateDot state="ongoing" /> {t('local.checking')}</p> : null}
       {probe.status === 'error' ? <p className={css.error} role="alert">{t('error.probe')}</p> : null}
-      {probe.status === 'ready'
-        ? (
-          <ul className={css.rows}>
-            {probe.value.map(server => (
-              <li key={server.id} className={css.row} data-first-run-local={server.id}>
-                <div className={css.rowHead}>
-                  <StateDot state={server.running ? 'done' : 'idle'} />
-                  <span className={css.rowText}>
-                    <span className={css.name}>{server.displayName}</span>
-                    <span className={css.detail}>
-                      {!server.running
-                        ? t('local.notRunning')
-                        : server.models.length === 0 ? t('local.noModels') : t('local.running', { count: server.models.length })}
-                    </span>
-                  </span>
-                  <div className={css.rowActions}>
-                    <Button variant="outline" size="sm" disabled={!server.running || server.models.length === 0 || busy !== undefined}
-                      onClick={() => { use(server) }}>
-                      {t('local.use')}
-                    </Button>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )
-        : null}
+      <ul className={css.rows}>
+        {probe.status !== 'ready' ? null : probe.value.map(server => (
+          <li key={server.id} className={css.row} data-first-run-local={server.id}>
+            <div className={css.rowHead}>
+              <StateDot state={server.running ? 'done' : 'idle'} />
+              <span className={css.rowText}>
+                <span className={css.name}>{server.displayName}</span>
+                <span className={css.detail}>
+                  {!server.running
+                    ? t('local.notRunning')
+                    : server.models.length === 0 ? t('local.noModels') : t('local.running', { count: server.models.length })}
+                </span>
+              </span>
+              <div className={css.rowActions}>
+                <Button variant="outline" size="sm" disabled={!server.running || server.models.length === 0 || busy !== undefined}
+                  onClick={() => { use(server) }}>
+                  {t('local.use')}
+                </Button>
+              </div>
+            </div>
+          </li>
+        ))}
+        <CustomEndpointRow operations={operations} t={t} taken={taken} onReady={onReady} />
+      </ul>
       {error === undefined ? null : <p className={css.error} role="alert">{error}</p>}
     </section>
   )
 }
 
-function CustomGroup({ operations, t, taken, onReady }: {
+/** The Local AI row that declares any OpenAI-compatible endpoint: this computer, the LAN, or a tailnet. */
+function CustomEndpointRow({ operations, t, taken, onReady }: {
   operations: FirstRunOperations
   t: Translate<FirstRunKey>
   taken: ReadonlySet<string>
@@ -242,7 +260,7 @@ function CustomGroup({ operations, t, taken, onReady }: {
   const add = (): void => {
     if (host === undefined || found === undefined) return
     const displayName = name.trim() === '' ? host : name.trim()
-    const route = routeIdFor(displayName, taken)
+    const route = routeIdFor(host, taken)
     const models = found.filter(id => ticked.has(id))
     setBusy(true)
     setError(undefined)
@@ -255,21 +273,24 @@ function CustomGroup({ operations, t, taken, onReady }: {
   }
 
   return (
-    <section className={css.group} aria-label={t('custom.title')}>
-      <div className={css.groupHead}>
+    <li className={open ? `${css.row ?? ''} ${css.rowSelected ?? ''}` : css.row} data-first-run-local="custom">
+      <div className={css.rowHead}>
+        <StateDot state="idle" />
         <span className={css.rowText}>
-          <h3 className={css.groupTitle}>{t('custom.title')}</h3>
+          <span className={css.name}>{t('custom.title')}</span>
           <span className={css.detail}>{t('custom.hint')}</span>
         </span>
         {open ? null : (
-          <Button className={css.groupAction} variant="outline" size="sm" onClick={() => { setOpen(true) }}>{t('custom.open')}</Button>
+          <div className={css.rowActions}>
+            <Button variant="outline" size="sm" onClick={() => { setOpen(true) }}>{t('custom.open')}</Button>
+          </div>
         )}
       </div>
       {!open ? null : (
         <form className={css.form} onSubmit={(event) => { event.preventDefault(); if (found === undefined) discover(); else add() }}>
           <label className={css.field}>
             <span>{t('custom.baseURL')}</span>
-            <Input value={baseURL} placeholder="http://localhost:8000/v1" disabled={busy}
+            <Input value={baseURL} placeholder="http://192.168.1.20:11434/v1" disabled={busy}
               onChange={(event) => { setBaseURL(event.target.value); setFound(undefined) }} />
           </label>
           {urlInvalid ? <p className={css.error}>{t('custom.invalidURL')}</p> : null}
@@ -313,14 +334,29 @@ function CustomGroup({ operations, t, taken, onReady }: {
           </div>
         </form>
       )}
-    </section>
+    </li>
   )
 }
 
-/** What one hosted row is doing. */
-type HostedAction = { readonly provider: string; readonly kind: 'key' } | { readonly provider: string; readonly kind: 'signin'; readonly request: SignInRequest }
+/** Which hosted section a row sits in; Anthropic appears in both. */
+type HostedSection = 'subscription' | 'api'
 
-function HostedGroup({ hosted, retry, operations, t, onReady }: {
+/** What one hosted row is doing. */
+type HostedAction =
+  | { readonly row: string; readonly kind: 'key' }
+  | { readonly row: string; readonly kind: 'signin'; readonly request: SignInRequest }
+
+/**
+ * The key of one hosted row, unique across both sections.
+ * @param section - the row's section.
+ * @param provider - the row's route id.
+ * @returns the key.
+ */
+function rowKey(section: HostedSection, provider: string): string {
+  return `${section}:${provider}`
+}
+
+function HostedGroups({ hosted, retry, operations, t, onReady }: {
   hosted: Loaded<readonly HostedProvider[]>
   retry: () => void
   operations: FirstRunOperations
@@ -329,50 +365,66 @@ function HostedGroup({ hosted, retry, operations, t, onReady }: {
 }): ReactNode {
   const [query, setQuery] = useState('')
   const [action, setAction] = useState<HostedAction>()
-  const providers = hosted.status === 'ready' ? hosted.value : []
+  const sections = useMemo(() => hostedSections(hosted.status === 'ready' ? hosted.value : []), [hosted])
   const index = useMemo(
-    () => new TextSearchIndex(providers, provider => ({ fuzzy: [provider.displayName, provider.provider] })),
-    [providers],
+    () => new TextSearchIndex([...sections.apiAccess], entry => ({ fuzzy: [entry.name, entry.provider.provider] })),
+    [sections],
   )
   const visible = index.search(query)
+  const status = hosted.status === 'loading'
+    ? <p className={css.muted}><StateDot state="ongoing" /> {t('hosted.loading')}</p>
+    : hosted.status === 'error'
+      ? (
+        <div className={css.rowHead}>
+          <p className={css.error} role="alert">{t('hosted.unavailable')}</p>
+          <Button variant="ghost" size="sm" onClick={retry}>{t('retry')}</Button>
+        </div>
+      )
+      : null
+  const rows = (section: HostedSection, entries: readonly HostedEntry[]): ReactNode => entries.map((entry) => {
+    const key = rowKey(section, entry.provider.provider)
+    return (
+      <HostedRow key={key} rowId={key} section={section} entry={entry} action={action?.row === key ? action : undefined}
+        operations={operations} t={t} setAction={setAction}
+        onReady={() => { onReady({ id: entry.provider.provider, name: entry.name }) }} />
+    )
+  })
   return (
-    <section className={css.group} aria-label={t('hosted.title')}>
-      <div className={css.groupHead}><h3 className={css.groupTitle}>{t('hosted.title')}</h3></div>
-      {hosted.status === 'loading' ? <p className={css.muted}><StateDot state="ongoing" /> {t('hosted.loading')}</p> : null}
-      {hosted.status === 'error'
-        ? (
-          <div className={css.rowHead}>
-            <p className={css.error} role="alert">{t('hosted.unavailable')}</p>
-            <Button variant="ghost" size="sm" onClick={retry}>{t('retry')}</Button>
-          </div>
-        )
-        : null}
-      {hosted.status !== 'ready' ? null : (
-        <>
-          <Input value={query} placeholder={t('hosted.search')} aria-label={t('hosted.search')} onChange={(event) => { setQuery(event.target.value) }} />
-          {visible.length === 0 ? <p className={css.muted}>{t('hosted.empty')}</p> : (
-            <ul className={`${css.rows ?? ''} ${css.hostedList ?? ''}`}>
-              {visible.map(provider => (
-                <HostedRow key={provider.provider} provider={provider} action={action?.provider === provider.provider ? action : undefined}
-                  operations={operations} t={t} setAction={setAction}
-                  onReady={() => { onReady({ id: provider.provider, name: provider.displayName }) }} />
-              ))}
-            </ul>
-          )}
-        </>
+    <>
+      {hosted.status === 'ready' && sections.subscriptions.length === 0 ? null : (
+        <section className={css.group} aria-label={t('subscriptions.title')}>
+          <GroupHead title={t('subscriptions.title')} hint={t('subscriptions.hint')} />
+          {status}
+          {hosted.status !== 'ready' ? null : <ul className={css.rows}>{rows('subscription', sections.subscriptions)}</ul>}
+        </section>
       )}
-    </section>
+      <section className={css.group} aria-label={t('hosted.title')}>
+        <GroupHead title={t('hosted.title')} hint={t('hosted.hint')} />
+        {sections.subscriptions.length === 0 ? status : null}
+        {hosted.status !== 'ready' ? null : (
+          <>
+            <Input value={query} placeholder={t('hosted.search')} aria-label={t('hosted.search')} onChange={(event) => { setQuery(event.target.value) }} />
+            {visible.length === 0 ? <p className={css.muted}>{t('hosted.empty')}</p> : (
+              <ul className={`${css.rows ?? ''} ${css.hostedList ?? ''}`}>{rows('api', visible)}</ul>
+            )}
+          </>
+        )}
+      </section>
+    </>
   )
 }
 
-function HostedRow({ provider, action, operations, t, setAction, onReady }: {
-  provider: HostedProvider
+function HostedRow({ rowId, section, entry, action, operations, t, setAction, onReady }: {
+  rowId: string
+  section: HostedSection
+  entry: HostedEntry
   action: HostedAction | undefined
   operations: FirstRunOperations
   t: Translate<FirstRunKey>
   setAction: (action: HostedAction | undefined) => void
   onReady: () => void
 }): ReactNode {
+  const { provider } = entry
   const [key, setKey] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
@@ -385,25 +437,27 @@ function HostedRow({ provider, action, operations, t, setAction, onReady }: {
     }).finally(() => { setBusy(false) })
   }
   return (
-    <li className={action === undefined ? css.row : `${css.row ?? ''} ${css.rowSelected ?? ''}`} data-first-run-hosted={provider.provider}>
+    <li className={action === undefined ? css.row : `${css.row ?? ''} ${css.rowSelected ?? ''}`}
+      data-first-run-hosted={provider.provider} data-first-run-section={section}>
       <div className={css.rowHead}>
-        <span className={css.rowText}><span className={css.name}>{provider.displayName}</span></span>
+        <span className={css.rowText}><span className={css.name}>{entry.name}</span></span>
         {action !== undefined ? null : (
           <div className={css.rowActions}>
-            {provider.oauth
+            {section === 'subscription'
               ? (
-                <Button variant="outline" size="sm" onClick={() => { setAction({ provider: provider.provider, kind: 'signin', request: { method: 'oauth' } }) }}>
+                <Button variant="outline" size="sm" onClick={() => { setAction({ row: rowId, kind: 'signin', request: { method: 'oauth' } }) }}>
                   {t('hosted.signIn')}
                 </Button>
               )
-              : null}
-            <Button variant="outline" size="sm" onClick={() => {
-              setAction(provider.simpleKey
-                ? { provider: provider.provider, kind: 'key' }
-                : { provider: provider.provider, kind: 'signin', request: { method: 'api-key' } })
-            }}>
-              {t('hosted.apiKey')}
-            </Button>
+              : (
+                <Button variant="outline" size="sm" onClick={() => {
+                  setAction(provider.simpleKey
+                    ? { row: rowId, kind: 'key' }
+                    : { row: rowId, kind: 'signin', request: { method: 'api-key' } })
+                }}>
+                  {t('hosted.apiKey')}
+                </Button>
+              )}
           </div>
         )}
       </div>
@@ -415,7 +469,7 @@ function HostedRow({ provider, action, operations, t, setAction, onReady }: {
         ? (
           <form className={css.form} onSubmit={(event) => { event.preventDefault(); save() }}>
             <label className={css.field}>
-              <span>{t('hosted.keyLabel', { provider: provider.displayName })}</span>
+              <span>{t('hosted.keyLabel', { provider: entry.name })}</span>
               <Input type="password" autoComplete="new-password" value={key} disabled={busy} onChange={(event) => { setKey(event.target.value) }} />
             </label>
             {error === undefined ? null : <p className={css.error} role="alert">{error}</p>}

@@ -15,6 +15,7 @@ Stitch release notes. Stitch is a fork of DeepSeek Harness 0.2.2-rc.5; changes m
 
 - Renamed to Stitch: the `stitch` command, `~/.stitch` and `.stitch/` directories, `STITCH_*` environment variables, desktop app name, id, protocol and installers, UI text in all eight locales, the Python package (`stitch-harness`), and the TypeScript SDK client. Internal `@deepseek-ai/dsh-*` package names are unchanged.
 - The default composition is split into 18 optional components. The **Standard** preset turns on everything shipped by default; **Custom** starts from the core tools and the self-modification kernel.
+- Desktop no longer bundles the Claude Code and Codex native CLIs (~466 MB); the subagents use your installed CLI or download it on demand from Plugins.
 - Session logs written by earlier releases stay readable.
 
 ### Added

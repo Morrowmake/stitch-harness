@@ -120,7 +120,7 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY)(
         handles.push(handle)
         return handle
       })
-      await ctx.plugin(claudeCode, { env, disposeGraceMs: 3_000 })
+      await ctx.plugin(claudeCode, { env, disposeGraceMs: 3_000, executablePath: claudeBin })
 
       expect(sdkPackage.version).toBe('0.3.263')
       expect(sdkPackage.claudeCodeVersion).toBe('2.1.263')

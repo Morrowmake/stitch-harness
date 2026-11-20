@@ -2641,6 +2641,32 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: '`cancelled` once the Git check or pnpm exited and the files are restored, `too-late` once the bundle is being applied, `not-running` for any other id.',
       },
       {
+        signature: '@Remote async listProductClis(): Promise<ProductCliStatus[]>',
+        description: 'Report where each product CLI (Claude Code, Codex) the product subagents run would come from. Runs each found executable\'s `--version` once per file revision and never contacts a registry.',
+        parameters: [],
+        returns: 'One status per product CLI, in display order.',
+      },
+      {
+        signature: '@Remote async downloadProductCli(id: ProductCliId, requestId: PluginInstallRequestId): Promise<ProductCliStatus>',
+        description: 'Download, verify against its pinned sha512, and install the native CLI into the Stitch home. Only an explicit call downloads; enabling a subagent bundle never does. Progress is announced as `plugin-manager/product-cli-state`.',
+        parameters: [{ name: 'id', description: 'The product CLI.' }, { name: 'requestId', description: 'Caller-generated id that `cancelProductCliDownload` names.' }],
+        returns: 'The CLI\'s status after installation.',
+        throws: ['{RemoteError} `plugin-manager/product-cli-download-failed` or `plugin-manager/product-cli-download-cancelled`.'],
+      },
+      {
+        signature: '@Remote cancelProductCliDownload(requestId: PluginInstallRequestId): Promise<boolean>',
+        description: 'Stop a running product CLI download; nothing it fetched is kept.',
+        parameters: [{ name: 'requestId', description: 'The id the download was started with.' }],
+        returns: 'Whether a running download was cancelled.',
+      },
+      {
+        signature: '@Remote async removeProductCli(id: ProductCliId): Promise<ProductCliStatus>',
+        description: 'Delete the copy Stitch downloaded of one product CLI; the user\'s own install is never touched.',
+        parameters: [{ name: 'id', description: 'The product CLI.' }],
+        returns: 'The CLI\'s status after removal.',
+        throws: ['{RemoteError} `plugin-manager/product-cli-download-failed` with `busy` while it is downloading.'],
+      },
+      {
         signature: '@Remote removeBundle(name: string): Promise<ChangeResult>',
         description: 'Unload and remove a profile-owned bundle dependency through stitch plugin\'s pnpm path; a selected name no dependency holds is only deselected.',
         parameters: [{ name: 'name', description: 'Installed dependency or selected bundle name.' }],
@@ -5493,6 +5519,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [{ name: 'operation', description: 'Correlated operation facts; a start without an end has an unknown outcome.' }],
   },
   {
+    name: 'plugin-manager/product-cli-state',
+    mode: 'emit',
+    signature: '\'plugin-manager/product-cli-state\'(progress: ProductCliProgress): void',
+    summary: 'A product CLI download moved forward: bytes received while `downloading`, then `verifying` and `installing` once.',
+    description: 'A product CLI download moved forward: bytes received while `downloading`, then `verifying` and `installing` once.',
+    parameters: [{ name: 'progress', description: 'the download\'s request id, CLI, phase, and byte counts.' }],
+  },
+  {
     name: 'plugin-manager/update-state',
     mode: 'emit',
     signature: '\'plugin-manager/update-state\'(progress: PluginUpdateProgress): void',
@@ -7622,7 +7656,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'LlmNativeAuth',
-    declaration: 'export interface LlmNativeAuth {\n    env: readonly string[];\n    oauth: boolean;\n}',
+    declaration: 'export interface LlmNativeAuth {\n    env: readonly string[];\n    oauth: boolean;\n    oauthName?: string;\n}',
   },
   {
     name: 'LlmProviderInfo',
@@ -8339,6 +8373,30 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'PrincipalMap',
     declaration: 'export interface PrincipalMap {\n    owner: {\n        readonly kind: \'owner\';\n    };\n}',
+  },
+  {
+    name: 'ProductCliDownloadOffer',
+    declaration: 'export interface ProductCliDownloadOffer {\n    readonly version: string;\n    readonly sizeBytes: number;\n}',
+  },
+  {
+    name: 'ProductCliId',
+    declaration: 'export type ProductCliId = \'claude-code\' | \'codex\';',
+  },
+  {
+    name: 'ProductCliProgress',
+    declaration: 'export interface ProductCliProgress {\n    readonly requestId: PluginInstallRequestId;\n    readonly id: ProductCliId;\n    readonly phase: \'downloading\' | \'verifying\' | \'installing\';\n    readonly receivedBytes: number;\n    readonly totalBytes: number;\n}',
+  },
+  {
+    name: 'ProductCliRejectedCandidate',
+    declaration: 'export interface ProductCliRejectedCandidate {\n    readonly path: string;\n    readonly version: string;\n}',
+  },
+  {
+    name: 'ProductCliSource',
+    declaration: 'export type ProductCliSource = \'configured\' | \'downloaded\' | \'installed\' | \'bundled\';',
+  },
+  {
+    name: 'ProductCliStatus',
+    declaration: 'export interface ProductCliStatus {\n    readonly id: ProductCliId;\n    readonly bundle: string;\n    readonly displayName: string;\n    readonly available: boolean;\n    readonly source?: ProductCliSource;\n    readonly path?: string;\n    readonly version?: string;\n    readonly tooOld: readonly ProductCliRejectedCandidate[];\n    readonly minimumVersion: string;\n    readonly download: ProductCliDownloadOffer | null;\n    readonly downloaded: boolean;\n    readonly installCommand: string;\n}',
   },
   {
     name: 'ProfilePnpmInvocation',

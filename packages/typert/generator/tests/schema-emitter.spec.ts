@@ -534,6 +534,15 @@ describe('SchemaEmitter supported projection matrix', () => {
     expect(schema.safeParse('7').success).toBe(false)
   })
 
+  it('rejects a string-keyed brand on a primitive, which no wire value satisfies', () => {
+    expect(() => emit([
+      { id: 'root', kind: 'intersection', types: ['string', 'marker'] },
+      keyword('string', 'string'),
+      { id: 'marker', kind: 'object', members: [property('__b', 'brand', { readonly: true })] },
+      { id: 'brand', kind: 'literal', value: 'AttemptId', text: "'AttemptId'" },
+    ])).toThrow("typert Zod emitter: root: primitive intersected with named properties (__b) admits no JSON value; key a nominal brand by a unique symbol (Branded<'Name'> from @deepseek-ai/dsh-brand)")
+  })
+
   it('classifies every TypeNode kind and executes every supported kind', () => {
     const expected = Object.entries(ZOD_NODE_SUPPORT)
       .filter(([, support]) => support === 'supported')

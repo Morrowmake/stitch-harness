@@ -150,6 +150,8 @@ function unattendedDiagnostic(
 export interface ClaudeCodeRunSpec {
   /** Selected child working directory supplied to the SDK and real CLI. */
   readonly cwd: string
+  /** Resolved Claude Code executable the SDK starts (`pathToClaudeCodeExecutable`). */
+  readonly executablePath: string
   /** Profile-selected native model; omitted to preserve Claude settings. */
   readonly model?: string
   /** Profile-selected native non-interactive permission mode. */
@@ -325,6 +327,7 @@ export function claudeQueryOptions(
   return {
     abortController: controller,
     cwd: spec.cwd,
+    pathToClaudeCodeExecutable: spec.executablePath,
     ...spec.model === undefined ? {} : { model: spec.model },
     env: { ...scrubbedParentEnv(), ...spec.env },
     persistSession: false,

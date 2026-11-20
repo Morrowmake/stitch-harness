@@ -50,6 +50,7 @@
   },
   "dependencies": {
     "@deepseek-ai/dsh-brand": "workspace:*",
+    "@deepseek-ai/dsh-product-cli": "workspace:*",
     "@deepseek-ai/dsh-sdk-protocol": "workspace:*",
     "@deepseek-ai/schemastery": "workspace:~",
     "@openai/codex": "0.153.4",

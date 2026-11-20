@@ -9,6 +9,7 @@ import { readDesktopRuntime, verifyDesktopRuntime } from '../src/runtime-tree.ts
 import { verifyWindowsCode } from './windows-runtime-signature.mjs'
 import { smokePreparedRuntime } from './smoke-prepared-runtime.ts'
 import { resolveDesktopPackageTarget } from './package-target.ts'
+import { assertNoBundledAgentCli } from './runtime-file-policy.ts'
 
 const paths = resolveDesktopTargetBuildPaths()
 const { values } = parseArgs({ options: { unsigned: { type: 'boolean', default: false }, 'skip-notarization': { type: 'boolean', default: false } }, allowPositionals: false })
@@ -26,6 +27,7 @@ const packagedName = execFileSync(executable, ['-p', 'require(process.argv[1]).n
 if (packagedName !== DESKTOP_PACKAGE_NAME) {
   throw new Error(`desktop package: packaged name is ${packagedName}, expected ${DESKTOP_PACKAGE_NAME}`)
 }
+assertNoBundledAgentCli(join(paths.dsh, 'node_modules'))
 const descriptor = await verifyDesktopRuntime(paths.dsh, readDesktopRuntime(paths.dsh).release.version,
   resolveDesktopPackageTarget(target))
 if (windows && !values.unsigned) await verifyWindowsCode(application)

@@ -113,6 +113,7 @@ export function apply(ctx: ClientContext): void {
       // A profile change can replace a bundle's files, and a restarted Host is read afresh.
       controller.details.reset()
       if (controller.getSnapshot().status !== 'idle') void controller.load()
+      controller.productClis.refresh()
     }
     // Host changes made while access was withdrawn reached no subscription below.
     refresh()
@@ -120,6 +121,7 @@ export function apply(ctx: ClientContext): void {
     yield ctx.remote.$on('plugin-manager/install-log', (chunk) => { controller.appendLog(chunk) })
     yield ctx.remote.$on('plugin-manager/install-state', (progress) => { controller.installProgress(progress) })
     yield ctx.remote.$on('plugin-manager/update-state', (progress) => { controller.updateProgress(progress) })
+    yield ctx.remote.$on('plugin-manager/product-cli-state', (progress) => { controller.productClis.progress(progress) })
     yield ctx.on('connection/reset', refresh)
     yield ctx.slots.inject('shell.overlay', () => ctx.slots.register({
       name: 'shell.overlay', id: 'plugin-manager.refresh-toast', locale: NS,

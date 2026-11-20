@@ -25,8 +25,8 @@ export interface ConfiguredProvider {
 export interface HostedProvider {
   readonly provider: string
   readonly displayName: string
-  /** Whether a browser sign-in (OAuth) can authenticate it. */
-  readonly oauth: boolean
+  /** The plan a browser sign-in (OAuth) uses, e.g. `Claude Pro/Max (Anthropic)`; absent when no sign-in can authenticate it. */
+  readonly planName?: string
   /** Whether one `*_API_KEY` value authenticates it (a plain key box); otherwise the key goes through pi-ai's prompts. */
   readonly simpleKey: boolean
 }
@@ -52,7 +52,7 @@ export interface OpenAICompatibleRoute {
 export interface FirstRunOperations {
   /** Routes that serve requests now. */
   configuredProviders(): Promise<Outcome<readonly ConfiguredProvider[]>>
-  /** Hosted pi-ai catalog providers, in catalog order. */
+  /** Hosted pi-ai catalog providers, in the Host's order (most-used first). */
   hostedProviders(): Promise<Outcome<readonly HostedProvider[]>>
   /** Ask the Host to probe the local servers (Ollama, LM Studio); runs only when called. */
   probeLocal(signal: AbortSignal): Promise<Outcome<readonly LocalProviderProbeView[]>>
@@ -127,7 +127,7 @@ export function createFirstRunOperations(ctx: Context): FirstRunOperations {
           .map(entry => ({
             provider: entry.provider,
             displayName: entry.displayName,
-            oauth: entry.nativeAuth?.oauth === true,
+            ...entry.nativeAuth?.oauth === true ? { planName: entry.nativeAuth.oauthName ?? entry.displayName } : {},
             simpleKey: (entry.nativeAuth?.env ?? []).some(name => name.endsWith('_API_KEY')),
           })),
       }

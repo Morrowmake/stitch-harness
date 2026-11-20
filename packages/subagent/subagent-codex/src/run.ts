@@ -8,9 +8,8 @@
  */
 
 import { randomUUID } from 'node:crypto'
-import { readFileSync, writeFileSync } from 'node:fs'
-import { createRequire } from 'node:module'
-import { dirname, resolve } from 'node:path'
+import { writeFileSync } from 'node:fs'
+import type { ProductCliLaunch } from '@deepseek-ai/dsh-product-cli'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
 import type { SessionId } from '@deepseek-ai/dsh-session'
@@ -34,23 +33,6 @@ import {
 
 /** Default POSIX grace between subprocess termination tiers. */
 export const DEFAULT_DISPOSE_GRACE_MS = 3_000
-
-interface CodexPackageManifest {
-  readonly bin: {
-    readonly codex: string
-  }
-}
-
-const codexPackageJsonPath = createRequire(import.meta.url).resolve('@openai/codex/package.json')
-const codexPackageManifest = JSON.parse(
-  readFileSync(codexPackageJsonPath, 'utf8'),
-) as CodexPackageManifest
-
-/** Absolute package-local JavaScript wrapper selected by the package manifest. */
-const CODEX_PACKAGE_BIN = resolve(
-  dirname(codexPackageJsonPath),
-  codexPackageManifest.bin.codex,
-)
 
 /** Profile-selectable non-interactive Codex permission mode. */
 export type CodexPermissionMode =
@@ -129,17 +111,20 @@ export function codexStartupFailure(cause: unknown): Error {
 }
 
 /**
- * Fixed package-local app-server command, independent of the host `PATH`.
- * @returns Node, the official wrapper, and the fixed app-server arguments.
+ * The app-server command for a resolved Codex executable.
+ * @param launch - the executable, or Node and a JavaScript wrapper, as resolution selected.
+ * @returns the launch followed by the fixed app-server arguments.
  */
-export function codexAppServerArgv(): string[] {
-  return [process.execPath, CODEX_PACKAGE_BIN, 'app-server', '--stdio']
+export function codexAppServerArgv(launch: ProductCliLaunch): string[] {
+  return [launch.command, ...launch.args, 'app-server', '--stdio']
 }
 
 /** Fully resolved inputs for one Codex app-server run. */
 export interface CodexRunSpec {
   /** Selected child working directory, also supplied to `thread/start`. */
   readonly cwd: string
+  /** Resolved Codex executable started with `app-server --stdio`. */
+  readonly launch: ProductCliLaunch
   /** Profile-selected native model; omitted to preserve Codex settings. */
   readonly model?: string
   /** Profile-selected native non-interactive permission mode. */
@@ -234,7 +219,7 @@ export async function startCodexRun(
   let child: SubprocessHandle
   try {
     child = spec.spawn({
-      argv: codexAppServerArgv(),
+      argv: codexAppServerArgv(spec.launch),
       cwd: spec.cwd,
       stdio: { stdin: 'pipe', stdout: 'pipe', stderr: 'pipe' },
       graceMs: spec.disposeGraceMs,

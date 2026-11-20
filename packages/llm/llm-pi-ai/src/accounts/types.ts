@@ -6,6 +6,8 @@
  * @module @deepseek-ai/dsh-llm-pi-ai/types
  */
 
+import type { Branded } from '@deepseek-ai/dsh-brand'
+
 /** `'main' | 'env' | 'ambient' | /^[a-z0-9]{8,16}$/`. */
 export type AccountId = string
 /**
@@ -13,8 +15,8 @@ export type AccountId = string
  * profile's `apiKeyEnv` reference, or pi-ai's ambient discovery.
  */
 export type AccountKind = 'oauth' | 'api-key' | 'key-ref' | 'ambient'
-/** Opaque id of one sign-in attempt. */
-export type SignInAttemptId = string & { readonly __b: 'SignInAttemptId' }
+/** Opaque id of one sign-in attempt: a plain string on the wire, nominal only at compile time. */
+export type SignInAttemptId = Branded<'SignInAttemptId'>
 
 /** Non-secret per-account metadata stored at `providers.<route>.accounts.<id>`. */
 export interface AccountProfile {

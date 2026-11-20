@@ -14,6 +14,7 @@ import { MenuItemButton } from '@deepseek-ai/dsh-client-ui-primitives'
 import { StrictMode, type ReactNode } from 'react'
 import type { LocaleSnapshot } from '@deepseek-ai/dsh-client-locale/client'
 import { bundleDetailKey, type BundleDetailsState } from '../src/client/detail-store.ts'
+import type { ProductCliState } from '../src/client/product-cli-store.ts'
 import { createNavigationStore } from '../src/client/navigation-store.ts'
 import { PluginManagerPage } from '../src/client/PluginManagerPage.tsx'
 import { PluginRefreshToast } from '../src/client/PluginRefreshToast.tsx'
@@ -115,6 +116,7 @@ function renderTab(
   const ledger = createSnapshotStore<ConfigLedger>({ ...NO_CONFIG, ...config })
   const tabLedger = createSnapshotStore<readonly PluginTab[]>(tabs)
   const bundleDetails = createSnapshotStore<BundleDetailsState>({})
+  const productClis = createSnapshotStore<ProductCliState>({ status: 'idle', clis: [], tasks: {} })
   const clientSync = createSnapshotStore<ClientEntryState>({ syncing: false, failures: [] })
   const retryClient = vi.fn()
   const actions = {
@@ -152,6 +154,11 @@ function renderTab(
     retryDetail: vi.fn(),
     detailImage: vi.fn((name: string, document: string, destination: string) =>
       `https://dsh.example/api/plugin-manager/detail-file?bundle=${name}&document=${document}&path=${destination}`),
+    ensureProductClis: vi.fn(),
+    retryProductClis: vi.fn(),
+    downloadProductCli: vi.fn(),
+    cancelProductCliDownload: vi.fn(),
+    removeProductCli: vi.fn(),
   }
   const unusedStandardHook = (): never => { throw new Error('Plugin manager fixture does not provide global state') }
   const standard = {
@@ -178,6 +185,7 @@ function renderTab(
     useConfigLedger: bindSnapshotSelector(ledger),
     usePluginTabs: bindSnapshotSelector(tabLedger),
     useBundleDetails: bindSnapshotSelector(bundleDetails),
+    useProductClis: bindSnapshotSelector(productClis),
     useLocale: bindSnapshotSelector(createSnapshotStore<LocaleSnapshot>({ active: 'en', locales: [], revision: 0 })),
     useConfigurations: bindSnapshotSelector(createSnapshotStore<SettingsMirrorSnapshot>({
       status: 'ready', error: null,
@@ -227,6 +235,7 @@ function renderTab(
     actions,
     set: (next: Partial<PluginManagerState>) => { act(() => { store.set({ ...store.getSnapshot(), ...next }) }) },
     setDetails: (next: BundleDetailsState) => { act(() => { bundleDetails.set(next) }) },
+    setProductClis: (next: ProductCliState) => { act(() => { productClis.set(next) }) },
     setClientSync: (next: ClientEntryState) => { act(() => { clientSync.set(next) }) },
     retryClient,
     setLanguage: (dict: typeof en) => {
@@ -555,6 +564,26 @@ describe('PluginManagerPage', () => {
     // A read the controller forgot, after a profile change, starts again.
     b.setDetails({})
     expect(b.actions.loadDetail).toHaveBeenLastCalledWith('dsh-better-sidebar', '0.16.0', 'en')
+  })
+
+  it('shows the program a Claude Code bundle runs before its other sections, and enabling it downloads nothing', () => {
+    const name = '@deepseek-ai/dsh-subagent-claude-code'
+    const b = renderTab({ packages: [pkg(), pkg({ name, enabled: false, installed: false, optional: true, removable: false })] })
+    act(() => { b.navigation.actions.setView({ kind: 'package', name: 'dsh-better-sidebar' }) })
+    expect(document.querySelector('[data-product-cli]')).toBeNull()
+    expect(b.actions.ensureProductClis).not.toHaveBeenCalled()
+    act(() => { b.navigation.actions.setView({ kind: 'package', name }) })
+    expect(b.actions.ensureProductClis).toHaveBeenCalledOnce()
+    b.setProductClis({ status: 'ready', tasks: {}, clis: [{
+      id: 'claude-code', bundle: name, displayName: 'Claude Code', available: false, tooOld: [], minimumVersion: '2.0.0',
+      download: { version: '2.1.328', sizeBytes: 191_000_000 }, downloaded: false, installCommand: 'npm install -g @anthropic-ai/claude-code',
+    }] })
+    const detail = document.querySelector(`[data-plugin-detail="${name}"]`) as HTMLElement
+    expect(detail.querySelector('section')?.getAttribute('data-product-cli')).toBe('claude-code')
+    fireEvent.click(within(detail).getByRole('switch'))
+    expect(b.actions.downloadProductCli).not.toHaveBeenCalled()
+    fireEvent.click(within(detail).getByRole('button', { name: 'Download (about 191 MB)' }))
+    expect(b.actions.downloadProductCli).toHaveBeenCalledWith('claude-code')
   })
 
   it('says where a bundle comes from: the spec that installs it, or built in, with its version', () => {

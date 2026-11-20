@@ -1992,6 +1992,38 @@ button.versionSummary:focus-visible {
   border-top: 0.5px solid var(--dsw-alias-border-l2);
 }
 
+/* A product CLI's status names an executable path, which wraps anywhere. */
+.productCliTitle {
+  overflow-wrap: anywhere;
+}
+
+/* Too-old installs and the command to install a product CLI yourself, under its status row. */
+.productCliNotes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 16px 12px;
+  border-top: 0.5px solid var(--dsw-alias-border-l2);
+  font-size: 12.5px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+  overflow-wrap: anywhere;
+}
+
+.productCliNotes p {
+  margin: 0;
+}
+
+.productCliNotes code {
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--dsw-alias-bg-module-platform);
+  box-decoration-break: clone;
+  font-family: var(--dsw-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12px;
+  user-select: all;
+}
+
 .versionRows {
   display: flex;
   flex-direction: column;

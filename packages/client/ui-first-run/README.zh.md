@@ -1,5 +1,5 @@
 ---
-description: "Stitch Web 客户端与桌面应用的首次运行设置：提供商选择（优先本机 Ollama 和 LM Studio，任意 OpenAI 兼容 URL，支持登录或 API 密钥的托管提供商）与默认模型，随后是标准 / 自定义组件选择，也可从插件页面和“设置 → 模型”打开。"
+description: "Stitch Web 客户端与桌面应用的首次运行设置：提供商选择（优先本地 AI——本机的 Ollama 和 LM Studio，或局域网、tailnet 中任意 OpenAI 兼容端点——然后是订阅与 API 访问，常用提供商在前）与默认模型，随后是标准 / 自定义组件选择，也可从插件页面和“设置 → 模型”打开。"
 kind: "package-reference"
 ---
 
@@ -42,9 +42,11 @@ Web 组合以 `ui-first-run` 行挂载本包。该行 id 同时是它的设置�
 本步骤自上而下列出：
 
 1. **已设置**：当前可以处理请求的路由（`llm.listProviders`）；**使用**进入默认模型步骤。
-2. **本机**：步骤打开时以及点击**重新检查**时，Host 通过 `llmAccounts.probeLocalProviders` 探测 Ollama（`localhost:11434/api/tags`）和 LM Studio（`localhost:1234/v1/models`）。正在运行且有模型的服务提供**使用**，它声明一条 OpenAI 兼容的 `llm-pi-ai` 路由（`ollama` 或 `lmstudio`，端点 `…/v1`，列出的模型），并在该路由派生的引用（`OLLAMA_API_KEY`、`LMSTUDIO_API_KEY`）下保存占位密钥，因为 OpenAI 协议总会发送密钥。
-3. **任意 OpenAI 兼容服务**：基础 URL、可选 API 密钥、可选名称。**查找模型**通过 `llm.discoverModels` 询问端点；用户保留要使用的模型，**添加提供商**声明该路由（id 由名称或主机名派生，不会与已配置路由或目录路由重名），并保存密钥；未填写密钥时保存占位密钥。
-4. **托管提供商**：来自 `llm.listConfigurableProviders` 的 pi-ai 目录路由，可搜索。**登录**运行一次 OAuth 尝试（`llmAccounts.beginSignIn` / `watchSignIn`，链接在新标签页打开，设备码和提示内联显示）；**API 密钥**保存一个密钥账号（`llmAccounts.addApiKeyAccount`），凭据包含多个字段的提供商则运行 pi-ai 的密钥提示。
+2. **本地 AI**：用户自己运行的机器上的模型。步骤打开时以及点击**重新检查**时，Host 通过 `llmAccounts.probeLocalProviders` 探测 Ollama（`localhost:11434/api/tags`）和 LM Studio（`localhost:1234/v1/models`）。正在运行且有模型的服务提供**使用**，它声明一条 OpenAI 兼容的 `llm-pi-ai` 路由（`ollama` 或 `lmstudio`，端点 `…/v1`，列出的模型），并在该路由派生的引用（`OLLAMA_API_KEY`、`LMSTUDIO_API_KEY`）下保存占位密钥，因为 OpenAI 协议总会发送密钥。最后一行**网络中的其他服务**接受任意 OpenAI 兼容端点——局域网中的另一台机器、Tailscale tailnet 主机、vLLM、llama.cpp、LiteLLM：基础 URL、可选 API 密钥、可选名称。**查找模型**通过 `llm.discoverModels` 读取端点的 `/models` 列表；用户保留要使用的模型，**添加提供商**以同样方式声明路由，并保存密钥；未填写密钥时保存占位密钥。路由 id 由主机名派生（`gpu-box.tail1234.ts.net` → `gpu-box-tail1234-ts-net`，`192.168.1.20` → `host-192-168-1-20`），已被已配置路由或目录路由占用时追加 `-2`、`-3`……
+3. **订阅**：可用已有套餐通过浏览器登录认证的目录路由（ChatGPT Plus/Pro、Claude Pro/Max、GitHub Copilot、SuperGrok……），以套餐名称显示。**登录**运行一次 OAuth 尝试（`llmAccounts.beginSignIn` / `watchSignIn`，链接在新标签页打开，设备码和提示内联显示）。
+4. **API 访问**：可用密钥认证的目录路由，可搜索。**API 密钥**保存一个密钥账号（`llmAccounts.addApiKeyAccount`），凭据包含多个字段的提供商则运行 pi-ai 的密钥提示。两种方式都支持的厂商（Anthropic）同时出现在两个分区。
+
+两个云端分区都沿用 `llm.listConfigurableProviders` 的顺序：`llm-pi-ai` 按常用程度列出目录路由（OpenAI、Anthropic、Google，然后是 GitHub Copilot、xAI、OpenRouter、DeepSeek、Mistral、Groq……其余按字母顺序），使用用户熟悉的名称，并以 `nativeAuth.oauthName` 报告每种登录对应的套餐名称。pi-ai 的旧版 `openai-codex` 路由不再列出（其 ChatGPT 登录已由 `openai` 承担），除非已有配置档指定它。“设置 → 模型”使用相同顺序，已配置的路由在各处也使用相同名称。
 
 **暂时跳过**会跳过提供商和默认模型步骤，不做任何更改。
 

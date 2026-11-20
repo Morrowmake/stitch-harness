@@ -37,7 +37,7 @@ kind: "package-reference"
 
 已安装的组合包及其插件行在卡片和详情页中，按当前界面语言显示各自的标题与描述。每个字段先读取导出的 locale `meta`，缺失时回退到包根插件可访问的 `package.json`，子路径插件从不读取；标题最终使用完整包名或模块名，两处都没有描述时不提供包描述。作者格式见[插件展示元信息](../../../docs/cookbook/adding-a-package.zh.md#plugin-display-metadata)。组合包卡片、详情和组件行显示包根的清单 `icon` 或导出的 `./icon`，或子路径插件导出的 `<子路径>/icon`；未声明或无法解码时保留默认插画。安装预览仍使用注册表或 manifest 信息。
 
-组合包页面在其各部分中首先显示该组合包的详细介绍文档，不带单独的标题：以当前界面语言、带图片的 Markdown 显示该组合包的详细介绍。该文档是组合包 `locale/<language>.json` 中 `meta.detail` 指定的 Markdown 文件，没有时为组合包的 README，由 [`pluginManager.readBundleDetail`](../../boot/plugin-manager/README.zh.md#bundle-detail-documents) 按 [`dsh-plugin-detail` 的文档顺序](../../util/plugin-detail/README.zh.md#document-order)从组合包自身文件读取，不访问网络；不读取组合包声明的仓库。文档加载期间，该部分显示三行骨架屏；没有文档的组合包不显示该部分；读取失败时说明原因，并提供**重试**。原始 HTML 会被省略，相对路径的图片从 Host 上该文档旁的位置加载，相对链接保持为文本，文档高度超过该部分的高度上限时在该部分内滚动。任何 profile 变化和连接重置都会重新读取已显示的文档。
+组合包页面在其各部分中首先显示该组合包的详细介绍文档（Claude Code 与 Codex 组合包仅排在[程序区块](#claude-code-and-codex-programs)之后），不带单独的标题：以当前界面语言、带图片的 Markdown 显示该组合包的详细介绍。该文档是组合包 `locale/<language>.json` 中 `meta.detail` 指定的 Markdown 文件，没有时为组合包的 README，由 [`pluginManager.readBundleDetail`](../../boot/plugin-manager/README.zh.md#bundle-detail-documents) 按 [`dsh-plugin-detail` 的文档顺序](../../util/plugin-detail/README.zh.md#document-order)从组合包自身文件读取，不访问网络；不读取组合包声明的仓库。文档加载期间，该部分显示三行骨架屏；没有文档的组合包不显示该部分；读取失败时说明原因，并提供**重试**。原始 HTML 会被省略，相对路径的图片从 Host 上该文档旁的位置加载，相对链接保持为文本，文档高度超过该部分的高度上限时在该部分内滚动。任何 profile 变化和连接重置都会重新读取已显示的文档。
 
 文件缺失或不可读的包在诊断旁保留记录的依赖来源，已启用的此类包仍可关闭。
 
@@ -83,6 +83,11 @@ Host 将网络失败或超时归因于 GitHub 地址，且提供 npmmirror 时�
 ### 切换组合包里的一行
 
 组合包页面上行的开关调用 `pluginManager.setPluginEnabled`，按[开关规则](../../boot/plugin-manager/README.zh.md#use-this-package)在 profile 的 `cordis.patch.yml` 中记录该行的启用状态。启用了 HMR 的 profile 的树随即重组，该行的宿主半区卸下或挂上，组合包其余部分照常运行，页面无需重载即跟随客户端模块图。行使用共享状态标记表示 Host fiber 阶段：pending 与 disabled 为 idle，loading 与 unloading 为 ongoing，active 为 done，failed 为 error。开关只出现在已打开的组合包上；没有存活条目的行，以及 Host 不通过 profile patch 寻址的行，带着 Host 的原因锁定。超过十行的列表带一个筛选框，使用共享的[文本搜索](../../util/text-search/README.zh.md)：行 id、模块名和标题的所有声明语言模糊匹配，描述的所有语言按子串匹配；各行以当前语言显示。
+
+<a id="claude-code-and-codex-programs"></a>
+### Claude Code 与 Codex 程序
+
+`@deepseek-ai/dsh-subagent-claude-code` 和 `@deepseek-ai/dsh-subagent-codex` 的页面在各部分中首先显示 **程序** 区块，在打开这类页面时以及每次 Host 变更后通过 [`pluginManager.listProductClis`](../../boot/plugin-manager/README.zh.md#use-this-package) 读取。它说明该组合包运行哪个可执行文件：你安装的 Claude Code 或 Codex 及其版本和路径、配置的路径、随 Stitch 提供的副本，或 Stitch 下载的副本，后者可用 **删除下载** 删除。没有找到时，区块说明未安装，提供带下载大致大小的 **下载**，列出每个低于最低版本的安装，并给出自行安装的官方命令；没有可用下载的系统只显示该命令。下载只从该按钮开始；打开组合包开关从不触发下载。下载期间，该行显示 `plugin-manager/product-cli-state` 事件给出的百分比，随后是校验与安装，并提供 **取消**。下载失败时说明原因（网络、校验和不符、系统不受支持、磁盘、已有另一个下载在进行，或已取消），并提供 **重试**。
 
 <a id="configuration-pages"></a>
 ### 配置页

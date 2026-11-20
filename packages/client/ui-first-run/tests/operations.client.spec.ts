@@ -34,7 +34,8 @@ describe('provider operations', () => {
     const ops = createFirstRunOperations(contextFor(mock.remote))
     mock.remote.llm.listProviders.mockResolvedValue(ok([{ id: 'ollama', name: 'Ollama' }]))
     mock.remote.llm.listConfigurableProviders.mockResolvedValue(ok([
-      { provider: 'anthropic', displayName: 'anthropic', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'anthropic'], declared: false, nativeAuth: { env: ['ANTHROPIC_API_KEY'], oauth: true } },
+      { provider: 'anthropic', displayName: 'Anthropic (Claude)', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'anthropic'], declared: false, nativeAuth: { env: ['ANTHROPIC_API_KEY'], oauth: true, oauthName: 'Claude Pro/Max (Anthropic)' } },
+      { provider: 'github-copilot', displayName: 'GitHub Copilot', settingsNs: 'llm-pi-ai', settingsPath: [], declared: false, nativeAuth: { env: ['COPILOT_GITHUB_TOKEN'], oauth: true } },
       { provider: 'amazon-bedrock', displayName: 'amazon-bedrock', settingsNs: 'llm-pi-ai', settingsPath: [], declared: false, nativeAuth: { env: ['AWS_PROFILE'], oauth: false } },
       { provider: 'ollama', displayName: 'Ollama', settingsNs: 'llm-pi-ai', settingsPath: [], declared: true },
       { provider: 'broken', displayName: 'broken', settingsNs: 'llm-pi-ai', settingsPath: [], declared: false, error: 'bad' },
@@ -44,8 +45,9 @@ describe('provider operations', () => {
     expect(await ops.hostedProviders()).toEqual({
       ok: true,
       value: [
-        { provider: 'anthropic', displayName: 'anthropic', oauth: true, simpleKey: true },
-        { provider: 'amazon-bedrock', displayName: 'amazon-bedrock', oauth: false, simpleKey: false },
+        { provider: 'anthropic', displayName: 'Anthropic (Claude)', planName: 'Claude Pro/Max (Anthropic)', simpleKey: true },
+        { provider: 'github-copilot', displayName: 'GitHub Copilot', planName: 'GitHub Copilot', simpleKey: false },
+        { provider: 'amazon-bedrock', displayName: 'amazon-bedrock', simpleKey: false },
       ],
     })
     mock.remote.llm.listConfigurableProviders.mockResolvedValue(refused('gateway/internal', 'down', {}))

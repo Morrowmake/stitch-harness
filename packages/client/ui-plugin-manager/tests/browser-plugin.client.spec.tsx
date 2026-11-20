@@ -19,10 +19,17 @@ import type { PluginManagerFace } from '../src/client/manager-store.ts'
 import type { createNavigationStore } from '../src/client/navigation-store.ts'
 import type { PluginsSettingsLinkInjected } from '../src/client/PluginsSettingsLink.tsx'
 import type { ClientSyncFace } from '../src/client/PluginManagerPage.tsx'
+import type { PluginInstallRequestId, ProductCliId, ProductCliStatus } from '@deepseek-ai/dsh-api-remotes/client'
 
 usePinnedBrowserLanguages('zh-CN')
 beforeEach(() => { localStorage.clear() })
 afterEach(cleanup)
+
+const PRODUCT_CLI: ProductCliStatus = {
+  id: 'claude-code', bundle: '@deepseek-ai/dsh-subagent-claude-code', displayName: 'Claude Code', available: false, tooOld: [],
+  minimumVersion: '2.0.0', download: { version: '2.1.328', sizeBytes: 191_000_000 }, downloaded: false,
+  installCommand: 'npm install -g @anthropic-ai/claude-code',
+}
 
 type AccessEffect = (() => void) | Iterable<() => void>
 
@@ -80,6 +87,14 @@ async function bench(allows: ((action: string) => boolean) | 'switchable' = () =
   }
   new LocaleHolder(ctx)
   const list = vi.fn(() => Promise.resolve({ ok: true as const, value: { entries: [], managementAvailable: true } }))
+  const download = Promise.withResolvers<{ ok: true; value: ProductCliStatus }>()
+  const productCli = {
+    listProductClis: vi.fn(() => Promise.resolve({ ok: true as const, value: [PRODUCT_CLI] })),
+    downloadProductCli: vi.fn((_id: ProductCliId, _requestId: PluginInstallRequestId) => download.promise),
+    cancelProductCliDownload: vi.fn(() => Promise.resolve({ ok: true as const, value: true })),
+    removeProductCli: vi.fn(() => Promise.resolve({ ok: true as const, value: PRODUCT_CLI })),
+    finishDownload: () => { download.resolve({ ok: true, value: PRODUCT_CLI }) },
+  }
   const remote = new TestRemote(ctx, {
     settings: { describe: vi.fn(async () => ({ ok: true as const, value: { writable: true, hasDocument: true, namespaces: [] } })) },
     pluginInventory: { list },
@@ -89,6 +104,10 @@ async function bench(allows: ((action: string) => boolean) | 'switchable' = () =
       listPlugins: vi.fn(() => Promise.resolve({ ok: true as const, value: [] })),
       registries: vi.fn(() => Promise.resolve({ ok: true as const, value: { registry: null, fallbackRegistries: [], resolved: null } })),
       readBundleDetail: vi.fn(() => Promise.resolve({ ok: true as const, value: { status: 'none' as const } })),
+      listProductClis: productCli.listProductClis,
+      downloadProductCli: productCli.downloadProductCli,
+      cancelProductCliDownload: productCli.cancelProductCliDownload,
+      removeProductCli: productCli.removeProductCli,
     },
   })
   const panelInfo = createSnapshotStore<PanelInfo>({ activePanelId: null })
@@ -99,7 +118,7 @@ async function bench(allows: ((action: string) => boolean) | 'switchable' = () =
   ctx.provide('layout', { panelInfo, selectPanel, beginNavigation: () => new AbortController().signal,
     toggleSidebar: vi.fn(), openRightbar: vi.fn(), closeRightbar: vi.fn() })
   await ctx.plugin(settings).await()
-  return { ctx, slots: ctx.get('slots') as SlotRegistry, locale, list, remote, selectPanel, panelInfo, access, clientSync, retryClient }
+  return { ctx, slots: ctx.get('slots') as SlotRegistry, locale, list, remote, selectPanel, panelInfo, access, clientSync, retryClient, productCli }
 }
 
 function declare(slots: SlotRegistry): () => void {
@@ -331,6 +350,7 @@ describe('ui-plugin-manager browser plugin', () => {
     b.ctx.emit('connection/reset')
     await Promise.resolve()
     expect(b.list).not.toHaveBeenCalled()
+    expect(b.productCli.listProductClis).not.toHaveBeenCalled()
     face.ensure()
     await vi.waitFor(() => { expect(face.hooks.pluginManager.getSnapshot().status).toBe('ready') })
     expect(b.list).toHaveBeenCalledTimes(1)
@@ -357,6 +377,27 @@ describe('ui-plugin-manager browser plugin', () => {
     b.remote.emit('plugin-manager/update-state', [{ requestId: 'foreign', step: 'checking' }])
     expect(face.hooks.pluginManager.getSnapshot().update).toBeNull()
 
+    // Product CLI statuses read once a page asks, follow Host changes, and take only this page's download progress.
+    face.ensureProductClis()
+    await vi.waitFor(() => { expect(face.hooks.productClis.getSnapshot().status).toBe('ready') })
+    face.downloadProductCli('claude-code')
+    const requestId = b.productCli.downloadProductCli.mock.calls[0]![1]
+    b.remote.emit('plugin-manager/product-cli-state', [{ requestId: 'foreign', id: 'claude-code', phase: 'downloading', receivedBytes: 9, totalBytes: 10 }])
+    b.remote.emit('plugin-manager/product-cli-state', [{ requestId, id: 'claude-code', phase: 'downloading', receivedBytes: 5, totalBytes: 10 }])
+    expect(face.hooks.productClis.getSnapshot().tasks['claude-code']).toMatchObject({ requestId, receivedBytes: 5 })
+    face.cancelProductCliDownload('claude-code')
+    expect(b.productCli.cancelProductCliDownload).toHaveBeenCalledWith(requestId)
+    b.productCli.finishDownload()
+    await vi.waitFor(() => { expect(face.hooks.productClis.getSnapshot().tasks).toEqual({}) })
+    face.removeProductCli('claude-code')
+    expect(b.productCli.removeProductCli).toHaveBeenCalledWith('claude-code')
+    const reads = b.productCli.listProductClis.mock.calls.length
+    b.remote.emit('plugin-manager/changed', [{ reason: 'bundle' }])
+    await vi.waitFor(() => { expect(b.productCli.listProductClis.mock.calls.length).toBeGreaterThan(reads) })
+    face.retryProductClis()
+    await vi.waitFor(() => { expect(b.productCli.listProductClis.mock.calls.length).toBeGreaterThan(reads + 1) })
+
+    const inventoryReads = b.list.mock.calls.length
     await fiber.dispose()
     expect(b.ctx.get('pluginNavigation')).toBeUndefined()
     expect(b.ctx.get('pluginChanges')).toBeUndefined()
@@ -365,6 +406,6 @@ describe('ui-plugin-manager browser plugin', () => {
     expect(b.slots.entries('sidebar.panellist')).toHaveLength(0)
     b.remote.emit('plugin-manager/changed', [{ reason: 'install' }])
     await Promise.resolve()
-    expect(b.list).toHaveBeenCalledTimes(3)
+    expect(b.list).toHaveBeenCalledTimes(inventoryReads)
   })
 })

@@ -524,6 +524,8 @@ interface LlmNativeAuth {
   env: readonly string[]
   /** Whether a stored OAuth sign-in can authenticate the route. */
   oauth: boolean
+  /** The plan a sign-in uses, as people know it (e.g. `Claude Pro/Max (Anthropic)`); absent without a sign-in. */
+  oauthName?: string
 }
 ```
 

@@ -2,7 +2,7 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, write
 import { tmpdir } from 'node:os'
 import { join, relative } from 'node:path'
 import { expect, it } from 'vitest'
-import { desktopRuntimeFileExclusion } from '../scripts/runtime-file-policy.ts'
+import { assertNoBundledAgentCli, desktopRuntimeFileExclusion } from '../scripts/runtime-file-policy.ts'
 import { verifyDesktopRuntime, writeDesktopRuntime } from '../src/runtime-tree.ts'
 import { runtimeFixture } from './runtime-fixture.ts'
 
@@ -163,5 +163,40 @@ it.each([
       `@deepseek-ai/libreoffice-kit-${candidate}/prebuilds.json`, { platform, arch }, engine,
     )
     expect(omitted === undefined).toBe(candidate === engine)
+  }
+})
+
+it('omits Claude Code and Codex native platform packages but keeps their JS wrappers', () => {
+  const mac = { platform: 'darwin' as const, arch: 'arm64' }
+  for (const path of [
+    '@anthropic-ai/claude-agent-sdk-darwin-arm64/claude', '@anthropic-ai/claude-agent-sdk-win32-x64/package.json',
+    '@anthropic-ai/claude-agent-sdk-linux-x64-musl', '@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/codex/codex',
+    '@openai/codex-win32-x64', 'example/node_modules/@openai/codex-darwin-x64/package.json',
+  ]) expect(desktopRuntimeFileExclusion(path, mac, 'wasm')).toBe('agent CLI native platform package')
+  for (const path of ['@anthropic-ai/claude-agent-sdk/sdk.mjs', '@openai/codex/bin/codex.js', '@openai/codex/package.json']) {
+    expect(desktopRuntimeFileExclusion(path, mac, 'wasm')).toBeUndefined()
+  }
+})
+
+it('rejects a prepared tree that still carries an agent CLI native binary', () => {
+  const root = mkdtempSync(join(tmpdir(), 'desktop-agent-cli-'))
+  const write = (path: string): void => {
+    mkdirSync(join(root, path, '..'), { recursive: true })
+    writeFileSync(join(root, path), '')
+  }
+  try {
+    write('@anthropic-ai/claude-agent-sdk/sdk.mjs')
+    write('@openai/codex/bin/codex.js')
+    expect(() => { assertNoBundledAgentCli(root) }).not.toThrow()
+    write('example/node_modules/@openai/codex-linux-x64/package.json')
+    expect(() => { assertNoBundledAgentCli(root) }).toThrow('example/node_modules/@openai/codex-linux-x64')
+    rmSync(join(root, 'example'), { recursive: true })
+    write('@anthropic-ai/claude-agent-sdk-darwin-arm64/claude')
+    expect(() => { assertNoBundledAgentCli(root) }).toThrow('@anthropic-ai/claude-agent-sdk-darwin-arm64')
+    rmSync(join(root, '@anthropic-ai/claude-agent-sdk-darwin-arm64'), { recursive: true })
+    write('@openai/codex/vendor/x86_64-pc-windows-msvc/codex/codex.exe')
+    expect(() => { assertNoBundledAgentCli(root) }).toThrow('@openai/codex/vendor/x86_64-pc-windows-msvc/codex/codex.exe')
+  } finally {
+    rmSync(root, { recursive: true, force: true })
   }
 })

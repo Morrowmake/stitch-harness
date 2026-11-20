@@ -71,6 +71,7 @@
     "@deepseek-ai/dsh-app-boot": "workspace:*",
     "@deepseek-ai/dsh-atomic-write": "workspace:*",
     "@deepseek-ai/dsh-official-bundles": "workspace:*",
+    "@deepseek-ai/dsh-product-cli": "workspace:*",
     "@deepseek-ai/schemastery": "workspace:~",
     "execa": "^10.0.1",
     "semver": "^7.8.5",

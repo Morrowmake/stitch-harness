@@ -360,6 +360,34 @@ Manage profile files and apply their declared reload lifecycle.
  */
 @Remote async cancelInstall(requestId: PluginInstallRequestId): Promise<PluginInstallCancellation>
 
+/** Report where each product CLI (Claude Code, Codex) the product subagents run would come from. Runs each found
+ * executable's `--version` once per file revision and never contacts a registry.
+ * @returns One status per product CLI, in display order.
+ */
+@Remote async listProductClis(): Promise<ProductCliStatus[]>
+
+/** Download, verify against its pinned sha512, and install the native CLI into the Stitch home. Only an explicit call
+ * downloads; enabling a subagent bundle never does. Progress is announced as `plugin-manager/product-cli-state`.
+ * @param id The product CLI.
+ * @param requestId Caller-generated id that `cancelProductCliDownload` names.
+ * @returns The CLI's status after installation.
+ * @throws {RemoteError} `plugin-manager/product-cli-download-failed` or `plugin-manager/product-cli-download-cancelled`.
+ */
+@Remote async downloadProductCli(id: ProductCliId, requestId: PluginInstallRequestId): Promise<ProductCliStatus>
+
+/** Stop a running product CLI download; nothing it fetched is kept.
+ * @param requestId The id the download was started with.
+ * @returns Whether a running download was cancelled.
+ */
+@Remote cancelProductCliDownload(requestId: PluginInstallRequestId): Promise<boolean>
+
+/** Delete the copy Stitch downloaded of one product CLI; the user's own install is never touched.
+ * @param id The product CLI.
+ * @returns The CLI's status after removal.
+ * @throws {RemoteError} `plugin-manager/product-cli-download-failed` with `busy` while it is downloading.
+ */
+@Remote async removeProductCli(id: ProductCliId): Promise<ProductCliStatus>
+
 /** Unload and remove a profile-owned bundle dependency through stitch plugin's pnpm path; a selected name no
  * dependency holds is only deselected.
  * @param name Installed dependency or selected bundle name.
@@ -593,6 +621,23 @@ One manager invocation started or ended; subscribers run independently without d
  * @param operation - Correlated operation facts; a start without an end has an unknown outcome.
  */
 'plugin-manager/operation'(operation: PluginOperation): void | Promise<void>
+```
+
+Source: [`packages/boot/plugin-manager/src/types.ts`](../../packages/boot/plugin-manager/src/types.ts)
+
+<a id="plugin-managerproduct-cli-state--emit"></a>
+
+#### `plugin-manager/product-cli-state` — emit
+
+A product CLI download moved forward: bytes received while `downloading`, then `verifying` and `installing` once.
+
+```ts cordis-catalog
+/**
+ * A product CLI download moved forward: bytes received while `downloading`, then `verifying` and `installing` once.
+ * @mode emit
+ * @param progress - the download's request id, CLI, phase, and byte counts.
+ */
+'plugin-manager/product-cli-state'(progress: ProductCliProgress): void
 ```
 
 Source: [`packages/boot/plugin-manager/src/types.ts`](../../packages/boot/plugin-manager/src/types.ts)

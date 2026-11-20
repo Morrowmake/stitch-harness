@@ -71,6 +71,11 @@ HTTP(S) Git URL 指向 pnpm 没有 HTTPS 到 SSH 回退的主机（即 `hosted-g
 
 pnpm 11 拦下依赖脚本时，失败的安装在 `pendingBuilds` 里报告 profile 中所有待决定的 `allowBuilds` 键，包括先前尝试留下的键、本次运行报告为已忽略的包名，以及 pnpm 为其拒绝准备的 git 托管包建议的键。git URL 携带凭据（密码，或 HTTP(S) 上的用户名）的键不会被记录，因此该安装只提供手动批准。pnpm 只在能够交互提示时才把这些条目写入 `pnpm-workspace.yaml`，因此由管理器自行记录本次运行报告的包名；失败的运行会恢复 `package.json` 与 `pnpm-lock.yaml`，但有意不恢复 `pnpm-workspace.yaml`。Web 插件页提供**允许这些脚本并重试**；工具可以在用户于对话中批准这些脚本后，通过 `install_bundle` 的 `approvedBuilds` 代为授权。服务只校验待决定的名字，不核实对话中的批准。授权按记录的键保存在当前 profile，该键会把 git 托管包固定到其提交，允许以宿主用户的权限执行命令，并在再次安装失败后保留。只能批准当前未决定的名字；已有的拒绝与通配规则不能通过此操作覆盖。`allowBuilds` 里出现 YAML 锚点或别名时拒绝授权。重试保留原来的启用选择。
 
+<a id="claude-code-and-codex-programs"></a>
+### Claude Code 与 Codex 程序
+
+四个方法向客户端公开 [`dsh-product-cli`](../../subagent/product-cli/README.zh.md)。`listProductClis()` 不访问网络，返回每个 CLI 的状态。`downloadProductCli(id, requestId)` 先从配置的 `registry`、再从 `fallbackRegistries` 下载锁定版本的原生 CLI；由于包完整性已锁定，这样做是安全的。`plugin-manager/product-cli-state` 推送 `{ requestId, id, phase, receivedBytes, totalBytes }`，`phase` 为 `downloading`、`verifying` 或 `installing`；失败时以 `plugin-manager/product-cli-download-failed`（携带 `reason`）或 `plugin-manager/product-cli-download-cancelled` 拒绝。`cancelProductCliDownload(requestId)` 返回是否取消了下载，`removeProductCli(id)` 只删除 Stitch 的下载。这些方法只在客户端调用时运行；启用 bundle 从不下载。
+
 <a id="version-compatibility-and-exemptions"></a>
 ### 版本兼容性与豁免
 

@@ -27,6 +27,9 @@
       "path": "../../util/official-bundles"
     },
     {
+      "path": "../../subagent/product-cli"
+    },
+    {
       "path": "../../util/atomic-write"
     },
     {

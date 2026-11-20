@@ -80,6 +80,7 @@ import type { ResolvedPiAiProviderProfile } from './config.ts'
 import { discoverModels } from './discovery.ts'
 import type { StoredModelDiscoveryProfile } from './discovery.ts'
 import { providerDefaultsOf } from './provider-data.ts'
+import { apiNameOf, offeredForNewSetups, presentationOrder } from './provider-presentation.ts'
 import type { PiAiRequestHeaderContext } from './types.ts'
 
 export { PiAiAdapter } from './adapter.ts'
@@ -158,7 +159,7 @@ function registrationFacts(profiles: ReadonlyMap<string, ResolvedPiAiProviderPro
  * editor shows while the profile leaves the endpoint or the credential
  * reference unset.
  * @param profiles - the currently resolved provider profiles.
- * @returns the directory entries in catalog order, declared routes last.
+ * @returns the directory entries, catalog routes in presentation order (most-used first), declared routes last.
  */
 function directoryEntries(
   profiles: ReadonlyMap<string, ResolvedPiAiProviderProfile>,
@@ -180,7 +181,9 @@ function directoryEntries(
       ...error === undefined ? {} : { error },
     })
   }
-  for (const provider of catalogProviderIds()) declare(provider, provider)
+  const installed = catalogProviderIds().flatMap(provider => catalogProvider(provider) ?? []).filter(offeredForNewSetups)
+  for (const provider of presentationOrder(installed)) declare(provider.id, apiNameOf(provider))
+  // A stored profile keeps its route listed, a legacy one included, so whoever configured it can still edit it.
   for (const [provider, profile] of profiles) declare(provider, profile.displayName, profile.catalogError)
   return [...entries.values()]
 }

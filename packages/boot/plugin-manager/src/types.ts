@@ -6,6 +6,8 @@ export type { PluginEntryId } from '@deepseek-ai/dsh-host-plugin-inventory/types
 import type { PluginEntryId } from '@deepseek-ai/dsh-host-plugin-inventory/types'
 import type {} from '@deepseek-ai/dsh-typert-protocol'
 import type { DetailFailureReason } from '@deepseek-ai/dsh-plugin-detail/types'
+import type { ProductCliId } from '@deepseek-ai/dsh-product-cli/types'
+export type { ProductCliId, ProductCliStatus } from '@deepseek-ai/dsh-product-cli/types'
 
 declare module '@deepseek-ai/dsh-typert-protocol' {
   interface RemoteErrorDetailsMap {
@@ -19,6 +21,16 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
      * not exist. Bundle files come from local directories and public CDNs, which never answer `denied`.
      */
     'plugin-manager/detail-unavailable': { readonly reason: DetailFailureReason }
+    /**
+     * A product CLI download left no new copy: `network` when no registry delivered the tarball, `integrity` when it
+     * did not match the pinned sha512, `unsupported-platform` when this platform has no download, `filesystem` when the
+     * Stitch home could not hold it, `busy` while the same CLI is already downloading.
+     */
+    'plugin-manager/product-cli-download-failed': {
+      readonly reason: 'network' | 'integrity' | 'unsupported-platform' | 'filesystem' | 'busy'
+    }
+    /** The caller cancelled the download; nothing was installed. */
+    'plugin-manager/product-cli-download-cancelled': { readonly id: ProductCliId }
   }
 }
 
@@ -370,6 +382,15 @@ export interface PluginInstallProgress {
   readonly attempt?: { readonly registry: Registry; readonly index: number; readonly total: number }
 }
 
+/** Progress of one product CLI download; `totalBytes` is the compressed size the registry announced, or 0 when unknown. */
+export interface ProductCliProgress {
+  readonly requestId: PluginInstallRequestId
+  readonly id: ProductCliId
+  readonly phase: 'downloading' | 'verifying' | 'installing'
+  readonly receivedBytes: number
+  readonly totalBytes: number
+}
+
 /** Cancellation is confirmed only after process exit and file restoration. */
 export interface PluginInstallCancellation {
   readonly status: 'cancelled' | 'too-late' | 'not-running'
@@ -484,5 +505,11 @@ declare module '@deepseek-ai/cordis' {
      * @param progress - the update's request id and step.
      */
     'plugin-manager/update-state'(progress: PluginUpdateProgress): void
+    /**
+     * A product CLI download moved forward: bytes received while `downloading`, then `verifying` and `installing` once.
+     * @mode emit
+     * @param progress - the download's request id, CLI, phase, and byte counts.
+     */
+    'plugin-manager/product-cli-state'(progress: ProductCliProgress): void
   }
 }

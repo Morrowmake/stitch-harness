@@ -52,6 +52,7 @@
     "@anthropic-ai/claude-agent-sdk": "0.3.263",
     "@anthropic-ai/sdk": "0.93.0",
     "@deepseek-ai/dsh-brand": "workspace:*",
+    "@deepseek-ai/dsh-product-cli": "workspace:*",
     "@deepseek-ai/schemastery": "workspace:~",
     "@modelcontextprotocol/sdk": "^1.31.0",
     "zod": "4.6.6",

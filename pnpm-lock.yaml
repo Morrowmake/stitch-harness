@@ -2109,6 +2109,9 @@ importers:
       '@deepseek-ai/dsh-plugin-detail':
         specifier: workspace:*
         version: link:../../util/plugin-detail
+      '@deepseek-ai/dsh-product-cli':
+        specifier: workspace:*
+        version: link:../../subagent/product-cli
       '@deepseek-ai/dsh-timeout':
         specifier: workspace:*
         version: link:../../util/timeout
@@ -16424,6 +16427,22 @@ importers:
         specifier: workspace:*
         version: link:../storage
 
+  packages/subagent/product-cli:
+    dependencies:
+      '@deepseek-ai/dsh-home-paths':
+        specifier: workspace:*
+        version: link:../../util/home-paths
+      semver:
+        specifier: ^7.8.5
+        version: 7.8.5
+      tar:
+        specifier: ^7.5.22
+        version: 7.5.22
+    devDependencies:
+      '@types/semver':
+        specifier: ^7.8.0
+        version: 7.8.0
+
   packages/subagent/subagent:
     dependencies:
       '@deepseek-ai/dsh-brand':
@@ -16602,6 +16621,9 @@ importers:
       '@deepseek-ai/dsh-brand':
         specifier: workspace:*
         version: link:../../util/brand
+      '@deepseek-ai/dsh-product-cli':
+        specifier: workspace:*
+        version: link:../product-cli
       '@deepseek-ai/dsh-tool-subagent':
         specifier: workspace:*
         version: link:../tool-subagent
@@ -16675,6 +16697,9 @@ importers:
       '@deepseek-ai/dsh-brand':
         specifier: workspace:*
         version: link:../../util/brand
+      '@deepseek-ai/dsh-product-cli':
+        specifier: workspace:*
+        version: link:../product-cli
       '@deepseek-ai/dsh-sdk-protocol':
         specifier: workspace:*
         version: link:../../sdk/protocol

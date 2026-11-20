@@ -9,8 +9,8 @@
   en: 7a00dc655800816a
   zh: 07e08456c97ecbcc
 /plugin-indexes/table-of-contents:
-  en: 07fbfb959574be02
-  zh: b77347dcb10e31bd
+  en: 48bfdb98579b3c08
+  zh: 222913951217f27c
 /plugin-indexes/turn-on-discover:
   en: 25df3f42c1dbdb55
   zh: 1a976d16f0b76914
@@ -18,8 +18,11 @@
   en: 152ec467a1821e86
   zh: 7ee1d9c980ba3a6d
 /plugin-indexes/running-deepseek-harness-plugins:
-  en: 938d2048c5a88e81
-  zh: 50bb35e85f5c73d9
+  en: 072b627fd434c204
+  zh: d7938111d3490ddf
+/plugin-indexes/claude-code-and-codex-subagents:
+  en: 1f8ce2c35f7d183d
+  zh: 17b35906dc471696
 /plugin-indexes/publish-an-index:
   en: 3acc740af8ab1a53
   zh: 6a54b554ffa98028

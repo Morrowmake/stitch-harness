@@ -19,6 +19,7 @@ import type {
   PluginInstallLogChunk,
   PluginInstallProgress,
   PluginInstallRequestId,
+  ProductCliId,
   PluginRegistries,
   PluginSpecInspection,
   PluginUpdateProgress,
@@ -40,6 +41,7 @@ import type { PluginTabInstall, PluginTabUpdate } from './slot-contract.ts'
 import type { PluginTab } from './tab-ledger.ts'
 import { shortName } from './presentation.ts'
 import { BundleDetailController, type BundleDetailsState } from './detail-store.ts'
+import { ProductCliController, type ProductCliState } from './product-cli-store.ts'
 import type { LocaleSnapshot } from '@deepseek-ai/dsh-client-locale/client'
 
 /**
@@ -421,6 +423,8 @@ export interface PluginManagerFace {
     bundleDetails: SnapshotStore<BundleDetailsState>
     /** The active locale, bound as useLocale, for the language detail documents are read in. */
     locale: HostObservable<LocaleSnapshot>
+    /** Product CLI statuses and actions, bound by the renderer as useProductClis. */
+    productClis: SnapshotStore<ProductCliState>
   }
   /** Read a bundle's detail document unless the read already ran or runs. */
   loadDetail: BundleDetailController['load']
@@ -428,6 +432,16 @@ export interface PluginManagerFace {
   retryDetail: BundleDetailController['retry']
   /** The URL of an image beside a bundle's detail document, or undefined for a destination the page loads as written. */
   detailImage: BundleDetailController['image']
+  /** Read the product CLI statuses once a page that shows one opens. */
+  ensureProductClis: () => void
+  /** Read the product CLI statuses again after a failed read. */
+  retryProductClis: () => void
+  /** Download a product CLI; only a click calls this, never enabling its bundle. */
+  downloadProductCli: (id: ProductCliId) => void
+  /** Ask the Host to stop the product CLI download this page started. */
+  cancelProductCliDownload: (id: ProductCliId) => void
+  /** Delete the product CLI copy Stitch downloaded. */
+  removeProductCli: (id: ProductCliId) => void
   /** Read the Host once the tab first renders. */
   ensure: () => void
   /** Read the Host again, then check every registry package for newer versions. */
@@ -676,6 +690,8 @@ export class PluginManagerController {
   private transientRegistry = false
   /** Bundle detail documents the page shows. */
   readonly details: BundleDetailController
+  /** Product CLI statuses for the bundles that run Claude Code or Codex. */
+  readonly productClis: ProductCliController
   /** The registry last used from this browser, kept across dialogs and page loads; null until one was used. */
   private readonly registryMemory: SnapshotStore<RegistryChoice | null> = createSnapshotStore<RegistryChoice | null>(null, {
     persist: { name: 'dsh.plugin-manager.install-registry' },
@@ -688,6 +704,7 @@ export class PluginManagerController {
     private readonly ctx: ClientContext,
   ) {
     this.details = new BundleDetailController(ctx, () => document.baseURI)
+    this.productClis = new ProductCliController(ctx)
     this.store = createSnapshotStore<PluginManagerState>({
       status: 'idle', refreshStatus: 'idle', packages: [], busy: [], notice: null,
       install: IDLE_INSTALL, confirm: null, highlight: null, versions: {}, update: null,
@@ -722,6 +739,7 @@ export class PluginManagerController {
   dispose(): void {
     this.disposed = true
     this.details.dispose()
+    this.productClis.dispose()
     this.registryRead = undefined
     this.request = undefined
     this.generation += 1
@@ -738,15 +756,21 @@ export class PluginManagerController {
     configLedger: HostObservable<ConfigLedger>, pluginTabs: HostObservable<readonly PluginTab[]>, resolveText: PluginManagerFace['resolveText'],
   ): PluginManagerFace {
     const details = this.details
+    const productClis = this.productClis
     return {
       resolveText,
       hooks: {
         pluginManager: this.store, configLedger, pluginTabs, configurations: this.ctx.configForms.describe(),
-        bundleDetails: details.store, locale: this.ctx.locale,
+        bundleDetails: details.store, locale: this.ctx.locale, productClis: productClis.store,
       },
       loadDetail: (name, version, language) => { details.load(name, version, language) },
       retryDetail: (name, version, language) => { details.retry(name, version, language) },
       detailImage: (name, document, destination) => details.image(name, document, destination),
+      ensureProductClis: () => { productClis.ensure() },
+      retryProductClis: () => { void productClis.load() },
+      downloadProductCli: (id) => { void productClis.download(id) },
+      cancelProductCliDownload: (id) => { void productClis.cancel(id) },
+      removeProductCli: (id) => { void productClis.remove(id) },
       configForm: id => this.ctx.configForms.get(id),
       ensure: () => { if (this.getSnapshot().status === 'idle') void this.load() },
       refresh: () => { void this.refresh() },

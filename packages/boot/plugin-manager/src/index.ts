@@ -31,7 +31,10 @@ import type { ProfileContext, ProfileManifest } from '@deepseek-ai/dsh-app-boot'
 import { bundleManifest, readProfileRegistry, registryArguments, runProfilePnpm, saveManifest, viewProfilePackage } from './operations.ts'
 import { classifyInstallFailure } from './install-failure.ts'
 import { dependencySpec, InvalidInstallSpecError, parseInstallSpec, pinnedGitOrigin, type ParsedInstallSpec } from './install-spec.ts'
-import { attributeFailure, normalizeRegistry, NPMMIRROR_REGISTRY, registryPlan } from './registry.ts'
+import { attributeFailure, normalizeRegistry, NPMMIRROR_REGISTRY, OFFICIAL_NPM_REGISTRY, registryPlan } from './registry.ts'
+import {
+  downloadProductCli as downloadCli, PRODUCT_CLI_IDS, ProductCliDownloadError, productCliStatus, removeProductCli as removeCli,
+} from '@deepseek-ai/dsh-product-cli'
 import { flatten, writePluginEnabled } from './patch.ts'
 import { incompatiblePlugin, ManagementFailure } from './failure.ts'
 import { PluginManagerError, readProfileState } from './error.ts'
@@ -44,7 +47,7 @@ import type {
   ManagementError, PackageResult, PluginChange, PluginEntryId, PluginInfo, PluginInstallCancellation, PluginInstallProgress,
   PluginInstallRequestId, PluginRegistries, PluginSpecInspection, PluginUpdateResult, PluginUpdateStep, PluginVersion, PluginVersionList,
   Registry, RegistryAttempt, UpdateBundleOptions,
-  PluginOperation, PluginOperationId,
+  PluginOperation, PluginOperationId, ProductCliId, ProductCliStatus,
 } from './types.ts'
 export type * from './types.ts'
 export { classifyInstallFailure, type InstallFailureFacts } from './install-failure.ts'
@@ -373,6 +376,8 @@ export class PluginManager extends TypertRemoteService {
   private readonly configuredRegistries: Omit<PluginRegistries, 'resolved'>
   private readonly ownerContext: Context
   private readonly abort = new AbortController()
+  /** Running product CLI downloads by request id. */
+  private readonly productCliDownloads = new Map<PluginInstallRequestId, AbortController>()
   /** Installations by request id, from their call until it settles. */
   private readonly installs = new Map<PluginInstallRequestId, InstallControl>()
   private readonly detail: BundleDetailOptions
@@ -1160,6 +1165,82 @@ export class PluginManager extends TypertRemoteService {
     /* v8 ignore next -- change() folds every failure into its result; only a lock or disposal error rejects */
     await control.result.then(() => undefined, () => undefined)
     return { status: 'cancelled' }
+  }
+
+  /** Report where each product CLI (Claude Code, Codex) the product subagents run would come from. Runs each found
+   * executable's `--version` once per file revision and never contacts a registry.
+   * @returns One status per product CLI, in display order.
+   */
+  @Remote
+  async listProductClis(): Promise<ProductCliStatus[]> {
+    return await Promise.all(PRODUCT_CLI_IDS.map(id => productCliStatus(id)))
+  }
+
+  /** Download, verify against its pinned sha512, and install the native CLI into the Stitch home. Only an explicit call
+   * downloads; enabling a subagent bundle never does. Progress is announced as `plugin-manager/product-cli-state`.
+   * @param id The product CLI.
+   * @param requestId Caller-generated id that `cancelProductCliDownload` names.
+   * @returns The CLI's status after installation.
+   * @throws {RemoteError} `plugin-manager/product-cli-download-failed` or `plugin-manager/product-cli-download-cancelled`.
+   */
+  @Remote
+  async downloadProductCli(id: ProductCliId, requestId: PluginInstallRequestId): Promise<ProductCliStatus> {
+    if (!PRODUCT_CLI_IDS.includes(id)) {
+      throw new RemoteError('plugin-manager/product-cli-download-failed', `Unknown product CLI ${id}`, { reason: 'unsupported-platform' })
+    }
+    const controller = new AbortController()
+    this.productCliDownloads.set(requestId, controller)
+    const { registry, fallbackRegistries } = this.configuredRegistries
+    const registries = [...new Set([registry ?? OFFICIAL_NPM_REGISTRY, ...fallbackRegistries])]
+    const operation = downloadCli(id, {
+      registries,
+      signal: AbortSignal.any([controller.signal, this.abort.signal]),
+      onProgress: (progress) => { this.ownerContext.emit('plugin-manager/product-cli-state', { requestId, id, ...progress }) },
+    })
+    this.packageOperations.add(operation)
+    try {
+      await operation
+    } catch (error) {
+      if (!(error instanceof ProductCliDownloadError)) throw error
+      if (error.reason === 'cancelled') {
+        throw new RemoteError('plugin-manager/product-cli-download-cancelled', error.message, { id })
+      }
+      this.ownerContext.logger.warn('product CLI download failed: %o', error)
+      throw new RemoteError('plugin-manager/product-cli-download-failed', error.message, { reason: error.reason })
+    } finally {
+      this.packageOperations.delete(operation)
+      this.productCliDownloads.delete(requestId)
+    }
+    return await productCliStatus(id)
+  }
+
+  /** Stop a running product CLI download; nothing it fetched is kept.
+   * @param requestId The id the download was started with.
+   * @returns Whether a running download was cancelled.
+   */
+  @Remote
+  cancelProductCliDownload(requestId: PluginInstallRequestId): Promise<boolean> {
+    const controller = this.productCliDownloads.get(requestId)
+    controller?.abort()
+    return Promise.resolve(controller !== undefined)
+  }
+
+  /** Delete the copy Stitch downloaded of one product CLI; the user's own install is never touched.
+   * @param id The product CLI.
+   * @returns The CLI's status after removal.
+   * @throws {RemoteError} `plugin-manager/product-cli-download-failed` with `busy` while it is downloading.
+   */
+  @Remote
+  async removeProductCli(id: ProductCliId): Promise<ProductCliStatus> {
+    try {
+      await removeCli(id)
+    } catch (error) {
+      if (error instanceof ProductCliDownloadError) {
+        throw new RemoteError('plugin-manager/product-cli-download-failed', error.message, { reason: 'busy' })
+      }
+      throw error
+    }
+    return await productCliStatus(id)
   }
 
   /** Unload and remove a profile-owned bundle dependency through stitch plugin's pnpm path; a selected name no

@@ -3,6 +3,7 @@
 import type { Provider } from '@earendil-works/pi-ai'
 import type { LlmConfigurableProvider } from '@deepseek-ai/dsh-llm'
 import { PROVIDER_DATA } from './provider-data.generated.ts'
+import { planNameOf } from './provider-presentation.ts'
 
 /**
  * Return generated display metadata without executing authentication.
@@ -15,5 +16,6 @@ export function providerDefaultsOf(provider: Provider): Pick<LlmConfigurableProv
   // unrecorded provider remains configurable without guessed auth metadata.
   if (data === undefined) return provider.baseUrl && !provider.baseUrl.includes('{') ? { defaultBaseURL: provider.baseUrl } : {}
   const { env, ...endpoint } = data
-  return { ...endpoint, nativeAuth: { env, oauth: provider.auth.oauth !== undefined } }
+  const oauthName = planNameOf(provider)
+  return { ...endpoint, nativeAuth: { env, oauth: oauthName !== undefined, ...oauthName === undefined ? {} : { oauthName } } }
 }

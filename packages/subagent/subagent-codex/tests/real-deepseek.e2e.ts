@@ -18,6 +18,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import SubagentRuntime from '@deepseek-ai/dsh-subagent'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
+import { resolveProductCli } from '@deepseek-ai/dsh-product-cli'
 import type { SubprocessHandle } from '@deepseek-ai/dsh-subprocess'
 import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
 import * as codex from '../src/index.ts'
@@ -110,7 +111,17 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY)(
         handles.push(handle)
         return handle
       })
-      await ctx.plugin(codex, { env, disposeGraceMs: 2_000 })
+      // Only the checkout's native package may answer: no PATH, home, or Stitch download.
+      const bundled = await resolveProductCli('codex', {
+        bundledFrom: import.meta.url,
+        env: {},
+        homeDir: root,
+        dshHome: root,
+      })
+      if (!bundled.found || bundled.source !== 'bundled') {
+        throw new Error('e2e needs the @openai/codex native platform package installed in this checkout')
+      }
+      await ctx.plugin(codex, { env, disposeGraceMs: 2_000, executablePath: bundled.path })
       const version = await execFileAsync(process.execPath, [codexEntry, '--version'], {
         env: { ...process.env, ...env },
       })
