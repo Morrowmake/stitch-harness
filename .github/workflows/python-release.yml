@@ -4,6 +4,7 @@ name: Release (Python)
 # GitHub-hosted runners and retains it as the python-release-<version>
 # artifact. Stitch does not publish to PyPI, so this workflow has no
 # registry credentials, OIDC permission, or publication job.
+# Manual run: Actions → "Release (Python)" → Run workflow.
 on:
   workflow_dispatch:
 

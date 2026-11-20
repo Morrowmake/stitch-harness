@@ -3,6 +3,8 @@ name: Desktop release (unsigned)
 # Builds unsigned Stitch Desktop installers with the official client profile on
 # GitHub-hosted runners. A pushed `stitch-v<version>` tag publishes them to a
 # GitHub prerelease; a manual dry run only uploads workflow artifacts.
+# Manual run: Actions → "Desktop release (unsigned)" → Run workflow (dry run is
+# on by default).
 
 on:
   push:
