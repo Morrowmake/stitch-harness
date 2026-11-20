@@ -162,4 +162,27 @@ describe('Connection in-process Peers', () => {
     expect(() => created!.ctx.effect(() => () => {})).toThrow()
     await provider.dispose()
   })
+
+  it('answers the rc.5 requestRejection fence for a consumer that injects only the Connection', async () => {
+    const ctx = new Context()
+    const provider = ctx.plugin((pluginCtx) => { new ConnectionAuthentication(pluginCtx); new HostConnectionService(pluginCtx, []) })
+    await provider.await()
+    const request = { headers: { host: 'localhost' } }
+    let unauthenticated: unknown
+    let authenticated: unknown
+    const consumer = ctx.plugin({
+      inject: ['connection'],
+      apply: (consumerCtx: Context) => {
+        unauthenticated = consumerCtx.connection.requestRejection(request)
+        const peer = consumerCtx.connection.createPeer({ principal: GUEST })
+        ctx['connection.authentication'].register({ authenticate: () => peer })
+        authenticated = consumerCtx.connection.requestRejection(request)
+      },
+    })
+    await consumer.await()
+    expect(unauthenticated).toBe(401)
+    expect(authenticated).toBeUndefined()
+    await consumer.dispose()
+    await provider.dispose()
+  })
 })

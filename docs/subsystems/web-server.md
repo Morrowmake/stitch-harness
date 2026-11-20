@@ -151,6 +151,13 @@ createSharedFetchHandler(channel: '/api'): ConnectionFetchHandler
 admit(request: ConnectionTrustRequest): PeerAdmission
 
 /**
+ * DSH 0.2.2-rc.5 fence kept for plugins built against that release: {@link admit} reduced to its refusal.
+ * @param request - request headers from the HTTP or upgrade request.
+ * @returns the rejection status, or undefined when the request is admitted.
+ */
+requestRejection(request: ConnectionTrustRequest): 401 | 403 | 503 | undefined
+
+/**
  * Create an independent in-process Peer, disposed with the Context that read `ctx.connection`.
  * @param options - fixed principal and interaction participation (default answer).
  * @returns a new Peer distinct from every other Peer.

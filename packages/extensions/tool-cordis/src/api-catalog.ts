@@ -794,6 +794,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the credential\'s Peer, or the rejection status.',
       },
       {
+        signature: 'requestRejection(request: ConnectionTrustRequest): 401 | 403 | 503 | undefined',
+        description: 'DSH 0.2.2-rc.5 fence kept for plugins built against that release: admit reduced to its refusal.',
+        parameters: [{ name: 'request', description: 'request headers from the HTTP or upgrade request.' }],
+        returns: 'the rejection status, or undefined when the request is admitted.',
+      },
+      {
         signature: 'createPeer(options: { readonly principal: Principal; readonly interactions?: \'answer\' | \'none\' }): PeerScope',
         description: 'Create an independent in-process Peer, disposed with the Context that read `ctx.connection`.',
         parameters: [{ name: 'options', description: 'fixed principal and interaction participation (default answer).' }],

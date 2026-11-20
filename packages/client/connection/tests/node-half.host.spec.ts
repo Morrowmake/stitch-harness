@@ -319,6 +319,7 @@ describe('connection node half', () => {
         await expect.poll(() => routes.find(route => route.path === API_PATH)).toBeDefined()
         const bound = await browserCookie(ctx, '10.1.2.3:3080')
         expect(connection.admit(fakeRequest({ host: '10.1.2.3:3080', cookie: bound }))).toHaveProperty('peer')
+        expect(connection.requestRejection(fakeRequest({ host: '10.1.2.3:3080', cookie: bound }))).toBeUndefined()
       } finally {
         await web.dispose()
       }
@@ -333,6 +334,8 @@ describe('connection node half', () => {
       expect(connection.admit(fakeRequest({ host: 'tls.example' }))).toEqual({ rejection: 401 })
       expect(connection.admit(fakeRequest({ host: 'plain.example' }))).toEqual({ rejection: 403 })
       expect(connection.admit(fakeRequest({ host: 'tls.example:444' }))).toEqual({ rejection: 403 })
+      expect(connection.requestRejection(fakeRequest({ host: 'tls.example' }))).toBe(401)
+      expect(connection.requestRejection(fakeRequest({ host: 'plain.example' }))).toBe(403)
     } finally {
       await dispose()
     }

@@ -26,6 +26,7 @@ Stitch release notes. Stitch is a fork of DeepSeek Harness 0.2.2-rc.5; changes m
 - Unsigned macOS (arm64, x64) and Windows x64 desktop installers built by GitHub-hosted CI on `stitch-v*` tags.
 - `/feedback` can file a GitHub issue after a preview and confirmation.
 - Compatibility with DeepSeek Harness plugins: `DSH_*` environment variables are read as a fallback, `~/.dsh/skills` and `.dsh/skills` are read, and the community plugin market indexes are available.
+- Restored HostConnectionService.requestRejection for DSH 0.2.2-rc.5 plugin compatibility. It and `admit` work for plugins that inject only `connection`, as in rc.5.
 - Short-prompt component that trims the persona prompt while keeping other components' sections.
 
 ### Repository

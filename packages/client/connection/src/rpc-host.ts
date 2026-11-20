@@ -117,7 +117,15 @@ export class HostConnectionService extends Service implements HostConnectionHand
   admit(request: ConnectionTrustRequest): PeerAdmission {
     if (!this.isTrustedRequest(request)) return { rejection: 403 }
     if (this.disposed) return { rejection: 401 }
-    return this.authentication.authenticate(request)
+    // Through a consumer's `ctx.connection`, `this.authentication` resolves as the `connection.authentication`
+    // service and would demand that consumer inject it; the owner context already holds it.
+    return this.owner['connection.authentication'].authenticate(request)
+  }
+
+  /** DSH 0.2.2-rc.5 fence kept for plugins built against that release: the admission's refusal, or undefined when admitted. */
+  requestRejection(request: ConnectionTrustRequest): 401 | 403 | 503 | undefined {
+    const admission = this.admit(request)
+    return 'rejection' in admission ? admission.rejection : undefined
   }
 
   /** Create one in-process Peer owned by the Context that read this service. */
