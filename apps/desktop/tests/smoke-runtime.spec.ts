@@ -1,6 +1,6 @@
 /** Packaged runtime HTTP authentication and Office skill probe results. */
 
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, rmSync, writeFileSync } from 'node:fs'
 import { rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, dirname, isAbsolute, join, resolve } from 'node:path'
@@ -85,8 +85,13 @@ it('uses the private readiness Cookie for every packaged runtime HTTP probe', as
       else response.writeHead(404).end()
     },
   }))
-  boundary.start.mockResolvedValue({ url: ctx.webServer.getOrigin(), injections: [], authenticationCookie: cookie })
   let smokeHome: string | undefined
+  let officeFontCacheLink: string | undefined
+  boundary.start.mockImplementation(async () => {
+    const link = join(smokeHome!, 'Library', 'Group Containers', 'UBF8T346G9.Office', 'FontCache')
+    officeFontCacheLink = existsSync(dirname(link)) ? readlinkSync(link) : undefined
+    return { url: ctx.webServer.getOrigin(), injections: [], authenticationCookie: cookie }
+  })
   // Only package-manager and Office subprocess work is substituted; HTTP admission is real.
   boundary.run.mockImplementation(async (_executable, args, options) => {
     if (options.cwd === undefined) {
@@ -116,6 +121,7 @@ it('uses the private readiness Cookie for every packaged runtime HTTP probe', as
   expect(requests.every(request => request.cookie === cookie)).toBe(true)
   expect(boundary.stop).toHaveBeenCalledOnce()
   expect(smokeHome).toBeDefined()
+  expect(officeFontCacheLink).toBe(process.platform === 'darwin' ? 'FontCache' : undefined)
   expect(existsSync(smokeHome!)).toBe(false)
 })
 

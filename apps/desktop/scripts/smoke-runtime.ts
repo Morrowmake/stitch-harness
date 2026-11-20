@@ -1,6 +1,6 @@
 /** Boot the materialized target runtime without access to a user's Harness profile. */
 
-import { appendFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { appendFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
 import { rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -27,7 +27,7 @@ export function assertOfficeSkillsLoadable(results: ReadonlyArray<{ readonly nam
 
 /**
  * Check CLI package operations, Host startup, its frontend, external plugins, packaged Office skill loading,
- * and real Office rendering, conversion, and recalculation.
+ * and real Office rendering, conversion, and recalculation that never open Microsoft Office's macOS group container.
  * @param root - Materialized dsh resources.
  * @param node - Prepared target Electron executable.
  * @param runtime - Verified resource descriptor.
@@ -54,6 +54,13 @@ export async function smokeDesktopRuntime(
   let timer: ReturnType<typeof setTimeout> | undefined
   try {
     writeFileSync(join(home, 'npmrc'), '')
+    // macOS asks the user before an app reads Microsoft Office's group container, and the read waits for the answer,
+    // so a packaged render that opens it hangs. A self-referencing link there makes such a read fail the Office checks.
+    if (process.platform === 'darwin') {
+      const officeContainer = join(home, 'Library', 'Group Containers', 'UBF8T346G9.Office')
+      mkdirSync(officeContainer, { recursive: true })
+      symlinkSync('FontCache', join(officeContainer, 'FontCache'))
+    }
     createPluginProfile(profile)
     const pluginName = 'desktop-runtime-smoke-plugin'
     const plugin = join(home, pluginName)

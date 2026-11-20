@@ -117,6 +117,8 @@ None; this service does not construct or modify model requests.
 - The provider locates only the Kit installation it resolves itself; it does not search other locations or install Kit or engines.
 - Rendered images are returned as bytes. Converted and recalculated files are stored in the provider's output directory, not in the workspace; the caller copies each file to its destination.
 - Mapping a native path does not verify that the unpacked copy exists. Kit rejects missing manifests or assets instead of treating them as an absent native package.
+- On macOS, default font discovery skips Microsoft Office's cloud font cache, so cloud fonts installed only there are unavailable to conversions. The cache is in Office's app group container, and macOS holds a read there until the user answers a consent prompt; the workspace [Kit patch](../../../patches/@deepseek-ai__libreoffice-kit@0.2.3.patch) removes the read. Fonts bundled inside the Office apps remain eligible.
+- `timeoutMs` cannot end a conversion whose font scan is blocked in the filesystem: cancellation waits for the scan Worker to exit, and a Worker blocked in a system call does not exit.
 
 <a id="dev-note"></a>
 ### Dev Note
