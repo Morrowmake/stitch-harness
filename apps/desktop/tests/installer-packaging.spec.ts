@@ -22,12 +22,12 @@ describe('installer preparation preserves application dependencies', () => {
     execute.mockClear()
     write.mockClear()
     const env = {
-      DSH_DESKTOP_APP_ID: 'com.example.installer',
-      DSH_DESKTOP_TARGET_PLATFORM: platform,
-      DSH_DESKTOP_TARGET_ARCH: 'x64',
-      DSH_DESKTOP_UNSIGNED: platform === 'win32' ? '1' : '0',
-      DSH_DESKTOP_MACOS_SIGNING_IDENTITY: 'Example Company (TEAMID1234)',
-      DSH_DESKTOP_MACOS_TEAM_ID: 'TEAMID1234',
+      STITCH_DESKTOP_APP_ID: 'com.example.installer',
+      STITCH_DESKTOP_TARGET_PLATFORM: platform,
+      STITCH_DESKTOP_TARGET_ARCH: 'x64',
+      STITCH_DESKTOP_UNSIGNED: platform === 'win32' ? '1' : '0',
+      STITCH_DESKTOP_MACOS_SIGNING_IDENTITY: 'Example Company (TEAMID1234)',
+      STITCH_DESKTOP_MACOS_TEAM_ID: 'TEAMID1234',
       APPLE_KEYCHAIN_PROFILE: 'installer-test',
     }
     for (const [name, value] of Object.entries(env)) vi.stubEnv(name, value)
@@ -41,10 +41,10 @@ describe('installer preparation preserves application dependencies', () => {
         metadata: { value: metadata },
       })
       const appInfo = new AppInfo(metadataPackager, undefined)
-      expect(appInfo.companyName).toBe('Hangzhou DeepSeek Artificial Intelligence Co., Ltd.')
-      expect(appInfo.copyright).toBe(`Copyright © ${new Date().getFullYear()} DeepSeek Harness`)
+      expect(appInfo.companyName).toBe('Stitch contributors')
+      expect(appInfo.copyright).toBe(`Copyright © ${new Date().getFullYear()} Stitch`)
       if (platform === 'win32') {
-        expect(expandMacro(config.nsis.uninstallDisplayName, null, appInfo, {}, false)).toBe('DeepSeek Harness')
+        expect(expandMacro(config.nsis.uninstallDisplayName, null, appInfo, {}, false)).toBe('Stitch')
         expect(config.nsis.installerLanguages).toEqual(readInstallerLocales().map(locale => locale.id))
       }
       const aboutIcon = config.extraResources.find(resource => resource.to === 'icon.png')
@@ -82,12 +82,12 @@ describe('installer preparation preserves application dependencies', () => {
   it('names unsigned Windows artifacts so they cannot pass for release builds', async () => {
     const { createElectronBuilderConfig } = await import('../scripts/electron-builder-config.mjs')
     const config = createElectronBuilderConfig({
-      DSH_DESKTOP_APP_ID: 'com.example.installer',
-      DSH_DESKTOP_TARGET_PLATFORM: 'win32',
-      DSH_DESKTOP_TARGET_ARCH: 'x64',
-      DSH_DESKTOP_UNSIGNED: '1',
+      STITCH_DESKTOP_APP_ID: 'com.example.installer',
+      STITCH_DESKTOP_TARGET_PLATFORM: 'win32',
+      STITCH_DESKTOP_TARGET_ARCH: 'x64',
+      STITCH_DESKTOP_UNSIGNED: '1',
     }, 'win32', 'x64')
-    expect(config.artifactName).toBe('deepseek-harness-${version}-${os}-${arch}-unsigned.${ext}')
+    expect(config.artifactName).toBe('stitch-${version}-${os}-${arch}-unsigned.${ext}')
   })
 
   it('packages every preload entry point the shell loads', async () => {
@@ -101,9 +101,9 @@ describe('installer preparation preserves application dependencies', () => {
     expect(referenced.size).toBeGreaterThan(0)
     const { createElectronBuilderConfig } = await import('../scripts/electron-builder-config.mjs')
     const config = createElectronBuilderConfig({
-      DSH_DESKTOP_APP_ID: 'com.example.installer',
-      DSH_DESKTOP_MACOS_SIGNING_IDENTITY: 'Example Company (TEAMID1234)',
-      DSH_DESKTOP_MACOS_TEAM_ID: 'TEAMID1234',
+      STITCH_DESKTOP_APP_ID: 'com.example.installer',
+      STITCH_DESKTOP_MACOS_SIGNING_IDENTITY: 'Example Company (TEAMID1234)',
+      STITCH_DESKTOP_MACOS_TEAM_ID: 'TEAMID1234',
       APPLE_KEYCHAIN_PROFILE: 'installer-test',
     }, 'darwin', 'arm64')
     const packaged = new Set(config.files.filter((entry): entry is string => typeof entry === 'string'))

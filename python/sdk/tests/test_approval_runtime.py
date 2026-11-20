@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 from pydantic import BaseModel
 
-from deepseek_harness import ApprovalRequestParams, HarnessClient, HarnessConfig
+from stitch_harness import ApprovalRequestParams, HarnessClient, HarnessConfig
 
 
 class EmptyResponse(BaseModel):
@@ -33,7 +33,7 @@ def test_python_approval_controls_runtime_operation(tmp_path: Path, outcome: str
     with ThreadPoolExecutor(max_workers=1) as worker:
         with HarnessClient(
             HarnessConfig(cwd=str(repo), request_timeout_seconds=20, shutdown_timeout_seconds=20,
-                          env={"DSH_HOME": str(tmp_path / "home"), "DSH_PERMISSION_MODE": "workspace-write",
+                          env={"STITCH_HOME": str(tmp_path / "home"), "STITCH_PERMISSION_MODE": "workspace-write",
                                "DEEPSEEK_API_KEY": "keyless-no-model-call"}),
             _launch_args=(node, str(binary), "--profile", "sdk", "--patch", str(patch)),
         ) as client:

@@ -29,7 +29,7 @@ CLI 应用插件的 Host 行注入 `cliAccounts` 并调用一次 `register`；�
 
 ### 何时选用
 
-在厂商 CLI 负责让用户登录并保管凭据的插件的 Host 行中注册，DSH 只负责启动命令、展示结果和持有进程。通过 MCP 接入托管服务的插件改用 MCP 管理器，由它自己负责 OAuth。Service 通过 [`@deepseek-ai/dsh-client-ui-connector-account`](../../client/ui-connector-account/README.zh.md) 的 `ctx.connectorAccounts` 显示每个账号，没有厂商 CLI 的插件直接向它注册。
+在厂商 CLI 负责让用户登录并保管凭据的插件的 Host 行中注册，Stitch 只负责启动命令、展示结果和持有进程。通过 MCP 接入托管服务的插件改用 MCP 管理器，由它自己负责 OAuth。Service 通过 [`@deepseek-ai/dsh-client-ui-connector-account`](../../client/ui-connector-account/README.zh.md) 的 `ctx.connectorAccounts` 显示每个账号，没有厂商 CLI 的插件直接向它注册。
 
 ### 最小配置
 

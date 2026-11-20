@@ -1,5 +1,5 @@
 ---
-description: "Register a CLI app plugin's entry skill with the Host Service `ctx.upstreamSkills`: it downloads the upstream files the entry indexes from one directory of the vendor's GitHub repository at a pinned commit, verifies them, publishes them in the DSH cache, and lists the entry skill over them."
+description: "Register a CLI app plugin's entry skill with the Host Service `ctx.upstreamSkills`: it downloads the upstream files the entry indexes from one directory of the vendor's GitHub repository at a pinned commit, verifies them, publishes them in the Stitch cache, and lists the entry skill over them."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-CLI app plugins such as WeCom and Tencent Meeting register with `ctx.upstreamSkills` for guides their vendor publishes only in its GitHub repository. The plugin keeps its own entry `SKILL.md` and pins one repository directory by commit, size, and digest. When the plugin loads, the Service downloads that commit's archive, verifies the kept files, publishes them in the DSH cache, and lists the entry skill over them. Neither the repository nor the plugins' npm packages copy those files. The Service is optional: it loads only where a profile mounts it and downloads nothing until a plugin registers.
+CLI app plugins such as WeCom and Tencent Meeting register with `ctx.upstreamSkills` for guides their vendor publishes only in its GitHub repository. The plugin keeps its own entry `SKILL.md` and pins one repository directory by commit, size, and digest. When the plugin loads, the Service downloads that commit's archive, verifies the kept files, publishes them in the Stitch cache, and lists the entry skill over them. Neither the repository nor the plugins' npm packages copy those files. The Service is optional: it loads only where a profile mounts it and downloads nothing until a plugin registers.
 
 ## Table of Contents
 
@@ -83,12 +83,12 @@ export function apply(ctx: Context, config: Config): void {
 
 `register` reads the entry's name and description from its YAML frontmatter, registers a skill provider under `name`, and starts the download unless the files are already in place. The registration belongs to the plugin whose `ctx` made the call: unloading that plugin aborts the download, removes the provider, and ends the notifications. A second registration under one `name` throws and leaves the first in place.
 
-- `name` is the skill provider's name, the prefix of the plugin's errors and log records, and the directory under `$DSH_HOME/cache` that receives the download.
+- `name` is the skill provider's name, the prefix of the plugin's errors and log records, and the directory under `$STITCH_HOME/cache` that receives the download.
 - `entry` is the absolute path of the packaged entry `SKILL.md`, whose body refers to the upstream files by their repository paths, such as `skills/<guide>/SKILL.md`.
 - `set` is the pin that `scripts/upstream-skills-digest.ts` prints.
 - `skillsDir` is the plugin's own optional config field: a directory that already holds the kept files at their repository paths. When it is set, nothing is downloaded, and a path that is not a directory makes `register` throw.
 
-The returned handle serves the plugin's account view and check. `directory` is `skillsDir`, or `$DSH_HOME/cache/<name>/skills-<first 16 digest digits>`. `state` is `downloading` while a download runs, otherwise `installed` when that directory exists and `failed` when it does not. `watch(listener)` reports each start and end of a download, and `retry()` starts another download after a failure and returns at once. A plugin shows the state beside its account and calls `retry()` from its check without waiting, so a slow download never holds its account operations. A failed download is logged as a warning. `dispose()` withdraws the registration before the plugin unloads. The contracts in [`src/index.ts`](src/index.ts) and [`src/types.ts`](src/types.ts) are authoritative.
+The returned handle serves the plugin's account view and check. `directory` is `skillsDir`, or `$STITCH_HOME/cache/<name>/skills-<first 16 digest digits>`. `state` is `downloading` while a download runs, otherwise `installed` when that directory exists and `failed` when it does not. `watch(listener)` reports each start and end of a download, and `retry()` starts another download after a failure and returns at once. A plugin shows the state beside its account and calls `retry()` from its check without waiting, so a slow download never holds its account operations. A failed download is logged as a warning. `dispose()` withdraws the registration before the plugin unloads. The contracts in [`src/index.ts`](src/index.ts) and [`src/types.ts`](src/types.ts) are authoritative.
 
 ### Kept files and verification
 
@@ -143,7 +143,7 @@ A load that finds the files in place lists the entry in the session's first cata
 <a id="known-limitations-and-deferred-work"></a>
 
 - The first load after a new pin needs GitHub or a configured mirror; until a download succeeds, the entry skill is not listed and the plugin shows the `failed` state.
-- Published directories stay in `$DSH_HOME/cache/<name>` after a plugin pins another commit and after the plugin is removed; nothing prunes them. A process that exits while it writes a download leaves its `.skills-<digest>-<uuid>` staging directory there too.
+- Published directories stay in `$STITCH_HOME/cache/<name>` after a plugin pins another commit and after the plugin is removed; nothing prunes them. A process that exits while it writes a download leaves its `.skills-<digest>-<uuid>` staging directory there too.
 - Only the published directory's existence is checked. When files inside it are deleted or changed, the entry skill stays listed over them; deleting the directory makes the next check or load download the pin again.
 - File modes are not kept, so an upstream script is not executable; the current upstream guides run their scripts through `python3`.
 - In the experimental Web preview, which runs Host plugins in a browser worker, the Service loads but node-tar does not, so every download fails there.

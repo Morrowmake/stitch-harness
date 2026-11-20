@@ -44,16 +44,16 @@ export function createElectronBuilderConfig(
   preparedRuntimeVersion = undefined,
 ) {
   const appId = resolveDesktopAppId(env)
-  const targetPlatform = env.DSH_DESKTOP_TARGET_PLATFORM
+  const targetPlatform = env.STITCH_DESKTOP_TARGET_PLATFORM
   const resolvedPlatform = targetPlatform ?? hostPlatform
-  const resolvedArch = env.DSH_DESKTOP_TARGET_ARCH ?? hostArch
-  if (env.DSH_DESKTOP_UNSIGNED !== undefined && !['0', '1'].includes(env.DSH_DESKTOP_UNSIGNED)) {
-    throw new Error('desktop package: DSH_DESKTOP_UNSIGNED must be 0 or 1')
+  const resolvedArch = env.STITCH_DESKTOP_TARGET_ARCH ?? hostArch
+  if (env.STITCH_DESKTOP_UNSIGNED !== undefined && !['0', '1'].includes(env.STITCH_DESKTOP_UNSIGNED)) {
+    throw new Error('desktop package: STITCH_DESKTOP_UNSIGNED must be 0 or 1')
   }
-  const unsigned = env.DSH_DESKTOP_UNSIGNED === '1'
-  const skipNotarization = env.DSH_DESKTOP_MACOS_SKIP_NOTARIZATION === '1'
-  if (env.DSH_DESKTOP_MACOS_SKIP_NOTARIZATION !== undefined && !['0', '1'].includes(env.DSH_DESKTOP_MACOS_SKIP_NOTARIZATION)) {
-    throw new Error('desktop package: DSH_DESKTOP_MACOS_SKIP_NOTARIZATION must be 0 or 1')
+  const unsigned = env.STITCH_DESKTOP_UNSIGNED === '1'
+  const skipNotarization = env.STITCH_DESKTOP_MACOS_SKIP_NOTARIZATION === '1'
+  if (env.STITCH_DESKTOP_MACOS_SKIP_NOTARIZATION !== undefined && !['0', '1'].includes(env.STITCH_DESKTOP_MACOS_SKIP_NOTARIZATION)) {
+    throw new Error('desktop package: STITCH_DESKTOP_MACOS_SKIP_NOTARIZATION must be 0 or 1')
   }
   if (skipNotarization && (unsigned || resolvedPlatform !== 'darwin')) throw new Error('Skipping notarization requires a signed macOS build')
   const packagesMacOS = targetPlatform === 'darwin' || (targetPlatform === undefined && hostPlatform === 'darwin')
@@ -69,18 +69,20 @@ export function createElectronBuilderConfig(
   const unpack = ['**/*.{node,dylib,dll,so,exe}', '**/*.so.*', '**/spawn-helper', '**/@vscode/ripgrep-*/bin/rg',
     `**/node_modules/@deepseek-ai/libreoffice-kit-${resolvedPlatform}-${resolvedArch}/**/*`,
     // LaunchServices opens the Computer Use helper as an application, so every file of its bundles stays on disk.
-    // Both architectures ship: they form one notarized payload whose manifest staging verifies as a whole.
-    '**/node_modules/@deepseek-ai/dsh-cua-macos/native/bin/**/*']
+    // Signed builds ship both architectures as one notarized payload; unsigned builds ship the target's own build.
+    '**/node_modules/@deepseek-ai/dsh-cua-macos/native/bin/**/*',
+    // The self-contained Windows helper loads its runtime configuration and assemblies beside the executable.
+    '**/node_modules/@deepseek-ai/dsh-cua-windows/native/bin/**/*']
   const windowsSigner = packagesWindows && !unsigned
     ? createWindowsTokenSigner({
-        certificateFile: env.DSH_DESKTOP_WINDOWS_CER_FILE,
-        signTool: env.DSH_DESKTOP_WINDOWS_SIGNTOOL,
-        tokenPin: env.DSH_DESKTOP_WINDOWS_TOKEN_PIN,
-        keyContainer: env.DSH_DESKTOP_WINDOWS_KEY_CONTAINER,
+        certificateFile: env.STITCH_DESKTOP_WINDOWS_CER_FILE,
+        signTool: env.STITCH_DESKTOP_WINDOWS_SIGNTOOL,
+        tokenPin: env.STITCH_DESKTOP_WINDOWS_TOKEN_PIN,
+        keyContainer: env.STITCH_DESKTOP_WINDOWS_KEY_CONTAINER,
         preserveSignature: async path => {
           for (const [sourceRoot, destinationRoot] of [[join(buildPaths.runtime, 'primary-runtime'), primaryRuntimeDestination], [buildPaths.dsh, dshDestination]]) {
             if (destinationRoot !== undefined && await preserveWindowsRuntimeSignature(path, {
-              sourceRoot, destinationRoot, runDirectory: env.DSH_DESKTOP_PACKAGING_RUN_DIR,
+              sourceRoot, destinationRoot, runDirectory: env.STITCH_DESKTOP_PACKAGING_RUN_DIR,
             })) return true
           }
           return false
@@ -98,17 +100,17 @@ export function createElectronBuilderConfig(
   const packaged = resolveDesktopBuildCommit(env)
   return {
     appId,
-    protocols: [{ name: 'DeepSeek Harness', schemes: ['dsh'] }],
+    protocols: [{ name: 'Stitch', schemes: ['stitch'] }],
     extraMetadata: {
       dshDesktopAppId: appId,
       ...buildVersion === productVersion ? {} : { version: buildVersion },
       ...packaged === undefined ? {} : { dshBuildCommit: packaged.commit, dshBuildDirty: packaged.dirty },
     },
-    productName: 'DeepSeek Harness',
+    productName: 'Stitch',
     // The default copyright uses author.name; this line names the product instead.
     copyright: `Copyright © ${new Date().getFullYear()} \${productName}`,
     // Unsigned builds carry their own suffix so a shared file can never pass for a release artifact.
-    artifactName: `deepseek-harness-\${version}-\${os}-\${arch}${output.suffix}.\${ext}`,
+    artifactName: `stitch-\${version}-\${os}-\${arch}${output.suffix}.\${ext}`,
     directories: { output: output.directory },
     asar: true,
     electronDist: buildPaths.electron,
@@ -154,7 +156,7 @@ export function createElectronBuilderConfig(
       // macOS matches the application locale against this bundle, not Electron Framework resources.
       extendInfo: {
         CFBundleLocalizations: ['en', 'zh_CN', 'ja', 'es', 'fr', 'de', 'ru', 'pt'],
-        NSMicrophoneUsageDescription: 'DeepSeek Harness uses your microphone to transcribe speech into message drafts.',
+        NSMicrophoneUsageDescription: 'Stitch uses your microphone to transcribe speech into message drafts.',
       },
       // Ad-hoc signing keeps the modified Electron executable runnable without a Developer ID.
       identity: unsigned ? '-' : macOSSigning?.signingIdentity,
@@ -165,7 +167,8 @@ export function createElectronBuilderConfig(
       // Prepared runtime files retain their signatures; PAK resources are sealed by their enclosing bundle.
       signIgnore: ['/Contents/Resources/app\\.asar\\.unpacked/dsh(?:/|$)', '/Contents/Resources/runtime/primary-runtime(?:/|$)', '\\.pak$'],
       notarize: !unsigned && !skipNotarization,
-      target: unsigned ? ['dmg'] : ['dmg', 'zip'],
+      // The ZIP is the in-app update payload; 7-Zip keeps the bundle's symlinks, modes and ad-hoc signatures.
+      target: ['dmg', 'zip'],
     },
     dmg: {
       format: 'ULMO',
@@ -196,9 +199,9 @@ export function createElectronBuilderConfig(
     afterSign: async context => {
       if (windowsSigner !== undefined) {
         await signWindowsCode(context.appOutDir, {
-          thumbprint: new X509Certificate(await readFile(env.DSH_DESKTOP_WINDOWS_CER_FILE)).fingerprint.replaceAll(':', ''),
+          thumbprint: new X509Certificate(await readFile(env.STITCH_DESKTOP_WINDOWS_CER_FILE)).fingerprint.replaceAll(':', ''),
           sign: windowsSigner,
-          record: event => recordPackagingEvent(env.DSH_DESKTOP_PACKAGING_RUN_DIR, event),
+          record: event => recordPackagingEvent(env.STITCH_DESKTOP_PACKAGING_RUN_DIR, event),
         })
         await verifyWindowsAsarUnpack(buildPaths.dsh, context.packager.getResourcesDir(context.appOutDir), windowsCode)
       }

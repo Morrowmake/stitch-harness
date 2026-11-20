@@ -110,7 +110,7 @@ export async function verifySshHelper(argv: string[]): Promise<void> {
   const archive = resolve(values.archive)
   const checksum = (await readFile(`${archive}.sha256`, 'utf8')).split(/\s/)[0]
   if (await fileDigest(archive) !== checksum) throw new Error('SSH helper archive checksum mismatch')
-  const temporary = await realpath(await mkdtemp(join(homedir(), '.dsh-helper-check-')))
+  const temporary = await realpath(await mkdtemp(join(homedir(), '.stitch-helper-check-')))
   try {
     const installed = await extractHelper(archive, temporary)
     const manifest = await verifyPayload(installed)
@@ -132,9 +132,9 @@ export async function verifySshHelper(argv: string[]): Promise<void> {
     const executable = join(installed, 'dsh-ssh-helper')
     const helperHash = await fileDigest(executable)
     const environment = {
-      HOME: home, PATH: process.env.PATH, DSH_HOME: join(home, 'dsh'),
+      HOME: home, PATH: process.env.PATH, STITCH_HOME: join(home, 'dsh'),
       TSX_TSCONFIG_PATH: join(root, 'tsconfig.base.json'),
-      ...(values.backend === undefined ? {} : { DSH_EXPECT_SANDBOX_RUNNER: values.backend }),
+      ...(values.backend === undefined ? {} : { STITCH_EXPECT_SANDBOX_RUNNER: values.backend }),
     }
     const runs = await Promise.allSettled([0, 1].map(async (index) => {
       const cwd = join(workspace, String(index))

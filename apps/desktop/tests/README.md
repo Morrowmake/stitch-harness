@@ -50,7 +50,7 @@ pnpm exec tsc -b apps/desktop/tsconfig.host.json
 apps/desktop/.desktop-build/targets/mac-arm64/electron/Electron.app/Contents/MacOS/Electron apps/desktop/tests/fixtures/update-overlay-visibility.mjs
 ```
 
-The fixture owns a unique profile and writes `result.json` under `.desktop-build/qualification/update-overlay-*`. It checks visible and hidden owners, absence of native child windows, retention of a separate control window’s focus after owner visibility notifications, and view/input cleanup including owner destruction. It uses no network, product login, or dsh Host. It qualifies the in-window carrier, not the full first-login or installation flow.
+The fixture owns a unique profile and writes `result.json` under `.desktop-build/qualification/update-overlay-*`. It checks visible and hidden owners, absence of native child windows, retention of a separate control window’s focus after owner visibility notifications, and view/input cleanup including owner destruction. It uses no network, product login, or stitch Host. It qualifies the in-window carrier, not the full first-login or installation flow.
 
 <a id="verification-evidence"></a>
 
@@ -60,9 +60,11 @@ Packaging supervision fixtures control their Git metadata and use real file hash
 
 | Layer | Observed result |
 |---|---|
-| Update check | Unit tests with a substituted fetch cover semver comparison, draft and prerelease handling, project release-page validation, opt-in gating (no request while off, across startup and several days), startup and daily scheduling, immediate checks on enabling, silent automatic failures, and Check now results |
-| Main entry | Main-entry tests verify that no GitHub request is made by default, that enabling persists `updates.checkForUpdates`, checks once and daily, offers Download/Later and opens only the release page, and that Settings and the menu report available, current, and failed results |
-| Settings row | Client tests cover the off-by-default toggle, save failures, and each Check now outcome; the [browser scenario](../../web/tests/desktop-update-check.e2e.ts) drives the built Settings UI through a substituted Desktop carrier |
+| Update check | Unit tests with a substituted fetch cover semver comparison over the release list, draft and prerelease handling, project release-page validation, manifest lookup only with embedded keys, manifest rejection (untrusted or missing signature, other tag or version, downgrade) falling back to manual download, preference gating (no automatic request while off), startup and daily scheduling, immediate checks on enabling, silent automatic failures, and Check now results |
+| Update manifest | Unit tests with in-test ed25519 key pairs cover canonical JSON, manifest signatures (rotation, key order, tampering, untrusted key, no keys), embedded-key format, platform asset selection, and asset size, SHA-256, and signature mismatches |
+| One-click install | Unit tests cover the macOS and Windows install-plan builders (helper script steps, quoting, installer arguments), staged bundle identifier and version checks, non-writable and translocated bundles, no one-click install without keys or a verified source, download progress, and verification failures that launch nothing |
+| Main entry | Main-entry tests verify the default startup and daily check, the Download/Later fallback without embedded keys that opens only the release page, that turning checks off stops automatic requests and persists `updates.checkForUpdates`, and that Settings and the menu report available, current, and failed results |
+| Settings row | Client tests cover the toggle, save failures, and each Check now outcome; the [browser scenario](../../web/tests/desktop-update-check.e2e.ts) drives the built Settings UI through a substituted Desktop carrier and starts with checks on |
 | Packaging configuration | Metadata embeds the configured application ID and no update publisher |
 
 <a id="verification-open"></a>

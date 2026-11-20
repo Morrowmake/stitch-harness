@@ -63,7 +63,7 @@ describe('elicit mode', () => {
     const { client: optionless, elicit } = client({ action: 'accept', content: { decision: 'yes' } })
     await expect(elicitAnswer(optionless, { id: 'free', question: 'Continue?' }, undefined)).rejects.toThrow('without one of the offered answers: []')
     expect(elicit).toHaveBeenCalledWith('Continue?', [], undefined)
-    await expect(elicitAnswer(client({ action: 'accept' }, false).client, approval, undefined)).rejects.toThrow('DSH_CUA_CONSENT=allow')
+    await expect(elicitAnswer(client({ action: 'accept' }, false).client, approval, undefined)).rejects.toThrow('STITCH_CUA_CONSENT=allow')
     await expect(elicitAnswer(client({ action: 'later' as 'accept' }).client, approval, undefined)).rejects.toThrow('unknown elicitation action later')
   })
 

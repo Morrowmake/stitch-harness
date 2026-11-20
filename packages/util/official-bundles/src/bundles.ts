@@ -41,7 +41,7 @@ export const RETIRED_BUNDLES: ReadonlySet<string> = new Set([
   '@deepseek-ai/dsh-experimental-agent-team-profile',
 ])
 
-/** The bundle list a `dsh plugin` init uses for a name with no shipped template. */
+/** The bundle list a `stitch plugin` init uses for a name with no shipped template. */
 export const DEFAULT_PROFILE_BUNDLES: readonly string[] = ['@deepseek-ai/dsh-base']
 
 /**
@@ -68,7 +68,7 @@ export const OPTIONAL_BUNDLES: readonly string[] = [
   '@deepseek-ai/dsh-experimental-forge-bundle',
 ]
 
-/** Public DSH release members available through the ordinary on-demand bundle installer. */
+/** Public Stitch release members available through the ordinary on-demand bundle installer. */
 export const ON_DEMAND_BUNDLES: readonly string[] = [
   '@deepseek-ai/dsh-subagent-claude-code',
   '@deepseek-ai/dsh-subagent-codex',

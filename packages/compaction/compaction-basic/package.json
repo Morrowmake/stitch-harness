@@ -1,13 +1,13 @@
 {
   "name": "@deepseek-ai/dsh-compaction-basic",
-  "description": "Token-meter-driven compaction policy and LLM summarization backend for the DeepSeek Harness",
+  "description": "Token-meter-driven compaction policy and LLM summarization backend for the Stitch",
   "version": "0.2.2-rc.5",
   "publishConfig": {
     "access": "public"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
+    "url": "git+https://github.com/Morrowmake/stitch-harness.git",
     "directory": "packages/compaction/compaction-basic"
   },
   "type": "module",

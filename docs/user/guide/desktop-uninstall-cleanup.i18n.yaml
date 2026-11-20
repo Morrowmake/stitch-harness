@@ -2,15 +2,15 @@
 # section, a hash of its English and Chinese blocks outside code blocks and generated regions.
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/user/guide/desktop-uninstall-cleanup.md
-/uninstall-dsh-desktop:
-  en: bbd616011b211905
-  zh: 93b6146e97d9bb88
-/uninstall-dsh-desktop/1-uninstall-the-app:
-  en: 6ba6b5bc4153c3cd
-  zh: 36712b216d118155
-/uninstall-dsh-desktop/2-clean-up-local-data:
-  en: 459985c888cb631c
-  zh: 30771182f880e27b
-/uninstall-dsh-desktop/3-verify-cleanup:
+/uninstall-stitch-desktop:
+  en: 547e8114c5ff647c
+  zh: ac7362eb740e86dd
+/uninstall-stitch-desktop/1-uninstall-the-app:
+  en: f900078ecacba877
+  zh: c1269bcfc3e5f970
+/uninstall-stitch-desktop/2-clean-up-local-data:
+  en: 2d55b806a6082721
+  zh: 59b6e228615a603c
+/uninstall-stitch-desktop/3-verify-cleanup:
   en: 396bdba7cd24b278
   zh: 2488dc9721081aee

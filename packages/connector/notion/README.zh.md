@@ -30,7 +30,7 @@ Notion 插件在加载期间把 Notion 托管的 MCP 服务器 `https://mcp.noti
 将本包作为 bundle 安装，例如在 Web 侧栏的**插件**页面安装，或使用 CLI：
 
 ```sh
-dsh plugin --profile web add @deepseek-ai/dsh-notion
+stitch plugin --profile web add @deepseek-ai/dsh-notion
 ```
 
 bundle patch 在 profile 其他层之后插入 `notion` 行。插件需要 `mcpManager` 与 `systemPrompt` 服务，Web 与 Desktop 组合通过 [`dsh-web-app`](../../bundle/web-app/README.zh.md) 提供它们。在没有 MCP 管理器的 profile（例如 `headless`）中，插件不会激活，启动时会打印一条警告，指出缺少 `mcpManager` 服务。
@@ -48,13 +48,13 @@ bundle patch 在 profile 其他层之后插入 `notion` 行。插件需要 `mcpM
 | 已连接 | **退出登录**确认后删除本地 grant |
 | 暂时无法连接 | **重试**重启服务器并保留现有授权 |
 
-授权必须在 Host 所在机器的浏览器中完成。用户在 Notion 中同意授权后，回调页面说明 DSH 已收到授权，区块随后显示结果。离开页面不会取消授权尝试，尝试由 Host 持有。授权失败时显示**授权未完成，请重试**；页面操作失败时显示 toast。退出登录保留客户端注册，不会在 Notion 一侧撤销连接。
+授权必须在 Host 所在机器的浏览器中完成。用户在 Notion 中同意授权后，回调页面说明 Stitch 已收到授权，区块随后显示结果。离开页面不会取消授权尝试，尝试由 Host 持有。授权失败时显示**授权未完成，请重试**；页面操作失败时显示 toast。退出登录保留客户端注册，不会在 Notion 一侧撤销连接。
 
 页面通过 [`connectorAccounts` Remote](../../client/ui-connector-account/README.zh.md) 以 key `mcp:notion` 跟随账号，其按钮在该 Remote 上发起 `connect`、`sign-out` 或 `retry`，或取消授权尝试。在 Host 上，[`dsh-mcp-account`](../../mcp/mcp-account/README.zh.md) 通过管理器的 [OAuth 操作](../../mcp/mcp-manager/README.zh.md#oauth-authorization)执行它们：`startAuthorization('notion')` 返回一次授权尝试，其 `authorizationUrl` 由流报告，`cancelAuthorization('notion', id)` 取消它，`signOut('notion')` 删除 grant，`restart('notion')` 重试。其他 Remote 客户端可以使用同样的操作。
 
 ### 停用与卸载
 
-在 Plugin Manager 中关闭该行或卸载本包都会结束注册：Notion 工具从模型的工具集中撤下，已保存的 grant 留在凭据存储中，因此重新安装会复用它。要删除 grant，请在插件加载期间退出登录，或按[本地凭据提供方](../../credentials/credentials-local/README.zh.md)的说明，从 `$DSH_HOME/.credentials.yaml` 中删除 `mcp-client/notion` 记录。
+在 Plugin Manager 中关闭该行或卸载本包都会结束注册：Notion 工具从模型的工具集中撤下，已保存的 grant 留在凭据存储中，因此重新安装会复用它。要删除 grant，请在插件加载期间退出登录，或按[本地凭据提供方](../../credentials/credentials-local/README.zh.md)的说明，从 `$STITCH_HOME/.credentials.yaml` 中删除 `mcp-client/notion` 记录。
 
 ### 配置
 
@@ -126,7 +126,7 @@ Tools named `mcp__notion__*` come from the Notion plugin. In user-facing replies
 
 #### Token 影响
 
-工具集与服务器说明由 Notion 服务器定义，其大小可能在 DSH 不更新的情况下变化。设为 `on-demand` 时，已连接的 Notion 的开销是服务器说明、加载工具、46 个工具约 6,400 字符的目录，以及 agent 已加载的定义；设为 `eager` 时，全部定义（约 214,500 字符）在每次请求中重复出现。
+工具集与服务器说明由 Notion 服务器定义，其大小可能在 Stitch 不更新的情况下变化。设为 `on-demand` 时，已连接的 Notion 的开销是服务器说明、加载工具、46 个工具约 6,400 字符的目录，以及 agent 已加载的定义；设为 `eager` 时，全部定义（约 214,500 字符）在每次请求中重复出现。
 
 #### KV Cache 影响
 

@@ -58,7 +58,7 @@ export interface Config {
   outputRetentionMs: number
   /** Maximum bytes across retained converted and recalculated files; the oldest leave first. */
   maxOutputStoreBytes: number
-  /** Conversion deadline in milliseconds; excludes the DSH queue. */
+  /** Conversion deadline in milliseconds; excludes the Stitch queue. */
   timeoutMs: number
   /** Maximum authorized source bytes. */
   maxInputBytes: number

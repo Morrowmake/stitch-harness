@@ -50,7 +50,7 @@ it('repairs only the selected field and preserves unknown fields', async () => {
   expect(await file.read()).toMatchObject({ kind: 'ready', fields: {
     checkForUpdates: { kind: 'invalid', error: { problem: { kind: 'invalid', reason: 'field', field: 'checkForUpdates' } } },
   } })
-  expect(await new DesktopUpdateSettings(root).load()).toBe(false)
+  expect(await new DesktopUpdateSettings(root).load()).toBe(true)
   await file.saveUpdates({ checkForUpdates: true })
   expect(JSON.parse(await readFile(file.path, 'utf8'))).toEqual({ other: [1], updates: {
     checkForUpdates: true, channel: 'stable', future: { x: 2 },

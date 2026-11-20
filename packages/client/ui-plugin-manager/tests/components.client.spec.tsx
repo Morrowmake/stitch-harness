@@ -1703,17 +1703,17 @@ describe('PluginManagerPage', () => {
   })
 
   it.each([
-    { locale: en, placeholder: 'for example dsh-plugin-whale-pet' },
-    { locale: zh, placeholder: '例如 dsh-plugin-whale-pet' },
+    { locale: en, placeholder: 'for example stitch-plugin-whale-pet' },
+    { locale: zh, placeholder: '例如 stitch-plugin-whale-pet' },
   ])('uses the package example in $placeholder and the install guide', ({ locale, placeholder }) => {
     const { actions, setLanguage } = renderTab({ install: { ...IDLE_INSTALL, open: true } })
     setLanguage(locale)
     expect(screen.getByPlaceholderText(placeholder)).toBeTruthy()
     expect(screen.getByText(locale.installUpgradeNotice)).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: locale.installGuideToggle }))
-    expect(screen.getByText('dsh-plugin-whale-pet')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: locale.installGuideFillAria.replace('{example}', 'dsh-plugin-whale-pet') }))
-    expect(actions.editInstallSpec).toHaveBeenCalledExactlyOnceWith('dsh-plugin-whale-pet')
+    expect(screen.getByText('stitch-plugin-whale-pet')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: locale.installGuideFillAria.replace('{example}', 'stitch-plugin-whale-pet') }))
+    expect(actions.editInstallSpec).toHaveBeenCalledExactlyOnceWith('stitch-plugin-whale-pet')
   })
 
   it.each([
@@ -2009,7 +2009,7 @@ describe('PluginManagerPage', () => {
 
   it('shows the subject while installing, folds the pnpm output behind the details, and stops through the Host', () => {
     const subject = { spec: 'dsh-x', status: 'accepted', kind: 'registry', name: 'dsh-x', version: '1.4.2', description: 'A sidebar.', bundle: true, registry: null } as const
-    const run = { jobId: 'j1', command: 'pnpm add dsh-x', cwd: '/home/u/.dsh/profiles/web', output: 'Progress: resolved \x1b[96m1\x1b[39m\n' }
+    const run = { jobId: 'j1', command: 'pnpm add dsh-x', cwd: '/home/u/.stitch/profiles/web', output: 'Progress: resolved \x1b[96m1\x1b[39m\n' }
     const { actions, set } = renderTab({ install: { ...IDLE_INSTALL, open: true, spec: 'dsh-x', phase: 'running', subject, runs: [run] } })
     expect(screen.getByRole('status').textContent).toBe(en.installingTitle)
     expect(screen.getByRole('status').parentElement?.querySelector('[data-state="ongoing"]')).not.toBeNull()
@@ -2025,7 +2025,7 @@ describe('PluginManagerPage', () => {
     expect(actions.toggleInstallDetails).toHaveBeenCalledTimes(1)
     set({ install: { ...IDLE_INSTALL, open: true, spec: 'dsh-x', phase: 'running', subject, runs: [run], detailsOpen: true } })
     expect(screen.getByRole('button', { name: en.installDetailsHide }).getAttribute('aria-expanded')).toBe('true')
-    expect(screen.getByText(en.installLocation.replace('{dir}', '/home/u/.dsh/profiles/web'))).toBeTruthy()
+    expect(screen.getByText(en.installLocation.replace('{dir}', '/home/u/.stitch/profiles/web'))).toBeTruthy()
     // The run streams as a terminal: its command line, its coloured output so far, the running label.
     expect(screen.getByText('pnpm add dsh-x')).toBeTruthy()
     const terminal = document.querySelector('[data-terminal]') as HTMLElement
@@ -2244,7 +2244,7 @@ describe('PluginManagerPage', () => {
 
   it('names an enable-stage failure and points the details at the complete Host log', () => {
     const subject = { spec: 'dsh-x', status: 'accepted', kind: 'registry', name: 'dsh-x', bundle: true, registry: null } as const
-    const logPath = '/home/u/.dsh/profiles/web/plugin-manager/runs/install.log'
+    const logPath = '/home/u/.stitch/profiles/web/plugin-manager/runs/install.log'
     const enabling: InstallState = {
       ...IDLE_INSTALL, open: true, spec: 'dsh-x', phase: 'failed', subject, detailsOpen: true, logPath,
       failure: { reason: 'activation refused', stage: 'enable', enabled: true },
@@ -3070,7 +3070,7 @@ describe('registry versions and updates', () => {
     open(navigation)
     expect(within(section()).getByText(title)).toBeTruthy()
     expect(within(detail()).queryByRole('button', { name: /^Update to / })).toBeNull()
-    if (title === en.versionsBlocked) expect(within(section()).getByText(`2.0.0 needs @deepseek-ai/dsh >=0.9.0; this DSH is ${runtime}`)).toBeTruthy()
+    if (title === en.versionsBlocked) expect(within(section()).getByText(`2.0.0 needs @deepseek-ai/dsh >=0.9.0; this Stitch is ${runtime}`)).toBeTruthy()
   })
 
   it('reports a refused check with the registries asked and a retry', () => {

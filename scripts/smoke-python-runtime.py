@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Callable, Literal
 
 if TYPE_CHECKING:
-    from deepseek_harness import Notification, RunResult
+    from stitch_harness import Notification, RunResult
 
 
 EXPECTED_TEXT = "runtime smoke ok"
@@ -902,7 +902,7 @@ def main() -> None:
             assert args.exe is not None
             with tempfile.TemporaryDirectory(prefix="dsh-sdk-plugin-cache-") as cache:
                 subprocess.run([str(args.exe.resolve())], check=True, capture_output=True, text=True,
-                               env={**os.environ, "DSH_RESOURCE_CACHE": cache, "DSH_RUNTIME_DOWNLOAD": "primary"})
+                               env={**os.environ, "STITCH_RESOURCE_CACHE": cache, "STITCH_RUNTIME_DOWNLOAD": "primary"})
                 smoke_sdk_plugin_manager(model.url, args.exe.resolve(), Path(cache))
         if args.scenario in {"all", "sdk-authoring"}:
             assert args.exe is not None
@@ -957,9 +957,9 @@ def smoke_sdk_authoring(base_url: str, executable: Path, update_snapshots: bool)
 
 
 def _smoke_sdk_authoring_cached(base_url: str, executable: Path, update_snapshots: bool, cache: Path) -> None:
-    from deepseek_harness import DeepSeekHarness
+    from stitch_harness import Stitch
 
-    cache_environment = {**os.environ, "DSH_RESOURCE_CACHE": str(cache), "DSH_RUNTIME_DOWNLOAD": "primary"}
+    cache_environment = {**os.environ, "STITCH_RESOURCE_CACHE": str(cache), "STITCH_RUNTIME_DOWNLOAD": "primary"}
     primary = Path(json.loads(subprocess.check_output([str(executable)], encoding="utf-8", env=cache_environment)))
     resources = primary.parent
     manifest = json.loads((primary / "runtime.json").read_text())
@@ -983,11 +983,11 @@ def _smoke_sdk_authoring_cached(base_url: str, executable: Path, update_snapshot
                 patch_rows.append({"id": "skill-office", "disabled": True})
             patch.write_text(json.dumps(patch_rows))
             first = len(MockModelHandler.requests)
-            with DeepSeekHarness(
+            with Stitch(
                 provider="deepseek-official", model="smoke-model", cwd=str(root),
-                dsh_bin=str(executable), dsh_home=str(home), patches=(str(patch),),
+                stitch_bin=str(executable), stitch_home=str(home), patches=(str(patch),),
                 api_key="sk-keyless-smoke", base_url=base_url,
-                env={"DSH_PERMISSION_MODE": "danger-full-access", "DSH_RESOURCE_CACHE": str(cache)},
+                env={"STITCH_PERMISSION_MODE": "danger-full-access", "STITCH_RESOURCE_CACHE": str(cache)},
                 request_timeout_seconds=60,
             ) as harness:
                 result = harness.run(AUTHORING_PROMPT, session_id="authoring")
@@ -1035,7 +1035,7 @@ def _smoke_sdk_authoring_cached(base_url: str, executable: Path, update_snapshot
 
 def smoke_sdk_plugin_manager(base_url: str, executable: Path, cache: Path) -> None:
     """Approve a real local installation with bundled pnpm, then load it after restart."""
-    from deepseek_harness import ApprovalRequestParams, DeepSeekHarness
+    from stitch_harness import ApprovalRequestParams, Stitch
 
     with tempfile.TemporaryDirectory(prefix="dsh-sdk-plugin-manager-") as temporary:
         root = Path(temporary).resolve()
@@ -1056,13 +1056,13 @@ def smoke_sdk_plugin_manager(base_url: str, executable: Path, cache: Path) -> No
             "insert": [{"id": "sdk-managed-fixture", "name": "dsh-sdk-managed-fixture"}],
         }]))
         home = root / "home"
-        environment = {"PATH": "", "DSH_RESOURCE_CACHE": str(cache),
-                       "DSH_PERMISSION_MODE": "workspace-write"}
+        environment = {"PATH": "", "STITCH_RESOURCE_CACHE": str(cache),
+                       "STITCH_PERMISSION_MODE": "workspace-write"}
         config = dict(provider="deepseek-official", model="smoke-model", cwd=str(root),
-                      dsh_bin=str(executable), dsh_home=str(home), env=environment,
+                      stitch_bin=str(executable), stitch_home=str(home), env=environment,
                       api_key="sk-keyless-smoke", base_url=base_url, request_timeout_seconds=60)
         with ThreadPoolExecutor(max_workers=2) as worker:
-            harness = DeepSeekHarness(**config, approval_requests=True)
+            harness = Stitch(**config, approval_requests=True)
             try:
                 harness.start()
                 manifest_path = home / "profiles/sdk/package.json"
@@ -1086,15 +1086,15 @@ def smoke_sdk_plugin_manager(base_url: str, executable: Path, cache: Path) -> No
                 assert "dsh-sdk-managed-fixture" in manifest["dsh"]["profile"]["bundles"], manifest
             finally:
                 harness.close()
-        with DeepSeekHarness(**config) as restarted:
+        with Stitch(**config) as restarted:
             result = restarted.run(PROFILE_PLUGIN_PROMPT, session_id="installed-after-restart")
             assert result.final_response == PROFILE_PLUGIN_TEXT, result.final_response
         example = Path(__file__).resolve().parent.parent / "python/sdk/examples/manage_plugins.py"
         example_home = root / "example-home"
         example_environment = {**os.environ, **environment, "DEEPSEEK_BASE_URL": base_url,
                                "DEEPSEEK_API_KEY": "sk-keyless-smoke"}
-        example_args = [sys.executable, str(example), "--dsh-home", str(example_home),
-                        "--workspace", str(root), "--dsh-bin", str(executable)]
+        example_args = [sys.executable, str(example), "--stitch-home", str(example_home),
+                        "--workspace", str(root), "--stitch-bin", str(executable)]
         for decision, expected in (("n", "plugin installation rejected"), ("y", "plugin installation saved")):
             run = subprocess.run([*example_args, PLUGIN_INSTALL_PROMPT + json.dumps(str(plugin)) + "\n"],
                                  input=decision + "\n", env=example_environment, text=True, capture_output=True, timeout=120)
@@ -1105,26 +1105,26 @@ def smoke_sdk_plugin_manager(base_url: str, executable: Path, cache: Path) -> No
 
 def smoke_sdk_office(executable: Path) -> None:
     """Exercise the relocated profile's bundled Office API and shell commands."""
-    from deepseek_harness import DeepSeekHarness
+    from stitch_harness import Stitch
 
     checks_path = Path(__file__).resolve().parent / "fixtures/office-render.py"
     checks = runpy.run_path(checks_path)
-    artifacts = os.environ.get("DSH_OFFICE_TEST_ARTIFACTS")
+    artifacts = os.environ.get("STITCH_OFFICE_TEST_ARTIFACTS")
     with checks["workspace"](None if artifacts is None else Path(artifacts), prefix="dsh-sdk-office-") as root:
         relocated = root / executable.name
         stem = executable.name.removesuffix(".exe")
-        resources = executable.with_name(stem.removeprefix("deepseek-harness-sdk-runtime-"))
+        resources = executable.with_name(stem.removeprefix("stitch-sdk-runtime-"))
         for source in [*executable.parent.glob(f"{stem}*"), resources]:
             destination = root / source.name
             if source.is_dir():
                 shutil.copytree(source, destination)
             else:
                 shutil.copy2(source, destination)
-        cache_environment = {**os.environ, "DSH_RESOURCE_CACHE": str(root / "cache")}
-        office = Path(json.loads(subprocess.check_output([str(relocated)], encoding="utf-8", env={**cache_environment, "DSH_RUNTIME_DOWNLOAD": "office"})))
+        cache_environment = {**os.environ, "STITCH_RESOURCE_CACHE": str(root / "cache")}
+        office = Path(json.loads(subprocess.check_output([str(relocated)], encoding="utf-8", env={**cache_environment, "STITCH_RUNTIME_DOWNLOAD": "office"})))
         assert not (office.parent / "primary").exists(), "Office download unexpectedly prepared the authoring environment"
         adapter = office / "node_modules/@deepseek-ai/libreoffice-kit/package.json"
-        native = stem.removeprefix("deepseek-harness-sdk-runtime-").replace("win-", "win32-").replace("macos-", "darwin-")
+        native = stem.removeprefix("stitch-sdk-runtime-").replace("win-", "win32-").replace("macos-", "darwin-")
         declared = json.loads(adapter.read_text(encoding="utf-8")).get("optionalDependencies", {})
         selected = native if f"@deepseek-ai/libreoffice-kit-{native}" in declared else "wasm"
         expected_backend = "wasm" if selected == "wasm" else "native"
@@ -1140,7 +1140,7 @@ def smoke_sdk_office(executable: Path) -> None:
         document = documents["docx"]
 
         environment = {key: value for key, value in os.environ.items()
-                       if not key.startswith("DSH_") and not any(part in key.upper() for part in ("KEY", "SECRET", "TOKEN", "PASSWORD"))}
+                       if not key.startswith("STITCH_") and not any(part in key.upper() for part in ("KEY", "SECRET", "TOKEN", "PASSWORD"))}
         environment.update(PATH="")
         node = office / "node/bin" / ("node.exe" if native.startswith("win32-") else "node")
         cli = adapter.parent / "lib/cli.js"
@@ -1160,16 +1160,16 @@ def smoke_sdk_office(executable: Path) -> None:
             "config": {"input": str(document), "output": str(output), "result": str(result_path),
                        "imageInput": str(documents["pptx"]), "imageOutput": str(root / "node-pptx")},
         }]}]))
-        with DeepSeekHarness(
+        with Stitch(
             provider="deepseek-official",
             model="smoke-model",
             cwd=str(root),
-            dsh_bin=str(relocated),
-            dsh_home=str(root / f"home-{mode}"),
+            stitch_bin=str(relocated),
+            stitch_home=str(root / f"home-{mode}"),
             patches=(str(patch),),
             api_key="sk-keyless-smoke",
             base_url="http://127.0.0.1:9",
-            env={"DSH_PERMISSION_MODE": "danger-full-access", "DSH_RESOURCE_CACHE": str(root / "cache")},
+            env={"STITCH_PERMISSION_MODE": "danger-full-access", "STITCH_RESOURCE_CACHE": str(root / "cache")},
             # Startup performs three serial Office operations with 120-second engine deadlines.
             initialize_timeout_seconds=480,
             request_timeout_seconds=480,
@@ -1195,7 +1195,7 @@ def smoke_sdk_office(executable: Path) -> None:
 import sys, zipfile
 from pathlib import Path
 from xml.etree import ElementTree
-from deepseek_harness.office import convert, render_images, recalculate
+from stitch_harness.office import convert, render_images, recalculate
 root = Path(sys.argv[1])
 assert convert(root / 'color-blocks.docx', root / 'python.pdf').backend == sys.argv[2]
 rendered = render_images(root / 'python.pdf', root / 'images', pages=[1])
@@ -1204,7 +1204,7 @@ recalculate(root / 'input.xlsx', root / 'calculated.xlsx')
 with zipfile.ZipFile(root / 'calculated.xlsx') as archive:
     sheet = ElementTree.fromstring(archive.read('xl/worksheets/sheet1.xml'))
     assert sheet.find('.//{*}c[@r="A1"]/{*}v').text == '3'
-""", str(root), expected_backend], env={name: value for name, value in cache_environment.items() if name != "DSH_OFFICE_SIDECAR"}, check=True, timeout=180)
+""", str(root), expected_backend], env={name: value for name, value in cache_environment.items() if name != "STITCH_OFFICE_SIDECAR"}, check=True, timeout=180)
         assert not (office.parent / "primary").exists(), "Python Office API unexpectedly downloaded authoring resources"
         print(f"smoke-python-runtime: relocated Office {result['backend']} DOCX produced {len(pdf)} PDF bytes")
 
@@ -1215,22 +1215,22 @@ def assert_installed_wheel_environment() -> Path:
         raise AssertionError("installed-wheel smoke must run inside a virtual environment")
     if os.environ.get("PYTHONPATH"):
         raise AssertionError("installed-wheel smoke requires PYTHONPATH to be unset")
-    if os.environ.get("DSH_RUNTIME_MODE"):
-        raise AssertionError("installed-wheel smoke requires DSH_RUNTIME_MODE to be unset")
+    if os.environ.get("STITCH_RUNTIME_MODE"):
+        raise AssertionError("installed-wheel smoke requires STITCH_RUNTIME_MODE to be unset")
 
     repo_root = Path(__file__).resolve().parent.parent
     cwd = Path.cwd().resolve()
     if cwd.is_relative_to(repo_root):
         raise AssertionError(f"installed-wheel smoke must run outside the repository, got {cwd}")
 
-    sdk_version = importlib.metadata.version("deepseek-harness-sdk")
-    runtime_version = importlib.metadata.version("deepseek-harness-runtime-bin")
+    sdk_version = importlib.metadata.version("stitch-harness")
+    runtime_version = importlib.metadata.version("stitch-harness-runtime-bin")
     if sdk_version != runtime_version:
         raise AssertionError(
             f"installed SDK/runtime versions differ: {sdk_version} != {runtime_version}"
         )
-    expected_runtime_requirement = f"deepseek-harness-runtime-bin=={sdk_version}"
-    requirements = importlib.metadata.requires("deepseek-harness-sdk") or []
+    expected_runtime_requirement = f"stitch-harness-runtime-bin=={sdk_version}"
+    requirements = importlib.metadata.requires("stitch-harness") or []
     if expected_runtime_requirement not in requirements:
         raise AssertionError(
             f"installed SDK does not require {expected_runtime_requirement}: {requirements}"
@@ -1238,7 +1238,7 @@ def assert_installed_wheel_environment() -> Path:
 
     prefix = Path(sys.prefix).resolve()
     imported: dict[str, Path] = {}
-    for name in ("deepseek_harness", "deepseek_harness_runtime"):
+    for name in ("stitch_harness", "stitch_harness_runtime"):
         module = importlib.import_module(name)
         module_file = getattr(module, "__file__", None)
         if not isinstance(module_file, str):
@@ -1250,12 +1250,12 @@ def assert_installed_wheel_environment() -> Path:
             raise AssertionError(f"installed module {name} came from the repository checkout: {path}")
         imported[name] = path
 
-    runtime_module = sys.modules["deepseek_harness_runtime"]
+    runtime_module = sys.modules["stitch_harness_runtime"]
     executable = runtime_module.bundled_runtime_path().resolve()
-    runtime_package = imported["deepseek_harness_runtime"].parent
+    runtime_package = imported["stitch_harness_runtime"].parent
     if not executable.is_relative_to(runtime_package):
         raise AssertionError(f"bundled runtime came from outside the installed runtime wheel: {executable}")
-    runtime_files = importlib.metadata.files("deepseek-harness-runtime-bin") or []
+    runtime_files = importlib.metadata.files("stitch-harness-runtime-bin") or []
     if not any(Path(file).name == executable.name for file in runtime_files):
         raise AssertionError(f"runtime executable is absent from installed distribution records: {executable}")
     return executable
@@ -1263,7 +1263,7 @@ def assert_installed_wheel_environment() -> Path:
 
 def smoke_sdk_live() -> None:
     """Run a real-model, tool-using two-turn task through installed wheels."""
-    from deepseek_harness import DeepSeekHarness
+    from stitch_harness import Stitch
 
     api_key = os.environ.get("DEEPSEEK_API_KEY")
     base_url = os.environ.get("DEEPSEEK_BASE_URL")
@@ -1274,8 +1274,8 @@ def smoke_sdk_live() -> None:
 
     with tempfile.TemporaryDirectory(prefix="dsh-sdk-live-") as temporary:
         root = Path(temporary).resolve()
-        dsh_home = root / "home"
-        sessions = dsh_home / "sessions"
+        stitch_home = root / "home"
+        sessions = stitch_home / "sessions"
         marker = root / "live-api-marker.txt"
         session_id = "installed-wheel-live-api"
         shell_tool = "pwsh" if IS_WINDOWS else "bash"
@@ -1284,13 +1284,13 @@ def smoke_sdk_live() -> None:
             f"content {LIVE_API_SENTINEL}, with no newline or byte-order mark. "
             f"Then reply with exactly {LIVE_API_SENTINEL}.\n{marker}"
         )
-        with DeepSeekHarness(
+        with Stitch(
             provider="deepseek-official",
             model="deepseek-v4-flash",
             cwd=str(root),
-            dsh_home=str(dsh_home),
+            stitch_home=str(stitch_home),
             env={
-                "DSH_PERMISSION_MODE": "danger-full-access",
+                "STITCH_PERMISSION_MODE": "danger-full-access",
             },
             api_key=api_key,
             base_url=base_url,
@@ -1374,19 +1374,19 @@ def safe_turn_end(value: object) -> object:
 
 
 def smoke_sdk_default(base_url: str) -> None:
-    from deepseek_harness import DeepSeekHarness
+    from stitch_harness import Stitch
 
     with tempfile.TemporaryDirectory(prefix="dsh-sdk-default-") as temporary:
         root = Path(temporary).resolve()
-        dsh_home = root / "home"
-        sessions = dsh_home / "sessions"
-        with DeepSeekHarness(
+        stitch_home = root / "home"
+        sessions = stitch_home / "sessions"
+        with Stitch(
             provider="deepseek-official",
             model="smoke-model",
             cwd=str(root),
-            dsh_home=str(dsh_home),
+            stitch_home=str(stitch_home),
             env={
-                "DSH_PERMISSION_MODE": "danger-full-access",
+                "STITCH_PERMISSION_MODE": "danger-full-access",
             },
             api_key="sk-keyless-smoke",
             base_url=base_url,
@@ -1400,20 +1400,20 @@ def smoke_sdk_default(base_url: str) -> None:
         )
         assert_zstd_session_log(sessions)
         # The installed runtime starts with an empty PATH; no checkout or global pnpm can satisfy the tool.
-        before = (dsh_home / "profiles/sdk/package.json").read_bytes()
-        with DeepSeekHarness(
-            provider="deepseek-official", model="smoke-model", cwd=str(root), dsh_home=str(dsh_home),
-            env={"DSH_PERMISSION_MODE": "danger-full-access", "PATH": "",
-                 "DSH_PRIMARY_RUNTIME": "", "DSH_RESOURCE_CACHE": str(root / "empty-resource-cache")},
+        before = (stitch_home / "profiles/sdk/package.json").read_bytes()
+        with Stitch(
+            provider="deepseek-official", model="smoke-model", cwd=str(root), stitch_home=str(stitch_home),
+            env={"STITCH_PERMISSION_MODE": "danger-full-access", "PATH": "",
+                 "STITCH_PRIMARY_RUNTIME": "", "STITCH_RESOURCE_CACHE": str(root / "empty-resource-cache")},
             api_key="sk-keyless-smoke", base_url=base_url, request_timeout_seconds=60,
         ) as harness:
             package_result = harness.run("check missing plugin package manager", session_id="missing-pnpm")
         assert package_result.final_response == EXPECTED_TEXT, package_result.final_response
-        assert (dsh_home / "profiles/sdk/package.json").read_bytes() == before
+        assert (stitch_home / "profiles/sdk/package.json").read_bytes() == before
 
 
 def smoke_sdk_custom(base_url: str, executable: Path) -> None:
-    from deepseek_harness import DeepSeekHarness
+    from stitch_harness import Stitch
 
     cases: tuple[tuple[Literal["native", "ptc"], tuple[tuple[str, str], ...]], ...] = (
         ("native", (("reply with the smoke text", EXPECTED_TEXT), (WORKFLOW_PROMPT, WORKFLOW_WORKER_TEXT))),
@@ -1422,18 +1422,18 @@ def smoke_sdk_custom(base_url: str, executable: Path) -> None:
     for mode, turns in cases:
         with tempfile.TemporaryDirectory(prefix=f"dsh-sdk-custom-{mode}-") as temporary:
             root = Path(temporary).resolve()
-            dsh_home = root / "home"
-            sessions = dsh_home / "sessions"
+            stitch_home = root / "home"
+            sessions = stitch_home / "sessions"
             patch = write_advanced_profile_patch(root, "custom.patch.yml", sessions, mode)
-            with DeepSeekHarness(
+            with Stitch(
                 provider="deepseek-official",
                 model="smoke-model",
                 cwd=str(root),
-                dsh_bin=str(executable),
-                dsh_home=str(dsh_home),
+                stitch_bin=str(executable),
+                stitch_home=str(stitch_home),
                 patches=(str(patch),),
                 env={
-                    "DSH_PERMISSION_MODE": "danger-full-access",
+                    "STITCH_PERMISSION_MODE": "danger-full-access",
                 },
                 api_key="sk-keyless-smoke",
                 base_url=base_url,
@@ -1449,14 +1449,14 @@ def smoke_sdk_minimal(
     base_url: str, executable: Path, update_snapshots: bool, *, in_history: bool = False,
 ) -> None:
     """Exercise the shipped standalone minimal profile through the packaged executable."""
-    from deepseek_harness import DeepSeekHarness
+    from stitch_harness import Stitch
 
     # One mock model serves every scenario of a run, so the snapshot takes this turn's slice.
     first_request = len(MockModelHandler.requests)
     with tempfile.TemporaryDirectory(prefix="dsh-sdk-minimal-") as temporary:
         root = Path(temporary).resolve()
-        dsh_home = root / "home"
-        sessions = dsh_home / "sessions"
+        stitch_home = root / "home"
+        sessions = stitch_home / "sessions"
         patches = ()
         if in_history:
             patch = root / "in-history.patch.yml"
@@ -1470,12 +1470,12 @@ def smoke_sdk_minimal(
                 }]},
             ]))
             patches = (str(patch),)
-        with DeepSeekHarness(
+        with Stitch(
             provider="deepseek-official",
             model="smoke-model",
             cwd=str(root),
-            dsh_bin=str(executable),
-            dsh_home=str(dsh_home),
+            stitch_bin=str(executable),
+            stitch_home=str(stitch_home),
             profile="sdk-minimal",
             patches=patches,
             api_key="sk-keyless-smoke",
@@ -1505,15 +1505,15 @@ def smoke_sdk_minimal(
 
 def smoke_sdk_dynamic_tools(base_url: str, executable: Path, update_snapshots: bool) -> None:
     """Observe native tool changes through the shipped SDK profile and its durable log."""
-    from deepseek_harness import DeepSeekHarness
+    from stitch_harness import Stitch
 
     first_request = len(MockModelHandler.requests)
     with tempfile.TemporaryDirectory(prefix="dsh-sdk-dynamic-tools-") as temporary:
         root = Path(temporary).resolve()
-        dsh_home = root / "home"
+        stitch_home = root / "home"
         user_home = root / "user-home"
         user_home.mkdir()
-        sessions = dsh_home / "sessions"
+        sessions = stitch_home / "sessions"
         # Own the baseline instruction message instead of inheriting host instructions.
         (root / "AGENTS.md").write_text("Use the tools requested by the user.\n", encoding="utf-8")
         task = root / "dynamic-tool-task.txt"
@@ -1533,15 +1533,15 @@ def smoke_sdk_dynamic_tools(base_url: str, executable: Path, update_snapshots: b
                 "name": (Path(__file__).resolve().parent / "fixtures/python-sdk-dynamic-tools.mjs").as_uri(),
             }]},
         ])
-        with DeepSeekHarness(
+        with Stitch(
             provider="deepseek-official", model="smoke-model", cwd=str(root),
-            dsh_bin=str(executable), dsh_home=str(dsh_home), patches=(str(patch),),
+            stitch_bin=str(executable), stitch_home=str(stitch_home), patches=(str(patch),),
             env={
-                "DSH_PERMISSION_MODE": "danger-full-access",
+                "STITCH_PERMISSION_MODE": "danger-full-access",
                 "HOME": str(user_home), "USERPROFILE": str(user_home),
-                "DSH_AGENTS_HOME": str(user_home / ".agents"),
+                "STITCH_AGENTS_HOME": str(user_home / ".agents"),
                 # Pin the tool baseline independently of optional resources in the host cache.
-                "DSH_PRIMARY_RUNTIME": "",
+                "STITCH_PRIMARY_RUNTIME": "",
             },
             api_key="sk-keyless-smoke", base_url=base_url, request_timeout_seconds=60,
         ) as harness:
@@ -1560,26 +1560,26 @@ def smoke_sdk_dynamic_tools(base_url: str, executable: Path, update_snapshots: b
 
 def smoke_sdk_fs_search(base_url: str, executable: Path) -> None:
     """Exercise real grep and glob spawns through the packaged executable."""
-    from deepseek_harness import DeepSeekHarness
+    from stitch_harness import Stitch
 
     with tempfile.TemporaryDirectory(prefix="dsh-sdk-fs-search-") as temporary:
         root = Path(temporary).resolve()
         (root / "needle.txt").write_text(f"{FS_SEARCH_MARKER}\n")
-        dsh_home = root / "home"
-        sessions = dsh_home / "sessions"
+        stitch_home = root / "home"
+        sessions = stitch_home / "sessions"
         patch = write_profile_patch(root, "fs-search.patch.yml", sessions, [
             {"id": "skill-filesystem", "disabled": True},
             {"id": "tool-fs-search", "config": {"sampleOverCapGlobResults": False}},
         ])
-        with DeepSeekHarness(
+        with Stitch(
             provider="deepseek-official",
             model="smoke-model",
             cwd=str(root),
-            dsh_bin=str(executable),
-            dsh_home=str(dsh_home),
+            stitch_bin=str(executable),
+            stitch_home=str(stitch_home),
             patches=(str(patch),),
             env={
-                "DSH_PERMISSION_MODE": "danger-full-access",
+                "STITCH_PERMISSION_MODE": "danger-full-access",
             },
             api_key="sk-keyless-smoke",
             base_url=base_url,
@@ -1593,22 +1593,22 @@ def smoke_sdk_fs_search(base_url: str, executable: Path) -> None:
 
 def smoke_sdk_spawn_node(base_url: str, executable: Path) -> None:
     """A shell command starting with `node` must reach the machine's Node, not the executable."""
-    from deepseek_harness import DeepSeekHarness
+    from stitch_harness import Stitch
 
     with tempfile.TemporaryDirectory(prefix="dsh-sdk-spawn-node-") as temporary:
         root = Path(temporary).resolve()
-        dsh_home = root / "home"
-        sessions = dsh_home / "sessions"
+        stitch_home = root / "home"
+        sessions = stitch_home / "sessions"
         patch = write_profile_patch(root, "spawn-node.patch.yml", sessions, [])
-        with DeepSeekHarness(
+        with Stitch(
             provider="deepseek-official",
             model="smoke-model",
             cwd=str(root),
-            dsh_bin=str(executable),
-            dsh_home=str(dsh_home),
+            stitch_bin=str(executable),
+            stitch_home=str(stitch_home),
             patches=(str(patch),),
             env={
-                "DSH_PERMISSION_MODE": "danger-full-access",
+                "STITCH_PERMISSION_MODE": "danger-full-access",
             },
             api_key="sk-keyless-smoke",
             base_url=base_url,
@@ -1622,25 +1622,25 @@ def smoke_sdk_spawn_node(base_url: str, executable: Path) -> None:
 
 def smoke_sdk_mcp(base_url: str, executable: Path | None) -> None:
     """Discover and call an external stdio MCP tool through the packaged client."""
-    from deepseek_harness import DeepSeekHarness
+    from stitch_harness import Stitch
 
     with tempfile.TemporaryDirectory(prefix="dsh-sdk-mcp-") as temporary:
         root = Path(temporary).resolve()
-        dsh_home = root / "home"
-        sessions = dsh_home / "sessions"
+        stitch_home = root / "home"
+        sessions = stitch_home / "sessions"
         server_script = root / "mcp_server.py"
         server_script.write_text(MCP_SERVER_SCRIPT)
         patch = write_mcp_patch(root, sessions, server_script)
         discovery_log = server_script.with_suffix(".log")
-        with DeepSeekHarness(
+        with Stitch(
             provider="deepseek-official",
             model="smoke-model",
             cwd=str(root),
-            dsh_bin=None if executable is None else str(executable),
-            dsh_home=str(dsh_home),
+            stitch_bin=None if executable is None else str(executable),
+            stitch_home=str(stitch_home),
             patches=(str(patch),),
             env={
-                "DSH_PERMISSION_MODE": "danger-full-access",
+                "STITCH_PERMISSION_MODE": "danger-full-access",
             },
             api_key="sk-keyless-smoke",
             base_url=base_url,
@@ -1661,11 +1661,11 @@ def smoke_sdk_mcp(base_url: str, executable: Path | None) -> None:
 
 def smoke_sdk_profile_plugin(base_url: str) -> None:
     """Install an external bundle through Python's dsh command and load it in the SDK."""
-    from deepseek_harness import DeepSeekHarness
+    from stitch_harness import Stitch
 
     with tempfile.TemporaryDirectory(prefix="dsh-sdk-profile-plugin-") as temporary:
         root = Path(temporary).resolve()
-        dsh_home = root / "home"
+        stitch_home = root / "home"
         plugin = root / "plugin"
         plugin.mkdir()
         (plugin / "package.json").write_text(json.dumps({
@@ -1694,8 +1694,8 @@ def smoke_sdk_profile_plugin(base_url: str) -> None:
             "insert": [{"id": "python-sdk-blackbox-plugin", "name": "dsh-python-blackbox-plugin"}],
         }], indent=2))
 
-        dsh = Path(sysconfig.get_path("scripts")) / ("dsh.exe" if IS_WINDOWS else "dsh")
-        environment = {**os.environ, "DSH_HOME": str(dsh_home)}
+        dsh = Path(sysconfig.get_path("scripts")) / ("stitch.exe" if IS_WINDOWS else "stitch")
+        environment = {**os.environ, "STITCH_HOME": str(stitch_home)}
         installed = subprocess.run(
             [str(dsh), "plugin", "--profile", "sdk", "add", f"file:{plugin}"],
             cwd=root,
@@ -1710,19 +1710,19 @@ def smoke_sdk_profile_plugin(base_url: str) -> None:
                 f"returncode={installed.returncode} (0x{installed.returncode & 0xffffffff:08x}) "
                 f"stdout={installed.stdout!r} stderr={installed.stderr!r}"
             )
-        manifest = json.loads((dsh_home / "profiles" / "sdk" / "package.json").read_text())
+        manifest = json.loads((stitch_home / "profiles" / "sdk" / "package.json").read_text())
         if "dsh-python-blackbox-plugin" not in manifest.get("dependencies", {}):
-            raise AssertionError(f"dsh plugin did not record the external dependency: {manifest}")
+            raise AssertionError(f"stitch plugin did not record the external dependency: {manifest}")
         if "dsh-python-blackbox-plugin" not in manifest["dsh"]["profile"]["bundles"]:
-            raise AssertionError(f"dsh plugin did not activate the external bundle: {manifest}")
+            raise AssertionError(f"stitch plugin did not activate the external bundle: {manifest}")
 
-        harness = DeepSeekHarness(
+        harness = Stitch(
             provider="deepseek-official",
             model="smoke-model",
             cwd=str(root),
-            dsh_home=str(dsh_home),
+            stitch_home=str(stitch_home),
             env={
-                "DSH_PERMISSION_MODE": "danger-full-access",
+                "STITCH_PERMISSION_MODE": "danger-full-access",
             },
             api_key="sk-keyless-smoke",
             base_url=base_url,
@@ -1737,7 +1737,7 @@ def smoke_sdk_profile_plugin(base_url: str) -> None:
             ) from error
 
         assert result.final_response == PROFILE_PLUGIN_TEXT, result.final_response
-        assert_zstd_session_log(dsh_home / "sessions")
+        assert_zstd_session_log(stitch_home / "sessions")
 
 
 def smoke_sdk_snapshot(base_url: str, executable: Path, update_snapshots: bool) -> None:
@@ -1750,12 +1750,12 @@ def smoke_sdk_snapshot_mode(
     base_url: str, executable: Path, update_snapshots: bool, mode: Literal["native", "ptc"],
 ) -> None:
     """Drive one supported presentation through the SDK and persistent Session log."""
-    from deepseek_harness import DeepSeekHarness
+    from stitch_harness import Stitch
 
     with tempfile.TemporaryDirectory(prefix="dsh-sdk-snapshot-") as temporary:
         root = Path(temporary).resolve()
-        dsh_home = root / "home"
-        sessions = dsh_home / "sessions"
+        stitch_home = root / "home"
+        sessions = stitch_home / "sessions"
         patch = write_advanced_profile_patch(root, "snapshot.patch.yml", sessions, mode)
         feedback_patch = write_profile_patch(root, "feedback.patch.yml", sessions, [{"insert": [
             {"id": "snapshot-tool", "name": (
@@ -1782,15 +1782,15 @@ def smoke_sdk_snapshot_mode(
                 "name": str(Path(__file__).resolve().parents[1] / "packages/core/agent-loop/tests/fixtures/serial-created.mjs"),
             }]},
         ])
-        with DeepSeekHarness(
+        with Stitch(
             provider="deepseek-official",
             model="smoke-model",
             cwd=str(root),
-            dsh_bin=str(executable),
-            dsh_home=str(dsh_home),
+            stitch_bin=str(executable),
+            stitch_home=str(stitch_home),
             patches=(str(patch), str(feedback_patch), str(creation_patch)),
             env={
-                "DSH_PERMISSION_MODE": "danger-full-access",
+                "STITCH_PERMISSION_MODE": "danger-full-access",
             },
             api_key="sk-keyless-smoke",
             base_url=base_url,
@@ -1882,7 +1882,7 @@ def smoke_sdk_snapshot_mode(
 
 def smoke_sdk_v3_resume(base_url: str, executable: Path) -> None:
     """Migrate persisted V3 history and reopen the published log in a fresh runtime."""
-    from deepseek_harness import DeepSeekHarness
+    from stitch_harness import Stitch
 
     with tempfile.TemporaryDirectory(prefix="dsh-sdk-v3-resume-") as temporary:
         root = Path(temporary).resolve()
@@ -1910,10 +1910,10 @@ def smoke_sdk_v3_resume(base_url: str, executable: Path) -> None:
         patch = write_profile_patch(root, "v3-resume.patch.yml", sessions, [])
         request_count = len(MockModelHandler.requests)
 
-        def connect() -> DeepSeekHarness:
-            return DeepSeekHarness(
+        def connect() -> Stitch:
+            return Stitch(
                 provider="deepseek-official", model="smoke-model", cwd=str(root),
-                dsh_bin=str(executable), dsh_home=str(root / "home"), patches=(str(patch),),
+                stitch_bin=str(executable), stitch_home=str(root / "home"), patches=(str(patch),),
                 api_key="sk-keyless-smoke", base_url=base_url,
                 request_timeout_seconds=60,
             )
@@ -1939,25 +1939,25 @@ def smoke_sdk_v3_resume(base_url: str, executable: Path) -> None:
 
 def smoke_sdk_restart_snapshot(base_url: str, executable: Path, update_snapshots: bool) -> None:
     """Check isolated sessions and explicit history restoration across runtime restarts."""
-    from deepseek_harness import DeepSeekHarness
+    from stitch_harness import Stitch
 
     with tempfile.TemporaryDirectory(prefix="dsh-sdk-restart-") as temporary:
         root = Path(temporary).resolve()
-        dsh_home = root / "home"
-        sessions = dsh_home / "sessions"
+        stitch_home = root / "home"
+        sessions = stitch_home / "sessions"
         patch = write_advanced_profile_patch(root, "restart.patch.yml", sessions)
         first_request = len(MockModelHandler.requests)
 
-        def connect(model: str = "smoke-model") -> DeepSeekHarness:
-            return DeepSeekHarness(
+        def connect(model: str = "smoke-model") -> Stitch:
+            return Stitch(
                 provider="deepseek-official",
                 model=model,
                 cwd=str(root),
-                dsh_bin=str(executable),
-                dsh_home=str(dsh_home),
+                stitch_bin=str(executable),
+                stitch_home=str(stitch_home),
                 patches=(str(patch),),
                 env={
-                    "DSH_PERMISSION_MODE": "danger-full-access",
+                    "STITCH_PERMISSION_MODE": "danger-full-access",
                 },
                 api_key="sk-keyless-smoke",
                 base_url=base_url,
@@ -2075,13 +2075,13 @@ def smoke_sdk_restart_snapshot(base_url: str, executable: Path, update_snapshots
 
 def smoke_sdk_scheduler_recovery(base_url: str, executable: Path, update_snapshots: bool) -> None:
     """Keep a failed tool turn usable through the real Messages serializer and SDK."""
-    from deepseek_harness import DeepSeekHarness
+    from stitch_harness import Stitch
 
     first_request = len(MockModelHandler.requests)
     with tempfile.TemporaryDirectory(prefix="dsh-sdk-scheduler-recovery-") as temporary:
         root = Path(temporary).resolve()
-        dsh_home = root / "home"
-        sessions = dsh_home / "sessions"
+        stitch_home = root / "home"
+        sessions = stitch_home / "sessions"
         base_patch = write_advanced_profile_patch(root, "base.patch.yml", sessions)
         patch = write_profile_patch(root, "recovery.patch.yml", sessions, [
             {"id": "tool-todo", "disabled": False},
@@ -2096,12 +2096,12 @@ def smoke_sdk_scheduler_recovery(base_url: str, executable: Path, update_snapsho
             }]},
         ])
 
-        def connect() -> DeepSeekHarness:
-            return DeepSeekHarness(
+        def connect() -> Stitch:
+            return Stitch(
                 provider="deepseek-official", model="smoke-model", cwd=str(root),
-                dsh_bin=str(executable), dsh_home=str(dsh_home),
+                stitch_bin=str(executable), stitch_home=str(stitch_home),
                 patches=(str(base_patch), str(patch)),
-                env={"DSH_PERMISSION_MODE": "danger-full-access"},
+                env={"STITCH_PERMISSION_MODE": "danger-full-access"},
                 api_key="sk-keyless-smoke", base_url=base_url, request_timeout_seconds=60,
             )
 
@@ -2167,13 +2167,13 @@ def smoke_sdk_scheduler_recovery(base_url: str, executable: Path, update_snapsho
 def smoke_direct(base_url: str, executable: Path) -> None:
     with tempfile.TemporaryDirectory(prefix="dsh-direct-") as temporary:
         root = Path(temporary).resolve()
-        dsh_home = root / "home"
-        sessions = dsh_home / "sessions"
+        stitch_home = root / "home"
+        sessions = stitch_home / "sessions"
         patch = write_profile_patch(root, "direct.patch.yml", sessions, [])
         environment = {
             **os.environ,
-            "DSH_HOME": str(dsh_home),
-            "DSH_PERMISSION_MODE": "danger-full-access",
+            "STITCH_HOME": str(stitch_home),
+            "STITCH_PERMISSION_MODE": "danger-full-access",
             "DEEPSEEK_API_KEY": "sk-keyless-smoke",
             "DEEPSEEK_BASE_URL": base_url,
         }
@@ -2211,13 +2211,13 @@ def smoke_packaged_runner(executable: Path) -> None:
         target_script = (
             "import os,sys; "
             "ok = (os.getcwd() == os.environ['PACKAGED_RUNNER_EXPECTED_CWD'] "
-            "and os.environ.get('DSH_SUBPROCESS_RUNNER') == 'target-collision-restored'); "
+            "and os.environ.get('STITCH_SUBPROCESS_RUNNER') == 'target-collision-restored'); "
             "sys.exit(7 if ok else 9)"
         )
         if not IS_WINDOWS:
             request_path = root / "launch-request.json"
             target_env = dict(os.environ)
-            target_env["DSH_SUBPROCESS_RUNNER"] = "target-collision-restored"
+            target_env["STITCH_SUBPROCESS_RUNNER"] = "target-collision-restored"
             target_env["PACKAGED_RUNNER_EXPECTED_CWD"] = str(root)
             request_path.write_text(
                 json.dumps({"cwd": str(root), "env": target_env}),
@@ -2225,7 +2225,7 @@ def smoke_packaged_runner(executable: Path) -> None:
             )
             request_path.chmod(0o600)
             environment = dict(os.environ)
-            environment["DSH_SUBPROCESS_RUNNER"] = str(request_path)
+            environment["STITCH_SUBPROCESS_RUNNER"] = str(request_path)
             result = subprocess.run(
                 [str(executable), "--", sys.executable, "-c", target_script],
                 cwd=root,
@@ -2251,7 +2251,7 @@ def smoke_packaged_runner(executable: Path) -> None:
 const [runtime, target, cwd, targetScript] = process.argv.slice(2)
 const child = spawn(runtime, ['--', target, '-c', targetScript], {
   cwd,
-  env: { ...process.env, DSH_SUBPROCESS_RUNNER: 'windows' },
+  env: { ...process.env, STITCH_SUBPROCESS_RUNNER: 'windows' },
   stdio: ['ignore', 'ignore', 'ignore', 'ipc', 'pipe', 'pipe', 'pipe'],
 })
 const messages = []
@@ -2269,7 +2269,7 @@ const result = await new Promise((resolve, reject) => {
       cwd,
       env: {
         ...process.env,
-        DSH_SUBPROCESS_RUNNER: 'target-collision-restored',
+        STITCH_SUBPROCESS_RUNNER: 'target-collision-restored',
         PACKAGED_RUNNER_EXPECTED_CWD: cwd,
       },
     }, error => { if (error) reject(error) })

@@ -1,18 +1,18 @@
 {
   "name": "@deepseek-ai/dsh",
-  "description": "dsh CLI: profile launch, plugin management, and configuration inspection",
+  "description": "stitch CLI: profile launch, plugin management, and configuration inspection",
   "version": "0.2.2-rc.5",
   "publishConfig": {
     "access": "public"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
+    "url": "git+https://github.com/Morrowmake/stitch-harness.git",
     "directory": "apps/cli"
   },
   "type": "module",
   "bin": {
-    "dsh": "lib/bin.js"
+    "stitch": "lib/bin.js"
   },
   "files": [
     "lib/*.js",

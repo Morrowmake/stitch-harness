@@ -440,7 +440,7 @@ export class TerminalController extends TypertRemoteService {
       : (await this.shells(agent, signal)).find(candidate => candidate.path === request.shellPath)
     if (shell === undefined) throw new Error('Selected shell is not available in this execution environment')
     return {
-      argv: [shell.path, ...shell.args], env: { DSH_SESSION_ID: agent.id },
+      argv: [shell.path, ...shell.args], env: { STITCH_SESSION_ID: agent.id },
       info: { id: request.id, shell, title: shell.name, cwd, cols: request.cols, rows: request.rows, state: 'running', exitCode: null, origin: 'user', control: 'user' },
     }
   }
@@ -458,7 +458,7 @@ export class TerminalController extends TypertRemoteService {
     const confined = platform === 'posix' && request.policy.mode !== 'danger-full-access'
     const history = confined ? { HISTFILE: keepsHistory ? historyFile : '' } : {}
     return {
-      argv, env: { ...request.env, DSH_SESSION_ID: agent.id, ...history },
+      argv, env: { ...request.env, STITCH_SESSION_ID: agent.id, ...history },
       info: {
         id, shell, title: request.title, cwd, cols: request.cols, rows: request.rows, state: 'running', exitCode: null,
         origin: 'agent', control: 'agent', sandboxMode: request.policy.mode,

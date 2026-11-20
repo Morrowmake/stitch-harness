@@ -380,7 +380,7 @@ describe('TerminalController', () => {
     await controller.create(agent, request, signal())
     expect(confine).not.toHaveBeenCalled()
     expect(sandboxPolicy.resolve).not.toHaveBeenCalled()
-    expect(subprocess.spawnTerminal).toHaveBeenCalledWith(expect.objectContaining({ argv: ['/bin/bash', '--noprofile', '--norc', '-i'], env: { DSH_SESSION_ID: agent.id }, graceMs: 100 }))
+    expect(subprocess.spawnTerminal).toHaveBeenCalledWith(expect.objectContaining({ argv: ['/bin/bash', '--noprofile', '--norc', '-i'], env: { STITCH_SESSION_ID: agent.id }, graceMs: 100 }))
   })
 
   it('uses the Session working directory without requiring a sandbox provider', async () => {
@@ -772,7 +772,7 @@ describe('Agent terminals', () => {
     expect(sandbox.confine).toHaveBeenCalledWith(['/bin/bash', '--noprofile', '--norc', '-i'], confined, expect.any(AbortSignal))
     expect(subprocess.spawnTerminal).toHaveBeenCalledWith(expect.objectContaining({
       argv: ['sandbox-run', '/bin/bash', '--noprofile', '--norc', '-i'], cwd: '/workspace',
-      env: { DSH_SESSION_ID: 'session', HISTFILE: `/tmp/dsh-agent-history-${terminal.id}` },
+      env: { STITCH_SESSION_ID: 'session', HISTFILE: `/tmp/dsh-agent-history-${terminal.id}` },
     }))
     expect(terminal.id).toMatch(/^[\w-]{1,128}$/u)
     expect(terminal.info).toMatchObject({ title: 'dev server', origin: 'agent', control: 'agent', sandboxMode: 'workspace-write', state: 'running' })
@@ -792,7 +792,7 @@ describe('Agent terminals', () => {
     withSandbox(ctx)
     subprocess.terminalEnvironment.mockResolvedValue({ platform, defaultShell: '/bin/bash' })
     const terminal = await controller.openForAgent(agent, { ...agentRequest, policy }, signal())
-    expect(subprocess.spawnTerminal).toHaveBeenCalledWith(expect.objectContaining({ env: { DSH_SESSION_ID: 'session', ...history } }))
+    expect(subprocess.spawnTerminal).toHaveBeenCalledWith(expect.objectContaining({ env: { STITCH_SESSION_ID: 'session', ...history } }))
     await terminal.close()
     expect(subprocess.spawn).not.toHaveBeenCalled()
   })
@@ -828,10 +828,10 @@ describe('Agent terminals', () => {
     const { controller, agent, subprocess } = fixture()
     await controller.openForAgent(agent, {
       ...agentRequest, cwd: '/elsewhere', policy: { mode: 'danger-full-access', workspaceRoot: '/workspace' },
-      env: { PAGER: 'cat', DSH_SESSION_ID: 'spoofed' },
+      env: { PAGER: 'cat', STITCH_SESSION_ID: 'spoofed' },
     }, signal())
     expect(subprocess.spawnTerminal).toHaveBeenCalledWith(expect.objectContaining({
-      argv: ['/bin/bash', '--noprofile', '--norc', '-i'], cwd: '/elsewhere', env: { PAGER: 'cat', DSH_SESSION_ID: 'session' },
+      argv: ['/bin/bash', '--noprofile', '--norc', '-i'], cwd: '/elsewhere', env: { PAGER: 'cat', STITCH_SESSION_ID: 'session' },
     }))
   })
 

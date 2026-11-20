@@ -6,9 +6,9 @@
  * @throws Error when the build carries no client version, instead of reporting a guessed one.
  */
 export function desktopClientVersion(): string {
-  const version = process.env.DSH_CLIENT_VERSION
+  const version = process.env.STITCH_CLIENT_VERSION
   if (version === undefined || version === '') {
-    throw new Error('desktop: this application build carries no DSH_CLIENT_VERSION')
+    throw new Error('desktop: this application build carries no STITCH_CLIENT_VERSION')
   }
   return version
 }

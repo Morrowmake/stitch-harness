@@ -33,15 +33,15 @@ dist-exe/
 /dist/
 apps/desktop/.desktop-build/
 apps/desktop/.desktop-dev/
-python/sdk-runtime/src/deepseek_harness_runtime/runtime/
+python/sdk-runtime/src/stitch_harness_runtime/runtime/
 python/**/__pycache__/
 python/**/.pytest_cache/
 packages/**/__pycache__/
 apps/web/dist/
 apps/cli/docs/
 .artifacts/
-.dsh-build/
-.dsh-report/
+.stitch-build/
+.stitch-report/
 .ui-review/
 .playwright-mcp/
 .orig
@@ -53,3 +53,6 @@ native/system/test/bin/
 
 # Generated company-signed CUA release record.
 /packages/experimental/cua-macos/cua-helper.json
+
+# Private keys, including the release update-signing key; keep them outside the checkout.
+*.pem

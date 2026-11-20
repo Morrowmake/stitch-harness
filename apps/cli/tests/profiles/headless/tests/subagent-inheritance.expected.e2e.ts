@@ -31,7 +31,7 @@ const configPath = fileURLToPath(new URL('../subagent-inheritance-snapshot.patch
 const binScript = fileURLToPath(new URL('../../../../../../packages/test-support/loader-smoke/tests/fixtures/headless-driver.ts', import.meta.url))
 const tsconfigPath = fileURLToPath(new URL('../../../../../../tsconfig.json', import.meta.url))
 const sessionId = brandString<SessionId>('subagent-inheritance-parent')
-const refreshing = process.env.DSH_SNAPSHOT === 'refresh'
+const refreshing = process.env.STITCH_SNAPSHOT === 'refresh'
 const task = 'Delegate the write probe to a subagent.'
 
 /** Compare current normalized Session records without historical migration. */
@@ -107,9 +107,9 @@ describe('parent-only override inheritance snapshot', () => {
       env: {
         // The primary fixture path must exist for llm-replay's config guard;
         // the override sidecar fully replaces the derived parent script.
-        DSH_SNAPSHOT_FILE: replayOverride,
-        DSH_SNAPSHOT_OVERRIDE: replayOverride,
-        DSH_SNAPSHOT_CHILD_FILES: childReplay,
+        STITCH_SNAPSHOT_FILE: replayOverride,
+        STITCH_SNAPSHOT_OVERRIDE: replayOverride,
+        STITCH_SNAPSHOT_CHILD_FILES: childReplay,
       },
       prepare: async (runCwd) => {
         cwd = await realpath(runCwd)
@@ -152,7 +152,7 @@ describe('parent-only override inheritance snapshot', () => {
         const policyContexts = [...runtimeContexts(parent), ...runtimeContexts(child)]
         expect(policyContexts).toHaveLength(2)
         for (const context of policyContexts) {
-          expect(context).toContain('Any available operation enforced by the DSH file sandbox cannot modify files in the standing mode.')
+          expect(context).toContain('Any available operation enforced by the Stitch file sandbox cannot modify files in the standing mode.')
           expect(context).toContain('Do not refuse a required modification from this policy alone')
           expect(context).not.toContain('write and edit tools')
           expect(context).not.toContain('one-shot bash commands')

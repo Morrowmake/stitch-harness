@@ -33,7 +33,7 @@ import * as AutoReview from '@deepseek-ai/dsh-experimental-auto-review'
 const PROVIDER = 'deepseek'
 const FLASH = 'deepseek-flash'
 const PRO = 'deepseek-v4-pro'
-const REAL = process.env.DSH_AUTO_REVIEW_CERTIFICATION === '1'
+const REAL = process.env.STITCH_AUTO_REVIEW_CERTIFICATION === '1'
 const DENIED = 'AUTO_REVIEW_DENIED'
 type Risk = 'low' | 'medium' | 'high'
 type Decision = 'allow' | 'deny'
@@ -263,7 +263,7 @@ it('certifies eight Auto risk/authorization cases with zero retries and zero ski
     const dshHome = join(root, 'dsh-home')
     await mkdir(workspace)
     await mkdir(dshHome, { mode: 0o700 })
-    vi.stubEnv('DSH_HOME', dshHome)
+    vi.stubEnv('STITCH_HOME', dshHome)
     await mount(ctx, workspace, dshHome)
     const runner = orchestrate(ctx, REAL)
     const cases: CaseResult[] = []
@@ -369,7 +369,7 @@ it.each(['native', 'ptc-inner'] as const)('feeds denial back, re-reviews a new c
   try {
     const dshHome = join(root, 'home')
     await mkdir(dshHome)
-    vi.stubEnv('DSH_HOME', dshHome)
+    vi.stubEnv('STITCH_HOME', dshHome)
     await mount(ctx, root, dshHome)
     const runner = orchestrate(ctx, false)
     const target = join(root, 'existing.txt')

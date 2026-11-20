@@ -36,7 +36,7 @@ export const PRODUCT_PACKAGE_POLICY: Readonly<Record<string, ProductPackagePolic
   'packages/subagent/subagent-acp': { category: 'optional', reason: 'Requires a configured external ACP agent command.' },
   'packages/subagent/subagent-claude-code': { category: 'optional', reason: 'Separately installed native Claude Code agent integration.' },
   'packages/subagent/subagent-codex': { category: 'optional', reason: 'Separately installed native Codex agent integration.' },
-  'packages/subagent/subagent-dsh-sdk': { category: 'optional', reason: 'Requires an explicitly configured external DSH home.' },
+  'packages/subagent/subagent-dsh-sdk': { category: 'optional', reason: 'Requires an explicitly configured external Stitch home.' },
   'packages/connector/linear': { category: 'optional', reason: 'Separately installed app plugin that requires the user to authorize a Linear account.' },
   'packages/connector/notion': { category: 'optional', reason: 'Separately installed app plugin that requires the user to authorize a Notion account.' },
   'packages/connector/upstream-skills': { category: 'optional', reason: 'Host Service a deployment mounts alongside a separately installed CLI app plugin that registers upstream skills from its vendor repository.' },

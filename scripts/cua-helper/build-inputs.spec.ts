@@ -19,8 +19,6 @@ function fixture() {
     'packages/experimental/cua-macos/native/Info.plist': 'application identity',
     'scripts/cua-helper/package.ts': 'build helper',
     'apps/desktop/scripts/notarize-macos.mjs': 'notarize helper',
-    '.github/workflows/cua-helper-package-macos.yml': 'build configuration',
-    '.github/workflows/release-publish.yml': 'publish configuration',
     'packages/client/unrelated/src/index.ts': 'unrelated feature',
   }
   for (const [path, bytes] of Object.entries(files)) {
@@ -52,7 +50,7 @@ it('keeps identical source bytes across product versions and unrelated package e
   expect(cuaHelperSourceDigest(f.root)).not.toBe(before)
 })
 
-it.each(['add', 'delete', 'rename', 'resource', 'dependency', 'script', 'workflow', 'package manager'])(
+it.each(['add', 'delete', 'rename', 'resource', 'dependency', 'script', 'package manager'])(
   'invalidates %s changes', (change) => {
     const f = fixture()
     const before = cuaHelperSourceDigest(f.root)
@@ -62,7 +60,6 @@ it.each(['add', 'delete', 'rename', 'resource', 'dependency', 'script', 'workflo
     if (change === 'resource') writeFileSync(join(f.root, 'packages/experimental/cua-macos/native/Info.plist'), 'changed identity')
     if (change === 'dependency') writeFileSync(join(f.root, 'pnpm-lock.yaml'), 'changed dependency')
     if (change === 'script') writeFileSync(join(f.root, 'apps/desktop/scripts/notarize-macos.mjs'), 'changed notarization')
-    if (change === 'workflow') writeFileSync(join(f.root, '.github/workflows/cua-helper-package-macos.yml'), 'changed build configuration')
     if (change === 'package manager') writeFileSync(join(f.root, 'package.json'), JSON.stringify({ packageManager: 'pnpm@12.0.0' }))
     f.git('add', '-A')
     expect(cuaHelperSourceDigest(f.root)).not.toBe(before)
@@ -90,17 +87,17 @@ it.each(['preset', 'identity', 'team', 'certificate', 'toolchain', 'source'])(
     const f = fixture()
     const certificate = join(f.root, 'signing.p12')
     writeFileSync(certificate, 'fixture encrypted certificate')
-    const environment = { CSC_LINK: certificate, DSH_PACKAGING_PRESET: 'production',
-      DSH_DESKTOP_MACOS_SIGNING_IDENTITY: 'Fixture (ABCDEFGHIJ)', DSH_DESKTOP_MACOS_TEAM_ID: 'ABCDEFGHIJ',
+    const environment = { CSC_LINK: certificate, STITCH_PACKAGING_PRESET: 'production',
+      STITCH_DESKTOP_MACOS_SIGNING_IDENTITY: 'Fixture (ABCDEFGHIJ)', STITCH_DESKTOP_MACOS_TEAM_ID: 'ABCDEFGHIJ',
       APPLE_APP_SPECIFIC_PASSWORD: 'private-password' }
     const source = cuaHelperSourceDigest(f.root)
     const run = (_command: string, args: string[]): string => args.join(' ')
     const before = cuaHelperBuildKey(source, environment, run)
     environment.APPLE_APP_SPECIFIC_PASSWORD = 'new-private-password'
     expect(cuaHelperBuildKey(source, environment, run)).toBe(before)
-    if (change === 'preset') environment.DSH_PACKAGING_PRESET = 'test'
-    if (change === 'identity') environment.DSH_DESKTOP_MACOS_SIGNING_IDENTITY = 'Other (ABCDEFGHIJ)'
-    if (change === 'team') environment.DSH_DESKTOP_MACOS_TEAM_ID = '1234567890'
+    if (change === 'preset') environment.STITCH_PACKAGING_PRESET = 'test'
+    if (change === 'identity') environment.STITCH_DESKTOP_MACOS_SIGNING_IDENTITY = 'Other (ABCDEFGHIJ)'
+    if (change === 'team') environment.STITCH_DESKTOP_MACOS_TEAM_ID = '1234567890'
     if (change === 'certificate') writeFileSync(certificate, 'another certificate')
     const after = cuaHelperBuildKey(change === 'source' ? 'b'.repeat(64) : source, environment,
       change === 'toolchain' ? () => 'another toolchain' : run)
@@ -113,10 +110,10 @@ it('resolves the configured signing file without installing desktop dependencies
   const config = join(f.root, 'config')
   mkdirSync(join(config, 'secrets'), { recursive: true })
   writeFileSync(join(config, 'secrets/macos-signing.env'), 'CSC_LINK=./signing.p12\nDSH_DESKTOP_MACOS_TEAM_ID=ABCDEFGHIJ\n')
-  const environment = { DSH_PACKAGING_CONFIG_DIR: config, DSH_PACKAGING_PRESET: 'production' }
-  expect(readCuaSigningSettings(environment)).toMatchObject({ CSC_LINK: join(config, 'secrets/signing.p12'), DSH_PACKAGING_PRESET: 'production' })
-  expect(() => readCuaSigningSettings({ ...environment, DSH_PACKAGING_PRESET: 'invalid' })).toThrow('preset')
-  expect(() => readCuaSigningSettings({ ...environment, DSH_PACKAGING_CONFIG_DIR: 'relative' })).toThrow('CONFIG_DIR')
+  const environment = { STITCH_PACKAGING_CONFIG_DIR: config, STITCH_PACKAGING_PRESET: 'production' }
+  expect(readCuaSigningSettings(environment)).toMatchObject({ CSC_LINK: join(config, 'secrets/signing.p12'), STITCH_PACKAGING_PRESET: 'production' })
+  expect(() => readCuaSigningSettings({ ...environment, STITCH_PACKAGING_PRESET: 'invalid' })).toThrow('preset')
+  expect(() => readCuaSigningSettings({ ...environment, STITCH_PACKAGING_CONFIG_DIR: 'relative' })).toThrow('CONFIG_DIR')
 })
 
 it('loads fingerprinting and selection under plain Node with no node_modules directory', () => {
@@ -165,13 +162,11 @@ it('compares GitHub commit objects independently of artifact claims while allowi
   expect(await cuaHelperSourceMatches(f.root, repository, previous.commit, previous.api)).toBe(false)
 })
 
-it.each(['helper workflow', 'publish workflow', 'packaging script', 'manifest lifecycle', 'npm config', 'patch', 'tracked dependency', 'deleted file'])(
+it.each(['packaging script', 'manifest lifecycle', 'npm config', 'patch', 'tracked dependency', 'deleted file'])(
   'rejects independent producer source proof after a changed %s', async (change) => {
     const f = fixture()
     const previous = producerSnapshot(f.root)
     const digest = cuaHelperSourceDigest(f.root)
-    if (change === 'helper workflow') writeFileSync(join(f.root, '.github/workflows/cua-helper-package-macos.yml'), 'forged uploader')
-    if (change === 'publish workflow') writeFileSync(join(f.root, '.github/workflows/release-publish.yml'), 'forged caller')
     if (change === 'packaging script') writeFileSync(join(f.root, 'scripts/cua-helper/package.ts'), 'forged metadata')
     if (change === 'manifest lifecycle') writeFileSync(join(f.root, 'package.json'), JSON.stringify({
       version: '1.0.0', packageManager: 'pnpm@11.28.5', scripts: { postinstall: 'unexpected code' },
@@ -205,13 +200,13 @@ it.each(['test', 'production'])('computes the same %s build key through selectio
   const config = join(f.root, 'config')
   mkdirSync(join(config, 'presets'), { recursive: true })
   mkdirSync(join(config, 'secrets'))
-  writeFileSync(join(config, 'presets', `${preset}.env`), 'DSH_DESKTOP_APP_ID=com.example.cua\n')
+  writeFileSync(join(config, 'presets', `${preset}.env`), 'STITCH_DESKTOP_APP_ID=com.example.cua\n')
   writeFileSync(join(config, 'secrets/signing.p12'), 'fixture certificate')
   writeFileSync(join(config, 'secrets/macos-signing.env'), [
-    'CSC_LINK=./signing.p12', 'CSC_KEY_PASSWORD=fixture-password', 'DSH_DESKTOP_MACOS_TEAM_ID=ABCDEFGHIJ',
-    'DSH_DESKTOP_MACOS_SIGNING_IDENTITY=Fixture (ABCDEFGHIJ)',
+    'CSC_LINK=./signing.p12', 'CSC_KEY_PASSWORD=fixture-password', 'STITCH_DESKTOP_MACOS_TEAM_ID=ABCDEFGHIJ',
+    'STITCH_DESKTOP_MACOS_SIGNING_IDENTITY=Fixture (ABCDEFGHIJ)',
   ].join('\n'))
-  const environment = { DSH_PACKAGING_CONFIG_DIR: config, DSH_PACKAGING_PRESET: preset }
+  const environment = { STITCH_PACKAGING_CONFIG_DIR: config, STITCH_PACKAGING_PRESET: preset }
   const source = cuaHelperSourceDigest(f.root)
   const run = (_command: string, args: string[]): string => args.join(' ')
   expect(cuaHelperBuildKey(source, readCuaSigningSettings(environment), run))

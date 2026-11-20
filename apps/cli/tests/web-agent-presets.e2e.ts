@@ -115,8 +115,8 @@ async function bootWeb(
 ): Promise<Context> {
   const storageRoot = join(profileHome, 'storages')
   const overrides: PatchOptions[] = [
-    // storage-json's root is anchored to the real $DSH_HOME. Unpinned, this
-    // file writes the developer's own `~/.dsh/storages/` — and then reads it
+    // storage-json's root is anchored to the real $STITCH_HOME. Unpinned, this
+    // file writes the developer's own `~/.stitch/storages/` — and then reads it
     // back on the next run, so a stored document from any other build decides
     // this test's boot.
     { id: 'storage-json', config: { root: storageRoot } },
@@ -622,23 +622,23 @@ describe('the shipped Web composition', () => {
       const packageSkills = realpathSync(join(REPO_ROOT, 'packages/preset/agent-preset/skills'))
       const shipped = (await ctx.skills.list({ scope: handle.agent }))
         .filter(skill => skill.path?.startsWith(packageSkills) === true).map(skill => skill.name)
-      expect(shipped).toEqual(['dsh-doc'])
-      expect((await ctx.skills.list()).map(skill => skill.name)).not.toContain('dsh-doc')
+      expect(shipped).toEqual(['stitch-doc'])
+      expect((await ctx.skills.list()).map(skill => skill.name)).not.toContain('stitch-doc')
       const loaded = await executeToolFixture(ctx, {
         callId: brandString<ToolCallId>('preset-cordis-dsh-doc'),
         name: 'skill',
-        arguments: { name: 'dsh-doc' },
+        arguments: { name: 'stitch-doc' },
         signal: new AbortController().signal,
         agent: handle.agent,
       })
       expect(loaded.isError).toBe(false)
       const output = loaded.content.flatMap(block => block.type === 'text' ? [block.text] : []).join('\n')
-      expect(output).toContain('<skill_content name="dsh-doc">')
-      expect(output).toContain(`Base directory for this skill: ${join(packageSkills, 'dsh-doc')}`)
+      expect(output).toContain('<skill_content name="stitch-doc">')
+      expect(output).toContain(`Base directory for this skill: ${join(packageSkills, 'stitch-doc')}`)
       expect(output).toContain('Loading this skill does not authorize changes.')
       // The composed `read` tool, behind the fs sandbox, returns each whole reference below the
       // pruner threshold, leaving room for an installation path of up to 256 characters.
-      const references = join(packageSkills, 'dsh-doc', 'references')
+      const references = join(packageSkills, 'stitch-doc', 'references')
       for (const file of readdirSync(references).filter(entry => entry !== 'packages.md')) {
         const path = join(references, file)
         const result = await executeToolFixture(ctx, {
@@ -654,7 +654,7 @@ describe('the shipped Web composition', () => {
         expect(codePointLength(text) - codePointLength(path) + 256, file).toBeLessThan(8192)
       }
 
-      // Creator adds its DSH customization intent to the shared coding persona.
+      // Creator adds its Stitch customization intent to the shared coding persona.
       const standard = await ctx.agents.create({
         sessionId: brandString<SessionId>('preset-cordis-standard-persona'),
         setup: agentCtx => ctx.agentPresets.mount(agentCtx, 'standard').then(() => undefined),
@@ -668,7 +668,7 @@ describe('the shipped Web composition', () => {
         const standardPrefix = standardPersona.find(section => section.name === 'deployment:persona-prefix')
         expect(standardPrefix?.text).toMatch(/^You are a coding agent powered by the .+ model\.$/u)
         expect(cordisPersona).toEqual(standardPersona.map(section => section.name === 'deployment:persona-prefix'
-          ? { ...section, text: `${section.text} You help the user customize DeepSeek Harness itself.` }
+          ? { ...section, text: `${section.text} You help the user customize Stitch itself.` }
           : section))
         const definition = composeEntries([webPatches('Creator persona')])
           .find(row => row.id === 'preset-cordis')!.config as import('@deepseek-ai/dsh-agent-preset-registry').PresetDefinition
@@ -742,16 +742,16 @@ describe('the shipped Web composition', () => {
     }
   })
 
-  it('ships the dsh-doc skill in the declaration package', async () => {
-    const skill = join(REPO_ROOT, 'packages/preset/agent-preset', 'skills', 'dsh-doc', 'SKILL.md')
+  it('ships the stitch-doc skill in the declaration package', async () => {
+    const skill = join(REPO_ROOT, 'packages/preset/agent-preset', 'skills', 'stitch-doc', 'SKILL.md')
 
-    expect((await readFile(skill, 'utf8')).startsWith('---\nname: dsh-doc\n')).toBe(true)
+    expect((await readFile(skill, 'utf8')).startsWith('---\nname: stitch-doc\n')).toBe(true)
   })
 
   it('merges the global skill layer into a preset agent\'s catalog, keeping local discovery preset-side', async () => {
     const proj = await mkdtemp(join(tmpdir(), 'dsh-preset-skill-proj-'))
-    await mkdir(join(proj, '.dsh', 'skills', 'project-proof'), { recursive: true })
-    await writeFile(join(proj, '.dsh', 'skills', 'project-proof', 'SKILL.md'), [
+    await mkdir(join(proj, '.stitch', 'skills', 'project-proof'), { recursive: true })
+    await writeFile(join(proj, '.stitch', 'skills', 'project-proof', 'SKILL.md'), [
       '---',
       'name: project-proof',
       'description: Proves the preset layer discovers project skills beside global ones.',
@@ -762,7 +762,7 @@ describe('the shipped Web composition', () => {
     ].join('\n'))
 
     const handle = await ctx.agents.create({
-      // Unique per run: the composition persists into the ambient DSH home,
+      // Unique per run: the composition persists into the ambient Stitch home,
       // and a fixed id would collide with a log an earlier run left there.
       sessionId: brandString<SessionId>(`preset-skills-standard-${randomUUID()}`),
       setup: agentCtx => ctx.agentPresets.mount(agentCtx, 'standard').then(() => undefined),
@@ -921,7 +921,7 @@ describe.each(['web', 'desktop'] as const)('%s native subagent bundles', (surfac
     }, 120_000)
 
   it('keeps provider identities and applies later Host row overrides', async () => {
-    const providerConfig = { model: 'adoption-model', env: { DSH_NATIVE_ADOPTION: 'preserved' } }
+    const providerConfig = { model: 'adoption-model', env: { STITCH_NATIVE_ADOPTION: 'preserved' } }
     const productCtx = await bootSelected(products, [
       ...products.map(product => ({ id: `subagent-${product}`, config: providerConfig })),
       { id: 'tool-subagent-codex', disabled: true },
@@ -944,9 +944,9 @@ describe.each(['web', 'desktop'] as const)('%s native subagent bundles', (surfac
 describe('the standard preset documentation skill', () => {
   it('loads the packaged skill without adding tools', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-standard-doc-'))
-    vi.stubEnv('DSH_HOME', join(root, 'home'))
-    vi.stubEnv('DSH_AGENTS_HOME', join(root, 'agents-home'))
-    vi.stubEnv('DSH_BUNDLED_SKILL_DIR', join(root, 'bundled-skills'))
+    vi.stubEnv('STITCH_HOME', join(root, 'home'))
+    vi.stubEnv('STITCH_AGENTS_HOME', join(root, 'agents-home'))
+    vi.stubEnv('STITCH_BUNDLED_SKILL_DIR', join(root, 'bundled-skills'))
     let docCtx: Context | undefined
     try {
       const standard = composeEntries([webPatches('standard documentation')])
@@ -978,15 +978,15 @@ describe('the standard preset documentation skill', () => {
       const baselineSkills = await testCtx.skills.list({ cwd: root, scope: baseline.agent })
       const skills = await testCtx.skills.list({ cwd: root, scope: standardAgent.agent })
       expect(skills.map(skill => skill.name).sort())
-        .toEqual([...baselineSkills.map(skill => skill.name), 'dsh-doc'].sort())
-      const definition = await testCtx.skills.get('dsh-doc', { cwd: root, scope: standardAgent.agent })
-      expect(definition?.path).toBe(await realpath(join(REPO_ROOT, 'packages/preset/agent-preset/skills/dsh-doc/SKILL.md')))
-      if (definition === undefined) throw new Error('standard has no packaged dsh-doc skill')
+        .toEqual([...baselineSkills.map(skill => skill.name), 'stitch-doc'].sort())
+      const definition = await testCtx.skills.get('stitch-doc', { cwd: root, scope: standardAgent.agent })
+      expect(definition?.path).toBe(await realpath(join(REPO_ROOT, 'packages/preset/agent-preset/skills/stitch-doc/SKILL.md')))
+      if (definition === undefined) throw new Error('standard has no packaged stitch-doc skill')
       const creator = await testCtx.agents.create({
         sessionId: brandString<SessionId>('standard-doc-creator'), meta: { cwd: root },
         setup: agentCtx => testCtx.agentPresets.mount(agentCtx, 'cordis').then(() => undefined),
       })
-      expect((await testCtx.skills.get('dsh-doc', { cwd: root, scope: creator.agent }))?.path).toBe(definition.path)
+      expect((await testCtx.skills.get('stitch-doc', { cwd: root, scope: creator.agent }))?.path).toBe(definition.path)
       const schemas = testCtx.tools.schemas(standardAgent.agent)
       expect(schemas).toEqual(testCtx.tools.schemas(baseline.agent))
       expect(schemas.map(tool => tool.name)).toContain('cordis_inspect')
@@ -1028,7 +1028,7 @@ describe('the standard preset documentation skill', () => {
       const before = await readFile(profileManifest, 'utf8')
       const loaded = await executeToolFixture(testCtx, {
         agent: standardAgent.agent, callId: brandString<ToolCallId>('standard-doc-load'),
-        name: 'skill', arguments: { name: 'dsh-doc' }, signal: new AbortController().signal,
+        name: 'skill', arguments: { name: 'stitch-doc' }, signal: new AbortController().signal,
       })
       expect(loaded.isError).toBe(false)
       expect(loaded.content.some(block => block.type === 'text' && block.text.includes(definition.content))).toBe(true)
@@ -1041,30 +1041,30 @@ describe('the standard preset documentation skill', () => {
       }
     }
   })
-  it('prefers project dsh-doc overrides while packaged guidance wins over user skills', async () => {
+  it('prefers project stitch-doc overrides while packaged guidance wins over user skills', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-standard-doc-priority-'))
     const home = join(root, 'home')
     const agentsHome = join(root, 'agents-home')
     const workspace = join(root, 'workspace')
     const projectAgents = join(root, 'project-agents')
     const projectDsh = join(root, 'project-dsh')
-    vi.stubEnv('DSH_HOME', home)
-    vi.stubEnv('DSH_AGENTS_HOME', agentsHome)
-    vi.stubEnv('DSH_BUNDLED_SKILL_DIR', join(root, 'bundled-skills'))
+    vi.stubEnv('STITCH_HOME', home)
+    vi.stubEnv('STITCH_AGENTS_HOME', agentsHome)
+    vi.stubEnv('STITCH_BUNDLED_SKILL_DIR', join(root, 'bundled-skills'))
     let priorityCtx: Context | undefined
     try {
       await mkdir(workspace)
       for (const project of [projectAgents, projectDsh]) await mkdir(join(project, '.git'), { recursive: true })
       for (const [directory, description] of [
-        [join(home, 'skills'), 'User DSH skill'],
+        [join(home, 'skills'), 'User Stitch skill'],
         [join(agentsHome, 'skills'), 'User agents skill'],
         [join(projectAgents, '.agents/skills'), 'Project agents skill'],
         [join(projectDsh, '.agents/skills'), 'Lower priority project skill'],
-        [join(projectDsh, '.dsh/skills'), 'Project DSH skill'],
+        [join(projectDsh, '.stitch/skills'), 'Project Stitch skill'],
       ] as const) {
-        const skill = join(directory, 'dsh-doc')
+        const skill = join(directory, 'stitch-doc')
         await mkdir(skill, { recursive: true })
-        await writeFile(join(skill, 'SKILL.md'), `---\nname: dsh-doc\ndescription: ${description}\n---\n\n${description}\n`)
+        await writeFile(join(skill, 'SKILL.md'), `---\nname: stitch-doc\ndescription: ${description}\n---\n\n${description}\n`)
       }
       priorityCtx = await bootWeb(root)
       const testCtx = priorityCtx
@@ -1073,13 +1073,13 @@ describe('the standard preset documentation skill', () => {
         setup: agentCtx => testCtx.agentPresets.mount(agentCtx, 'standard').then(() => undefined),
       })
       for (const [cwd, path] of [
-        [workspace, join(REPO_ROOT, 'packages/preset/agent-preset/skills/dsh-doc/SKILL.md')],
-        [projectAgents, join(projectAgents, '.agents/skills/dsh-doc/SKILL.md')],
-        [projectDsh, join(projectDsh, '.dsh/skills/dsh-doc/SKILL.md')],
+        [workspace, join(REPO_ROOT, 'packages/preset/agent-preset/skills/stitch-doc/SKILL.md')],
+        [projectAgents, join(projectAgents, '.agents/skills/stitch-doc/SKILL.md')],
+        [projectDsh, join(projectDsh, '.stitch/skills/stitch-doc/SKILL.md')],
       ] as const) {
         const skills = await testCtx.skills.list({ cwd, scope: handle.agent })
-        expect(skills.filter(skill => skill.name === 'dsh-doc')).toHaveLength(1)
-        expect((await testCtx.skills.get('dsh-doc', { cwd, scope: handle.agent }))?.path).toBe(await realpath(path))
+        expect(skills.filter(skill => skill.name === 'stitch-doc')).toHaveLength(1)
+        expect((await testCtx.skills.get('stitch-doc', { cwd, scope: handle.agent }))?.path).toBe(await realpath(path))
       }
     } finally {
       try { await priorityCtx?.fiber.dispose() } finally {

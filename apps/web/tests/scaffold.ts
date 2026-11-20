@@ -4,14 +4,14 @@
 // patches over the empty profile root through the vendored Loader (the same
 // layer stack the profile boot composes), patched the
 // snapshot way — so a real chromium exercises the real HTTP uplink/WebSocket
-// downlink, api-gateway, agent loop, tools, and persistence. Modes ride $DSH_SNAPSHOT:
+// downlink, api-gateway, agent loop, tools, and persistence. Modes ride $STITCH_SNAPSHOT:
 // replay (default, keyless: normally disables the direct DeepSeek rows and
 // inserts dsh-llm-replay in providers mode), record (real adapter + key,
 // harvests fixtures from live session memory), refresh (keyless replay that
 // rewrites goldens). A first-run option keeps the real adapter mounted while
 // masking its credential, without making a model call.
 //
-// Composition divergences from `dsh web`, all deliberate, all via include
+// Composition divergences from `stitch web`, all deliberate, all via include
 // patches after the shipped bundle layers, over the SAME tree (never a
 // second yml): temp persistenceRoot; host-level skill roots confined to the
 // temp workspace while project skill discovery remains real; agent-instructions
@@ -118,12 +118,12 @@ export const WELCOME_NOTICE_VERSION = '2026-09-28.1'
 export const WELCOME_NOTICE_COPY = {
   zh: {
     title: '预览版说明',
-    body: 'DeepSeek Harness 目前的 0.2 版本仍处于预览阶段，还有许多地方需要持续改进和打磨，希望听取广大开发者和用户的反馈建议。现在，新的桌面端面向广泛用户，开发者相关的进阶功能可在配置中开启使用。预计 DeepSeek Harness 的产品功能以及插件 API 都会继续快速迭代、持续演化，并逐渐趋于稳定。\n\n我们期待与全球用户和开发者一起，在开源、可复用、可组合的基础设施之上，共同探索智能上限。欢迎大家用 DeepSeek Harness 将想法变成现实，与社区一起丰富插件生态。',
+    body: 'Stitch 目前的 0.2 版本仍处于预览阶段，还有许多地方需要持续改进和打磨，希望听取广大开发者和用户的反馈建议。现在，新的桌面端面向广泛用户，开发者相关的进阶功能可在配置中开启使用。预计 Stitch 的产品功能以及插件 API 都会继续快速迭代、持续演化，并逐渐趋于稳定。\n\n我们期待与全球用户和开发者一起，在开源、可复用、可组合的基础设施之上，共同探索智能上限。欢迎大家用 Stitch 将想法变成现实，与社区一起丰富插件生态。',
     continueLabel: '继续',
   },
 } as const
 
-/** Snapshot mode for the lane, from $DSH_SNAPSHOT (same vocabulary as the other snapshot suites). */
+/** Snapshot mode for the lane, from $STITCH_SNAPSHOT (same vocabulary as the other snapshot suites). */
 export type WebSnapshotMode = 'replay' | 'record' | 'refresh'
 
 /**
@@ -131,10 +131,10 @@ export type WebSnapshotMode = 'replay' | 'record' | 'refresh'
  * @returns the active mode; unset/empty selects replay.
  */
 export function webSnapshotMode(): WebSnapshotMode {
-  const value = process.env.DSH_SNAPSHOT
+  const value = process.env.STITCH_SNAPSHOT
   if (value === undefined || value === '' || value === 'replay') return 'replay'
   if (value === 'record' || value === 'refresh') return value
-  throw new Error(`DSH_SNAPSHOT must be replay, record, or refresh; got ${JSON.stringify(value)}`)
+  throw new Error(`STITCH_SNAPSHOT must be replay, record, or refresh; got ${JSON.stringify(value)}`)
 }
 
 /**
@@ -226,8 +226,8 @@ const REPLAY_PROVIDERS = [{
 }]
 
 /** Record mode serves the replay route through this Anthropic-compatible endpoint and credential. */
-const RECORD_BASE_URL_ENV = 'DSH_E2E_RECORD_BASE_URL'
-const RECORD_API_KEY_ENV = 'DSH_E2E_RECORD_API_KEY'
+const RECORD_BASE_URL_ENV = 'STITCH_E2E_RECORD_BASE_URL'
+const RECORD_API_KEY_ENV = 'STITCH_E2E_RECORD_API_KEY'
 
 /**
  * The routes a shipped composition always has, with no ability to stream.
@@ -293,7 +293,7 @@ export interface WebScaffold {
   workspaceCwd: string
   /** Temp persistence root (seeded sessions land here through the real API). */
   persistenceRoot: string
-  /** Isolated harness home the settings/credentials rows write ($DSH_HOME double). */
+  /** Isolated harness home the settings/credentials rows write ($STITCH_HOME double). */
   harnessHome: string
   /** Send a browser-equivalent Host request with this scaffold's authenticated cookie. */
   hostFetch(path: string, init?: RequestInit): Promise<Response>
@@ -482,10 +482,10 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
     workspacePrefix += '-'.repeat(paddingLength)
   }
   const workspaceCwd = await realpath(await mkdtemp(join(workspaceParent, workspacePrefix)))
-  // Isolated harness home: the settings/credentials rows resolve $DSH_HOME
+  // Isolated harness home: the settings/credentials rows resolve $STITCH_HOME
   // paths at load, and an in-process boot must NEVER touch the developer's
-  // real ~/.dsh document or credential file.
-  const harnessHome = options.harnessHome ?? join(workspaceCwd, '.dsh-home')
+  // real ~/.stitch document or credential file.
+  const harnessHome = options.harnessHome ?? join(workspaceCwd, '.stitch-home')
   // Scaffolds sharing a harness home each watch their own process overlay file.
   const overlayPath = join(harnessHome, 'profiles', 'scaffold', `${basename(workspaceCwd)}.overlay.patch.yml`)
   // Skill discovery is model-visible input, and its roots now resolve inside a
@@ -493,15 +493,15 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
   // roster mounts it directly per session rather than as a row of the booted
   // tree. The row's documented fallback is the environment, so pin that: the
   // whole scaffold lifetime, not just the boot, since presets mount when a
-  // session is created. Without this a developer's real ~/.dsh/skills silently
-  // enters replay requests and goldens while CI sees none. `DSH_HOME` follows
+  // session is created. Without this a developer's real ~/.stitch/skills silently
+  // enters replay requests and goldens while CI sees none. `STITCH_HOME` follows
   // the resolved harness home so a scaffold sharing another's home — the
   // cross-port persistence scenario — pins the same roots the settings and
   // credentials rows were configured with.
   const skillRootEnvironment = {
-    DSH_HOME: harnessHome,
-    DSH_AGENTS_HOME: join(workspaceCwd, '.agents-home'),
-    DSH_BUNDLED_SKILL_DIR: join(workspaceCwd, '.bundled-skills'),
+    STITCH_HOME: harnessHome,
+    STITCH_AGENTS_HOME: join(workspaceCwd, '.agents-home'),
+    STITCH_BUNDLED_SKILL_DIR: join(workspaceCwd, '.bundled-skills'),
   }
   const originalSkillRootEnvironment = Object.fromEntries(
     Object.keys(skillRootEnvironment).map(key => [key, process.env[key]]),
@@ -566,20 +566,20 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
     // the seeded-session scenarios navigate by content search, and these e2e
     // runs are the assembled coverage for the opt-in search path.
     { id: 'session-query-sqlite', config: { path: ':memory:', openAt: 'first-search' } },
-    // storage-json's yml root is anchored to the real $DSH_HOME; pin the row
+    // storage-json's yml root is anchored to the real $STITCH_HOME; pin the row
     // to an absolute temp root (removed with the workspace at close) so tests
     // never write the user's harness home.
-    { id: 'storage-json', config: { root: join(workspaceCwd, '.dsh-storages') } },
+    { id: 'storage-json', config: { root: join(workspaceCwd, '.stitch-storages') } },
     // First-use initialization must create directories only inside this scaffold's temporary world.
     { id: 'workspace-controller', config: { documentsDirectory: join(workspaceCwd, 'Documents') } },
     // Skill discovery is model-visible input. Pin every host-level root inside
-    // the owned temp world so ~/.dsh, ~/.agents, and a bundled-root env setting
+    // the owned temp world so ~/.stitch, ~/.agents, and a bundled-root env setting
     // cannot change replay requests or conversation goldens. Project roots stay
     // enabled against the same empty temp workspace, preserving the real seam.
     {
       id: 'skill-filesystem',
       config: {
-        dshHome: join(workspaceCwd, '.dsh-home'),
+        dshHome: join(workspaceCwd, '.stitch-home'),
         agentsHome: join(workspaceCwd, '.agents-home'),
         bundledSkillDir: join(workspaceCwd, '.bundled-skills'),
         watch: false,
@@ -695,7 +695,7 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
         throw new Error(`web scaffold extra install anchor has no package name: ${anchor}`)
       }
       const packageDir = dirname(anchor)
-      // A real profile already has each bundle installed by `dsh plugin add`.
+      // A real profile already has each bundle installed by `stitch plugin add`.
       // Reproduce that link so a private bundle can import its own plugin.
       const installedLink = join(profileDir, 'node_modules', manifest.name)
       await mkdir(dirname(installedLink), { recursive: true })
@@ -722,7 +722,7 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
     let profileContext: ProfileContext
     {
       // A real profile: the shipped web bundles plus each fixture package,
-      // installed the way `dsh plugin add` leaves them.
+      // installed the way `stitch plugin add` leaves them.
       const dependencies: Record<string, string> = {}
       const bundles = ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', ...options.profile?.bundles ?? []]
       for (const entry of options.profile?.packages ?? []) {
@@ -782,7 +782,7 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
     const originalLog = console.log
     console.log = (...args: unknown[]) => {
       const line = args.length === 1 && typeof args[0] === 'string' ? args[0] : ''
-      const match = /^dsh web: (http:\/\/127\.0\.0\.1:\d+\/\?token=[A-Za-z0-9_-]+)$/u.exec(line)
+      const match = /^stitch web: (http:\/\/127\.0\.0\.1:\d+\/\?token=[A-Za-z0-9_-]+)$/u.exec(line)
       if (match !== null) {
         const url = new URL(match[1]!)
         const boundPort = ctx.get('webServer')?.port
@@ -1131,8 +1131,8 @@ export function normalizeWebSessionVolatiles(log: string, workspaceCwd?: string)
     let record = normalizeClientTimeZones(mapJsonStringValues(JSON.parse(line), (value) => {
       let normalized = value
         // The checkout path and listener port differ per machine and run.
-        .replace(/Current DeepSeek Harness implementation checkout: "(?:[^"\\]|\\.)*"\./g, 'Current DeepSeek Harness implementation checkout: "{{sourceRoot}}".')
-        .replace(/Current DeepSeek Harness Web GUI URL: "(?:[^"\\]|\\.)*"\./g, 'Current DeepSeek Harness Web GUI URL: "{{webUrl}}".')
+        .replace(/Current Stitch implementation checkout: "(?:[^"\\]|\\.)*"\./g, 'Current Stitch implementation checkout: "{{sourceRoot}}".')
+        .replace(/Current Stitch Web GUI URL: "(?:[^"\\]|\\.)*"\./g, 'Current Stitch Web GUI URL: "{{webUrl}}".')
       for (const cwd of cwdSpellings) normalized = replaceWebCwd(normalized, cwd)
       return normalized
     })) as { type?: unknown; data?: { endpoint?: unknown } }
@@ -1677,7 +1677,7 @@ export async function compareOrRefreshGolden(goldenPath: string, actual: string,
     return
   }
   if (!existsSync(goldenPath)) {
-    throw new Error(`missing golden ${goldenPath} — run DSH_SNAPSHOT=refresh pnpm run test:web to generate it`)
+    throw new Error(`missing golden ${goldenPath} — run STITCH_SNAPSHOT=refresh pnpm run test:web to generate it`)
   }
   expect(payload).toBe(await readFile(goldenPath, 'utf8'))
 }

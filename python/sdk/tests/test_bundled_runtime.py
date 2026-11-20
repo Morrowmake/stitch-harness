@@ -11,9 +11,9 @@ from pathlib import Path
 
 import pytest
 
-from deepseek_harness import DeepSeekHarness, HarnessClient, HarnessConfig
-from deepseek_harness.errors import JsonRpcError, TransportClosedError
-from deepseek_harness_runtime import RUNTIME_MODE_ENV_VAR, resolve_bundled_launch_args
+from stitch_harness import Stitch, HarnessClient, HarnessConfig
+from stitch_harness.errors import JsonRpcError, TransportClosedError
+from stitch_harness_runtime import RUNTIME_MODE_ENV_VAR, resolve_bundled_launch_args
 
 _MODES = ("exe", "node")
 
@@ -30,14 +30,14 @@ def _client(tmp_path: Path, mode: str, monkeypatch: pytest.MonkeyPatch, *patches
     _select_mode(mode, monkeypatch)
     return HarnessClient(
         HarnessConfig(
-            dsh_home=str(tmp_path / "home"),
+            stitch_home=str(tmp_path / "home"),
             patches=tuple(str(patch) for patch in patches),
             cwd=str(tmp_path),
             env={
                 # The lazily mounted adapter requires a key even without a model call.
                 "DEEPSEEK_API_KEY": "sk-dummy-for-boot",
                 "DEEPSEEK_BASE_URL": "http://127.0.0.1:9",
-                "DSH_PERMISSION_MODE": "danger-full-access",
+                "STITCH_PERMISSION_MODE": "danger-full-access",
             },
             request_timeout_seconds=120,
         )
@@ -52,7 +52,7 @@ def test_bundled_runtime_boots_the_sdk_profile(
         init = client.initialize(cwd=str(tmp_path))
 
     assert init.serverInfo is not None
-    assert init.serverInfo.name == "deepseek-harness-sdk-runtime"
+    assert init.serverInfo.name == "stitch-sdk-runtime"
     profile = json.loads((tmp_path / "home" / "profiles" / "sdk" / "package.json").read_text())
     assert profile["dsh"]["profile"]["bundles"] == [
         "@deepseek-ai/dsh-base",
@@ -70,11 +70,11 @@ def test_python_sdk_applies_an_ordered_profile_patch(
         "id": "system-prompt",
         "config": {"persona": "Python SDK ordered patch marker."},
     }]))
-    harness = DeepSeekHarness(
+    harness = Stitch(
         cwd=str(tmp_path),
-        dsh_home=str(tmp_path / "home"),
+        stitch_home=str(tmp_path / "home"),
         patches=(str(patch),),
-        env={"DSH_PERMISSION_MODE": "danger-full-access"},
+        env={"STITCH_PERMISSION_MODE": "danger-full-access"},
         api_key="sk-dummy-for-boot",
         base_url="http://127.0.0.1:9",
         request_timeout_seconds=120,

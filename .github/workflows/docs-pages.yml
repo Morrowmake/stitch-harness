@@ -1,13 +1,10 @@
-# Publish the documentation website to GitHub Pages. This workflow is manual-only
-# (workflow_dispatch) and intentionally does not listen to pull_request or push:
-# the site presents a released snapshot, so publication is an explicit act from a
-# dsh-v* tag and must never appear as a PR check. `release:verify` rejects every
-# other ref, and the github-pages environment repeats that restriction as a
-# deployment tag policy with required reviewers.
-#
-# The build signal does not depend on this workflow. Every pull request builds
-# the production site through `check:ci:static`, and ci-master.yml builds it
-# again on master.
+# Publish the documentation website to this repository's GitHub Pages. This
+# workflow is manual-only (workflow_dispatch) and intentionally does not listen
+# to pull_request or push: the site presents a released snapshot, so
+# publication is an explicit act from a stitch-v<version> tag and must never
+# appear as a PR check. The tag check below rejects every other ref; the
+# github-pages environment can repeat that restriction as a deployment tag
+# policy with required reviewers.
 name: Deploy documentation
 
 on:
@@ -32,12 +29,12 @@ env:
 
 jobs:
   build:
-    runs-on: blacksmith-8vcpu-ubuntu-2404
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       pages: read
     steps:
-      # Complete history: the release scripts read tags.
+      # Complete history for the documentation gates.
       - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
@@ -53,13 +50,15 @@ jobs:
       - name: Install (immutable)
         run: pnpm install --frozen-lockfile
 
-      # One definition of "released" for the site and the npm sequence: this
-      # rejects every ref that is not a dsh-v* tag naming the version this tree
-      # carries.
-      - name: Verify release version
-        env:
-          RELEASE_PUBLISH: 'true'
-        run: pnpm run release:verify --family dsh
+      # The site publishes only from the stitch-v<version> tag naming the
+      # version this tree carries.
+      - name: Verify release tag
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [ "$GITHUB_REF_TYPE" != 'tag' ] || [ "$GITHUB_REF_NAME" != "stitch-v$version" ]; then
+            echo "::error::Documentation publishes only from the stitch-v$version tag, got $GITHUB_REF_TYPE $GITHUB_REF_NAME"
+            exit 1
+          fi
 
       - name: Configure Pages
         id: pages

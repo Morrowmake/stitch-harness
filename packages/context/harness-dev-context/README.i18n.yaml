@@ -3,14 +3,14 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/context/harness-dev-context/README.md
 /:
-  en: 8fed567b18e9dfa2
-  zh: 2ab54db218cc0197
+  en: 28f2d3768c767469
+  zh: d5a1d2d9982de4d8
 /deepseek-ai-dsh-harness-dev-context:
   en: b47701c093269adb
   zh: e147a06ec0d6047f
 /deepseek-ai-dsh-harness-dev-context/summary:
-  en: daf618174270461e
-  zh: 4c5b56fe4380c91f
+  en: 5d48daf089ede335
+  zh: d1f4f5fd95a3dbf2
 /deepseek-ai-dsh-harness-dev-context/table-of-contents:
   en: d152484eb41ac6b4
   zh: 09388d293f9be9cb
@@ -18,8 +18,8 @@
   en: d3192709a416f7fb
   zh: 479253a5ae1adcb2
 /deepseek-ai-dsh-harness-dev-context/use-this-package/what-the-model-gets:
-  en: d9f5b11af33b3eb8
-  zh: fc96b972503a0b99
+  en: 70653ffb8c37ab70
+  zh: b444cf4b63db5d4e
 /deepseek-ai-dsh-harness-dev-context/use-this-package/sessions-from-earlier-releases:
   en: d810950db5118265
   zh: d20e3965fa78e0f8
@@ -60,8 +60,8 @@
   en: e8f89a14bd36dae0
   zh: bd4ec43e07e234c9
 /deepseek-ai-dsh-harness-dev-context/known-limitations-and-deferred-work:
-  en: 558945e2f537db5b
-  zh: f584fcde6275c2da
+  en: e9bf8f70954e76e0
+  zh: 695ee8f5f7065fe6
 /deepseek-ai-dsh-harness-dev-context/known-limitations-and-deferred-work/dev-note:
   en: e67f633dc6fe7773
   zh: e88aeb617ffb74ea

@@ -1,12 +1,38 @@
-# DeepSeek Harness 品牌素材使用规范
+# Stitch 品牌规范
 
 [English](BRAND_GUIDELINES.md) | 中文
 
-为了维护 DeepSeek Harness 生态的长期健康发展，避免用户混淆，方便用户对相关资源进行检索和识别，我们特别制定本规范，希望大家共同遵守：
+Stitch 基于 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)。本规范涵盖 Stitch 的名称、标志与配色。源文件位于 [`branding/`](branding/)。
 
-- 在项目的描述性文字中，您可以使用“DeepSeek Harness”真实、准确地说明您的项目与 DeepSeek Harness 的关系，例如“基于 DeepSeek Harness 构建”或“兼容 DeepSeek Harness”等。这类说明符合许可证的要求，也有助于用户理解项目的定位。
-- 如果您希望项目名称能体现与 DeepSeek Harness 生态的关联，我们建议使用缩写的 **“DSH”** 标识来命名，这样既清晰又便于社区内的交流。
-- 在项目命名时，请避免直接使用完整的 **“DeepSeek Harness”** 商标。**“DeepSeek Harness”** 是深度求索公司的注册商标，未经授权用于项目名，容易引发用户的误解和混淆，从而影响整个生态的清晰度。同时，也可能涉及商标侵权行为。
-- 此外，请您避免在宣传或展示时，以容易引起误解的方式使用官方品牌素材，以免让用户产生官方背书、合作或授权等不实印象。
+## 名称
 
-我们相信，一个清晰、有序的社区环境，能让每一位开发者的努力都更容易被看见和认可。对于少数不符合上述规范的情况，我们可能会联系相关方进行适当的调整，以维护生态整体的秩序。感谢大家的理解与支持，让我们一起构建一个更友好、更可持续发展的开源社区。
+在所有语言中，产品名都写作 "Stitch"，首字母 S 大写，不翻译。命令行程序为 `stitch`，以小写代码格式书写。
+
+## 标志
+
+Stitch 标志由四块圆角布片拼成，每块布片都带有缝线式的虚线边框。其中三块已填充；第四块留空，内含一个 "+"。留空的 "+" 布片代表"添加插件"：Stitch 由插件拼缝而成，你随时可以再缝入一块。
+
+| 文件 | 用途 |
+|---|---|
+| [`branding/mark.svg`](branding/mark.svg) | 浅色背景上的标志 |
+| [`branding/mark-dark.svg`](branding/mark-dark.svg) | 深色背景上的标志 |
+| [`branding/wordmark.svg`](branding/wordmark.svg) | 浅色背景上带 "Stitch" 名称的标志 |
+| [`branding/wordmark-dark.svg`](branding/wordmark-dark.svg) | 深色背景上带 "Stitch" 名称的标志 |
+| [`branding/favicon.svg`](branding/favicon.svg) | 浅色背景上的小尺寸图标 |
+| [`branding/favicon-dark.svg`](branding/favicon-dark.svg) | 深色背景上的小尺寸图标 |
+
+保持四块布片、缝线边框以及留空的 "+" 布片完整。不要对标志重新着色、旋转、拉伸或添加效果。标志四周留白至少为标志宽度的四分之一。
+
+## 配色
+
+| 颜色 | 色值 | 用途 |
+|---|---|---|
+| 墨色 | `#1C2434` | 文字、深色表面与布片轮廓 |
+| Stitch 蓝 | `#4176E6` | 主强调色与已填充布片 |
+| 雾色 | `#D4DBE9` | 次要布片与边框 |
+| 纸色 | `#FBFBFB` | 浅色背景 |
+| 霭色 | `#E1E6EE` | 弱化表面与分隔线 |
+
+## 署名
+
+基于 Stitch 构建的项目可以如实说明，例如"基于 Stitch 构建"或"Stitch 插件"。不要以暗示官方背书的方式使用 Stitch 标志。Stitch 本身基于 DeepSeek-AI 的 DeepSeek Harness；"DeepSeek" 与 "DeepSeek Harness" 是 DeepSeek 的名称，不属于 Stitch 品牌。

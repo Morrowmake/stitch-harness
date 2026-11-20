@@ -26,7 +26,7 @@ vi.mock('@deepseek-ai/dsh-http-proxy', () => ({ installProxyFromEnvironment: vi.
 
 const homes: string[] = []
 // runProfile writes the suffix into process.env; stubbing first lets afterEach restore it.
-beforeEach(() => { vi.stubEnv('DSH_USER_AGENT_SUFFIX', undefined) })
+beforeEach(() => { vi.stubEnv('STITCH_USER_AGENT_SUFFIX', undefined) })
 afterEach(() => {
   vi.restoreAllMocks()
   vi.unstubAllEnvs()
@@ -43,7 +43,7 @@ describe('runProfile with an application-owned profile', () => {
     mkdirSync(join(home, 'runtime'))
     writeFileSync(join(home, 'runtime/package.json'), '{"name":"test-runtime","version":"1.0.0"}')
     writeFileSync(join(home, 'package.json'), '{"name":"test-bundle","version":"1.0.0"}')
-    vi.stubEnv('DSH_HOME', home)
+    vi.stubEnv('STITCH_HOME', home)
     vi.spyOn(process, 'on').mockReturnValue(process)
     const ctx = new Context()
     ctx.provide('loader', { create: vi.fn() })
@@ -100,7 +100,7 @@ describe('runProfile with an application-owned profile', () => {
     const localManifest = '{"name":"test-local","version":"1.0.0","exports":"./index.cjs"}'
     writeFileSync(join(localPackageDir, 'package.json'), localManifest)
     writeFileSync(join(localPackageDir, 'index.cjs'), 'module.exports = "profile"\n')
-    vi.stubEnv('DSH_HOME', home)
+    vi.stubEnv('STITCH_HOME', home)
     vi.spyOn(process, 'on').mockReturnValue(process)
     const oldExitCode = process.exitCode
     const ctx = new Context()
@@ -192,13 +192,13 @@ describe('profile User-Agent suffix', () => {
     mkdirSync(join(home, 'runtime'))
     writeFileSync(join(home, 'runtime/package.json'), '{"name":"test-runtime","version":"1.0.0"}')
     writeFileSync(join(home, 'package.json'), '{"name":"test-bundle","version":"1.0.0"}')
-    vi.stubEnv('DSH_HOME', home)
+    vi.stubEnv('STITCH_HOME', home)
     vi.spyOn(process, 'on').mockReturnValue(process)
     vi.mocked(installProxyFromEnvironment).mockResolvedValue(async () => {})
     const failure = new Error('stop after observing the environment')
     let seen: string | undefined
     vi.mocked(boot).mockImplementation(() => {
-      seen = process.env.DSH_USER_AGENT_SUFFIX
+      seen = process.env.STITCH_USER_AGENT_SUFFIX
       return Promise.reject(failure)
     })
     const profile: Profile = { skippedBundles: [],
@@ -208,6 +208,6 @@ describe('profile User-Agent suffix', () => {
       environment: createLaunchEnvironmentSnapshot([]), profile: 'my web', patchFiles: [], args: [],
       resolvedProfile: { profile, installAnchor: join(home, 'runtime/package.json') },
     })).rejects.toBe(failure)
-    expect(seen).toBe('dsh-profile/my%20web')
+    expect(seen).toBe('stitch-profile/my%20web')
   })
 })

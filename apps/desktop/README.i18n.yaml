@@ -5,60 +5,60 @@
 /:
   en: 2e5d47a7668e1a90
   zh: 80577a62d92da48c
-/deepseek-harness-desktop:
-  en: 69a6e0c6712e463b
-  zh: 84e1d0b09c803704
-/deepseek-harness-desktop/summary:
+/stitch-desktop:
+  en: a558f30ec89ab18f
+  zh: dc2ddf98d6d8f7b6
+/stitch-desktop/summary:
   en: aa5f68680f57ccce
   zh: 8c1003d6b0a45652
-/deepseek-harness-desktop/table-of-contents:
+/stitch-desktop/table-of-contents:
   en: c523858a9cba03fc
   zh: 4611fec916725834
-/deepseek-harness-desktop/application-overview:
-  en: 0eefe52ff9a55712
-  zh: b352144b69865e69
-/deepseek-harness-desktop/terminal-command:
-  en: 5f2d25a1d8472647
-  zh: 2acb5c5d7d1917e2
-/deepseek-harness-desktop/closing-the-window-and-quitting:
-  en: 0f2e3a94508014a6
-  zh: 57b5006627e362f5
-/deepseek-harness-desktop/key-technical-decisions:
-  en: 3724c53da4f7647b
-  zh: 76ae549d43c99bb4
-/deepseek-harness-desktop/key-technical-decisions/bundled-workspace-dependencies:
-  en: 90fc5bb6c853856e
-  zh: 2b3d29bbe73bb633
-/deepseek-harness-desktop/bundled-command-runtime:
-  en: 372297005b57a08b
-  zh: 074a635ac17e4362
-/deepseek-harness-desktop/installation-ownership:
-  en: c5bb4df62b1156f9
-  zh: 16d867cdedab2520
-/deepseek-harness-desktop/installation-ownership/runtime-and-plugin-activation:
-  en: 4951cd3ee659eb33
-  zh: 96bdd6358dad587a
-/deepseek-harness-desktop/installation-ownership/host-environment:
-  en: 98cf848762482d48
-  zh: 74f9100a39ec8c2f
-/deepseek-harness-desktop/develop:
-  en: 853ee1b8aba9cadf
-  zh: 75aaef95617695da
-/deepseek-harness-desktop/package:
+/stitch-desktop/application-overview:
+  en: bad411da647b4b8b
+  zh: 60f774848858fe8a
+/stitch-desktop/terminal-command:
+  en: 07311e45dcc2c92b
+  zh: 131b5a7e902087c6
+/stitch-desktop/closing-the-window-and-quitting:
+  en: 83b60ce244ac1544
+  zh: e1cbd9fa68a9483c
+/stitch-desktop/key-technical-decisions:
+  en: 1529a4ede66d6c38
+  zh: c835ce0d6d9b61cf
+/stitch-desktop/key-technical-decisions/bundled-workspace-dependencies:
+  en: e138b496344379e3
+  zh: a4d4aafa6f4472d5
+/stitch-desktop/bundled-command-runtime:
+  en: 6adca4e5b10bcfba
+  zh: 3c4622f61b7cc454
+/stitch-desktop/installation-ownership:
+  en: 9e85444e393504ea
+  zh: 6796289189dc6e01
+/stitch-desktop/installation-ownership/runtime-and-plugin-activation:
+  en: 2fc323673c0017fc
+  zh: 38ddbec28f7aea2b
+/stitch-desktop/installation-ownership/host-environment:
+  en: d51e397d2fb3d099
+  zh: 87ed38a08ac4501a
+/stitch-desktop/develop:
+  en: 52b0cba8ba336a30
+  zh: da0b18153188f6e2
+/stitch-desktop/package:
   en: f179bcc97d0049c4
   zh: 6c3cc2a112ef9a66
-/deepseek-harness-desktop/windows-installer-interface:
-  en: eb9d30bca4134f80
-  zh: bf201d18ae5ba697
-/deepseek-harness-desktop/updates:
-  en: 763f75180065915f
-  zh: 64bce1b8469500c4
-/deepseek-harness-desktop/updates/local-desktop-settings:
-  en: 2768954eec1f3362
-  zh: 3416c9e6381eba85
-/deepseek-harness-desktop/low-level-development-overrides:
-  en: e025898e5b0cc479
-  zh: d5182b0cdd283048
-/deepseek-harness-desktop/known-limitations:
-  en: ac45b6637a982ce2
-  zh: 56dc1350f0f0102a
+/stitch-desktop/windows-installer-interface:
+  en: 08c168fd22fc2a9c
+  zh: 6582e80f1fff4afe
+/stitch-desktop/updates:
+  en: 1e02118d71376d00
+  zh: 4f189b5df9047c4f
+/stitch-desktop/updates/local-desktop-settings:
+  en: e38be6bd910000e3
+  zh: 6cd743e391e72c26
+/stitch-desktop/low-level-development-overrides:
+  en: 5ec84e65aa6d7feb
+  zh: 804f6253dd3a8adc
+/stitch-desktop/known-limitations:
+  en: 077772bd46f802df
+  zh: 967fa4bf01df81d7

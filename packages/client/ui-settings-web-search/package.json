@@ -1,13 +1,13 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-settings-web-search",
-  "description": "Settings page for web search and fetch on the dsh web client's Plugins page: the Search and Fetch provider menus, the DeepSeek Search API result count, DeepSeek Search and Fetch API billing, and legacy Messages search settings",
+  "description": "Settings page for web search and fetch on the stitch web client's Plugins page: the Search and Fetch provider menus, the DeepSeek Search API result count, DeepSeek Search and Fetch API billing, and legacy Messages search settings",
   "version": "0.2.2-rc.5",
   "publishConfig": {
     "access": "public"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
+    "url": "git+https://github.com/Morrowmake/stitch-harness.git",
     "directory": "packages/client/ui-settings-web-search"
   },
   "type": "module",

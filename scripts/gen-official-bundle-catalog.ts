@@ -42,15 +42,15 @@ export function generateOfficialBundleCatalog(root: string, names: readonly stri
   const checkInstallation = (name: string): void => {
     if (visited.has(name)) return
     visited.add(name)
-    if (names.includes(name)) throw new Error(`${name}: on-demand providers must not be installed by the DSH distribution`)
+    if (names.includes(name)) throw new Error(`${name}: on-demand providers must not be installed by the Stitch distribution`)
     for (const dependency of manifests.get(name)?.runtime ?? []) checkInstallation(dependency)
   }
-  if (!manifests.has('@deepseek-ai/dsh')) throw new Error('Official catalog requires the DSH installation manifest')
+  if (!manifests.has('@deepseek-ai/dsh')) throw new Error('Official catalog requires the Stitch installation manifest')
   checkInstallation('@deepseek-ai/dsh')
   return names.map((packageName) => {
     const entry = manifests.get(packageName)
     if (entry === undefined || !entry.path.startsWith('packages/') || !packageName.startsWith('@deepseek-ai/dsh-') || entry.private || !entry.bundle) {
-      throw new Error(`${packageName}: Official catalog entries must be public DSH bundle packages`)
+      throw new Error(`${packageName}: Official catalog entries must be public Stitch bundle packages`)
     }
     try { assertBundlePlatform(entry.platforms, process.platform) } catch (error) {
       // Catalog generation validates every declaration, including bundles for another Host.

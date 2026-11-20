@@ -36,7 +36,7 @@ kind: "package-reference"
 | `maxTextChars` | `4000` | 每次请求提交文本的 UTF-16 代码单元上限 |
 | `maxResponseBytes` | `1048576` | JSON 响应正文字节数上限 |
 
-端点接受不含凭据或片段的 HTTP(S) URL。原生 `fetch` 使用 Host 的全局分发器及 `dsh` 启动器安装的 HTTP 代理策略。无需新增翻译库。
+端点接受不含凭据或片段的 HTTP(S) URL。原生 `fetch` 使用 Host 的全局分发器及 `stitch` 启动器安装的 HTTP 代理策略。无需新增翻译库。
 
 传入现有的 `sessionId`，即可将翻译请求和成功结果保存在该 Session 日志中。`translate()` 返回成功结果之前会完成持久化刷新；在精确原文、源语言、目标语言、提供方和翻译配方匹配时，重新挂载或进程重启后会复用已有结果。已保存结果只需持久 Session 存储即可读取。缓存未命中时要求 Session 已激活；消费者负责激活。不传 `sessionId` 的调用仍不保存状态。
 
@@ -97,6 +97,6 @@ Google 接收使用 `gtx` 客户端的表单 POST 请求；Bing 通过 Microsoft
 <details>
 <summary>维护者细节 — 点击展开</summary>
 
-真实提供者测试无需凭据，使用实际默认端点。测试默认跳过，需显式运行 `DSH_TRANSLATION_LIVE=1 pnpm run test:e2e packages/experimental/translator/tests/upstream.e2e.ts` 才启用。它们覆盖 Bing 自动及显式源语言选择、两种提供者的中文区域标签，以及达到默认 4000 字符上限的 Google 请求。实际 Loader 测试覆盖持久通用记录、已激活 Session 写入以及重启后复用缓存。
+真实提供者测试无需凭据，使用实际默认端点。测试默认跳过，需显式运行 `STITCH_TRANSLATION_LIVE=1 pnpm run test:e2e packages/experimental/translator/tests/upstream.e2e.ts` 才启用。它们覆盖 Bing 自动及显式源语言选择、两种提供者的中文区域标签，以及达到默认 4000 字符上限的 Google 请求。实际 Loader 测试覆盖持久通用记录、已激活 Session 写入以及重启后复用缓存。
 
 </details>

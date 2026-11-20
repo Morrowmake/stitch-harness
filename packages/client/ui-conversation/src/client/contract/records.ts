@@ -127,7 +127,7 @@ export type ModelRetryNode = LlmRetryEventData & {
 
 /**
  * Durable terminal notice for a turn that ended with an error, a sign-out
- * cancellation, or an interruption by a DSH stop; the turn's settled retry
+ * cancellation, or an interruption by a Stitch stop; the turn's settled retry
  * chain renders separately and never replaces this node.
  */
 export interface TurnErrorNode {
@@ -142,7 +142,7 @@ export interface TurnErrorNode {
   message: string
   /**
    * Stable provider failure code when recorded, or the Client display code
-   * `INTERRUPTED` for a turn closed after DSH stopped.
+   * `INTERRUPTED` for a turn closed after Stitch stopped.
    */
   code?: string
 }

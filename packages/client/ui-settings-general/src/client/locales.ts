@@ -2,8 +2,8 @@
 
 /** Simplified Chinese dictionary (the key-set source of truth). */
 export const zh = {
-  'desktop.update.title': '检查更新',
-  'desktop.update.description': '开启后，Stitch 会在启动时及每天一次检查 GitHub Releases 是否有新版本。不会发送其他任何数据。',
+  'desktop.update.title': '每天检查更新（连接 api.github.com）',
+  'desktop.update.description': '默认开启。Stitch 会在启动时及每天一次检查 GitHub Releases 是否有新版本，并可一键安装经过签名验证的更新。不会发送其他任何数据。',
   'desktop.update.checkNow': '立即检查',
   'desktop.update.checking': '正在检查更新…',
   'desktop.update.available': '有新版本可用：{version}',
@@ -40,8 +40,8 @@ export type SettingsKey = keyof typeof zh
 
 /** English dictionary, checked complete against the zh key set. */
 export const en = {
-  'desktop.update.title': 'Check for updates',
-  'desktop.update.description': 'When on, Stitch checks GitHub Releases for a newer version at startup and once a day. No other data is sent.',
+  'desktop.update.title': 'Check for updates daily (contacts api.github.com)',
+  'desktop.update.description': 'On by default. Stitch checks GitHub Releases for a newer version at startup and once a day, and can install a signature-verified update in one click. No other data is sent.',
   'desktop.update.checkNow': 'Check now',
   'desktop.update.checking': 'Checking for updates…',
   'desktop.update.available': 'Version {version} is available.',
@@ -75,8 +75,8 @@ export const en = {
 
 /** Japanese copy, checked against the English keys. */
 export const ja = {
-  'desktop.update.title': 'アップデートを確認',
-  'desktop.update.description': 'オンにすると、Stitch は起動時と 1 日 1 回、GitHub Releases で新しいバージョンを確認します。その他のデータは送信されません。',
+  'desktop.update.title': '毎日アップデートを確認（api.github.com に接続）',
+  'desktop.update.description': 'デフォルトでオンです。Stitch は起動時と 1 日 1 回、GitHub Releases で新しいバージョンを確認し、署名を検証したアップデートをワンクリックでインストールできます。その他のデータは送信されません。',
   'desktop.update.checkNow': '今すぐ確認',
   'desktop.update.checking': 'アップデートを確認中…',
   'desktop.update.available': 'バージョン {version} が利用可能です。',
@@ -110,8 +110,8 @@ export const ja = {
 
 /** Spanish dictionary, checked against the English keys. */
 export const es = {
-  'desktop.update.title': 'Buscar actualizaciones',
-  'desktop.update.description': 'Si está activado, Stitch consulta GitHub Releases al iniciarse y una vez al día para ver si hay una versión más reciente. No se envía ningún otro dato.',
+  'desktop.update.title': 'Buscar actualizaciones a diario (se conecta a api.github.com)',
+  'desktop.update.description': 'Activado de forma predeterminada. Stitch consulta GitHub Releases al iniciarse y una vez al día para ver si hay una versión más reciente, y puede instalar con un clic una actualización con firma verificada. No se envía ningún otro dato.',
   'desktop.update.checkNow': 'Buscar ahora',
   'desktop.update.checking': 'Buscando actualizaciones…',
   'desktop.update.available': 'La versión {version} está disponible.',
@@ -145,8 +145,8 @@ export const es = {
 
 /** French dictionary, checked against the English keys. */
 export const fr = {
-  'desktop.update.title': 'Rechercher des mises à jour',
-  'desktop.update.description': 'Si cette option est activée, Stitch vérifie sur GitHub Releases au démarrage puis une fois par jour si une version plus récente existe. Aucune autre donnée n’est envoyée.',
+  'desktop.update.title': 'Rechercher des mises à jour chaque jour (contacte api.github.com)',
+  'desktop.update.description': 'Activé par défaut. Stitch vérifie sur GitHub Releases au démarrage puis une fois par jour si une version plus récente existe, et peut installer en un clic une mise à jour dont la signature est vérifiée. Aucune autre donnée n’est envoyée.',
   'desktop.update.checkNow': 'Vérifier maintenant',
   'desktop.update.checking': 'Recherche de mises à jour…',
   'desktop.update.available': 'La version {version} est disponible.',
@@ -180,8 +180,8 @@ export const fr = {
 
 /** German dictionary, checked against the English keys. */
 export const de = {
-  'desktop.update.title': 'Nach Updates suchen',
-  'desktop.update.description': 'Wenn aktiviert, prüft Stitch beim Start und einmal täglich auf GitHub Releases, ob eine neuere Version verfügbar ist. Es werden keine weiteren Daten gesendet.',
+  'desktop.update.title': 'Täglich nach Updates suchen (verbindet sich mit api.github.com)',
+  'desktop.update.description': 'Standardmäßig aktiviert. Stitch prüft beim Start und einmal täglich auf GitHub Releases, ob eine neuere Version verfügbar ist, und kann ein Update mit geprüfter Signatur mit einem Klick installieren. Es werden keine weiteren Daten gesendet.',
   'desktop.update.checkNow': 'Jetzt prüfen',
   'desktop.update.checking': 'Suche nach Updates…',
   'desktop.update.available': 'Version {version} ist verfügbar.',
@@ -215,8 +215,8 @@ export const de = {
 
 /** Russian dictionary, checked against the English keys. */
 export const ru = {
-  'desktop.update.title': 'Проверять обновления',
-  'desktop.update.description': 'Если включено, Stitch проверяет GitHub Releases на наличие новой версии при запуске и раз в день. Никакие другие данные не отправляются.',
+  'desktop.update.title': 'Ежедневно проверять обновления (обращение к api.github.com)',
+  'desktop.update.description': 'Включено по умолчанию. Stitch проверяет GitHub Releases на наличие новой версии при запуске и раз в день и может установить обновление с проверенной подписью одним нажатием. Никакие другие данные не отправляются.',
   'desktop.update.checkNow': 'Проверить сейчас',
   'desktop.update.checking': 'Проверка обновлений…',
   'desktop.update.available': 'Доступна версия {version}.',
@@ -250,8 +250,8 @@ export const ru = {
 
 /** Portuguese dictionary, checked against the English keys. */
 export const pt = {
-  'desktop.update.title': 'Verificar atualizações',
-  'desktop.update.description': 'Quando ativado, o Stitch verifica no GitHub Releases se há uma versão mais recente ao iniciar e uma vez por dia. Nenhum outro dado é enviado.',
+  'desktop.update.title': 'Verificar atualizações diariamente (conecta a api.github.com)',
+  'desktop.update.description': 'Ativado por padrão. O Stitch verifica no GitHub Releases se há uma versão mais recente ao iniciar e uma vez por dia, e pode instalar com um clique uma atualização com assinatura verificada. Nenhum outro dado é enviado.',
   'desktop.update.checkNow': 'Verificar agora',
   'desktop.update.checking': 'Verificando atualizações…',
   'desktop.update.available': 'A versão {version} está disponível.',

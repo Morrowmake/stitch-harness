@@ -1,11 +1,11 @@
 name: Release (SSH helper)
 
-# Validation accepts any ref; publication requires the matching dsh-v<version> tag.
+# Validation accepts any ref; publication requires the matching stitch-v<version> tag.
 on:
   workflow_dispatch:
     inputs:
       publish:
-        description: Publish verified archives to GitHub Release. Must run from the matching dsh-v<version> tag.
+        description: Publish verified archives to GitHub Release. Must run from the matching stitch-v<version> tag.
         type: boolean
         required: true
         default: false
@@ -24,7 +24,7 @@ jobs:
       version: ${{ steps.source.outputs.version }}
       commit: ${{ steps.source.outputs.commit }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
       - name: Resolve source and validate publication tag
@@ -36,7 +36,7 @@ jobs:
           import { readFileSync, appendFileSync } from 'node:fs';
           import { execFileSync } from 'node:child_process';
           const {version} = JSON.parse(readFileSync('package.json', 'utf8'));
-          if (process.env.PUBLISH === 'true' && (process.env.GITHUB_REF_TYPE !== 'tag' || process.env.GITHUB_REF_NAME !== `dsh-v${version}`)) throw new Error('Publication requires the matching dsh-v<version> tag');
+          if (process.env.PUBLISH === 'true' && (process.env.GITHUB_REF_TYPE !== 'tag' || process.env.GITHUB_REF_NAME !== `stitch-v${version}`)) throw new Error('Publication requires the matching stitch-v<version> tag');
           const commit = execFileSync('git', ['rev-parse', 'HEAD'], {encoding:'utf8'}).trim();
           appendFileSync(process.env.GITHUB_OUTPUT, `version=${version}\ncommit=${commit}\n`);
           JS
@@ -49,18 +49,18 @@ jobs:
     needs: [validate, build]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v5.0.0
         with:
           dest: ${{ runner.temp }}/setup-pnpm-${{ github.run_id }}-${{ github.run_attempt }}
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7.0.0
         with:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@v8.0.1
         with:
           pattern: ssh-helper-node24-*
           path: dist-exe/ssh-helper
@@ -71,7 +71,7 @@ jobs:
           SOURCE_COMMIT: ${{ needs.validate.outputs.commit }}
         run: pnpm exec tsx scripts/ssh-helper/release.ts --directory=dist-exe/ssh-helper --version="$RELEASE_VERSION" --commit="$SOURCE_COMMIT"
       - name: Upload verified release checksums
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: ssh-helper-release-checksums
           path: dist-exe/ssh-helper/SHA256SUMS
@@ -84,7 +84,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@v8.0.1
         with:
           pattern: ssh-helper-*
           path: dist-exe/ssh-helper

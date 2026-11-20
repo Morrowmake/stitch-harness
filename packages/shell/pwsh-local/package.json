@@ -1,13 +1,13 @@
 {
   "name": "@deepseek-ai/dsh-pwsh-local",
-  "description": "Local PowerShell implementation of the DeepSeek Harness bash executor seam",
+  "description": "Local PowerShell implementation of the Stitch bash executor seam",
   "version": "0.2.2-rc.5",
   "publishConfig": {
     "access": "public"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
+    "url": "git+https://github.com/Morrowmake/stitch-harness.git",
     "directory": "packages/shell/pwsh-local"
   },
   "type": "module",

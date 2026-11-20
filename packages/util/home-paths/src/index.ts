@@ -1,5 +1,5 @@
 /**
- * Shared filesystem path helpers for DeepSeek Harness user data.
+ * Shared filesystem path helpers for Stitch user data.
  *
  * @module @deepseek-ai/dsh-home-paths
  */
@@ -7,15 +7,16 @@
 import { opendir, realpath } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
+import { ENV_PREFIX, HOME_DIR_NAME } from '@deepseek-ai/dsh-product'
 
-/** Directory name for the default DeepSeek Harness home under the OS home. */
-export const DSH_HOME_DIR_NAME = '.dsh'
+/** Directory name for the default Stitch home under the OS home. */
+export const DSH_HOME_DIR_NAME = HOME_DIR_NAME
 
-/** Stable user-facing display form for the default DeepSeek Harness home. */
+/** Stable user-facing display form for the default Stitch home. */
 export const DEFAULT_DSH_HOME_DISPLAY = `~/${DSH_HOME_DIR_NAME}`
 
-/** Environment variable that overrides the default DeepSeek Harness home. */
-export const DSH_HOME_ENV = 'DSH_HOME'
+/** Environment variable that overrides the default Stitch home. */
+export const DSH_HOME_ENV = `${ENV_PREFIX}HOME`
 
 /** Directory name for the default shared agent configuration root under the OS home. */
 export const AGENTS_HOME_DIR_NAME = '.agents'
@@ -24,7 +25,7 @@ export const AGENTS_HOME_DIR_NAME = '.agents'
 export const DEFAULT_AGENTS_HOME_DISPLAY = `~/${AGENTS_HOME_DIR_NAME}`
 
 /** Environment variable that overrides the default shared agent configuration root. */
-export const AGENTS_HOME_ENV = 'DSH_AGENTS_HOME'
+export const AGENTS_HOME_ENV = `${ENV_PREFIX}AGENTS_HOME`
 
 /**
  * Give a native filesystem watcher one canonical spelling of a path, even
@@ -64,7 +65,7 @@ export async function canonicalizeWatchPath(path: string): Promise<string> {
 }
 
 /**
- * Resolve the default DeepSeek Harness home using Node's platform path rules.
+ * Resolve the default Stitch home using Node's platform path rules.
  * @returns the absolute default harness home path.
  */
 export function defaultDshHome(): string {
@@ -122,14 +123,14 @@ function rootDisplay(resolvedRoot: string, defaultRoot: string, defaultLabel: st
 }
 
 /**
- * Resolve the single-root DeepSeek Harness home.
+ * Resolve the single-root Stitch home.
  *
- * Precedence, highest first: an explicit configured path, `$DSH_HOME`, then
- * `~/.dsh`. The harness keeps all user data under one root. An empty or
- * whitespace-only `$DSH_HOME` is treated as unset, so a blank override never
+ * Precedence, highest first: an explicit configured path, `$STITCH_HOME`, then
+ * `~/.stitch`. The harness keeps all user data under one root. An empty or
+ * whitespace-only `$STITCH_HOME` is treated as unset, so a blank override never
  * resolves the home to the current working directory.
  * @param configured - explicit harness-home override, which has highest precedence.
- * @param env - environment mapping used to read `DSH_HOME`.
+ * @param env - environment mapping used to read `STITCH_HOME`.
  * @returns the normalized absolute harness home path.
  */
 export function resolveDshHome(configured?: string, env: Record<string, string | undefined> = process.env): string {
@@ -139,13 +140,13 @@ export function resolveDshHome(configured?: string, env: Record<string, string |
 /**
  * Resolve the shared agent configuration root.
  *
- * Precedence, highest first: an explicit configured path, `$DSH_AGENTS_HOME`,
+ * Precedence, highest first: an explicit configured path, `$STITCH_AGENTS_HOME`,
  * then `~/.agents`. The root holds configuration shared with other agent tools,
- * so it stays independent of the DeepSeek Harness home. An empty or
- * whitespace-only `$DSH_AGENTS_HOME` is treated as unset, so a blank override
+ * so it stays independent of the Stitch home. An empty or
+ * whitespace-only `$STITCH_AGENTS_HOME` is treated as unset, so a blank override
  * never resolves the root to the current working directory.
  * @param configured - explicit shared-root override, which has highest precedence.
- * @param env - environment mapping used to read `DSH_AGENTS_HOME`.
+ * @param env - environment mapping used to read `STITCH_AGENTS_HOME`.
  * @returns the normalized absolute shared agent configuration root.
  */
 export function resolveAgentsHome(configured?: string, env: Record<string, string | undefined> = process.env): string {
@@ -153,7 +154,7 @@ export function resolveAgentsHome(configured?: string, env: Record<string, strin
 }
 
 /**
- * Join path segments onto the resolved DeepSeek Harness home. It addresses the
+ * Join path segments onto the resolved Stitch home. It addresses the
  * existing top-level entries; a new path uses {@link dshPath} with its category.
  * @param segments - path segments appended to the Harness home; an empty list returns the home itself.
  * @returns the normalized absolute joined path.
@@ -175,7 +176,7 @@ export function dshCachePath(optionsOrSegment: { dshHome?: string } | string = {
 
 /**
  * Category directory under the Harness home, named after the XDG Base Directory
- * kinds. A new file kept under `$DSH_HOME` belongs to exactly one category, and
+ * kinds. A new file kept under `$STITCH_HOME` belongs to exactly one category, and
  * the category directory name equals the category. Existing top-level entries,
  * such as `sessions/`, `profiles/`, and `.credentials.yaml`, keep their current
  * locations; the [home path categories proposal](../../../../.agents/notes/proposed/architecture/2026-11-04-dsh-home-path-categories.md)
@@ -196,7 +197,7 @@ export type DshHomeCategory = 'config' | 'data' | 'state' | 'cache' | 'backup'
 export interface DshPathLocation {
   /** Category directory to join under. */
   category: DshHomeCategory
-  /** Explicit harness-home override, resolved by {@link resolveDshHome}; omission uses `$DSH_HOME`, then `~/.dsh`. */
+  /** Explicit harness-home override, resolved by {@link resolveDshHome}; omission uses `$STITCH_HOME`, then `~/.stitch`. */
   dshHome?: string | undefined
 }
 
@@ -217,9 +218,9 @@ export function dshPath(location: DshHomeCategory | DshPathLocation, ...segments
  * Describe a resolved harness home symbolically for user-facing display.
  *
  * It never returns an absolute machine path: the default home is labelled
- * `~/.dsh`, and any configured home is labelled `$DSH_HOME`.
+ * `~/.stitch`, and any configured home is labelled `$STITCH_HOME`.
  * @param resolvedHome - the absolute path returned by {@link resolveDshHome}.
- * @returns `~/.dsh` for the default home, otherwise `$DSH_HOME`.
+ * @returns `~/.stitch` for the default home, otherwise `$STITCH_HOME`.
  */
 export function dshHomeDisplay(resolvedHome: string): string {
   return rootDisplay(resolvedHome, defaultDshHome(), DEFAULT_DSH_HOME_DISPLAY, DSH_HOME_ENV)
@@ -229,9 +230,9 @@ export function dshHomeDisplay(resolvedHome: string): string {
  * Describe a resolved shared agent configuration root symbolically for user-facing display.
  *
  * It never returns an absolute machine path: the default root is labelled
- * `~/.agents`, and any configured root is labelled `$DSH_AGENTS_HOME`.
+ * `~/.agents`, and any configured root is labelled `$STITCH_AGENTS_HOME`.
  * @param resolvedHome - the absolute path returned by {@link resolveAgentsHome}.
- * @returns `~/.agents` for the default root, otherwise `$DSH_AGENTS_HOME`.
+ * @returns `~/.agents` for the default root, otherwise `$STITCH_AGENTS_HOME`.
  */
 export function agentsHomeDisplay(resolvedHome: string): string {
   return rootDisplay(resolvedHome, defaultAgentsHome(), DEFAULT_AGENTS_HOME_DISPLAY, AGENTS_HOME_ENV)

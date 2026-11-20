@@ -1,7 +1,7 @@
 /**
- * TypeScript client SDK for the DeepSeek Harness runtime: spawn the
- * same-version `dsh --profile sdk` runtime as a subprocess and drive agent
- * turns over stdio JSON-RPC. `DeepSeekHarness` is the high-level run API;
+ * TypeScript client SDK for the Stitch runtime: spawn the
+ * same-version `stitch --profile sdk` runtime as a subprocess and drive agent
+ * turns over stdio JSON-RPC. `Stitch` is the high-level run API;
  * `HarnessClient` is the lower-level protocol client. A pure library — it
  * registers nothing on a Cordis context; named profiles and ordered patch
  * files customize the runtime process it spawns.
@@ -9,7 +9,7 @@
  * @module @deepseek-ai/dsh-sdk-client
  */
 
-export { DeepSeekHarness, HarnessSession, validatedSessionEvent } from './api.ts'
+export { Stitch, HarnessSession, validatedSessionEvent } from './api.ts'
 export type { RunOptions } from './api.ts'
 export {
   HarnessClient,
@@ -26,7 +26,7 @@ export type {
   SdkUserQuestionAnswer,
   SdkUserQuestionResult,
   SdkUserQuestionRequest,
-  DeepSeekHarnessOptions,
+  StitchOptions,
   HarnessClientOptions,
   HarnessNotification,
   NotificationFilter,

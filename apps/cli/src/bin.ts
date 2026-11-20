@@ -19,7 +19,7 @@ export type RunCliOptions = Pick<RunProfileOptions, 'packageManager'> & {
 }
 
 /**
- * Run the public dsh command-line interface.
+ * Run the public stitch command-line interface.
  * @param options - Package runtime and Desktop profile access supplied by the installation.
  * @returns a promise that settles when the selected command mode finishes.
  */
@@ -34,7 +34,7 @@ export async function runCli(options: RunCliOptions = {}): Promise<void> {
       const { runProfile } = await import('./profile-boot.ts')
       try {
         await runProfile({
-          environment: loadLayeredEnv('dsh'),
+          environment: loadLayeredEnv('stitch'),
           profile: invocation.profile,
           fromDefaultProfile: invocation.fromDefaultProfile,
           patchFiles: invocation.patches,
@@ -70,7 +70,7 @@ export async function runCli(options: RunCliOptions = {}): Promise<void> {
     }
     default:
       invocation satisfies never
-      throw new Error(`dsh: unhandled invocation mode ${JSON.stringify(invocation)}`)
+      throw new Error(`stitch: unhandled invocation mode ${JSON.stringify(invocation)}`)
   }
 }
 

@@ -49,7 +49,7 @@ const operations: MacOSArtifactOperations = {
 async function timed(label: string, action: () => Promise<void>, secrets: readonly string[]): Promise<void> {
   const start = performance.now()
   process.stdout.write(`desktop macOS packaging: ${label} started at ${new Date().toISOString()}\n`)
-  await packagingStep(process.env.DSH_DESKTOP_PACKAGING_RUN_DIR, label, action, secrets)
+  await packagingStep(process.env.STITCH_DESKTOP_PACKAGING_RUN_DIR, label, action, secrets)
   process.stdout.write(`desktop macOS packaging: ${label} completed in ${((performance.now() - start) / 1000).toFixed(2)}s\n`)
 }
 
@@ -72,7 +72,7 @@ export async function packageMacOSArtifacts(
   const secrets = Object.entries(environment).filter(([name]) => /KEY|SECRET|TOKEN|PASSWORD|APPLE_ID/iu.test(name)).map(([, value]) => value ?? '')
   const expected = resolveMacOSSigningEnvironment(environment)
   const credentials = resolveMacOSNotarizationEnvironment(environment)
-  const appPath = join(artifactsRoot, arch === 'arm64' ? 'mac-arm64' : 'mac', 'DeepSeek Harness.app')
+  const appPath = join(artifactsRoot, arch === 'arm64' ? 'mac-arm64' : 'mac', 'Stitch.app')
   const root = await mkdtemp(join(dirname(artifactsRoot), 'notarization-'))
   const zipApp = join(root, 'zip', basename(appPath))
   const dmgApp = join(root, 'dmg', basename(appPath))
@@ -99,7 +99,7 @@ export async function packageMacOSArtifacts(
     }
     apple.verifySignature(zipApp, expected)
     apple.verifySignature(dmgApp, expected)
-    const base = `deepseek-harness-${version}-mac-${arch}`
+    const base = `stitch-${version}-mac-${arch}`
     const artifacts = [
       [dmgOutput, `${base}.dmg`],
       [zipOutput, `${base}.zip`],

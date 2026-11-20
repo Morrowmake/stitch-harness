@@ -2,6 +2,18 @@
 # section, a hash of its English and Chinese blocks outside code blocks and generated regions.
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write BRAND_GUIDELINES.md
-/deepseek-harness-brand-asset-usage-guidelines:
-  en: 23933888033edf18
-  zh: eaa5afb9e2cb4d25
+/stitch-brand-guidelines:
+  en: d9b3f0a12c05add5
+  zh: a60998300ca76e1e
+/stitch-brand-guidelines/name:
+  en: 89d1c7742aa1efbf
+  zh: f5e955ff61d32055
+/stitch-brand-guidelines/mark:
+  en: f0af5e86e474193d
+  zh: c1aef5682b14e2b5
+/stitch-brand-guidelines/palette:
+  en: cacfd4589b2f7073
+  zh: 6dc590b0cfbf3e70
+/stitch-brand-guidelines/attribution:
+  en: f71eb73d2538f9ce
+  zh: 9bdd2e046d968617

@@ -56,7 +56,7 @@ it('fetches the platform-declared CUA provider tarballs with an empty cache for 
     { name: windowsProvider, version, os: windows.os, files: windows.files },
   ]
   const generation = 'a'.repeat(64)
-  const nativePayload = `native/bin/darwin-arm64/${generation}/DSH Computer Use.app/Contents/MacOS/dsh-cua-native`
+  const nativePayload = `native/bin/darwin-arm64/${generation}/Stitch Computer Use.app/Contents/MacOS/dsh-cua-native`
   const packages = new Map<string, { manifest: Record<string, unknown>; bytes: Buffer }>()
   for (const manifest of manifests) {
     const name = String(manifest.name)

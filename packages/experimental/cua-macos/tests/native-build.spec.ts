@@ -9,7 +9,7 @@ import { buildNativeExecutable, isSourcePackage, nativeExecutablePath, nativeHos
 
 async function publish(directory: string, bytes: Buffer, variant: 'release' | 'dev'): Promise<string> {
   const bundle = createHash('sha256').update(bytes).digest('hex')
-  const executable = join(directory, bundle, variant === 'dev' ? 'DSH Computer Use Dev.app' : 'DSH Computer Use.app', 'Contents/MacOS/dsh-cua-native')
+  const executable = join(directory, bundle, variant === 'dev' ? 'Stitch Computer Use Dev.app' : 'Stitch Computer Use.app', 'Contents/MacOS/dsh-cua-native')
   await mkdir(dirname(executable), { recursive: true })
   await writeFile(executable, bytes, { mode: 0o755 })
   await writeFile(join(directory, 'current.json'), JSON.stringify({ bundle }))
@@ -73,7 +73,7 @@ it('builds the development variant and returns its executable only after the man
   const f = await fixture()
   const path = await buildNativeExecutable(f.spec)
   expect(await readFile(path)).toEqual(f.output)
-  expect(path).toContain(join('DSH Computer Use Dev.app', 'Contents', 'MacOS'))
+  expect(path).toContain(join('Stitch Computer Use Dev.app', 'Contents', 'MacOS'))
   expect(f.spawn.mock.calls[0]![0].argv).toEqual([
     '/usr/bin/xcrun', 'python3', join(f.spec.packageRoot, 'native/build_app.py'),
     '--scratch-path', join(f.spec.packageRoot, 'native/.build/runtime-arm64'),

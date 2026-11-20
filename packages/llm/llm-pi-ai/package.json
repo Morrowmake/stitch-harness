@@ -1,13 +1,13 @@
 {
   "name": "@deepseek-ai/dsh-llm-pi-ai",
-  "description": "Multi-provider LLM adapter for the DeepSeek Harness LLM seam: every model route (pi-ai catalog providers such as deepseek, openai, or anthropic, and hand-declared gateways) is configured through the providers dictionary",
+  "description": "Multi-provider LLM adapter for the Stitch LLM seam: every model route (pi-ai catalog providers such as deepseek, openai, or anthropic, and hand-declared gateways) is configured through the providers dictionary",
   "version": "0.2.2-rc.5",
   "publishConfig": {
     "access": "public"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
+    "url": "git+https://github.com/Morrowmake/stitch-harness.git",
     "directory": "packages/llm/llm-pi-ai"
   },
   "type": "module",

@@ -1,13 +1,13 @@
 {
   "name": "@deepseek-ai/dsh-persona",
-  "description": "Composition-authored deployment persona section for the DeepSeek Harness",
+  "description": "Composition-authored deployment persona section for the Stitch",
   "version": "0.2.2-rc.5",
   "publishConfig": {
     "access": "public"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
+    "url": "git+https://github.com/Morrowmake/stitch-harness.git",
     "directory": "packages/preset/persona"
   },
   "type": "module",

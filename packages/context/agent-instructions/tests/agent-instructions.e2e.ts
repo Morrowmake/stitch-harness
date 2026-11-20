@@ -42,9 +42,9 @@ async function harness(): Promise<{ ctx: Context; agent: Agent }> {
   })
   await ctx.plugin(LocalFileSystem, { cwd: '/' })
   await ctx.plugin(ToolFs)
-  // Keep the developer's real ~/.dsh and ~/.agents out of the model-visible baseline.
-  vi.stubEnv('DSH_HOME', join(workdir, 'absent-dsh'))
-  vi.stubEnv('DSH_AGENTS_HOME', join(workdir, 'absent-agents'))
+  // Keep the developer's real ~/.stitch and ~/.agents out of the model-visible baseline.
+  vi.stubEnv('STITCH_HOME', join(workdir, 'absent-dsh'))
+  vi.stubEnv('STITCH_AGENTS_HOME', join(workdir, 'absent-agents'))
   await ctx.plugin(AgentInstructions, { maxBytes: 65536 })
   await ctx.plugin(AgentLoop, { agents: [] })
   await ctx.plugin(LlmPiAi, { providers: { deepseek: { apiKeyEnv: 'DEEPSEEK_API_KEY' } } })

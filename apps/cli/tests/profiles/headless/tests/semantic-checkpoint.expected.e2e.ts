@@ -24,7 +24,7 @@ const configPath = fileURLToPath(new URL('../semantic-checkpoint-snapshot.patch.
 const binScript = fileURLToPath(new URL('../../../../../../packages/test-support/loader-smoke/tests/fixtures/headless-driver.ts', import.meta.url))
 const tsconfigPath = fileURLToPath(new URL('../../../../../../tsconfig.json', import.meta.url))
 const sessionId = brandString<SessionId>('semantic-checkpoint-unknown-outcome')
-const refreshing = process.env.DSH_SNAPSHOT === 'refresh'
+const refreshing = process.env.STITCH_SNAPSHOT === 'refresh'
 const task = 'Continue safely from the interrupted operation.'
 
 /** Compare one current normalized Session with its generation-aware committed fixture. */
@@ -114,8 +114,8 @@ describe('semantic checkpoint recovery snapshot', () => {
       binArgs: [configPath, task],
       tsconfigPath,
       env: {
-        DSH_SNAPSHOT_FILE: replayFixture,
-        DSH_SNAPSHOT_OVERRIDE: replayOverride,
+        STITCH_SNAPSHOT_FILE: replayFixture,
+        STITCH_SNAPSHOT_OVERRIDE: replayOverride,
       },
       prepare: async (runCwd) => {
         cwd = runCwd

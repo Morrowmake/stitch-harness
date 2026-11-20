@@ -2,27 +2,27 @@
 # section, a hash of its English and Chinese blocks outside code blocks and generated regions.
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write python/sdk/README.md
-/deepseek-harness-python-sdk:
-  en: 43f7de064985e731
-  zh: 9ad59629660b1f13
-/deepseek-harness-python-sdk/optional-office-operations:
-  en: ddf4dabea526cef1
-  zh: 6e31cab10d2f3ed8
-/deepseek-harness-python-sdk/start-a-runtime:
-  en: 11447e672af28e1c
-  zh: 1df3f3e2b7767ad8
-/deepseek-harness-python-sdk/run-text-and-commands:
-  en: b2c847c1452e137d
-  zh: c595c5e82151d0cb
-/deepseek-harness-python-sdk/client-approvals:
-  en: 1d18c09832dd4a42
-  zh: 6e7260b650a1f987
-/deepseek-harness-python-sdk/customize-plugins:
-  en: e9ff32a552f0a42d
-  zh: 8740dcbe2be55b2b
-/deepseek-harness-python-sdk/native-user-questions:
-  en: 979ad00fe498b2be
-  zh: 4b656bd268292a13
-/deepseek-harness-python-sdk/results-and-notifications:
-  en: 26dcdc193e82adb5
-  zh: 5d4075ff9859b0ce
+/stitch-python-sdk:
+  en: dd52ca3cec2c8433
+  zh: 1470d8ddfc87e41b
+/stitch-python-sdk/optional-office-operations:
+  en: 9177dad27eaea6e6
+  zh: 7a9d60ca82c4392e
+/stitch-python-sdk/start-a-runtime:
+  en: 6a710d9463559d54
+  zh: fc1b2c6c6cef4675
+/stitch-python-sdk/run-text-and-commands:
+  en: fa1f9b09035448e7
+  zh: 3d19e4def28e44fc
+/stitch-python-sdk/client-approvals:
+  en: c196bd2643cae4bb
+  zh: f07d12ee15d937e4
+/stitch-python-sdk/customize-plugins:
+  en: 0c943fe49fa558ba
+  zh: 44d447ce74c1a422
+/stitch-python-sdk/native-user-questions:
+  en: 108c336e30af85e5
+  zh: 7207a461e62a69b9
+/stitch-python-sdk/results-and-notifications:
+  en: 6b1389b3c0b9eae1
+  zh: 7d73fc7f8f10bc76

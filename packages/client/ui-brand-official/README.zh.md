@@ -29,7 +29,7 @@ kind: "package-reference"
 
 ### 选择 profile
 
-`DSH_CLIENT_BUILD_PROFILE` 决定渲染哪个品牌。`official` 构建显示 Stitch 侧栏标志和名称；任何其他取值都让外壳回退——Stitch 标志与本地构建标签——保持原样。会话首屏无论 profile 如何都显示来自 `dsh-client-ui-conversation` 的 Stitch 标志回退。两种情况下插件都会照常加载并通过校验；只有侧栏图形注册受 profile 门控。
+`STITCH_CLIENT_BUILD_PROFILE` 决定渲染哪个品牌。`official` 构建显示 Stitch 侧栏标志和名称；任何其他取值都让外壳回退——Stitch 标志与本地构建标签——保持原样。会话首屏无论 profile 如何都显示来自 `dsh-client-ui-conversation` 的 Stitch 标志回退。两种情况下插件都会照常加载并通过校验；只有侧栏图形注册受 profile 门控。
 
 标志配色随浅色或深色主题切换；名称使用侧栏文字颜色。图形不接受配置。这是内置呈现，没有需要单独安装的 Bundle 或插件页面开关。
 
@@ -79,7 +79,7 @@ kind: "package-reference"
 这些限制界定了品牌呈现的供给方式。它们是当前包约束，不是品牌设计对比或任务积压。
 
 - **只有一组填充**——替代呈现属于占据相同 slot 的另一个 Cordis 包。
-- **浏览器标题独立**——`DSH_CLIENT_TITLE` 在构建时选择标题文本，而非通过 UI slot。
+- **浏览器标题独立**——`STITCH_CLIENT_TITLE` 在构建时选择标题文本，而非通过 UI slot。
 
 <a id="dev-note"></a>
 ### 开发备注

@@ -11,13 +11,13 @@ it('resolves every CI version mode', () => {
     const generated = `${desktopBuildVersionPrefix(version)}20261103.7.2`
     expect(desktopCiVersion({ ...env, PACKAGE_VERSION_MODE: 'follow-dsh' }, version, now)).toBe(version)
     for (const preset of ['test', 'production']) {
-      expect(desktopCiVersion({ ...env, DSH_PACKAGING_PRESET: preset, PACKAGE_VERSION_MODE: 'build-number' }, version, now)).toBe(generated)
+      expect(desktopCiVersion({ ...env, STITCH_PACKAGING_PRESET: preset, PACKAGE_VERSION_MODE: 'build-number' }, version, now)).toBe(generated)
     }
     expect(desktopCiVersion({ ...env, PACKAGE_VERSION_MODE: 'product' }, version, now)).toBe(version)
     expect(desktopCiVersion({ ...env, PACKAGE_VERSION_MODE: 'auto' }, version, now)).toBe(generated)
     expect(desktopCiVersion({ ...env, PACKAGE_VERSION_MODE: 'manual', PACKAGE_BUILD_VERSION: generated }, version, now)).toBe(generated)
-    expect(desktopCiVersion({ ...env, PACKAGE_VERSION_MODE: 'default', DSH_PACKAGING_PRESET: 'production' }, version, now)).toBe(version)
-    expect(desktopCiVersion({ ...env, PACKAGE_VERSION_MODE: 'default', DSH_PACKAGING_PRESET: 'test' }, version, now)).toBe(generated)
+    expect(desktopCiVersion({ ...env, PACKAGE_VERSION_MODE: 'default', STITCH_PACKAGING_PRESET: 'production' }, version, now)).toBe(version)
+    expect(desktopCiVersion({ ...env, PACKAGE_VERSION_MODE: 'default', STITCH_PACKAGING_PRESET: 'test' }, version, now)).toBe(generated)
     expect(() => desktopCiVersion({ ...env, PACKAGE_VERSION_MODE: 'manual', PACKAGE_BUILD_VERSION: 'invalid' }, version, now)).toThrow('Invalid build version')
   }
 })
@@ -26,10 +26,10 @@ it.each(['arm64', 'x64'] as const)('embeds a prerelease build version in a signe
   const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }
   const version = `${desktopBuildVersionPrefix(manifest.version)}20261103.1`
   const config = createElectronBuilderConfig({
-    DSH_DESKTOP_APP_ID: 'com.example.channel-test',
-    DSH_DESKTOP_BUILD_VERSION: version,
-    DSH_DESKTOP_MACOS_SIGNING_IDENTITY: 'Example Company (TEAMID1234)',
-    DSH_DESKTOP_MACOS_TEAM_ID: 'TEAMID1234',
+    STITCH_DESKTOP_APP_ID: 'com.example.channel-test',
+    STITCH_DESKTOP_BUILD_VERSION: version,
+    STITCH_DESKTOP_MACOS_SIGNING_IDENTITY: 'Example Company (TEAMID1234)',
+    STITCH_DESKTOP_MACOS_TEAM_ID: 'TEAMID1234',
     APPLE_KEYCHAIN_PROFILE: 'channel-test',
   }, 'darwin', arch)
   expect(config.extraMetadata).toEqual({ dshDesktopAppId: 'com.example.channel-test', version })
@@ -40,9 +40,9 @@ it('accepts a prerelease build version in an unsigned Windows x64 configuration'
   const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }
   const version = `${desktopBuildVersionPrefix(manifest.version)}20261103.1`
   const config = createElectronBuilderConfig({
-    DSH_DESKTOP_APP_ID: 'com.example.channel-test',
-    DSH_DESKTOP_BUILD_VERSION: version,
-    DSH_DESKTOP_UNSIGNED: '1',
+    STITCH_DESKTOP_APP_ID: 'com.example.channel-test',
+    STITCH_DESKTOP_BUILD_VERSION: version,
+    STITCH_DESKTOP_UNSIGNED: '1',
   }, 'win32', 'x64')
   expect(config.extraMetadata).toMatchObject({ version })
   expect(config.publish).toBeNull()

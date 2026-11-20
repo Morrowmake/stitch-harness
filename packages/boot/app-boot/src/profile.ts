@@ -1,8 +1,8 @@
 /**
  * Profile discovery, initialization, and patch-layer composition for the
- * `dsh --profile` launcher family.
+ * `stitch --profile` launcher family.
  *
- * A profile is a directory under `$DSH_HOME/profiles/<name>` holding a
+ * A profile is a directory under `$STITCH_HOME/profiles/<name>` holding a
  * `package.json` (out-of-tree plugin dependencies plus the profile manifest
  * `dsh.profile` with its ordered `bundles` list) and a `cordis.patch.yml`
  * (the user's own patch layer, applied after every bundle layer). Bundles are
@@ -98,7 +98,7 @@ export interface Profile {
   skippedBundles: SkippedBundle[]
 }
 
-/** A selected bundle the profile could not load, or whose own DSH requirements the profile does not exempt. */
+/** A selected bundle the profile could not load, or whose own Stitch requirements the profile does not exempt. */
 export interface SkippedBundle {
   /** The bundle's package name from `dsh.profile.bundles`. */
   packageName: string
@@ -158,7 +158,7 @@ export interface RuntimeResolution {
 
 /**
  * Resolve a profile's directory under the Harness home.
- * @param name - the profile name (`dsh --profile <name>`).
+ * @param name - the profile name (`stitch --profile <name>`).
  * @param home - the Harness home; defaults to {@link resolveDshHome}.
  * @returns the absolute profile directory (which may not exist yet).
  */
@@ -166,7 +166,7 @@ export function resolveProfileDir(name: string, home: string = resolveDshHome())
   if (name === '' || name.includes('/') || name.includes('\\') || name === '.' || name === '..'
     // Node reserves this name for dependency lookup.
     || name === 'node_modules') {
-    throw new Error(`dsh: invalid profile name ${JSON.stringify(name)}`)
+    throw new Error(`stitch: invalid profile name ${JSON.stringify(name)}`)
   }
   return join(home, PROFILES_DIR, name)
 }
@@ -217,12 +217,12 @@ export function initProfile(
 }
 
 /** Directory where the link backend of the dsh 0.1.5 releases projected bundle-carried packages into a profile. */
-const LINK_PROJECTION_DIR = '.dsh-module-fallback'
+const LINK_PROJECTION_DIR = '.stitch-module-fallback'
 
 /**
  * Remove the package projections a link-backend launch left in a profile.
  * Only symlinks under the profile's `node_modules` whose target lies inside
- * `<profile>/.dsh-module-fallback/node_modules` are unlinked, then that directory is removed;
+ * `<profile>/.stitch-module-fallback/node_modules` are unlinked, then that directory is removed;
  * pnpm-installed packages and every other symlink stay. A profile without the directory is untouched.
  * @param dir - the profile directory.
  */
@@ -354,7 +354,7 @@ function collectInstallationScopePackages(
       const manifestPath = join(realModuleDirectory(dir), 'package.json')
       let manifest: ProfileManifest
       try {
-        manifest = skippedBundles.has(dep) ? readProfileManifest('dsh', dir) : readPackageManifest(manifestPath)
+        manifest = skippedBundles.has(dep) ? readProfileManifest('stitch', dir) : readPackageManifest(manifestPath)
       } catch (error) {
         if (!skippedBundles.has(dep)) throw error
         continue
@@ -461,7 +461,7 @@ export class ProfileRuntimeResolution implements RuntimeResolution {
     const { installAnchor, home, profileDir } = this.#source
     return createRuntimeResolution({
       installAnchor, home,
-      ...profileDir === undefined ? {} : { profile: loadProfileDirectory('dsh', profileDir, installAnchor) },
+      ...profileDir === undefined ? {} : { profile: loadProfileDirectory('stitch', profileDir, installAnchor) },
     })
   }
 }
@@ -657,7 +657,7 @@ export function resolveBundleDir(
   }
   throw new Error(
     `${binName}: cannot resolve profile bundle ${JSON.stringify(packageName)} from the dsh installation or ${profileDir}; `
-    + `run 'dsh plugin --profile ${basename(profileDir)} install' if its dependency is not installed`,
+    + `run 'stitch plugin --profile ${basename(profileDir)} install' if its dependency is not installed`,
   )
 }
 
@@ -734,7 +734,7 @@ export function loadProfile(
     const template = PROFILE_TEMPLATES[name]
     if (template === undefined) {
       throw new Error(
-        `${binName}: profile ${JSON.stringify(name)} does not exist; create it with 'dsh plugin --profile ${name} add <package>'`,
+        `${binName}: profile ${JSON.stringify(name)} does not exist; create it with 'stitch plugin --profile ${name} add <package>'`,
       )
     }
     initProfile(dir, template.bundles)

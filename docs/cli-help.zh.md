@@ -11,33 +11,33 @@
 
 ## 目录
 
-- [`dsh`](#dsh)
-- [`dsh plugin`](#dsh-plugin)
-- [`dsh acp`](#dsh-acp)
-- [`dsh headless`](#dsh-headless)
-- [`dsh sdk`](#dsh-sdk)
-- [`dsh sdk-minimal`](#dsh-sdk-minimal)
-- [`dsh web`](#dsh-web)
+- [`stitch`](#stitch)
+- [`stitch plugin`](#stitch-plugin)
+- [`stitch acp`](#stitch-acp)
+- [`stitch headless`](#stitch-headless)
+- [`stitch sdk`](#stitch-sdk)
+- [`stitch sdk-minimal`](#stitch-sdk-minimal)
+- [`stitch web`](#stitch-web)
 
-<a id="dsh"></a>
-## `dsh`
+<a id="stitch"></a>
+## `stitch`
 
-调用方式: `dsh --help`
+调用方式: `stitch --help`
 
 ```text
-Usage: dsh [--profile] <name> [options] [app-args...]
-       dsh plugin --profile <name> <pnpm-args...>
+Usage: stitch [--profile] <name> [options] [app-args...]
+       stitch plugin --profile <name> <pnpm-args...>
 
-dsh: boot a DeepSeek Harness profile — an ordered stack of plugin-bundle patch
-layers under your own overrides.
+stitch: boot a Stitch profile — an ordered stack of plugin-bundle patch layers
+under your own overrides.
 
 Arguments:
   args                           arguments for the booted profile's app (see:
-                                 dsh --profile <name> --help)
+                                 stitch --profile <name> --help)
 
 Options:
   -V, --version                  output the version number
-  --profile <name>               the profile under $DSH_HOME/profiles to boot
+  --profile <name>               the profile under $STITCH_HOME/profiles to boot
   --from-default-profile <name>  replace a custom profile with a fresh copy of a
                                  shipped profile template
   --patch <path>                 extra patch-list overlay applied after the
@@ -49,24 +49,24 @@ Options:
                                  or --patch overlays and exit
 
 Examples:
-  dsh web                                   boot the web profile (same as: dsh --profile web)
-  dsh rescue --from-default-profile web
+  stitch web                                boot the web profile (same as: stitch --profile web)
+  stitch rescue --from-default-profile web
                                             recreate rescue from the shipped web template, then boot it
-  dsh headless "run the tests"              answer one task, print the result, and exit
-  dsh tui --patch ./extra.yml               boot a custom profile with one extra overlay
-  dsh tui --resume <session>                arguments after the launcher flags reach the app
-  dsh web --help                            the web app's own flags and help
-  dsh plugin --profile tui add <package>    install a plugin into the tui profile
+  stitch headless "run the tests"           answer one task, print the result, and exit
+  stitch tui --patch ./extra.yml            boot a custom profile with one extra overlay
+  stitch tui --resume <session>             arguments after the launcher flags reach the app
+  stitch web --help                         the web app's own flags and help
+  stitch plugin --profile tui add <package> install a plugin into the tui profile
 
 ```
 
-<a id="dsh-plugin"></a>
-## `dsh plugin`
+<a id="stitch-plugin"></a>
+## `stitch plugin`
 
-调用方式: `dsh plugin --help`
+调用方式: `stitch plugin --help`
 
 ```text
-Usage: dsh plugin [options] [args...]
+Usage: stitch plugin [options] [args...]
 
 manage a profile's plugins by forwarding the remaining arguments to pnpm in the
 profile directory
@@ -81,13 +81,13 @@ Options:
   -h, --help        show this help
 ```
 
-<a id="dsh-acp"></a>
-## `dsh acp`
+<a id="stitch-acp"></a>
+## `stitch acp`
 
-调用方式: `dsh acp --help`, `dsh --profile acp --help`
+调用方式: `stitch acp --help`, `stitch --profile acp --help`
 
 ```text
-Usage: dsh --profile acp [options]
+Usage: stitch --profile acp [options]
 
 Serve automation clients over Agent Client Protocol stdio.
 
@@ -95,17 +95,17 @@ Options:
   -h, --help  show this help
 
 Example:
-  dsh --profile acp     serve ACP until the client disconnects
+  stitch --profile acp     serve ACP until the client disconnects
 
 ```
 
-<a id="dsh-headless"></a>
-## `dsh headless`
+<a id="stitch-headless"></a>
+## `stitch headless`
 
-调用方式: `dsh headless --help`, `dsh --profile headless --help`
+调用方式: `stitch headless --help`, `stitch --profile headless --help`
 
 ```text
-Usage: dsh --profile headless [options] [task...]
+Usage: stitch --profile headless [options] [task...]
 
 Answer one task and exit; the answer goes to stdout and diagnostics to stderr.
 
@@ -127,60 +127,60 @@ Options:
   -h, --help                  show this help
 
 Examples:
-  dsh --profile headless "run the tests"          answer one task and exit
-  echo "run the tests" | dsh --profile headless   read the task from stdin
-  dsh --profile headless --json "run the tests"   emit machine-readable run events
-  dsh --profile headless --session-id session-… "continue"   resume an existing Session
-  dsh --profile headless --permission-mode workspace-write --add-dir /repo/.git "commit the fix"
+  stitch --profile headless "run the tests"          answer one task and exit
+  echo "run the tests" | stitch --profile headless   read the task from stdin
+  stitch --profile headless --json "run the tests"   emit machine-readable run events
+  stitch --profile headless --session-id session-… "continue"   resume an existing Session
+  stitch --profile headless --permission-mode workspace-write --add-dir /repo/.git "commit the fix"
                                                         grant shared Git metadata for this task
 
 ```
 
-<a id="dsh-sdk"></a>
-## `dsh sdk`
+<a id="stitch-sdk"></a>
+## `stitch sdk`
 
-调用方式: `dsh sdk --help`, `dsh --profile sdk --help`
+调用方式: `stitch sdk --help`, `stitch --profile sdk --help`
 
 ```text
-Usage: dsh --profile sdk [options]
+Usage: stitch --profile sdk [options]
 
-Serve DeepSeek Harness SDK clients over stdio JSON-RPC.
+Serve Stitch SDK clients over stdio JSON-RPC.
 
 Options:
   -h, --help  show this help
 
 Example:
-  dsh --profile sdk     serve one SDK runtime until its client disconnects
+  stitch --profile sdk     serve one SDK runtime until its client disconnects
 
 ```
 
-<a id="dsh-sdk-minimal"></a>
-## `dsh sdk-minimal`
+<a id="stitch-sdk-minimal"></a>
+## `stitch sdk-minimal`
 
-调用方式: `dsh sdk-minimal --help`, `dsh --profile sdk-minimal --help`
+调用方式: `stitch sdk-minimal --help`, `stitch --profile sdk-minimal --help`
 
 ```text
-Usage: dsh --profile sdk-minimal [options]
+Usage: stitch --profile sdk-minimal [options]
 
-Serve DeepSeek Harness SDK clients over stdio JSON-RPC.
+Serve Stitch SDK clients over stdio JSON-RPC.
 
 Options:
   -h, --help  show this help
 
 Example:
-  dsh --profile sdk-minimal     serve one SDK runtime until its client disconnects
+  stitch --profile sdk-minimal     serve one SDK runtime until its client disconnects
 
 ```
 
-<a id="dsh-web"></a>
-## `dsh web`
+<a id="stitch-web"></a>
+## `stitch web`
 
-调用方式: `dsh web --help`, `dsh --profile web --help`
+调用方式: `stitch web --help`, `stitch --profile web --help`
 
 ```text
-Usage: dsh --profile web [options]
+Usage: stitch --profile web [options]
 
-Serve the DeepSeek Harness browser UI.
+Serve the Stitch browser UI.
 
 Options:
   --host <host>                  bind address: one concrete IPv4 or IPv6 literal
@@ -190,8 +190,8 @@ Options:
   --port <port>                  listen port; pass 0 to let the OS pick a free
                                  one
   --public-url <url>             advertise this HTTP(S) root in the printed,
-                                 opened, runtime-context, and DSH_WEB_URL forms;
-                                 grants no trust
+                                 opened, runtime-context, and STITCH_WEB_URL
+                                 forms; grants no trust
   --trusted-host <authority...>  extra authority the /api browser-trust fence
                                  accepts (host or host:port; repeatable)
   --tls-cert <file>              PEM server certificate chain; requires
@@ -201,13 +201,13 @@ Options:
   -h, --help                     show this help
 
 Examples:
-  dsh --profile web                          serve on the composed host and port
-  dsh --profile web --no-open                serve without opening a browser
-  dsh --profile web --port 8080              serve on another port
-  dsh --profile web --host 10.0.0.7          bind one local interface address
-  dsh --profile web --public-url https://app.example/ui/ --trusted-host app.example
+  stitch --profile web                          serve on the composed host and port
+  stitch --profile web --no-open                serve without opening a browser
+  stitch --profile web --port 8080              serve on another port
+  stitch --profile web --host 10.0.0.7          bind one local interface address
+  stitch --profile web --public-url https://app.example/ui/ --trusted-host app.example
                                              advertise a prefix-stripping HTTPS proxy entry and admit its authority
-  dsh --profile web --tls-cert ./server-chain.pem --tls-key ./server-key.pem
+  stitch --profile web --tls-cert ./server-chain.pem --tls-key ./server-key.pem
                                              serve HTTPS with an existing certificate and key
 
 ```

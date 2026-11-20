@@ -10,14 +10,14 @@ import { convertedPdfFiles, expectNoRenderContext, officeCalls, officeImages,
   officeModelPatches, officeToolPatches } from './fixtures/real-office.ts'
 
 const repo = fileURLToPath(new URL('../../../../', import.meta.url))
-const runtime = process.env.DSH_PRIMARY_RUNTIME
+const runtime = process.env.STITCH_PRIMARY_RUNTIME
 const python = runtime && join(runtime, 'dependencies/python', process.platform === 'win32' ? 'python.exe' : 'bin/python3')
 
 const launch = {
   binScript: join(repo, 'apps/cli/src/bin.ts'), sourceImport: 'tsx/esm' as const, tsconfigPath: join(repo, 'tsconfig.base.json'),
   configPath: 'office.patch.json', processTimeoutMs: 110_000,
-  env: { DSH_PRIMARY_RUNTIME: runtime, DSH_PERMISSION_MODE: 'danger-full-access',
-    HTTP_PROXY: process.env.DSH_OFFICE_TEST_PROXY, HTTPS_PROXY: process.env.DSH_OFFICE_TEST_PROXY },
+  env: { STITCH_PRIMARY_RUNTIME: runtime, STITCH_PERMISSION_MODE: 'danger-full-access',
+    HTTP_PROXY: process.env.STITCH_OFFICE_TEST_PROXY, HTTPS_PROXY: process.env.STITCH_OFFICE_TEST_PROXY },
 }
 
 async function prepareOffice(cwd: string) {

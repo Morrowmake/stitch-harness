@@ -32,7 +32,7 @@ describe.skipIf(!existsSync(join(repoRoot, 'apps/cli/lib/bin.js')))('dsh SOURCE 
       const patch = join(root, 'source-tool.patch.yml')
       await writeFile(patch, JSON.stringify([
         { id: 'headless-startup', disabled: true },
-        { id: 'sandbox-policy', inject: [], config: { mode: process.env.DSH_PERMISSION_MODE ?? 'workspace-write', workspaceRoot: cwd } },
+        { id: 'sandbox-policy', inject: [], config: { mode: process.env.STITCH_PERMISSION_MODE ?? 'workspace-write', workspaceRoot: cwd } },
         { id: 'headless-runner', disabled: true },
         { id: 'agent-default-model', config: { provider: 'cli-mock', model: 'cli-mock' } },
         { insert: [
@@ -54,9 +54,9 @@ describe.skipIf(!existsSync(join(repoRoot, 'apps/cli/lib/bin.js')))('dsh SOURCE 
         cwd: repoRoot,
         env: {
           ...clearedProxyEnv(),
-          DSH_HOME: join(root, 'home'),
-          DSH_AGENTS_HOME: join(root, 'agents'),
-          DSH_CLI_MOCK_FAILURE: '0',
+          STITCH_HOME: join(root, 'home'),
+          STITCH_AGENTS_HOME: join(root, 'agents'),
+          STITCH_CLI_MOCK_FAILURE: '0',
         },
         input: '',
         timeout: sourceToolTimeoutMs - 15_000,
@@ -67,9 +67,9 @@ describe.skipIf(!existsSync(join(repoRoot, 'apps/cli/lib/bin.js')))('dsh SOURCE 
       expect(result.timedOut, diagnostic).toBe(false)
       expect(result.signal, diagnostic).toBeUndefined()
       expect(result.exitCode, diagnostic).toBe(0)
-      const records = result.stdout.split('\n').filter(line => line.startsWith('DSH_SOURCE_TOOL_RESULT '))
+      const records = result.stdout.split('\n').filter(line => line.startsWith('STITCH_SOURCE_TOOL_RESULT '))
       expect(records, diagnostic).toHaveLength(1)
-      const evidence = JSON.parse(records[0]!.slice('DSH_SOURCE_TOOL_RESULT '.length)) as SourceToolEvidence
+      const evidence = JSON.parse(records[0]!.slice('STITCH_SOURCE_TOOL_RESULT '.length)) as SourceToolEvidence
       expect(evidence.execArgv).toEqual(['--import', 'tsx/esm'])
       expect(evidence.errors).toEqual([])
       for (const pkg of ['tools', 'agent-loop']) {

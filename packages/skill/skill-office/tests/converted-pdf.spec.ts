@@ -5,7 +5,7 @@ import { Session, type SessionId, type SessionEvent } from '@deepseek-ai/dsh-ses
 import { expect, it } from 'vitest'
 import { convertedPdfFiles } from './fixtures/real-office.ts'
 
-const temporary = '/h/.dsh/office-kit/outputs/session-0123456789abcdef01234567/2f0f8c3e-7d1b-4c1e-9b0a-0d5e6f7a8b9c/input.pdf'
+const temporary = '/h/.stitch/office-kit/outputs/session-0123456789abcdef01234567/2f0f8c3e-7d1b-4c1e-9b0a-0d5e6f7a8b9c/input.pdf'
 
 /** Record native tool results carrying one text block each. */
 function results(texts: readonly string[], isError = false): readonly SessionEvent[] {

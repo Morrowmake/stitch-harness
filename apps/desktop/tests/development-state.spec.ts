@@ -45,7 +45,7 @@ it('moves only the default directory that is missing', () => {
   mkdirSync(join(legacy, 'home'), { recursive: true })
   mkdirSync(join(legacy, 'electron-user-data'))
 
-  const state = prepareDevelopmentState(root, { DSH_HOME: join(root, 'h') })
+  const state = prepareDevelopmentState(root, { STITCH_HOME: join(root, 'h') })
 
   expect(state).toEqual({ home: join(root, 'h'), userData: join(root, '.desktop-dev', 'electron-user-data') })
   expect(existsSync(state.userData)).toBe(true)
@@ -56,7 +56,7 @@ it('uses explicit locations without moving legacy state', () => {
   const root = fixture()
   mkdirSync(join(root, '.desktop-build', 'development', 'home'), { recursive: true })
 
-  expect(prepareDevelopmentState(root, { DSH_HOME: join(root, 'h'), DSH_DESKTOP_USER_DATA_DIR: join(root, 'u') }))
+  expect(prepareDevelopmentState(root, { STITCH_HOME: join(root, 'h'), STITCH_DESKTOP_USER_DATA_DIR: join(root, 'u') }))
     .toEqual({ home: join(root, 'h'), userData: join(root, 'u') })
   expect(existsSync(join(root, '.desktop-build', 'development', 'home'))).toBe(true)
   expect(existsSync(join(root, '.desktop-dev'))).toBe(false)

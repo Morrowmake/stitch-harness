@@ -7,7 +7,7 @@ import {
 const layered = createLaunchEnvironmentSnapshot([
   { source: 'process', values: { SHARED: 'from-process', ONLY_PROCESS: 'p' } },
   { source: 'project-env', path: '/work/.env', values: { SHARED: 'from-project', ONLY_PROJECT: 'j' } },
-  { source: 'user-env', path: '/home/.dsh/.env', values: { SHARED: 'from-user', ONLY_USER: 'u' } },
+  { source: 'user-env', path: '/home/.stitch/.env', values: { SHARED: 'from-user', ONLY_USER: 'u' } },
 ])
 
 describe('launchedThroughSsh', () => {
@@ -32,7 +32,7 @@ describe('createLaunchEnvironmentSnapshot', () => {
   it('resolves across every layer, most trusted first, and reports the winning source', () => {
     expect(layered.get('SHARED')).toEqual({ value: 'from-process', source: 'process' })
     expect(layered.get('ONLY_PROJECT')).toEqual({ value: 'j', source: 'project-env', path: '/work/.env' })
-    expect(layered.get('ONLY_USER')).toEqual({ value: 'u', source: 'user-env', path: '/home/.dsh/.env' })
+    expect(layered.get('ONLY_USER')).toEqual({ value: 'u', source: 'user-env', path: '/home/.stitch/.env' })
     expect(layered.get('ABSENT')).toBeUndefined()
   })
 
@@ -76,10 +76,10 @@ describe('launchEnvironmentOf', () => {
   })
 
   it('falls back to the inherited environment as the only layer', () => {
-    vi.stubEnv('DSH_ENV_SPEC_FALLBACK', 'ambient')
+    vi.stubEnv('STITCH_ENV_SPEC_FALLBACK', 'ambient')
     try {
       const snapshot = launchEnvironmentOf(new Context())
-      expect(snapshot.get('DSH_ENV_SPEC_FALLBACK')).toEqual({ value: 'ambient', source: 'process' })
+      expect(snapshot.get('STITCH_ENV_SPEC_FALLBACK')).toEqual({ value: 'ambient', source: 'process' })
     } finally {
       vi.unstubAllEnvs()
     }

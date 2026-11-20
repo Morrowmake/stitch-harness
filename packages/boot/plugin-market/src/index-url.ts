@@ -1,12 +1,13 @@
 /** Index source URL validation shared by `setIndexes` and the per-use check of configured sources. */
 import { parseGitMarketIndexSource } from '@deepseek-ai/dsh-plugin-market-index/source'
 import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
+import { PLUGIN_INDEX_REPOSITORY } from '@deepseek-ai/dsh-product'
 
 /**
  * The Stitch plugin index, the `indexes` default: a direct JSON address generated from the
  * `Morrowmake/stitch-plugins` repository. Nothing is fetched until Discover or the tool reads it.
  */
-export const DEFAULT_PLUGIN_INDEX = 'https://raw.githubusercontent.com/Morrowmake/stitch-plugins/main/index.json'
+export const DEFAULT_PLUGIN_INDEX = `https://raw.githubusercontent.com/${PLUGIN_INDEX_REPOSITORY}/main/index.json`
 
 /**
  * Validate and normalize one index source URL.

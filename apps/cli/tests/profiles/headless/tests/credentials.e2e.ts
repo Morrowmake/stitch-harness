@@ -86,14 +86,14 @@ describe('headless credential policy', { retry: 0 }, () => {
         configPath: '', binArgs: ['headless', '--patch', './route.patch.json', 'Reply briefly.'], processTimeoutMs,
         env: { STITCH_TEST_API_KEY: scenario.launch },
         prepare: async (cwd) => {
-          await mkdir(join(cwd, '.dsh'), { recursive: true })
-          await writeFile(join(cwd, '.dsh', '.credentials.yaml'), credentials, { mode: 0o600 })
+          await mkdir(join(cwd, '.stitch'), { recursive: true })
+          await writeFile(join(cwd, '.stitch', '.credentials.yaml'), credentials, { mode: 0o600 })
           await writeFile(join(cwd, 'route.patch.json'), mockRoutePatch(server.baseURL))
           if (scenario.project !== undefined) await writeFile(join(cwd, '.env'), `STITCH_TEST_API_KEY=${scenario.project}\n`)
-          if (scenario.home !== undefined) await writeFile(join(cwd, '.dsh', '.env'), `STITCH_TEST_API_KEY=${scenario.home}\n`)
+          if (scenario.home !== undefined) await writeFile(join(cwd, '.stitch', '.env'), `STITCH_TEST_API_KEY=${scenario.home}\n`)
         },
         inspect: async (cwd) => {
-          expect(await readFile(join(cwd, '.dsh', '.credentials.yaml'), 'utf8')).toBe(credentials)
+          expect(await readFile(join(cwd, '.stitch', '.credentials.yaml'), 'utf8')).toBe(credentials)
         },
       })
       expect(result.stdout.trim()).toBe('mock response recovered')
@@ -119,8 +119,8 @@ describe('headless credential policy', { retry: 0 }, () => {
           STITCH_TEST_API_KEY: undefined,
         },
         prepare: async (cwd) => {
-          await mkdir(join(cwd, '.dsh'), { recursive: true })
-          await writeFile(join(cwd, '.dsh', '.credentials.yaml'), credentials, { mode: 0o600 })
+          await mkdir(join(cwd, '.stitch'), { recursive: true })
+          await writeFile(join(cwd, '.stitch', '.credentials.yaml'), credentials, { mode: 0o600 })
           await writeFile(join(cwd, 'auth.patch.json'), JSON.stringify([
             { id: 'agent-default-model', config: { provider: 'anthropic', model: 'headless-auth-model' } },
             { id: 'llm-pi-ai', config: { providers: { anthropic: {
@@ -131,7 +131,7 @@ describe('headless credential policy', { retry: 0 }, () => {
           ]))
         },
         inspect: async (cwd) => {
-          expect(await readFile(join(cwd, '.dsh', '.credentials.yaml'), 'utf8')).toBe(credentials)
+          expect(await readFile(join(cwd, '.stitch', '.credentials.yaml'), 'utf8')).toBe(credentials)
         },
       })
       expect(result.stdout.trim()).toBe('mock response recovered')
@@ -158,15 +158,15 @@ describe('headless credential policy', { retry: 0 }, () => {
         processTimeoutMs, expectedExitCode: missing ? 1 : 0,
         env: { STITCH_TEST_API_KEY: empty ? '' : missing ? undefined : launchKey },
         prepare: async (cwd) => {
-          await mkdir(join(cwd, '.dsh'), { recursive: true })
-          await writeFile(join(cwd, '.dsh', '.credentials.yaml'), document, { mode: 0o600 })
+          await mkdir(join(cwd, '.stitch'), { recursive: true })
+          await writeFile(join(cwd, '.stitch', '.credentials.yaml'), document, { mode: 0o600 })
           if (empty) await writeFile(join(cwd, '.env'), `STITCH_TEST_API_KEY=${projectKey}\n`)
           await writeFile(join(cwd, 'route.patch.json'), mockRoutePatch(server.baseURL, restoring
             ? ['credentials', 'authorization'].map(id => ({ id, disabled: false }))
             : []))
         },
         inspect: async (cwd) => {
-          expect(await readFile(join(cwd, '.dsh', '.credentials.yaml'), 'utf8')).toBe(document)
+          expect(await readFile(join(cwd, '.stitch', '.credentials.yaml'), 'utf8')).toBe(document)
         },
       })
       if (missing) {
@@ -194,8 +194,8 @@ describe('headless credential policy', { retry: 0 }, () => {
       processTimeoutMs, expectedExitCode: 1,
       env: { OPENAI_API_KEY: undefined },
       prepare: async (cwd) => {
-        await mkdir(join(cwd, '.dsh'), { recursive: true })
-        await writeFile(join(cwd, '.dsh', '.credentials.yaml'), credentials, { mode: 0o600 })
+        await mkdir(join(cwd, '.stitch'), { recursive: true })
+        await writeFile(join(cwd, '.stitch', '.credentials.yaml'), credentials, { mode: 0o600 })
         await writeFile(join(cwd, 'auth.patch.json'), JSON.stringify([
           { id: 'agent-default-model', config: { provider, model } },
           { id: 'llm-pi-ai', config: { providers: {
@@ -204,7 +204,7 @@ describe('headless credential policy', { retry: 0 }, () => {
         ]))
       },
       inspect: async (cwd) => {
-        expect(await readFile(join(cwd, '.dsh', '.credentials.yaml'), 'utf8')).toBe(credentials)
+        expect(await readFile(join(cwd, '.stitch', '.credentials.yaml'), 'utf8')).toBe(credentials)
       },
     })
     expect(result.stdout).toBe('\n')

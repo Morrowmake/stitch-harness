@@ -38,7 +38,7 @@ describe('the cordis-inspect-providers host entry', () => {
     expect(ctx.cordisInspect.list()).toEqual([])
   })
 
-  it('answers the Runtime version query with the running DSH version', async () => {
+  it('answers the Runtime version query with the running Stitch version', async () => {
     const ctx = await host()
     await ctx.plugin(CordisInspectProviders)
     const agent = { ctx } as never

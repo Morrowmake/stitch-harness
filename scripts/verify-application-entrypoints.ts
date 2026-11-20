@@ -25,13 +25,13 @@ interface LauncherPolicy {
 
 /** Public product launcher. */
 const MANIFEST_BIN_ALLOWLIST = new Map<string, ManifestBin>([
-  ['apps/cli/package.json', { dsh: 'lib/bin.js' }],
+  ['apps/cli/package.json', { stitch: 'lib/bin.js' }],
 ])
 
 /** Every JavaScript executable in an application or packaging workspace has one explicit role. */
 const EXECUTABLE_SOURCE_ALLOWLIST = new Map<string, string>([
-  ['apps/cli/src/installed-bin.ts', 'installed dsh command entry'],
-  ['apps/cli/src/bin.ts', 'supported dsh application launcher'],
+  ['apps/cli/src/installed-bin.ts', 'installed stitch command entry'],
+  ['apps/cli/src/bin.ts', 'supported stitch application launcher'],
   ['apps/desktop/scripts/logged-notarytool.mjs', 'build-only notarization logging wrapper'],
   ['packages/context/time-context/tests/fixtures/driver.ts', 'test-only subprocess driver'],
   ['packages/sdk/client/tests/fake-runtime.ts', 'test-only SDK runtime peer'],
@@ -102,7 +102,7 @@ function manifestBinViolations(root: string): string[] {
     if (manifest.bin === undefined) continue
     const expected = MANIFEST_BIN_ALLOWLIST.get(path)
     if (expected === undefined) {
-      failures.push(`${path}: package bin bypasses the dsh launcher; applications use apps/cli profiles`)
+      failures.push(`${path}: package bin bypasses the stitch launcher; applications use apps/cli profiles`)
       continue
     }
     if (normalizedBin(manifest.bin) !== normalizedBin(expected)) {

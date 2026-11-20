@@ -12,7 +12,7 @@ import subprocess
 import tempfile
 
 DEV_BUNDLE_SUFFIX = ".dev"
-DEV_DISPLAY_NAME = "DSH Computer Use Dev"
+DEV_DISPLAY_NAME = "Stitch Computer Use Dev"
 
 
 def bundle_digest(application):
@@ -67,7 +67,7 @@ def publish(binary, output, identity, plist, variant="release", keychain=None):
     """
     output.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=".prepare-", dir=output) as temporary:
-        name = f"{DEV_DISPLAY_NAME}.app" if variant == "dev" else "DSH Computer Use.app"
+        name = f"{DEV_DISPLAY_NAME}.app" if variant == "dev" else "Stitch Computer Use.app"
         staged = Path(temporary) / name
         executable = staged / "Contents/MacOS/dsh-cua-native"
         executable.parent.mkdir(parents=True)
@@ -76,7 +76,7 @@ def publish(binary, output, identity, plist, variant="release", keychain=None):
         shutil.copystat(plist, staged / "Contents/Info.plist")
         resources = staged / "Contents/Resources"
         resources.mkdir()
-        for filename in ["DSHComputerUse.icns", "LICENSE.computer-use-icon", "LICENSE.cua-driver"]:
+        for filename in ["StitchComputerUse.icns", "LICENSE.computer-use-icon", "LICENSE.cua-driver"]:
             shutil.copy2(plist.with_name(filename), resources / filename)
         index = None
         # Names can resolve to a renewed certificate; only fingerprints identify a stable signing key.

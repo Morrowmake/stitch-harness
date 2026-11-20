@@ -57,7 +57,7 @@ The returned disposer withdraws the account from every page.
 | Closed | Unavailable | Retry, which restarts the server |
 | Waiting for credentials, disabled, or failed | Unavailable | Retry only when a restart recovers the failure |
 
-After a failed authorization, a disconnected or unavailable section also shows that authorization did not complete. The line under every section says that authorization completes in a browser on the computer running DSH. A connection and a sign-out report the connector's notice in the browser that started them.
+After a failed authorization, a disconnected or unavailable section also shows that authorization did not complete. The line under every section says that authorization completes in a browser on the computer running Stitch. A connection and a sign-out report the connector's notice in the browser that started them.
 
 -----
 

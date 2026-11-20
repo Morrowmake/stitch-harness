@@ -2,22 +2,22 @@
 
 English | [中文](README.zh.md)
 
-Runnable Python SDK examples over the sole application launcher, `dsh`. The Python client owns JSON-RPC stdio; the selected profile owns the agent composition, persistence, execution policy, and plugins.
+Runnable Python SDK examples over the sole application launcher, `stitch`. The Python client owns JSON-RPC stdio; the selected profile owns the agent composition, persistence, execution policy, and plugins.
 
 ## Run the minimal agent
 
-Install `deepseek-harness-sdk`, export a model credential, then supply an isolated Harness home and workspace:
+Install `stitch-harness`, export a model credential, then supply an isolated Harness home and workspace:
 
 ```sh
 export DEEPSEEK_API_KEY=sk-your-key-here
 python python/sdk/examples/minimal.py \
-  --dsh-home /absolute/path/to/example-dsh-home \
+  --stitch-home /absolute/path/to/example-dsh-home \
   --workspace /absolute/path/to/disposable-workspace \
   --session-id example-001 \
   "Inspect the repository and fix the failing tests."
 ```
 
-Set `DEEPSEEK_BASE_URL` for a compatible proxy, `DSH_PROVIDER` and `DSH_MODEL` (together) for the script's default provider route and model, or `DSH_SYSTEM_PROMPT` for the deployment persona. `--provider` and `--model` are the single runtime selection and must be given together; with neither, the runtime's default model applies. `--profile` can select another SDK-serving profile. The selected home stores the generated `sdk-minimal` profile and uncompressed JSONL session logs under `sessions/`; the script never reads `~/.dsh` implicitly.
+Set `DEEPSEEK_BASE_URL` for a compatible proxy, `STITCH_PROVIDER` and `STITCH_MODEL` (together) for the script's default provider route and model, or `STITCH_SYSTEM_PROMPT` for the deployment persona. `--provider` and `--model` are the single runtime selection and must be given together; with neither, the runtime's default model applies. `--profile` can select another SDK-serving profile. The selected home stores the generated `sdk-minimal` profile and uncompressed JSONL session logs under `sessions/`; the script never reads `~/.stitch` implicitly.
 
 The shipped [`@deepseek-ai/dsh-sdk-minimal` bundle](../../../packages/bundle/sdk-minimal/README.md) is the complete explicit Cordis tree for this mode. It exposes exactly:
 
@@ -31,11 +31,11 @@ The persistent PTY can modify any path available to the runtime process, so use 
 <a id="compact-a-full-sdk-session"></a>
 ## Compact a full SDK Session
 
-The [compaction example](compact.py) uses the full `sdk` profile. It reads `README.md` from the selected workspace into a `Session.run()` prompt, executes `/compact` through the same method, then asks a follow-up using the retained context. It uses the same model credentials and `DSH_PROVIDER`/`DSH_MODEL` defaults as the minimal example, and requires an explicit home:
+The [compaction example](compact.py) uses the full `sdk` profile. It reads `README.md` from the selected workspace into a `Session.run()` prompt, executes `/compact` through the same method, then asks a follow-up using the retained context. It uses the same model credentials and `STITCH_PROVIDER`/`STITCH_MODEL` defaults as the minimal example, and requires an explicit home:
 
 ```sh
 python python/sdk/examples/compact.py \
-  --dsh-home /absolute/path/to/compact-dsh-home \
+  --stitch-home /absolute/path/to/compact-dsh-home \
   --workspace /absolute/path/to/disposable-workspace
 ```
 
@@ -48,7 +48,7 @@ The [permission example](permission.py) starts the full `sdk` profile with a `wo
 
 ```sh
 python python/sdk/examples/permission.py \
-  --dsh-home /absolute/path/to/permission-dsh-home \
+  --stitch-home /absolute/path/to/permission-dsh-home \
   --workspace /absolute/path/to/disposable-workspace \
   --preset read-only
 ```
@@ -62,7 +62,7 @@ The [plan example](plan.py) sends `/plan <task>` through `run()` and keeps the S
 
 ```sh
 python python/sdk/examples/plan.py \
-  --dsh-home /absolute/path/to/plan-dsh-home \
+  --stitch-home /absolute/path/to/plan-dsh-home \
   --workspace /absolute/path/to/disposable-workspace \
   "Plan the requested change and present it for review."
 ```
@@ -78,7 +78,7 @@ The [goal example](goal.py) submits `/goal <objective>`, prints goal changes and
 
 ```sh
 python python/sdk/examples/goal.py \
-  --dsh-home /absolute/path/to/goal-dsh-home \
+  --stitch-home /absolute/path/to/goal-dsh-home \
   --workspace /absolute/path/to/disposable-workspace \
   "Calculate 17 * 19, verify the result, and complete the goal without changing files."
 ```
@@ -91,24 +91,24 @@ python python/sdk/examples/goal.py \
 
 ```sh
 python python/sdk/examples/manage_plugins.py \
-  --dsh-home /absolute/path/to/example-dsh-home \
+  --stitch-home /absolute/path/to/example-dsh-home \
   --workspace /absolute/path/to/disposable-workspace \
   "Install and enable the bundle at /absolute/path/to/my-plugin-bundle."
 ```
 
-The current process keeps its original plugins. After a `restart-required` result, rerun the example with the same home to use the saved configuration. Removing a bundle still used by the running startup composition requires stopping that runtime and using `dsh plugin`.
+The current process keeps its original plugins. After a `restart-required` result, rerun the example with the same home to use the saved configuration. Removing a bundle still used by the running startup composition requires stopping that runtime and using `stitch plugin`.
 
 ## Add plugins
 
-Use the runtime wheel's `dsh` command against the same explicit home for persistent profile changes:
+Use the runtime wheel's `stitch` command against the same explicit home for persistent profile changes:
 
 ```sh
-export DSH_HOME=/absolute/path/to/example-dsh-home
-dsh plugin --profile sdk-minimal add file:/absolute/path/to/my-plugin-bundle
+export STITCH_HOME=/absolute/path/to/example-dsh-home
+stitch plugin --profile sdk-minimal add file:/absolute/path/to/my-plugin-bundle
 ```
 
 Use `sdk-minimal` in that command to extend this example, or `sdk` to extend the full base-backed SDK profile. The Python call can also pass additional absolute patch paths in `patches=(...)`; later files win. A selected profile must retain `@deepseek-ai/dsh-sdk-app` or another JSON-RPC server row. The example accepts no complete Cordis file or arbitrary process argv.
 
-The same runtime wheel packages the `web` profile and its frontend assets for direct CLI use: `dsh web` starts that separate application. A Python SDK client cannot select `web` because it has no JSON-RPC server row.
+The same runtime wheel packages the `web` profile and its frontend assets for direct CLI use: `stitch web` starts that separate application. A Python SDK client cannot select `web` because it has no JSON-RPC server row.
 
 See the [Python SDK tutorial](../../../docs/user/guide/python-sdk.md) and [SDK reference](../README.md).

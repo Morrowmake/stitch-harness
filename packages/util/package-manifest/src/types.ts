@@ -22,9 +22,9 @@ export interface DshPackageManifest {
   optionalDependencies?: Record<string, string>
   /** Compatible versions of packages supplied by the consuming project. */
   peerDependencies?: Record<string, string>
-  /** Runtime requirements; DSH compatibility is declarative until a reader enforces it. */
+  /** Runtime requirements; Stitch compatibility is declarative until a reader enforces it. */
   engines?: DshEnginesManifest
-  /** DSH-specific author declarations. */
+  /** Stitch-specific author declarations. */
   dsh?: DshManifest
 }
 
@@ -57,7 +57,7 @@ export interface PluginLocalizedMeta {
 
 /** Runtime version requirements under `package.json.engines`. */
 export interface DshEnginesManifest {
-  /** Compatible DSH versions as a SemVer range, including an exact version. */
+  /** Compatible Stitch versions as a SemVer range, including an exact version. */
   dsh?: string
   /** Compatible Node.js versions. */
   node?: string

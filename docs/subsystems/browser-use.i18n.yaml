@@ -3,17 +3,17 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/subsystems/browser-use.md
 /browser-use:
-  en: c4c91e07977a0d7b
-  zh: ae7bf1da6f4019a5
+  en: f08edd80e35653c9
+  zh: 4146130164f57cd4
 /browser-use/choose-a-provider:
   en: 1e8ff2e03064fcff
   zh: d7164f738e5b4c5c
 /browser-use/session-ownership:
-  en: a6cd1aa7ea518c3f
-  zh: 44d2b40a15f81ce9
+  en: 7fd82ff65eac0d34
+  zh: 514d045cfa998e35
 /browser-use/mcp-initialization:
   en: ac4bcaf872ec5ed8
   zh: 57d699d1b6e07caf
 /browser-use/tools-and-recorded-results:
-  en: 968055589fb64b35
-  zh: d549a52809ddcf58
+  en: efbd3d389b150644
+  zh: bff1db2b5fad13ed

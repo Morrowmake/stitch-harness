@@ -14,7 +14,7 @@ it('retains one shared resource consumer in the Desktop Web profile', () => {
     const profileDir = join(home, 'profiles', 'desktop')
     createPluginProfile(profileDir)
     const installAnchor = fileURLToPath(new URL('../../cli/package.json', import.meta.url))
-    const profile = loadProfileDirectory('dsh desktop', profileDir, installAnchor)
+    const profile = loadProfileDirectory('stitch desktop', profileDir, installAnchor)
     const warnings: string[] = []
     const rows = composeEntries([
       ...profile.layers.map(layer => layer.patches),

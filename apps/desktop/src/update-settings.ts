@@ -1,4 +1,4 @@
-/** The opt-in update-check preference over the shared shell settings document. */
+/** The update-check preference (on by default) over the shared shell settings document. */
 import { appendFileSync } from 'node:fs'
 import { DesktopSettingsFile, DesktopSettingsFileError } from './settings-file.ts'
 
@@ -7,26 +7,26 @@ export class DesktopUpdateSettings {
   private readonly file: DesktopSettingsFile
   readonly path: string
 
-  /** @param userData - Electron userData, independent of Host and DSH_HOME. */
+  /** @param userData - Electron userData, independent of Host and STITCH_HOME. */
   constructor(userData: string) {
     this.file = new DesktopSettingsFile(userData)
     this.path = this.file.path
   }
 
   /**
-   * @returns Whether update checks are enabled; a missing, unreadable, or invalid setting means off,
-   * so no request is made unless the user explicitly turned checks on.
+   * @returns Whether automatic update checks are enabled. They are on unless the user explicitly turned them off;
+   * a missing, unreadable, or invalid setting keeps the default.
    */
   async load(): Promise<boolean> {
     const result = await this.file.read()
     if (result.kind === 'error') {
       console.warn('desktop settings: update preference unavailable', result.error.message)
-      return false
+      return true
     }
-    if (result.kind === 'missing') return false
+    if (result.kind === 'missing') return true
     const field = result.fields.checkForUpdates
     if (field.kind === 'invalid') console.warn('desktop settings: invalid update preference', field.error.message)
-    return field.kind === 'valid' && field.value
+    return field.kind === 'valid' ? field.value : true
   }
 
   /**

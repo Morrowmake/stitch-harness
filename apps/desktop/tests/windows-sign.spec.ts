@@ -69,13 +69,13 @@ describe('Windows token signing', () => {
         if (argv[0] === '/d') {
           hardware++
           expect(existsSync(join(stateDirectory, 'attempt.json'))).toBe(true)
-          writeFileSync(options.env.DSH_DESKTOP_WINDOWS_SIGN_TARGET!, 'signed:input')
+          writeFileSync(options.env.STITCH_DESKTOP_WINDOWS_SIGN_TARGET!, 'signed:input')
           callback(null, '', '')
         } else {
-          expect(options.env.DSH_DESKTOP_WINDOWS_TOKEN_PIN).toBeUndefined()
-          expect(options.env.DSH_DESKTOP_WINDOWS_KEY_CONTAINER).toBeUndefined()
+          expect(options.env.STITCH_DESKTOP_WINDOWS_TOKEN_PIN).toBeUndefined()
+          expect(options.env.STITCH_DESKTOP_WINDOWS_KEY_CONTAINER).toBeUndefined()
           if (command === 'powershell.exe') {
-            const timestamped = readFileSync(options.env.DSH_RUNTIME_VERIFY_FILE!, 'utf8').endsWith(':timestamp')
+            const timestamped = readFileSync(options.env.STITCH_RUNTIME_VERIFY_FILE!, 'utf8').endsWith(':timestamp')
             if (!timestamped) expect(existsSync(join(stateDirectory, 'attempt.json'))).toBe(true)
             callback(null, JSON.stringify({ status: mode === 'invalid-primary' ? 'NotTrusted' : 'Valid', timestamped, thumbprint: 'A'.repeat(40) }), '')
           } else if (argv[0] === 'remove') {
@@ -159,10 +159,10 @@ describe('Windows token signing', () => {
       await writeFile(signTool, 'fixture')
       await writeFile(path, 'fixture')
       validateDesktopPackageEnvironment({
-        DSH_DESKTOP_APP_ID: 'com.example.desktop',
-        DSH_DESKTOP_WINDOWS_CER_FILE: certificateFile, DSH_DESKTOP_WINDOWS_SIGNTOOL: signTool,
-        DSH_DESKTOP_WINDOWS_TOKEN_PIN: 'fixture-pin', DSH_DESKTOP_WINDOWS_KEY_CONTAINER: 'fixture-container',
-        DSH_DESKTOP_WINDOWS_SIGNATURE_CACHE_DIR: 'C:\\fixture\\signature-cache',
+        STITCH_DESKTOP_APP_ID: 'com.example.desktop',
+        STITCH_DESKTOP_WINDOWS_CER_FILE: certificateFile, STITCH_DESKTOP_WINDOWS_SIGNTOOL: signTool,
+        STITCH_DESKTOP_WINDOWS_TOKEN_PIN: 'fixture-pin', STITCH_DESKTOP_WINDOWS_KEY_CONTAINER: 'fixture-container',
+        STITCH_DESKTOP_WINDOWS_SIGNATURE_CACHE_DIR: 'C:\\fixture\\signature-cache',
       }, { platform: 'win32', arch: 'x64' })
       expect(execFile).not.toHaveBeenCalled()
       vi.mocked(execFile).mockImplementationOnce((...args: unknown[]) => {
@@ -195,24 +195,24 @@ describe('Windows token signing', () => {
   it('passes only the validated BAT fields to the signing command interpreter', () => {
     expect(buildWindowsSigningEnvironment({
       SystemRoot: 'C:\\Windows',
-      DSH_DESKTOP_WINDOWS_TOKEN_PIN: 'inherited-token-secret',
+      STITCH_DESKTOP_WINDOWS_TOKEN_PIN: 'inherited-token-secret',
       DEEPSEEK_API_KEY: 'api-secret',
       BUILD_PASSWORD: 'build-secret',
     }, {
       certificateFile: CERTIFICATE_FILE,
       signTool: 'C:\\tools\\signtool.exe',
-      path: 'C:\\release\\DeepSeek Harness.exe',
+      path: 'C:\\release\\Stitch.exe',
       isNest: false,
       tokenPin: 'token-secret!',
       keyContainer: 'te-container',
     })).toEqual({
       SystemRoot: 'C:\\Windows',
-      DSH_DESKTOP_WINDOWS_SIGNTOOL: 'C:\\tools\\signtool.exe',
-      DSH_DESKTOP_WINDOWS_CER_FILE: CERTIFICATE_FILE,
-      DSH_DESKTOP_WINDOWS_TOKEN_PIN: 'token-secret!',
-      DSH_DESKTOP_WINDOWS_KEY_CONTAINER: 'te-container',
-      DSH_DESKTOP_WINDOWS_SIGN_TARGET: 'C:\\release\\DeepSeek Harness.exe',
-      DSH_DESKTOP_WINDOWS_SIGN_APPEND: '',
+      STITCH_DESKTOP_WINDOWS_SIGNTOOL: 'C:\\tools\\signtool.exe',
+      STITCH_DESKTOP_WINDOWS_CER_FILE: CERTIFICATE_FILE,
+      STITCH_DESKTOP_WINDOWS_TOKEN_PIN: 'token-secret!',
+      STITCH_DESKTOP_WINDOWS_KEY_CONTAINER: 'te-container',
+      STITCH_DESKTOP_WINDOWS_SIGN_TARGET: 'C:\\release\\Stitch.exe',
+      STITCH_DESKTOP_WINDOWS_SIGN_APPEND: '',
     })
   })
 
@@ -224,7 +224,7 @@ describe('Windows token signing', () => {
       isNest: true,
       tokenPin: 'token-secret!',
       keyContainer: 'te-container',
-    }).DSH_DESKTOP_WINDOWS_SIGN_APPEND).toBe('1')
+    }).STITCH_DESKTOP_WINDOWS_SIGN_APPEND).toBe('1')
   })
 
   it('keeps the verified SafeNet command in an ASCII CRLF CMD file', async () => {
@@ -234,8 +234,8 @@ describe('Windows token signing', () => {
     expect(text).toContain('\r\n')
     expect(text.replaceAll('\r\n', '')).not.toContain('\n')
     expect(text).toContain('setlocal DisableDelayedExpansion\r\n')
-    expect(text).toContain('set "DSH_DESKTOP_WINDOWS_CER_FILE="\r\n')
-    expect(text).toContain('set "DSH_DESKTOP_WINDOWS_TOKEN_PIN="\r\n')
+    expect(text).toContain('set "STITCH_DESKTOP_WINDOWS_CER_FILE="\r\n')
+    expect(text).toContain('set "STITCH_DESKTOP_WINDOWS_TOKEN_PIN="\r\n')
     expect(text).toContain('"%signTool%" sign /v /fd sha256 /f "%certificateFile%" /kc "[{{%tokenPin%}}]=%keyContainer%" /csp "eToken Base Cryptographic Provider" %appendSignature% "%targetFile%"\r\n')
   })
 
@@ -250,13 +250,13 @@ describe('Windows token signing', () => {
       signTool,
       tokenPin: 'token-secret!',
       keyContainer: 'te-container',
-    })).toThrow(/DSH_DESKTOP_WINDOWS_CER_FILE/u)
+    })).toThrow(/STITCH_DESKTOP_WINDOWS_CER_FILE/u)
     expect(() => createWindowsTokenSigner({
       certificateFile,
       signTool: undefined,
       tokenPin: 'token-secret!',
       keyContainer: 'te-container',
-    })).toThrow(/DSH_DESKTOP_WINDOWS_SIGNTOOL/u)
+    })).toThrow(/STITCH_DESKTOP_WINDOWS_SIGNTOOL/u)
     const signer = createWindowsTokenSigner({
       certificateFile,
       signTool,
@@ -268,13 +268,13 @@ describe('Windows token signing', () => {
         certificateFile,
         signTool,
         tokenPin: 'token-secret!',
-      })).toThrow(/DSH_DESKTOP_WINDOWS_KEY_CONTAINER/u)
+      })).toThrow(/STITCH_DESKTOP_WINDOWS_KEY_CONTAINER/u)
       expect(() => createWindowsTokenSigner({
         certificateFile,
         signTool,
         tokenPin: '',
         keyContainer: 'te-container',
-      })).toThrow(/DSH_DESKTOP_WINDOWS_TOKEN_PIN/u)
+      })).toThrow(/STITCH_DESKTOP_WINDOWS_TOKEN_PIN/u)
       expect(() => createWindowsTokenSigner({
         certificateFile,
         signTool,
@@ -298,9 +298,9 @@ describe('Windows token signing', () => {
   it('removes inherited credentials and redacts SignTool process failures', () => {
     expect(scrubWindowsSigningEnvironment({
       SystemRoot: 'C:\\Windows',
-      DSH_DESKTOP_WINDOWS_CER_FILE: 'C:\\release\\server.cer',
-      DSH_DESKTOP_WINDOWS_SIGNTOOL: 'C:\\tools\\signtool.exe',
-      DSH_DESKTOP_WINDOWS_TOKEN_PIN: 'token-secret',
+      STITCH_DESKTOP_WINDOWS_CER_FILE: 'C:\\release\\server.cer',
+      STITCH_DESKTOP_WINDOWS_SIGNTOOL: 'C:\\tools\\signtool.exe',
+      STITCH_DESKTOP_WINDOWS_TOKEN_PIN: 'token-secret',
       DEEPSEEK_API_KEY: 'api-secret',
       BUILD_PASSWORD: 'build-secret',
     })).toEqual({ SystemRoot: 'C:\\Windows' })
@@ -345,7 +345,7 @@ describe('Windows token signing', () => {
       platform: 'win32',
       environment: {
         SystemRoot: 'C:\\Windows',
-        DSH_DESKTOP_WINDOWS_TOKEN_PIN: 'token-secret',
+        STITCH_DESKTOP_WINDOWS_TOKEN_PIN: 'token-secret',
       },
     })
 

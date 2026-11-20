@@ -1,5 +1,5 @@
 ---
-description: "把 CLI 应用插件的入口技能注册到 Host Service `ctx.upstreamSkills`：它从厂商 GitHub 仓库固定提交的一个目录下载入口索引的上游文件，校验后发布到 DSH 缓存，再在这些文件之上列出入口技能。"
+description: "把 CLI 应用插件的入口技能注册到 Host Service `ctx.upstreamSkills`：它从厂商 GitHub 仓库固定提交的一个目录下载入口索引的上游文件，校验后发布到 Stitch 缓存，再在这些文件之上列出入口技能。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-企业微信、腾讯会议等 CLI 应用插件向 `ctx.upstreamSkills` 注册，以获取厂商只在自己 GitHub 仓库里发布的子指南。插件保留自己的入口 `SKILL.md`，并按提交、大小和摘要固定该仓库的一个目录。插件加载时，Service 下载这个提交的归档，校验保留的文件，把它们发布到 DSH 缓存，并基于它们列出入口技能。仓库和插件的 npm 包都不复制这些文件。Service 是可选的：只在 profile 挂载它时加载，在有插件注册之前不下载任何内容。
+企业微信、腾讯会议等 CLI 应用插件向 `ctx.upstreamSkills` 注册，以获取厂商只在自己 GitHub 仓库里发布的子指南。插件保留自己的入口 `SKILL.md`，并按提交、大小和摘要固定该仓库的一个目录。插件加载时，Service 下载这个提交的归档，校验保留的文件，把它们发布到 Stitch 缓存，并基于它们列出入口技能。仓库和插件的 npm 包都不复制这些文件。Service 是可选的：只在 profile 挂载它时加载，在有插件注册之前不下载任何内容。
 
 ## 目录
 
@@ -83,12 +83,12 @@ export function apply(ctx: Context, config: Config): void {
 
 `register` 从入口的 YAML frontmatter 读取名称和描述，以 `name` 注册一个技能提供方，文件不在位时开始下载。注册属于用其 `ctx` 发起调用的插件：该插件卸载时，下载被中止，提供方被移除，通知停止。以同一个 `name` 再次注册会抛出异常，第一次注册保持不变。
 
-- `name` 是技能提供方的名称、插件的错误和日志记录的前缀，也是 `$DSH_HOME/cache` 下接收下载内容的目录。
+- `name` 是技能提供方的名称、插件的错误和日志记录的前缀，也是 `$STITCH_HOME/cache` 下接收下载内容的目录。
 - `entry` 是随包发布的入口 `SKILL.md` 的绝对路径，其正文按仓库路径引用上游文件，例如 `skills/<子指南>/SKILL.md`。
 - `set` 是 `scripts/upstream-skills-digest.ts` 输出的固定信息。
 - `skillsDir` 是插件自己的可选配置字段：一个已按仓库路径存放保留文件的目录。设置后不下载，路径不是目录时 `register` 抛出异常。
 
-返回的句柄供插件的账号视图和检查使用。`directory` 是 `skillsDir`，或 `$DSH_HOME/cache/<name>/skills-<摘要前 16 位>`。下载进行中时 `state` 为 `downloading`，否则这个目录存在时为 `installed`，不存在时为 `failed`。`watch(listener)` 报告每次下载的开始和结束；`retry()` 在失败后开始新的下载，并立即返回。插件在账号旁显示这个状态，并在检查中调用 `retry()` 而不等待，因此下载再慢也不会占住账号操作。下载失败会记为警告。`dispose()` 在插件卸载之前撤回注册。以 [`src/index.ts`](src/index.ts) 和 [`src/types.ts`](src/types.ts) 中的约定为准。
+返回的句柄供插件的账号视图和检查使用。`directory` 是 `skillsDir`，或 `$STITCH_HOME/cache/<name>/skills-<摘要前 16 位>`。下载进行中时 `state` 为 `downloading`，否则这个目录存在时为 `installed`，不存在时为 `failed`。`watch(listener)` 报告每次下载的开始和结束；`retry()` 在失败后开始新的下载，并立即返回。插件在账号旁显示这个状态，并在检查中调用 `retry()` 而不等待，因此下载再慢也不会占住账号操作。下载失败会记为警告。`dispose()` 在插件卸载之前撤回注册。以 [`src/index.ts`](src/index.ts) 和 [`src/types.ts`](src/types.ts) 中的约定为准。
 
 ### 保留的文件与校验
 
@@ -143,7 +143,7 @@ Service 按顺序从每个 `skillsUrls` 前缀下载 `<前缀>/<owner>/<reposito
 <a id="known-limitations-and-deferred-work"></a>
 
 - 换用新的固定提交后，首次加载需要能访问 GitHub 或配置的镜像；下载成功之前，入口技能不会列出，插件显示 `failed` 状态。
-- 插件改为固定其他提交后，以及插件卸载后，已发布的目录仍留在 `$DSH_HOME/cache/<name>` 中，没有任何清理。进程在写入下载内容时退出，也会在那里留下它的暂存目录 `.skills-<摘要>-<uuid>`。
+- 插件改为固定其他提交后，以及插件卸载后，已发布的目录仍留在 `$STITCH_HOME/cache/<name>` 中，没有任何清理。进程在写入下载内容时退出，也会在那里留下它的暂存目录 `.skills-<摘要>-<uuid>`。
 - 只检查已发布的目录是否存在。目录里的文件被删除或改动后，入口技能仍会基于这些文件列出；删除该目录后，下一次检查或加载会重新下载固定的提交。
 - 不保留文件权限，上游脚本不可直接执行；目前的上游子指南都通过 `python3` 运行脚本。
 - 实验性 Web 预览把 Host 插件运行在浏览器 worker 中：服务可以加载，但 node-tar 无法加载，因此那里的每次下载都会失败。

@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from deepseek_harness import DeepSeekHarness, HarnessClient, HarnessConfig, Notification, RunResult, SdkProtocolError
-from deepseek_harness.errors import JsonRpcError
+from stitch_harness import Stitch, HarnessClient, HarnessConfig, Notification, RunResult, SdkProtocolError
+from stitch_harness.errors import JsonRpcError
 
 
 def test_high_level_sdk_runs_turn_and_preserves_auto_review_errors(tmp_path: Path) -> None:
@@ -27,9 +27,9 @@ env_dump = os.environ["ENV_DUMP"]
 json.dump({
     "DEEPSEEK_API_KEY": os.environ.get("DEEPSEEK_API_KEY"),
     "DEEPSEEK_BASE_URL": os.environ.get("DEEPSEEK_BASE_URL"),
-    "DSH_CWD": os.environ.get("DSH_CWD"),
-    "DSH_SESSION_ROOT": os.environ.get("DSH_SESSION_ROOT"),
-    "DSH_CORDIS_CONFIG": os.environ.get("DSH_CORDIS_CONFIG"),
+    "STITCH_CWD": os.environ.get("STITCH_CWD"),
+    "STITCH_SESSION_ROOT": os.environ.get("STITCH_SESSION_ROOT"),
+    "STITCH_CORDIS_CONFIG": os.environ.get("STITCH_CORDIS_CONFIG"),
 }, open(env_dump, "w"))
 
 for line in sys.stdin:
@@ -164,7 +164,7 @@ for line in sys.stdin:
 """.strip()
     )
 
-    with DeepSeekHarness(
+    with Stitch(
         approval_requests=True,
         provider="mock",
         model="mock-model",
@@ -209,9 +209,9 @@ for line in sys.stdin:
     dumped_env = json.loads(env_dump.read_text())
     assert dumped_env["DEEPSEEK_API_KEY"] == "env-key"
     assert dumped_env["DEEPSEEK_BASE_URL"] == "http://127.0.0.1:4321"
-    assert dumped_env["DSH_CWD"] is None
-    assert dumped_env["DSH_SESSION_ROOT"] is None
-    assert dumped_env["DSH_CORDIS_CONFIG"] is None
+    assert dumped_env["STITCH_CWD"] is None
+    assert dumped_env["STITCH_SESSION_ROOT"] is None
+    assert dumped_env["STITCH_CORDIS_CONFIG"] is None
     assert json.loads(init_dump.read_text()) == {
         "approvalRequests": True,
         "cwd": str(tmp_path),
@@ -247,7 +247,7 @@ for line in sys.stdin:
     )
 
     seen: list[str] = []
-    with DeepSeekHarness(
+    with Stitch(
         _launch_args=(sys.executable, str(script)),
         cwd=str(tmp_path),
     ) as harness:
@@ -285,7 +285,7 @@ for line in sys.stdin:
 """.strip()
     )
 
-    with DeepSeekHarness(
+    with Stitch(
         _launch_args=(sys.executable, str(script)),
         cwd=str(tmp_path),
     ) as harness:
@@ -310,7 +310,7 @@ import sys
 for line in sys.stdin:
     msg = json.loads(line)
     if msg.get("method") == "initialize":
-        json.dump({"process": os.getcwd(), "environment": os.environ.get("DSH_CWD"), "wire": msg["params"]["cwd"]}, open(os.environ["CAPTURE"], "w"))
+        json.dump({"process": os.getcwd(), "environment": os.environ.get("STITCH_CWD"), "wire": msg["params"]["cwd"]}, open(os.environ["CAPTURE"], "w"))
         print(json.dumps({"jsonrpc": "2.0", "id": msg["id"], "result": {"serverInfo": {"name": "fake-runtime"}}}), flush=True)
     elif msg.get("method") == "shutdown":
         print(json.dumps({"jsonrpc": "2.0", "id": msg["id"], "result": {}}), flush=True)
@@ -319,7 +319,7 @@ for line in sys.stdin:
     )
     monkeypatch.chdir(tmp_path)
 
-    with DeepSeekHarness(
+    with Stitch(
         cwd=".",
         runtime_cwd=".",
         _launch_args=(sys.executable, str(script)),
@@ -360,7 +360,7 @@ for line in sys.stdin:
 """.strip()
     )
 
-    with DeepSeekHarness(
+    with Stitch(
         _launch_args=(sys.executable, str(script)),
         cwd=str(tmp_path),
     ) as harness:
@@ -409,7 +409,7 @@ for line in sys.stdin:
     )
 
     seen: list[str] = []
-    with DeepSeekHarness(
+    with Stitch(
         _launch_args=(sys.executable, str(script)),
         cwd=str(tmp_path),
     ) as harness:
@@ -464,7 +464,7 @@ for line in sys.stdin:
 """.strip()
     )
 
-    with DeepSeekHarness(
+    with Stitch(
         _launch_args=(sys.executable, str(script)),
         cwd=str(tmp_path),
     ) as harness:
@@ -499,7 +499,7 @@ for line in sys.stdin:
 """.strip()
     )
 
-    with DeepSeekHarness(_launch_args=(sys.executable, str(script)), cwd=str(tmp_path)) as harness:
+    with Stitch(_launch_args=(sys.executable, str(script)), cwd=str(tmp_path)) as harness:
         result = harness.run([{"type": "text", "text": "one turn"}], session_id="main")
         assert harness.client._notifications.qsize() == 0
 
@@ -539,7 +539,7 @@ for line in sys.stdin:
 """.strip()
     )
 
-    with DeepSeekHarness(_launch_args=(sys.executable, str(script)), cwd=str(tmp_path)) as harness:
+    with Stitch(_launch_args=(sys.executable, str(script)), cwd=str(tmp_path)) as harness:
         first = harness.run([{"type": "text", "text": "first turn"}], session_id="main")
         second = harness.run([{"type": "text", "text": "second turn"}], session_id="main")
 
@@ -980,32 +980,32 @@ for line in sys.stdin:
 
 
 def test_public_signatures_omit_unsupported_wire_parameters() -> None:
-    from deepseek_harness import DeepSeekHarnessConfig, Session
+    from stitch_harness import StitchConfig, Session
 
     assert "session_root" not in inspect.signature(HarnessClient.initialize).parameters
     assert "system_prompt" not in inspect.signature(HarnessClient.initialize).parameters
     assert "profile" not in inspect.signature(HarnessClient.session_prompt).parameters
-    assert "profile" not in inspect.signature(DeepSeekHarness.run).parameters
+    assert "profile" not in inspect.signature(Stitch.run).parameters
     assert "profile" not in inspect.signature(Session.run).parameters
-    assert "system_prompt" not in DeepSeekHarnessConfig.__dataclass_fields__
-    assert "max_tokens" in DeepSeekHarnessConfig.__dataclass_fields__
-    assert "reasoning_effort" in DeepSeekHarnessConfig.__dataclass_fields__
+    assert "system_prompt" not in StitchConfig.__dataclass_fields__
+    assert "max_tokens" in StitchConfig.__dataclass_fields__
+    assert "reasoning_effort" in StitchConfig.__dataclass_fields__
     assert "max_tokens" in inspect.signature(HarnessClient.initialize).parameters
     assert "reasoning_effort" in inspect.signature(HarnessClient.initialize).parameters
     assert "client_name" not in HarnessConfig.__dataclass_fields__
     assert "client_version" not in HarnessConfig.__dataclass_fields__
-    assert {"dsh_bin", "profile", "patches", "dsh_home"} <= set(
-        DeepSeekHarnessConfig.__dataclass_fields__
+    assert {"stitch_bin", "profile", "patches", "stitch_home"} <= set(
+        StitchConfig.__dataclass_fields__
     )
-    assert {"dsh_bin", "profile", "patches", "dsh_home"} <= set(
+    assert {"stitch_bin", "profile", "patches", "stitch_home"} <= set(
         HarnessConfig.__dataclass_fields__
     )
-    assert "initialize_timeout_seconds" in DeepSeekHarnessConfig.__dataclass_fields__
+    assert "initialize_timeout_seconds" in StitchConfig.__dataclass_fields__
     assert "initialize_timeout_seconds" in HarnessConfig.__dataclass_fields__
-    assert DeepSeekHarnessConfig().initialize_timeout_seconds == 30.0
+    assert StitchConfig().initialize_timeout_seconds == 30.0
     assert HarnessConfig().initialize_timeout_seconds == 30.0
     for removed in ("cordis", "session_root", "runtime_bin", "bridge_bin", "launch_args_override"):
-        assert removed not in DeepSeekHarnessConfig.__dataclass_fields__
+        assert removed not in StitchConfig.__dataclass_fields__
         assert removed not in HarnessConfig.__dataclass_fields__
     assert "_launch_args" not in HarnessConfig.__dataclass_fields__
     assert "session_root" not in RunResult.__dataclass_fields__
@@ -1056,7 +1056,7 @@ for line in sys.stdin:
 """.strip()
     )
 
-    with DeepSeekHarness(cwd=str(tmp_path), _launch_args=(sys.executable, str(script))) as harness:
+    with Stitch(cwd=str(tmp_path), _launch_args=(sys.executable, str(script))) as harness:
         harness.start()
 
     assert json.loads(init_dump.read_text()) == {"cwd": str(tmp_path)}
@@ -1144,8 +1144,8 @@ import sys
 
 json.dump({
     "argv": sys.argv[1:],
-    "DSH_HOME": os.environ.get("DSH_HOME"),
-    "DSH_CORDIS_CONFIG": os.environ.get("DSH_CORDIS_CONFIG"),
+    "STITCH_HOME": os.environ.get("STITCH_HOME"),
+    "STITCH_CORDIS_CONFIG": os.environ.get("STITCH_CORDIS_CONFIG"),
 }, open(os.environ["ENV_DUMP"], "w"))
 for line in sys.stdin:
     msg = json.loads(line)
@@ -1157,7 +1157,7 @@ for line in sys.stdin:
 """.strip()
     )
 
-    module_dir = tmp_path / "deepseek_harness_runtime"
+    module_dir = tmp_path / "stitch_harness_runtime"
     module_dir.mkdir()
     (module_dir / "__init__.py").write_text(
         f"""
@@ -1167,7 +1167,7 @@ def resolve_bundled_launch_args(mode=None):
     )
 
     monkeypatch.syspath_prepend(str(tmp_path))
-    monkeypatch.delitem(sys.modules, "deepseek_harness_runtime", raising=False)
+    monkeypatch.delitem(sys.modules, "stitch_harness_runtime", raising=False)
 
 
 def test_client_default_launch_uses_bundled_dsh_sdk_profile_and_explicit_home(
@@ -1179,26 +1179,26 @@ def test_client_default_launch_uses_bundled_dsh_sdk_profile_and_explicit_home(
     patch.write_text("[]\n")
     _install_fake_bundled_dsh(tmp_path, monkeypatch)
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("DSH_HOME", str(tmp_path / "ambient-home"))
-    monkeypatch.delenv("DSH_CORDIS_CONFIG", raising=False)
+    monkeypatch.setenv("STITCH_HOME", str(tmp_path / "ambient-home"))
+    monkeypatch.delenv("STITCH_CORDIS_CONFIG", raising=False)
 
     with HarnessClient(HarnessConfig(
         profile="sdk",
         patches=("sdk.patch.yml",),
-        dsh_home=str(home),
-        env={"ENV_DUMP": str(env_dump), "DSH_HOME": str(tmp_path / "env-home")},
+        stitch_home=str(home),
+        env={"ENV_DUMP": str(env_dump), "STITCH_HOME": str(tmp_path / "env-home")},
     )) as client:
         init = client.initialize(cwd="/workspace")
 
     assert init.serverInfo.name == "bundled-runtime"
     assert json.loads(env_dump.read_text()) == {
         "argv": ["--profile", "sdk", "--patch", str(patch)],
-        "DSH_HOME": str(home),
-        "DSH_CORDIS_CONFIG": None,
+        "STITCH_HOME": str(home),
+        "STITCH_CORDIS_CONFIG": None,
     }
 
 
-def test_client_accepts_explicit_environment_dsh_home(
+def test_client_accepts_explicit_environment_stitch_home(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     env_dump = tmp_path / "env.json"
@@ -1206,30 +1206,30 @@ def test_client_accepts_explicit_environment_dsh_home(
     _install_fake_bundled_dsh(tmp_path, monkeypatch)
 
     with HarnessClient(
-        HarnessConfig(profile="custom", env={"ENV_DUMP": str(env_dump), "DSH_HOME": str(home)})
+        HarnessConfig(profile="custom", env={"ENV_DUMP": str(env_dump), "STITCH_HOME": str(home)})
     ) as client:
         client.initialize(cwd="/workspace")
 
     assert json.loads(env_dump.read_text()) == {
         "argv": ["--profile", "custom"],
-        "DSH_HOME": str(home),
-        "DSH_CORDIS_CONFIG": None,
+        "STITCH_HOME": str(home),
+        "STITCH_CORDIS_CONFIG": None,
     }
 
 
-def test_client_rejects_an_implicit_default_dsh_home(
+def test_client_rejects_an_implicit_default_stitch_home(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _install_fake_bundled_dsh(tmp_path, monkeypatch)
-    monkeypatch.delenv("DSH_HOME", raising=False)
+    monkeypatch.delenv("STITCH_HOME", raising=False)
 
-    with pytest.raises(ValueError, match="explicit dsh_home or non-empty DSH_HOME"):
+    with pytest.raises(ValueError, match="explicit stitch_home or non-empty STITCH_HOME"):
         HarnessClient(HarnessConfig(env={})).start()
 
 
 def test_client_reports_missing_bundled_runtime_dependency(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delitem(sys.modules, "deepseek_harness_runtime", raising=False)
+    monkeypatch.delitem(sys.modules, "stitch_harness_runtime", raising=False)
     monkeypatch.setattr(sys, "path", [])
 
-    with pytest.raises(FileNotFoundError, match="Install deepseek-harness-runtime-bin"):
-        HarnessClient(HarnessConfig(dsh_home="/explicit/home")).start()
+    with pytest.raises(FileNotFoundError, match="Install stitch-harness-runtime-bin"):
+        HarnessClient(HarnessConfig(stitch_home="/explicit/home")).start()

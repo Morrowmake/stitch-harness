@@ -77,7 +77,7 @@ const AGENT_RETAINED_HEAP_BUDGET_MB = Math.ceil(
   EXPECTED_AGENT_RETAINED_HEAP_MB * PERFORMANCE_BUDGET_HEADROOM,
 )
 
-const WORKER = join(import.meta.dirname, '..', '.dsh-build', 'session-open', 'session-open.worker.js')
+const WORKER = join(import.meta.dirname, '..', '.stitch-build', 'session-open', 'session-open.worker.js')
 /**
  * Estimated storage wait of the phase endpoints, whose worker reports CPU time only for the whole run: open
  * and read access one Session log that the page cache usually holds; restore and projection start after the
@@ -86,8 +86,8 @@ const WORKER = join(import.meta.dirname, '..', '.dsh-build', 'session-open', 'se
 const PHASE_IO_SHARE = { file: 0.1, memory: 0 } as const
 /** User scenario of each access kind. */
 const ACCESS_AFFECTS: Readonly<Record<SessionAccessKind, string>> = {
-  'first-open': 'Opening a large Session for the first time after upgrading DSH.',
-  'post-upgrade-reopen': 'Opening a large Session again in a new DSH process.',
+  'first-open': 'Opening a large Session for the first time after upgrading Stitch.',
+  'post-upgrade-reopen': 'Opening a large Session again in a new Stitch process.',
 }
 
 /**

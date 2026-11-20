@@ -1,12 +1,38 @@
-# DeepSeek Harness Brand Asset Usage Guidelines
+# Stitch Brand Guidelines
 
 English | [中文](BRAND_GUIDELINES.zh.md)
 
-To maintain the long\-term healthy development of the DeepSeek Harness ecosystem, avoid user confusion, and facilitate the retrieval and identification of related resources, we have established these specifications and hope that everyone will adhere to them:
+Stitch is based on [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). These guidelines cover the Stitch name, mark, and colors. The source files live in [`branding/`](branding/).
 
-- In your project's descriptive text, you may use "DeepSeek Harness" to truthfully and accurately describe your project's relationship with DeepSeek Harness, for example, "built on DeepSeek Harness" or "compatible with DeepSeek Harness\." Such descriptions comply with license requirements and help users understand your project's positioning\.
-- If you wish your project name to reflect its association with the DeepSeek Harness ecosystem, we recommend using the abbreviated "DSH" designation for naming, which is both clear and facilitates communication within the community\.
-- When naming your project, please avoid using the full "DeepSeek Harness" trademark directly\. "DeepSeek Harness" is a registered trademark of DeepSeek\. Unauthorized use in project names can easily lead to user misunderstanding and confusion, thereby affecting the clarity of the entire ecosystem\. It may also involve trademark infringement\.
-- Additionally, please avoid using official brand materials in your promotions or presentations in a way that could cause misunderstanding, so as not to give users the false impression of official endorsement, cooperation, or authorization\.
+## Name
 
-We believe that a clear and orderly community environment will make every developer's efforts more visible and more readily recognized\. For the few cases that do not comply with the above specifications, we may contact the relevant parties to make appropriate adjustments in order to maintain the overall order of the ecosystem\. Thank you for your understanding and support—let us work together to build a more friendly and sustainable open\-source community\.
+Write the product name as "Stitch", with a capital S, in every language. Do not translate it. The command-line program is `stitch`, written in lowercase code formatting.
+
+## Mark
+
+The Stitch mark is a patchwork of four rounded patches. Each patch has a dashed, stitched border. Three patches are filled; the fourth is empty and holds a "+". The empty "+" patch means "add a plugin": Stitch is assembled from plugins, and you can always sew in another one.
+
+| File | Use |
+|---|---|
+| [`branding/mark.svg`](branding/mark.svg) | Mark on light backgrounds |
+| [`branding/mark-dark.svg`](branding/mark-dark.svg) | Mark on dark backgrounds |
+| [`branding/wordmark.svg`](branding/wordmark.svg) | Mark with the "Stitch" name on light backgrounds |
+| [`branding/wordmark-dark.svg`](branding/wordmark-dark.svg) | Mark with the "Stitch" name on dark backgrounds |
+| [`branding/favicon.svg`](branding/favicon.svg) | Small sizes on light backgrounds |
+| [`branding/favicon-dark.svg`](branding/favicon-dark.svg) | Small sizes on dark backgrounds |
+
+Keep the four patches, their stitched borders, and the empty "+" patch intact. Do not recolor, rotate, stretch, or add effects to the mark. Leave clear space around it of at least a quarter of the mark's width.
+
+## Palette
+
+| Color | Hex | Role |
+|---|---|---|
+| Ink | `#1C2434` | Text, dark surfaces, and patch outlines |
+| Stitch blue | `#4176E6` | Primary accent and filled patches |
+| Mist | `#D4DBE9` | Secondary patches and borders |
+| Paper | `#FBFBFB` | Light backgrounds |
+| Haze | `#E1E6EE` | Muted surfaces and dividers |
+
+## Attribution
+
+Projects built on Stitch may say so plainly, for example "built on Stitch" or "a Stitch plugin". Do not use the Stitch mark in a way that suggests official endorsement. Stitch itself is based on DeepSeek Harness by DeepSeek-AI; "DeepSeek" and "DeepSeek Harness" are DeepSeek's names and are not part of the Stitch brand.

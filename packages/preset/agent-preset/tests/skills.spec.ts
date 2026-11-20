@@ -1,7 +1,7 @@
 /**
- * The shipped dsh-doc skill: it is the package's only skill, renders below the pruner threshold, and
+ * The shipped stitch-doc skill: it is the package's only skill, renders below the pruner threshold, and
  * names exactly the files it ships; its templates parse and show their detail documents, and it never
- * bans reading DSH sources. The Web preset e2e measures whole-reference reads.
+ * bans reading Stitch sources. The Web preset e2e measures whole-reference reads.
  */
 import { execFileSync, spawnSync } from 'node:child_process'
 import { cpSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
@@ -41,8 +41,8 @@ function markdownFiles(dir: string): string[] {
     .map(file => join(dir, file))
 }
 
-describe('the shipped dsh-doc skill', () => {
-  const skill = join(skills, 'dsh-doc')
+describe('the shipped stitch-doc skill', () => {
+  const skill = join(skills, 'stitch-doc')
   const templates = join(skill, 'templates')
   const repositorySkills = fileURLToPath(new URL('../../../../.agents/skills/', import.meta.url))
 
@@ -56,14 +56,14 @@ describe('the shipped dsh-doc skill', () => {
 
   it('is the only skill the package skill root exposes', async (test) => {
     const ctx = await loadRoot(skills, test)
-    expect((await ctx.skills.list()).map(entry => entry.name)).toEqual(['dsh-doc'])
-    expect((await ctx.skills.get('dsh-doc'))?.content).toBe(body('dsh-doc').trim())
+    expect((await ctx.skills.list()).map(entry => entry.name)).toEqual(['stitch-doc'])
+    expect((await ctx.skills.get('stitch-doc'))?.content).toBe(body('stitch-doc').trim())
   })
 
-  it('leaves repository skills without a second dsh-doc and wraps the packaged tool-design reference', async (test) => {
+  it('leaves repository skills without a second stitch-doc and wraps the packaged tool-design reference', async (test) => {
     const ctx = await loadRoot(repositorySkills, test)
     const repository = (await ctx.skills.list()).map(entry => entry.name)
-    expect(repository).not.toContain('dsh-doc')
+    expect(repository).not.toContain('stitch-doc')
     expect(repository).toEqual(expect.arrayContaining(['dsh-doc-writing', 'agent-experience']))
     const wrapper = join(repositorySkills, 'agent-experience', 'SKILL.md')
     expect(lstatSync(wrapper).isFile()).toBe(true)
@@ -73,10 +73,10 @@ describe('the shipped dsh-doc skill', () => {
 
   it('renders below the pruner threshold and lists exactly the files it ships', () => {
     const rendered = renderSkillContent({
-      name: 'dsh-doc', provider: 'filesystem', resourceBase: { kind: 'directory', path: skill }, content: body('dsh-doc'),
+      name: 'stitch-doc', provider: 'filesystem', resourceBase: { kind: 'directory', path: skill }, content: body('stitch-doc'),
     })
     expect(codePointLength(rendered)).toBeLessThan(PRUNER_THRESHOLD_CHARS)
-    const referenced = new Set([...body('dsh-doc').matchAll(/`((?:references|templates)\/[^`]+)`/g)].map(match => match[1] ?? match[0]))
+    const referenced = new Set([...body('stitch-doc').matchAll(/`((?:references|templates)\/[^`]+)`/g)].map(match => match[1] ?? match[0]))
     const shipped = readdirSync(skill, { recursive: true, encoding: 'utf8' })
       .filter(file => file !== 'SKILL.md' && statSync(join(skill, file)).isFile())
       .map(file => file.split(sep).join('/'))
@@ -130,7 +130,7 @@ describe('the shipped dsh-doc skill', () => {
         ...locales, ...details, manifest.dsh.bundle.patch])
       for (const resource of resources) {
         const file = resource.replace(/^\.\//u, '')
-        expect(body('dsh-doc'), file).toContain(`\`templates/${name}/${file.startsWith('locale/') ? 'locale' : file}\``)
+        expect(body('stitch-doc'), file).toContain(`\`templates/${name}/${file.startsWith('locale/') ? 'locale' : file}\``)
         expect(statSync(join(dir, file)).isFile(), file).toBe(true)
       }
     }
@@ -161,7 +161,7 @@ describe('the shipped dsh-doc skill', () => {
     } finally { window.close() }
   })
 
-  it.for(readdirSync(join(skills, 'dsh-doc', 'templates')))('shows one packaged SVG in the %s template detail document', async (name, test) => {
+  it.for(readdirSync(join(skills, 'stitch-doc', 'templates')))('shows one packaged SVG in the %s template detail document', async (name, test) => {
     const dir = join(templates, name)
     const files = localFiles(dir, '1.0.0')
     const locale = JSON.parse(readFileSync(join(dir, 'locale', 'en.json'), 'utf8')) as { meta: { detail: string } }
@@ -228,7 +228,7 @@ describe('the shipped dsh-doc skill', () => {
       const command = /```sh\n\s*(.+)\n\s*```/u.exec(readFileSync(join(skill, 'references', file), 'utf8'))?.[1]
       expect(command, file).toBeDefined()
       return execFileSync('bash', ['-c', command ?? ''], {
-        cwd, encoding: 'utf8', env: { ...process.env, DSH_PROFILE: 'web', DSH_INSTALL_DIR: install, DSH_NODE_EXECUTABLE: process.execPath },
+        cwd, encoding: 'utf8', env: { ...process.env, STITCH_PROFILE: 'web', STITCH_INSTALL_DIR: install, STITCH_NODE_EXECUTABLE: process.execPath },
       })
     }
     const located = run('locate-docs.md').trim()
@@ -248,7 +248,7 @@ describe('the shipped dsh-doc skill', () => {
     const command = /```powershell\n([\s\S]+?)\n```/u.exec(readFileSync(join(skill, 'references', 'locate-docs.md'), 'utf8'))?.[1]
     expect(command).toBeDefined()
     const run = (script: string) => spawnSync('pwsh', ['-NoProfile', '-NonInteractive', '-Command', script], {
-      encoding: 'utf8', env: { ...process.env, DSH_INSTALL_DIR: install, DSH_NODE_EXECUTABLE: process.execPath },
+      encoding: 'utf8', env: { ...process.env, STITCH_INSTALL_DIR: install, STITCH_NODE_EXECUTABLE: process.execPath },
     })
     const found = run(command ?? '')
     expect(found.status, found.stderr).toBe(0)
@@ -260,10 +260,10 @@ describe('the shipped dsh-doc skill', () => {
     expect(missing.stderr).toContain('@deepseek-ai/dsh-missing')
   })
 
-  it('never forbid reading DSH package sources and never route skill files through the shell', () => {
+  it('never forbid reading Stitch package sources and never route skill files through the shell', () => {
     for (const file of markdownFiles(skill)) {
       const text = readFileSync(file, 'utf8')
-      expect(text, file).not.toMatch(/do not read (DSH |package |DSH package )?sources/i)
+      expect(text, file).not.toMatch(/do not read (Stitch |package |Stitch package )?sources/i)
       // Desktop ships the skill directory inside app.asar, which only the Host process can open.
       expect(text, file).not.toMatch(/`(cat|cp|ls) /)
     }

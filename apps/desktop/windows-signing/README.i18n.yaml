@@ -21,17 +21,17 @@
   en: 51ea900f8273ce56
   zh: c9200de3f9929494
 /windows-signing-and-runner-operations/signing-configuration:
-  en: a806a76af6b823aa
-  zh: e20cc0c23827fe82
+  en: d65dfee5ac081355
+  zh: 9778c0e072d4bebd
 /windows-signing-and-runner-operations/signing-and-timestamp-completion:
   en: a87ce0c0b5d032db
   zh: edae7846b0a1c01f
 /windows-signing-and-runner-operations/failure-records-and-operator-recovery:
-  en: 5401b605a2f3a44e
-  zh: fc1f6ee667bcd20d
+  en: 6cd46fab543a992e
+  zh: 0b5c59833f36dc82
 /windows-signing-and-runner-operations/signature-cache-and-concurrent-stages:
-  en: 6e8208d19ad510e5
-  zh: eee42e8938c0f603
+  en: 4cd4dca21a99ebff
+  zh: 67e935749ec479a8
 /windows-signing-and-runner-operations/verification-limits:
   en: 758af00ed913b91e
   zh: 182752e6ff9049a5

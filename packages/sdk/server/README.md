@@ -1,5 +1,5 @@
 ---
-description: "The stdio JSON-RPC serving plugin for deployments that let out-of-process SDK clients open sessions and drive agents in a DeepSeek Harness runtime."
+description: "The stdio JSON-RPC serving plugin for deployments that let out-of-process SDK clients open sessions and drive agents in a Stitch runtime."
 kind: "package-reference"
 ---
 
@@ -75,7 +75,7 @@ Stdout carries only JSON-RPC frames, so clients can parse every byte; diagnostic
 
 ### What SDK clients can do
 
-`initialize` is the runtime-readiness boundary: when the server is mounted by a Loader composition, it waits for the current plugin tree to settle before replying, so async sibling capabilities such as initial MCP tool discovery are visible to the first prompt. The handshake returns the wire-stable identity `deepseek-harness-sdk-runtime`. The server validates the provider/model route and optional non-empty `reasoningEffort` through the selected adapter before it stores them; omission stores no effort, so the model retains its own default. An optional positive `maxTokens` becomes the request output cap of each SDK-created agent and its in-process descendants, while omission applies the selected adapter or provider route default. JSON-RPC requests may dispatch concurrently, so `session/prompt` rejects until one `initialize` has completed successfully; clients must await the handshake before sending prompts. An accepted prompt queues one identified user message and immediately returns `{ messageId }`; the server then streams every durable fact as `session.event` and every whole-agent lifecycle transition as `session.status`. It does not assign an assistant message or `turn/end` to a prompt, and independent requests may enqueue more work on the same session. Persistence roots and persona come from the surrounding composition.
+`initialize` is the runtime-readiness boundary: when the server is mounted by a Loader composition, it waits for the current plugin tree to settle before replying, so async sibling capabilities such as initial MCP tool discovery are visible to the first prompt. The handshake returns the wire-stable identity `stitch-sdk-runtime`. The server validates the provider/model route and optional non-empty `reasoningEffort` through the selected adapter before it stores them; omission stores no effort, so the model retains its own default. An optional positive `maxTokens` becomes the request output cap of each SDK-created agent and its in-process descendants, while omission applies the selected adapter or provider route default. JSON-RPC requests may dispatch concurrently, so `session/prompt` rejects until one `initialize` has completed successfully; clients must await the handshake before sending prompts. An accepted prompt queues one identified user message and immediately returns `{ messageId }`; the server then streams every durable fact as `session.event` and every whole-agent lifecycle transition as `session.status`. It does not assign an assistant message or `turn/end` to a prompt, and independent requests may enqueue more work on the same session. Persistence roots and persona come from the surrounding composition.
 
 `session/wait` observes an existing SDK-owned session through managed descendant completion and any resulting root turns. It rejects unknown or retired roots, never creates a session, and responds after the root stays idle across the descendant check. Idle children with parked inbox messages remain resident but do not delay this response; later waking input can resume them. Session notifications emitted before completion precede the response on the stdio transport. A live Agent failure remains associated with that exact session until a later committed `turn/end` accounts for the outcome; otherwise the wait rejects, including when the failure preceded the wait request. Errors already represented by a terminal remain in Session events, and later successful activity clears an earlier live failure.
 
@@ -129,7 +129,7 @@ Read these pages when the plugin contract is not enough. They move from the wire
 
 - [SDK wire protocol](../protocol/README.md) — the methods and payload shapes this plugin serves.
 - [TypeScript SDK client](../client/README.md) — the client that drives this plugin.
-- [SDK application bundle](../../bundle/sdk-app/README.md) — the `dsh --profile sdk` application that boots this plugin.
+- [SDK application bundle](../../bundle/sdk-app/README.md) — the `stitch --profile sdk` application that boots this plugin.
 - [Python SDK](../../../python/README.md) — the Python client that drives the same server.
 - [SDK runtime distribution decision](../../../.agents/notes/implemented/architecture/2026-07-10-single-file-executable-sdk-runtime-distribution.md) — why the packaged runtime serves a closed plugin tree.
 

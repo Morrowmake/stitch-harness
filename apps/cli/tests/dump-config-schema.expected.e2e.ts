@@ -14,7 +14,7 @@ import { describe, expect, it, onTestFinished } from 'vitest'
 const repoRoot = fileURLToPath(new URL('../../../', import.meta.url))
 const builtBin = join(repoRoot, 'apps/cli/lib/bin.js')
 const builtArtifactsExist = existsSync(builtBin)
-if (process.env.DSH_EXAMPLE_MODE === 'lib' && !builtArtifactsExist) {
+if (process.env.STITCH_EXAMPLE_MODE === 'lib' && !builtArtifactsExist) {
   throw new Error('dsh config-schema acceptance requires built CLI artifacts in lib mode; run pnpm run build first')
 }
 const packageName = 'dsh-schema-acceptance-fixture'
@@ -25,7 +25,7 @@ const forbiddenApply = `
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 export function apply() {
-  writeFileSync(join(process.env.DSH_HOME, 'apply-ran'), 'unexpected')
+  writeFileSync(join(process.env.STITCH_HOME, 'apply-ran'), 'unexpected')
   throw new Error('PLUGIN_APPLY_EXECUTED')
 }
 `
@@ -89,13 +89,13 @@ async function dump(
   const env = Object.fromEntries(Object.entries(process.env).filter(
     (entry): entry is [string, string] => entry[1] !== undefined
       && !/KEY|SECRET|TOKEN|PASSWORD/i.test(entry[0])
-      && !/^(DSH_|NODE_OPTIONS$|NODE_PATH$)/i.test(entry[0]),
+      && !/^(STITCH_|NODE_OPTIONS$|NODE_PATH$)/i.test(entry[0]),
   ))
   const result = await execa(process.execPath, [
     builtBin, '--profile', profileName, format, ...args,
   ], {
     cwd: fixture.root,
-    env: { ...env, DSH_HOME: fixture.home },
+    env: { ...env, STITCH_HOME: fixture.home },
     extendEnv: false,
     input: '',
     timeout: processTimeoutMs,
@@ -305,9 +305,9 @@ describe.skipIf(!builtArtifactsExist)('dsh --dump-config-schema assembled output
       { level: 'error', path: '/2', message: 'fixture module import failed' },
     ])
     expect(result.stderr.split('\n')).toEqual([
-      'dsh: error: [/0] Config is not a native Schemastery schema',
-      'dsh: error: [/1] fixture lazy schema failed',
-      'dsh: error: [/2] fixture module import failed',
+      'stitch: error: [/0] Config is not a native Schemastery schema',
+      'stitch: error: [/1] fixture lazy schema failed',
+      'stitch: error: [/2] fixture module import failed',
     ])
   })
 
@@ -343,7 +343,7 @@ describe.skipIf(!builtArtifactsExist)('dsh --dump-config-schema assembled output
     await writeFile(overlay, '- id: missing\n  disabled: true\n')
     const schema = await dump(fixture, ['--patch', overlay])
     expect(schema.exitCode).toBe(0)
-    expect(schema.stderr).toBe('dsh: warning: patch: entry "missing" not found')
+    expect(schema.stderr).toBe('stitch: warning: patch: entry "missing" not found')
     expect(parseSchema(schema.stdout)['x-cordis'].diagnostics).toEqual([{ level: 'warning', message: 'patch: entry "missing" not found' }])
     const config = await dump(fixture, ['--patch', overlay], '--dump-config')
     expect(config.exitCode).toBe(0)

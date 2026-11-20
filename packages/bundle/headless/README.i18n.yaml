@@ -4,13 +4,13 @@
 #   pnpm run verify-translation-pairing --write packages/bundle/headless/README.md
 /:
   en: 68ff17b596cbc6aa
-  zh: 8c6f3d309403ba81
+  zh: efa47d0b09db50ee
 /deepseek-ai-dsh-headless:
   en: 605b67ee9f21d085
   zh: df2687a69f362493
 /deepseek-ai-dsh-headless/summary:
-  en: 2c31f2cf129ed020
-  zh: 2b34e3640b011475
+  en: 6bfd6d0241e2c493
+  zh: 662d61729f7e2cff
 /deepseek-ai-dsh-headless/table-of-contents:
   en: d152484eb41ac6b4
   zh: 09388d293f9be9cb
@@ -21,8 +21,8 @@
   en: b3d0ddfb56a1ac7f
   zh: c1762158e49a4851
 /deepseek-ai-dsh-headless/use-this-package/credentials:
-  en: 4d47a0a46b001aa5
-  zh: 49f2b4f65a481f14
+  en: f74b68480b1a345e
+  zh: 3d9c9501604f6a08
 /deepseek-ai-dsh-headless/use-this-package/choosing-the-session-identity:
   en: 85120c2d6db2cac4
   zh: bac532df6c84e755
@@ -36,11 +36,11 @@
   en: c8a90b16023eb04a
   zh: 58eec3550ea70f34
 /deepseek-ai-dsh-headless/use-this-package/when-to-use-it:
-  en: 5262b93dcef0d489
-  zh: 1638965b2aabcd38
+  en: 98d8a753c1755df5
+  zh: edf185fa9e726c2c
 /deepseek-ai-dsh-headless/use-this-package/help-and-task-errors:
-  en: ecd381558cf7b0e7
-  zh: a351efbf4a1a2ac5
+  en: c3674e8d31d07aed
+  zh: a032ae00e66fc176
 /deepseek-ai-dsh-headless/understand-the-implementation:
   en: be1b73a6d0ee3902
   zh: bdba099685d68b27
@@ -66,8 +66,8 @@
   en: 0b0f74b412c7c6d8
   zh: 6e8f918d0c4bf342
 /deepseek-ai-dsh-headless/known-limitations-and-deferred-work:
-  en: 94d8c7731c1435c3
-  zh: d0ddc9dd4e030b3f
+  en: 16eea58a2d91b791
+  zh: 08a6ef5a5f4e3690
 /deepseek-ai-dsh-headless/known-limitations-and-deferred-work/dev-note:
   en: e67f633dc6fe7773
   zh: 3bb0c20c93f16f98

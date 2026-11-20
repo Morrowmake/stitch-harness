@@ -762,13 +762,13 @@ describe('ModelsSection', () => {
   it('surfaces a refused credential write on the card', async () => {
     await mountOpenAiCard({
       set: vi.fn(() => Promise.resolve(remoteFail(
-        'credentials-local: invalid document at /home/user/.dsh/.credentials.yaml: BAD_INDENT at line 3, column 1',
+        'credentials-local: invalid document at /home/user/.stitch/.credentials.yaml: BAD_INDENT at line 3, column 1',
       ))),
     })
     const key = screen.getByLabelText<HTMLInputElement>(en.keyInput)
     fireEvent.change(key, { target: { value: 'sk-live' } })
     fireEvent.click(screen.getByText(en.apply))
-    await screen.findByText(/invalid document at \/home\/user\/\.dsh\/\.credentials\.yaml/)
+    await screen.findByText(/invalid document at \/home\/user\/\.stitch\/\.credentials\.yaml/)
     expect(screen.queryByRole('status')).toBeNull()
   })
 

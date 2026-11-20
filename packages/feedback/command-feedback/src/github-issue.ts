@@ -10,10 +10,11 @@ import { execFile } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import os from 'node:os'
 import { fileURLToPath } from 'node:url'
+import { REPOSITORY } from '@deepseek-ai/dsh-product'
 import type { FeedbackCategory, SessionFeedbackIssue, SessionFeedbackReportIssueResult } from './types.ts'
 
 /** The `owner/name` GitHub repository feedback issues are filed against. */
-export const FEEDBACK_REPOSITORY = 'Morrowmake/stitch-harness'
+export const FEEDBACK_REPOSITORY = REPOSITORY
 
 /** Upper bound on the length of a prefilled new-issue URL; browsers and GitHub reject much longer ones. */
 export const MAX_ISSUE_URL_LENGTH = 7000

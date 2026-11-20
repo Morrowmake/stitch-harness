@@ -51,11 +51,11 @@ const signal = new AbortController().signal
 async function bootComposition(): Promise<Context> {
   const root = await mkdtemp(join(tmpdir(), 'dsh-web-search-keyless-composition-'))
   cleanups.push(async () => { await rm(root, { recursive: true, force: true }) })
-  const previousHome = process.env.DSH_HOME
-  process.env.DSH_HOME = root
+  const previousHome = process.env.STITCH_HOME
+  process.env.STITCH_HOME = root
   cleanups.push(() => {
-    if (previousHome === undefined) Reflect.deleteProperty(process.env, 'DSH_HOME')
-    else process.env.DSH_HOME = previousHome
+    if (previousHome === undefined) Reflect.deleteProperty(process.env, 'STITCH_HOME')
+    else process.env.STITCH_HOME = previousHome
     return Promise.resolve()
   })
   const configPath = join(root, 'cordis.yml')

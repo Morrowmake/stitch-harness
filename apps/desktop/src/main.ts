@@ -35,6 +35,8 @@ import { formatDesktopMessage, resolveDesktopLocale, resolveDesktopStartupLocale
 import type { DesktopMessages } from './locale.ts'
 import { claimDesktopSingleInstance } from './single-instance.ts'
 import { DesktopUpdateChecker, type DesktopRelease } from './update-check.ts'
+import { DesktopUpdateInstaller, type PreparedUpdate } from './update-install.ts'
+import { UPDATE_PUBLIC_KEYS } from './update-public-key.ts'
 import { DesktopCommandManager } from './command-management.ts'
 import { serveWebDocument, forwardWebRequest, removeLegacyHostCookies } from './web-document.ts'
 import { DesktopFatalRecovery } from './fatal-recovery.ts'
@@ -120,7 +122,7 @@ async function waitForOperationReports(): Promise<void> {
     const exited = await Promise.race([job.then(() => true), new Promise<false>((resolve) => {
       timer = setTimeout(() => { resolve(false) }, 500)
     })])
-    if (!exited) console.error('dsh desktop: operation report Worker has not exited; continuing shutdown')
+    if (!exited) console.error('stitch desktop: operation report Worker has not exited; continuing shutdown')
   } finally { clearTimeout(timer) }
 }
 
@@ -190,28 +192,28 @@ function runtimeResources(): RuntimeResources {
   const development = !app.isPackaged
   const node = process.execPath
   const nodeBin = development ? join(app.getAppPath(), 'scripts', 'node-bin') : join(process.resourcesPath, 'runtime', 'bin')
-  const pnpm = (development ? process.env.DSH_DESKTOP_PNPM_ENTRY : undefined)
+  const pnpm = (development ? process.env.STITCH_DESKTOP_PNPM_ENTRY : undefined)
     ?? (development ? join(app.getAppPath(), 'node_modules', 'pnpm', 'bin', 'pnpm.mjs')
       : join(process.resourcesPath, 'runtime', 'primary-runtime', 'dependencies', 'pnpm', 'bin', 'pnpm.mjs'))
-  const dsh = (development ? process.env.DSH_DESKTOP_DSH_DIR : undefined)
+  const dsh = (development ? process.env.STITCH_DESKTOP_STITCH_DIR : undefined)
     ?? (development ? join(app.getAppPath(), '.desktop-build', 'development', 'project') : join(app.getAppPath(), 'dsh'))
   return { node, nodeBin, pnpm, dsh }
 }
 
 function developmentPrimaryRuntime(): string {
-  const directory = process.env.DSH_DESKTOP_PRIMARY_RUNTIME_DIR
+  const directory = process.env.STITCH_DESKTOP_PRIMARY_RUNTIME_DIR
   if (directory === undefined || directory === '') {
-    throw new Error('dsh desktop: DSH_DESKTOP_PRIMARY_RUNTIME_DIR is required for an unpackaged launch')
+    throw new Error('stitch desktop: STITCH_DESKTOP_PRIMARY_RUNTIME_DIR is required for an unpackaged launch')
   }
   return directory
 }
 
 function developmentHostInspectPort(enabled: boolean): number | undefined {
-  const configured = process.env.DSH_DESKTOP_HOST_INSPECT_PORT
+  const configured = process.env.STITCH_DESKTOP_HOST_INSPECT_PORT
   if (!enabled || configured === undefined || configured === '') return undefined
   const port = Number(configured)
   if (!Number.isSafeInteger(port) || port < 1 || port > 65_535) {
-    throw new Error('dsh desktop: DSH_DESKTOP_HOST_INSPECT_PORT must be an integer from 1 through 65535')
+    throw new Error('stitch desktop: STITCH_DESKTOP_HOST_INSPECT_PORT must be an integer from 1 through 65535')
   }
   return port
 }
@@ -427,7 +429,7 @@ async function main(): Promise<void> {
     assertDesktopSender(event, ['app'])
     if (mainWindow === undefined || mainWindow.isDestroyed() || event.sender !== mainWindow.webContents
       || event.senderFrame === null || event.senderFrame !== mainWindow.webContents.mainFrame) {
-      throw new Error('dsh desktop: rejected IPC from an unowned renderer')
+      throw new Error('stitch desktop: rejected IPC from an unowned renderer')
     }
     return mainWindow
   }
@@ -449,7 +451,7 @@ async function main(): Promise<void> {
   const backend = new DesktopBackendController((onFailure) => {
     const hostInspectPort = developmentHostInspectPort(development)
     const host = new DesktopHostProcess(resources.node, resources.dsh, activeProject,
-      hostInspectPort, { ...hostEnvironment, DSH_CLIENT_VERSION: desktopClientVersion() }, onFailure,
+      hostInspectPort, { ...hostEnvironment, STITCH_CLIENT_VERSION: desktopClientVersion() }, onFailure,
       primaryRuntime,
       resources, (record) => {
         operationJournal ??= new OperationJournal(join(app.getPath('userData'), 'plugin-operations'), {
@@ -501,20 +503,71 @@ async function main(): Promise<void> {
 
   const updateSettings = new DesktopUpdateSettings(app.getPath('userData'))
   let checkForUpdates = await updateSettings.load()
-  /** Offer a found release without blocking startup; only the user's choice opens the release page. */
-  const offerRelease = async (release: DesktopRelease): Promise<void> => {
-    const result = await ordinaryMessageBox({ type: 'info', title: locale.messages.updateCheckTitle,
-      message: formatDesktopMessage(locale.messages.updateAvailable, { version: release.version }),
-      detail: `${release.name}\n${formatDesktopMessage(locale.messages.updateCurrentDetail, { version: app.getVersion() })}`,
-      buttons: [locale.messages.updateDownload, locale.messages.later], defaultId: 0, cancelId: 1 })
+  const updateTarget = { keys: UPDATE_PUBLIC_KEYS, platform: process.platform, arch: process.arch }
+  const updateInstaller = new DesktopUpdateInstaller({ userData: app.getPath('userData'), execPath: process.execPath,
+    platform: process.platform, pid: process.pid, packaged: app.isPackaged, currentVersion: app.getVersion(),
+    keys: UPDATE_PUBLIC_KEYS, fetch: (url, init) => net.fetch(url, init), systemRoot: process.env.SystemRoot })
+  void updateInstaller.cleanup().catch((error: unknown) => { console.warn('desktop update: could not remove old update files', error) })
+  /** Report a failed one-click update; the installed version is untouched and the release page stays one click away. */
+  const reportUpdateFailure = async (release: DesktopRelease, error: unknown): Promise<void> => {
+    console.error('desktop update: install failed', error)
+    const result = await ordinaryMessageBox({ type: 'error', title: locale.messages.updateCheckTitle,
+      message: locale.messages.updateFailed, detail: locale.messages.updateFailedDetail,
+      technicalDetails: error instanceof Error ? error.message : String(error),
+      buttons: [locale.messages.updateDownloadManually, locale.messages.updateClose], defaultId: 0, cancelId: 1 })
     if (result.response === 0) await shell.openExternal(release.url)
+  }
+  /**
+   * Offer a found release without blocking startup. 'Update now' appears only for a release whose signed manifest
+   * verified against an embedded key and whose bundle can be replaced; otherwise the release page is offered.
+   */
+  const offerRelease = async (release: DesktopRelease): Promise<void> => {
+    const blocker = await updateInstaller.blocker(release)
+    const message = formatDesktopMessage(locale.messages.updateAvailable, { version: release.version })
+    const summary = `${release.name}\n${formatDesktopMessage(locale.messages.updateCurrentDetail, { version: app.getVersion() })}`
+    if (blocker !== undefined) {
+      const writable = blocker.kind !== 'not-writable'
+      const result = await ordinaryMessageBox({ type: 'info', title: locale.messages.updateCheckTitle, message,
+        detail: writable ? summary : `${summary}\n\n${formatDesktopMessage(locale.messages.updateNotWritable, { path: blocker.path })}`,
+        buttons: [writable ? locale.messages.updateDownload : locale.messages.updateDownloadManually, locale.messages.later],
+        defaultId: 0, cancelId: 1 })
+      if (result.response === 0) await shell.openExternal(release.url)
+      return
+    }
+    let prepared: PreparedUpdate | undefined
+    let failure: unknown
+    const result = await ordinaryMessageBox({ type: 'info', title: locale.messages.updateCheckTitle, message,
+      detail: `${summary}\n\n${locale.messages.updateInstallDetail}`,
+      buttons: [locale.messages.updateNow, locale.messages.updateReleaseNotes, locale.messages.later], defaultId: 0, cancelId: 2,
+      keepOpenAction: { index: 1, run: () => { void shell.openExternal(release.url) } },
+      action: { index: 0, run: async (report) => {
+        let percent = -1
+        try {
+          prepared = await updateInstaller.prepare(release, (progress) => {
+            if (progress.phase !== 'download') {
+              report({ label: progress.phase === 'verify' ? locale.messages.updateVerifying : locale.messages.updatePreparing })
+              return
+            }
+            const next = Math.floor(progress.fraction * 100)
+            if (next === percent) return
+            percent = next
+            const label = formatDesktopMessage(locale.messages.updateDownloading, { percent: String(next) })
+            report({ label, fraction: progress.fraction })
+          })
+        } catch (error) { failure = error }
+        return true
+      } } })
+    if (result.response !== 0) return
+    if (prepared === undefined) { await reportUpdateFailure(release, failure); return }
+    try { await updateInstaller.launch(prepared) } catch (error) { await reportUpdateFailure(release, error); return }
+    quitWithoutConfirmation()
   }
   const presentRelease = (release: DesktopRelease): void => {
     void offerRelease(release).catch((error: unknown) => { console.error(error) })
   }
   // Electron's network stack applies the system and command-line proxy configuration.
   const updateChecker = new DesktopUpdateChecker({ currentVersion: app.getVersion(), enabled: () => checkForUpdates,
-    fetch: (url, init) => net.fetch(url, init), onAvailable: presentRelease })
+    fetch: (url, init) => net.fetch(url, init), target: updateTarget, onAvailable: presentRelease })
   app.on('will-quit', () => { updateChecker.dispose() })
 
   protocol.handle(SCHEME, (request) => {
@@ -551,9 +604,9 @@ async function main(): Promise<void> {
   ipcMain.handle(DESKTOP_IPC.bootFailed, (event, message: unknown) => {
     assertDesktopSender(event, ['app'])
     if (event.sender !== mainWindow?.webContents || event.senderFrame !== event.sender.mainFrame) {
-      throw new Error('dsh desktop: rejected startup failure from a non-primary frame')
+      throw new Error('stitch desktop: rejected startup failure from a non-primary frame')
     }
-    if (typeof message !== 'string') throw new Error('dsh desktop: startup failure must be text')
+    if (typeof message !== 'string') throw new Error('stitch desktop: startup failure must be text')
     reportFatal(new Error(message), 'web-boot')
   })
 
@@ -650,7 +703,7 @@ async function main(): Promise<void> {
   const applicationIconPath = development ? join(app.getAppPath(), 'resources', 'icon-windows.png')
     : join(process.resourcesPath, 'icon.png')
   app.setAboutPanelOptions({
-    applicationName: 'DeepSeek Harness',
+    applicationName: 'Stitch',
     applicationVersion: app.getVersion(),
     // The release has no separate build number; omit Electron's bundle version.
     version: '',
@@ -873,7 +926,7 @@ async function main(): Promise<void> {
       window.moveTop()
       window.focus()
     }
-    if (development && process.env.DSH_DESKTOP_OPEN_DEVTOOLS !== '0') {
+    if (development && process.env.STITCH_DESKTOP_OPEN_DEVTOOLS !== '0') {
       window.webContents.openDevTools({ mode: 'detach' })
     }
   }
@@ -904,10 +957,10 @@ async function main(): Promise<void> {
     window.focus()
   }
 
-  if (app.isPackaged || process.env.DSH_DESKTOP_DEV_APP === '1') app.setAsDefaultProtocolClient('dsh')
+  if (app.isPackaged || process.env.STITCH_DESKTOP_DEV_APP === '1') app.setAsDefaultProtocolClient('stitch')
   app.on('open-url', (event, url) => {
     event.preventDefault()
-    if (url === 'dsh://open' || url === 'dsh://open/') focusPrimaryWindow()
+    if (url === 'stitch://open' || url === 'stitch://open/') focusPrimaryWindow()
   })
 
   app.on('activate', (_event, hasVisibleWindows) => {
@@ -950,7 +1003,7 @@ async function main(): Promise<void> {
   // Window lifecycle callbacks run while backend startup is pending.
   if (isQuitting()) return
   const window = currentMainWindow()
-  if (window !== undefined && development && process.env.DSH_DESKTOP_OPEN_DEVTOOLS !== '0') {
+  if (window !== undefined && development && process.env.STITCH_DESKTOP_OPEN_DEVTOOLS !== '0') {
     window.webContents.openDevTools({ mode: 'detach' })
   }
   // Automatic checks start once the workspace is up; with the preference off this makes no request.
@@ -962,7 +1015,7 @@ const ownsDesktopInstance = claimDesktopSingleInstance(app, () => { focusPrimary
 if (ownsDesktopInstance) void app.whenReady().then(main).catch(async (error: unknown) => {
   const message = error instanceof Error ? error.message : String(error)
   console.error(error)
-  const diagnosticFile = process.env.DSH_DESKTOP_DIAGNOSTIC_FILE
+  const diagnosticFile = process.env.STITCH_DESKTOP_DIAGNOSTIC_FILE
   if (diagnosticFile !== undefined) {
     await writeFile(diagnosticFile, `${error instanceof Error ? error.stack ?? message : message}\n`).catch(() => undefined)
   }

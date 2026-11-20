@@ -24,7 +24,7 @@ class RouteEchoAdapter extends LlmAdapter {
   }
 
   async * stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
-    const failure = process.env.DSH_TEST_CHILD_FAILURE === '1'
+    const failure = process.env.STITCH_TEST_CHILD_FAILURE === '1'
     // An explicit route carries `max`; the default route leaves the effort to the model.
     const dynamicRoute = options.provider === 'mock'
       && options.model === 'mock-routed'

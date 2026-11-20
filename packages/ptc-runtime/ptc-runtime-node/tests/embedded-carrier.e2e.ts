@@ -5,7 +5,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it, onTestFinished } from 'vitest'
 import { mountRuntime } from './setup.ts'
 
-const runtimePath = process.env.DSH_PACKAGED_RUNTIME ?? ''
+const runtimePath = process.env.STITCH_PACKAGED_RUNTIME ?? ''
 
 describe.skipIf(runtimePath === '')('packaged embedded carrier', () => {
   it('retains state across evaluations through the packaged runtime', async () => {

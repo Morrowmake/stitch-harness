@@ -134,7 +134,7 @@
         "content": [
           {
             "type": "text",
-            "text": "<system-reminder>\nThe following information describes your current session:\n\nCurrent working directory: \"{{cwd}}\".\n\nCurrent DSH file policy: danger-full-access. The DSH file sandbox does not restrict file modifications by available operations.\n\nApproval prompts are disabled in this session: actions that require approval are rejected automatically — do not request sandbox escalation (do not set `sandbox_permissions`).\n</system-reminder>"
+            "text": "<system-reminder>\nThe following information describes your current session:\n\nCurrent working directory: \"{{cwd}}\".\n\nCurrent Stitch file policy: danger-full-access. The Stitch file sandbox does not restrict file modifications by available operations.\n\nApproval prompts are disabled in this session: actions that require approval are rejected automatically — do not request sandbox escalation (do not set `sandbox_permissions`).\n</system-reminder>"
           }
         ],
         "source": {
@@ -147,7 +147,7 @@
             },
             {
               "name": "sandbox:policy",
-              "text": "Current DSH file policy: danger-full-access. The DSH file sandbox does not restrict file modifications by available operations."
+              "text": "Current Stitch file policy: danger-full-access. The Stitch file sandbox does not restrict file modifications by available operations."
             },
             {
               "name": "approval:policy",
@@ -1680,7 +1680,7 @@
             "content": [
               {
                 "type": "text",
-                "text": "<system-reminder>\nThe following information describes your current session:\n\nCurrent working directory: \"{{cwd}}\".\n\nCurrent DSH file policy: danger-full-access. The DSH file sandbox does not restrict file modifications by available operations.\n\nApproval prompts are disabled in this session: actions that require approval are rejected automatically — do not request sandbox escalation (do not set `sandbox_permissions`).\n</system-reminder>"
+                "text": "<system-reminder>\nThe following information describes your current session:\n\nCurrent working directory: \"{{cwd}}\".\n\nCurrent Stitch file policy: danger-full-access. The Stitch file sandbox does not restrict file modifications by available operations.\n\nApproval prompts are disabled in this session: actions that require approval are rejected automatically — do not request sandbox escalation (do not set `sandbox_permissions`).\n</system-reminder>"
               }
             ],
             "source": {
@@ -1693,7 +1693,7 @@
                 },
                 {
                   "name": "sandbox:policy",
-                  "text": "Current DSH file policy: danger-full-access. The DSH file sandbox does not restrict file modifications by available operations."
+                  "text": "Current Stitch file policy: danger-full-access. The Stitch file sandbox does not restrict file modifications by available operations."
                 },
                 {
                   "name": "approval:policy",
@@ -3189,7 +3189,7 @@
             "content": [
               {
                 "type": "text",
-                "text": "<system-reminder>\nThe following information describes your current session:\n\nCurrent working directory: \"{{cwd}}\".\n\nCurrent DSH file policy: danger-full-access. The DSH file sandbox does not restrict file modifications by available operations.\n\nApproval prompts are disabled in this session: actions that require approval are rejected automatically — do not request sandbox escalation (do not set `sandbox_permissions`).\n\nDelegation depth for `subagent`: current 1, maximum 1, remaining levels 0. Do not call `subagent` at this depth; carry out the work directly.\n\nYou are a delegated subagent: your permission scope was fixed when you were started and cannot be widened from inside this session — operations that require approval are rejected automatically. When the task needs access beyond that scope, do not retry the denied operation; state the limitation in your reply so the delegating agent can handle it. Messages from other agents begin with \"Agent <name> sent a message:\". Other user messages come from the human user, who reads this conversation directly. You can still message other agents to coordinate, but answer the human user in your reply.\n</system-reminder>"
+                "text": "<system-reminder>\nThe following information describes your current session:\n\nCurrent working directory: \"{{cwd}}\".\n\nCurrent Stitch file policy: danger-full-access. The Stitch file sandbox does not restrict file modifications by available operations.\n\nApproval prompts are disabled in this session: actions that require approval are rejected automatically — do not request sandbox escalation (do not set `sandbox_permissions`).\n\nDelegation depth for `subagent`: current 1, maximum 1, remaining levels 0. Do not call `subagent` at this depth; carry out the work directly.\n\nYou are a delegated subagent: your permission scope was fixed when you were started and cannot be widened from inside this session — operations that require approval are rejected automatically. When the task needs access beyond that scope, do not retry the denied operation; state the limitation in your reply so the delegating agent can handle it. Messages from other agents begin with \"Agent <name> sent a message:\". Other user messages come from the human user, who reads this conversation directly. You can still message other agents to coordinate, but answer the human user in your reply.\n</system-reminder>"
               }
             ],
             "source": {
@@ -3202,7 +3202,7 @@
                 },
                 {
                   "name": "sandbox:policy",
-                  "text": "Current DSH file policy: danger-full-access. The DSH file sandbox does not restrict file modifications by available operations."
+                  "text": "Current Stitch file policy: danger-full-access. The Stitch file sandbox does not restrict file modifications by available operations."
                 },
                 {
                   "name": "approval:policy",
@@ -4203,7 +4203,7 @@
             "content": [
               {
                 "type": "text",
-                "text": "<system-reminder>\nThe following information describes your current session:\n\nCurrent working directory: \"{{cwd}}\".\n\nCurrent DSH file policy: danger-full-access. The DSH file sandbox does not restrict file modifications by available operations.\n\nApproval prompts are disabled in this session: actions that require approval are rejected automatically — do not request sandbox escalation (do not set `sandbox_permissions`).\n\nDelegation depth for `subagent`: current 1, maximum 1, remaining levels 0. Do not call `subagent` at this depth; carry out the work directly.\n\nYou are a delegated subagent: your permission scope was fixed when you were started and cannot be widened from inside this session — operations that require approval are rejected automatically. When the task needs access beyond that scope, do not retry the denied operation; state the limitation in your reply so the delegating agent can handle it. Messages from other agents begin with \"Agent <name> sent a message:\". Other user messages come from the human user, who reads this conversation directly. You can still message other agents to coordinate, but answer the human user in your reply.\n</system-reminder>"
+                "text": "<system-reminder>\nThe following information describes your current session:\n\nCurrent working directory: \"{{cwd}}\".\n\nCurrent Stitch file policy: danger-full-access. The Stitch file sandbox does not restrict file modifications by available operations.\n\nApproval prompts are disabled in this session: actions that require approval are rejected automatically — do not request sandbox escalation (do not set `sandbox_permissions`).\n\nDelegation depth for `subagent`: current 1, maximum 1, remaining levels 0. Do not call `subagent` at this depth; carry out the work directly.\n\nYou are a delegated subagent: your permission scope was fixed when you were started and cannot be widened from inside this session — operations that require approval are rejected automatically. When the task needs access beyond that scope, do not retry the denied operation; state the limitation in your reply so the delegating agent can handle it. Messages from other agents begin with \"Agent <name> sent a message:\". Other user messages come from the human user, who reads this conversation directly. You can still message other agents to coordinate, but answer the human user in your reply.\n</system-reminder>"
               }
             ],
             "source": {
@@ -4216,7 +4216,7 @@
                 },
                 {
                   "name": "sandbox:policy",
-                  "text": "Current DSH file policy: danger-full-access. The DSH file sandbox does not restrict file modifications by available operations."
+                  "text": "Current Stitch file policy: danger-full-access. The Stitch file sandbox does not restrict file modifications by available operations."
                 },
                 {
                   "name": "approval:policy",

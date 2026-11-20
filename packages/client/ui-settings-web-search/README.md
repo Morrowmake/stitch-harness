@@ -1,5 +1,5 @@
 ---
-description: "The web search and fetch settings page on the dsh web client's Plugins page: the Search and Fetch provider menus and keyless search's optional SearXNG address."
+description: "The web search and fetch settings page on the stitch web client's Plugins page: the Search and Fetch provider menus and keyless search's optional SearXNG address."
 kind: "package-reference"
 ---
 
@@ -69,7 +69,7 @@ None; this package neither assembles nor sends a provider request.
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **Automatic selection reads only the deployment composition** — a menu offers it when the composition layer sets no provider for that capability. While automatic selection applies, the Host's `DSH_WEB_SEARCH_PROVIDER` or `DSH_WEB_FETCH_PROVIDER` environment variable picks the provider instead, and the page does not show that choice.
+- **Automatic selection reads only the deployment composition** — a menu offers it when the composition layer sets no provider for that capability. While automatic selection applies, the Host's `STITCH_WEB_SEARCH_PROVIDER` or `STITCH_WEB_FETCH_PROVIDER` environment variable picks the provider instead, and the page does not show that choice.
 - **The SearXNG address is not probed** — the page checks only its form; an unreachable instance or one without JSON output fails at search time.
 
 <a id="dev-note"></a>

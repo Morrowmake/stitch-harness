@@ -3,29 +3,29 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/user/guide/python-sdk.md
 /get-started-with-the-python-sdk:
-  en: 97975036927be6e3
-  zh: fe37c7bf8844277a
+  en: 2e1d53d7568c2815
+  zh: 44a70448da9d3ed4
 /get-started-with-the-python-sdk/prerequisites:
   en: d0067b97a6a2357a
   zh: c3202d2948400945
 /get-started-with-the-python-sdk/install-the-sdk:
-  en: c2b15716ea155625
-  zh: 0879be26f0afc452
+  en: 71909c674703b97b
+  zh: 9c9d18db802ecf41
 /get-started-with-the-python-sdk/run-the-checked-in-example:
-  en: 7f30a702e1990b88
-  zh: 7dce25cbbd4ed895
+  en: 6f99303c2d484f8b
+  zh: 9cf276712e333e92
 /get-started-with-the-python-sdk/use-the-sdk-in-your-program:
-  en: d1e350be0ba38196
-  zh: 893220ee7b12b12f
+  en: 6564d5e392b75e5f
+  zh: 66cedaccf45ee287
 /get-started-with-the-python-sdk/install-or-define-plugins:
-  en: 592dd306b920cd83
-  zh: 8c22110621c12ba5
+  en: 0c2d74efc82bad4b
+  zh: 68febfac5b835a13
 /get-started-with-the-python-sdk/install-or-define-plugins/opt-in-to-str-replace-editor:
-  en: 83bd8ce585536906
-  zh: 955f9fe02992b387
+  en: 90b32175a7f56cee
+  zh: 01a45410887a148a
 /get-started-with-the-python-sdk/install-or-define-plugins/enable-team-mode:
   en: 820e942903b8660a
   zh: 195b8f6cb00009b8
 /get-started-with-the-python-sdk/understand-the-minimal-profile:
-  en: fec30ba3a415ab1e
-  zh: 61a50e522eb9369f
+  en: 892ebb661eb7b312
+  zh: 0d79ca836e7fb84d

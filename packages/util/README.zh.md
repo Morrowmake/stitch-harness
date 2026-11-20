@@ -37,6 +37,7 @@ kind: "package-group"
 | [`chunked-list/`](chunked-list/README.zh.md) | 通过有界追加复制和检查点校验保留不可变列表版本 |
 | [`values/`](values/README.zh.md) | 校验、创建快照、比较和冻结无损 JSON 兼容值 |
 | [`home-paths/`](home-paths/README.zh.md) | 解析统一的 Harness 主目录并拼接共享的用户数据路径 |
+| [`product/`](product/README.zh.md) | 零依赖、浏览器安全的产品标识常量（名称、CLI 命令、主目录、仓库、URL） |
 | [`http-proxy/`](http-proxy/README.zh.md) | 解析出唯一的出站代理策略，并为 `fetch`、SDK agent（智能体）与 spawn 的子进程安装它 |
 | [`launch-environment/`](launch-environment/README.zh.md) | 冻结的启动环境，记住每个值来自哪一层 |
 | [`atomic-write/`](atomic-write/README.zh.md) | 原子文件替换与跨进程写锁 |

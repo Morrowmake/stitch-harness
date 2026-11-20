@@ -6,7 +6,7 @@ import { expect, it, onTestFinished } from 'vitest'
 import { Config } from '../src/index.ts'
 import { WindowsNativeRuntime } from '../src/native-runtime.ts'
 
-const helperPath = process.env.DSH_CUA_DESKTOP_TEST_HELPER
+const helperPath = process.env.STITCH_CUA_DESKTOP_TEST_HELPER
 it.skipIf(!helperPath)('admits Windows desktop requests through managed WSL or native Windows processes', async () => {
   const ctx = new Context()
   onTestFinished(() => ctx.fiber.dispose())

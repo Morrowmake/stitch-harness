@@ -64,7 +64,7 @@ afterEach(async () => {
 /** Launcher facts of the profile; the launch directory is deliberately not the workspace. */
 const profileContext = {
   name: 'cua-mcp', dir: '/profiles/cua-mcp', patchPath: '/profiles/cua-mcp/cordis.patch.yml',
-  installAnchor: '/dsh/package.json', cwd: '/launch', home: '/home/me/.dsh',
+  installAnchor: '/dsh/package.json', cwd: '/launch', home: '/home/me/.stitch',
   startedBundles: ['@deepseek-ai/dsh-cua-mcp'], overlays: [],
 }
 
@@ -129,9 +129,9 @@ describe('Computer Use MCP startup', () => {
     expect(unknown.stderr.join('')).toContain("unknown option '--print-client-config'")
     expect(unknown.stdout.join('')).toBe('')
     const help = await boot(['--help'])
-    expect(help.stdout.join('')).toContain('Usage: dsh --profile cua-mcp [options]')
-    expect(help.stdout.join('')).toContain('DSH_CUA_CONSENT=allow')
-    expect(help.stdout.join('')).toContain('DSH_CUA_WORKSPACE=/work')
+    expect(help.stdout.join('')).toContain('Usage: stitch --profile cua-mcp [options]')
+    expect(help.stdout.join('')).toContain('STITCH_CUA_CONSENT=allow')
+    expect(help.stdout.join('')).toContain('STITCH_CUA_WORKSPACE=/work')
     expect(help.exit).toHaveBeenCalledWith(0)
     // Neither invocation serves, so readiness creates neither the workspace nor an Agent.
     unknown.ready()
@@ -146,7 +146,7 @@ describe('Computer Use MCP startup', () => {
     relative.ready()
     await vi.waitFor(() => { expect(relative.exit).toHaveBeenCalledWith(1) })
     expect(relative.stderr).toEqual([
-      'dsh: MCP startup failed: the workspace "relative/workspace" is not an absolute directory path; set DSH_CUA_WORKSPACE to an absolute path\n',
+      'stitch: MCP startup failed: the workspace "relative/workspace" is not an absolute directory path; set STITCH_CUA_WORKSPACE to an absolute path\n',
     ])
     // A file occupies the parent, so the directory cannot be created.
     await writeFile(join(scratch, 'occupied'), '')
@@ -155,8 +155,8 @@ describe('Computer Use MCP startup', () => {
     blocked.ready()
     await vi.waitFor(() => { expect(blocked.exit).toHaveBeenCalledWith(1) })
     expect(blocked.stderr).toHaveLength(1)
-    expect(blocked.stderr[0]).toContain(`dsh: MCP startup failed: the workspace directory ${JSON.stringify(occupied)} cannot be created (Error: ENOTDIR`)
-    expect(blocked.stderr[0]).toContain('set DSH_CUA_WORKSPACE to a writable location\n')
+    expect(blocked.stderr[0]).toContain(`stitch: MCP startup failed: the workspace directory ${JSON.stringify(occupied)} cannot be created (Error: ENOTDIR`)
+    expect(blocked.stderr[0]).toContain('set STITCH_CUA_WORKSPACE to a writable location\n')
     expect(blocked.stdout).toEqual([])
     expect(createCuaMcpServer).not.toHaveBeenCalled()
     expect(connect).not.toHaveBeenCalled()
@@ -167,7 +167,7 @@ describe('Computer Use MCP startup', () => {
     const refused = await boot([])
     refused.ready()
     await vi.waitFor(() => { expect(refused.exit).toHaveBeenCalledWith(1) })
-    expect(refused.stderr).toEqual(['dsh: MCP startup failed: registry refused the Agent\n'])
+    expect(refused.stderr).toEqual(['stitch: MCP startup failed: registry refused the Agent\n'])
     expect(connect).not.toHaveBeenCalled()
     await refused.ctx.fiber.dispose()
     // A rejection that is not an Error is reported as its string form.
@@ -175,7 +175,7 @@ describe('Computer Use MCP startup', () => {
     const failing = await boot([])
     failing.ready()
     await vi.waitFor(() => { expect(failing.exit).toHaveBeenCalledWith(1) })
-    expect(failing.stderr).toEqual(['dsh: MCP startup failed: transport start failed\n'])
+    expect(failing.stderr).toEqual(['stitch: MCP startup failed: transport start failed\n'])
     // A transport that fails while the frontend is being disposed is not a startup failure.
     const opening = Promise.withResolvers<undefined>()
     connect.mockImplementationOnce(async () => { await opening.promise })

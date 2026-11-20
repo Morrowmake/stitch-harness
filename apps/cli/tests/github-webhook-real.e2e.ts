@@ -24,7 +24,7 @@ const OVERLAY = fileURLToPath(new URL(
 ))
 const SECRET = 'github-webhook-real-e2e-secret'
 const DELIVERY = 'github-webhook-real-e2e-delivery'
-const MARKER = 'DSH_GITHUB_WEBHOOK_REAL_E2E_OK'
+const MARKER = 'STITCH_GITHUB_WEBHOOK_REAL_E2E_OK'
 const TITLE = 'GitHub webhook real e2e'
 const authenticatedCookies = new Map<string, Promise<{ origin: string; cookie: string }>>()
 
@@ -36,7 +36,7 @@ function authenticatedWeb(launchUrl: string): Promise<{ origin: string; cookie: 
     const response = await fetch(launchUrl, { redirect: 'manual' })
     const setCookie = response.headers.get('set-cookie')
     if (response.status !== 303 || setCookie === null) {
-      throw new Error(`dsh web authentication returned HTTP ${String(response.status)}`)
+      throw new Error(`stitch web authentication returned HTTP ${String(response.status)}`)
     }
     return { origin: new URL(launchUrl).origin, cookie: setCookie.split(';', 1)[0]! }
   })()
@@ -90,7 +90,7 @@ function observeProcess(child: ChildProcess): ProcessObservation {
     rejectReady = reject
   })
   const timer = setTimeout(() => {
-    if (!settled) rejectReady(new Error(`dsh web did not become ready within 90s:\n${output}`))
+    if (!settled) rejectReady(new Error(`stitch web did not become ready within 90s:\n${output}`))
   }, 90_000)
   timer.unref()
   const append = (chunk: Buffer | string): void => {
@@ -107,7 +107,7 @@ function observeProcess(child: ChildProcess): ProcessObservation {
     if (!settled) rejectReady(error)
   })
   child.once('exit', (code) => {
-    if (!settled) rejectReady(new Error(`dsh web exited before readiness (code ${String(code)}):\n${output}`))
+    if (!settled) rejectReady(new Error(`stitch web exited before readiness (code ${String(code)}):\n${output}`))
   })
   return { ready, text: () => output }
 }
@@ -277,7 +277,7 @@ async function eventually<T>(
   let lastError: unknown
   while (Date.now() < deadline) {
     if (child.exitCode !== null) {
-      throw new Error(`dsh web exited while waiting for ${label} (code ${String(child.exitCode)}):\n${processOutput()}`)
+      throw new Error(`stitch web exited while waiting for ${label} (code ${String(child.exitCode)}):\n${processOutput()}`)
     }
     try {
       lastValue = await probe()
@@ -359,7 +359,7 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY)('GitHub webhook through the real 
     const workspacePath = join(root, 'workspace')
     await mkdir(workspacePath)
     const canonicalWorkspacePath = await realpath(workspacePath)
-    const profile = join(root, '.dsh/profiles/web')
+    const profile = join(root, '.stitch/profiles/web')
     initProfile(profile, PROFILE_TEMPLATES.web!.bundles)
     const manifestPath = join(profile, 'package.json')
     const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as { dependencies: Record<string, string> }
@@ -383,12 +383,12 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY)('GitHub webhook through the real 
       cwd: root,
       env: {
         ...process.env,
-        DSH_AGENTS_HOME: join(root, '.agents'),
-        DSH_GITHUB_E2E_MARKER: MARKER,
-        DSH_GITHUB_E2E_WORKSPACE: workspacePath,
-        DSH_GITHUB_WEBHOOK_PORT: String(webhookPort),
-        DSH_GITHUB_WEBHOOK_SECRET: SECRET,
-        DSH_HOME: join(root, '.dsh'),
+        STITCH_AGENTS_HOME: join(root, '.agents'),
+        STITCH_GITHUB_E2E_MARKER: MARKER,
+        STITCH_GITHUB_E2E_WORKSPACE: workspacePath,
+        STITCH_GITHUB_WEBHOOK_PORT: String(webhookPort),
+        STITCH_GITHUB_WEBHOOK_SECRET: SECRET,
+        STITCH_HOME: join(root, '.stitch'),
       },
       stdio: ['ignore', 'pipe', 'pipe'],
     })

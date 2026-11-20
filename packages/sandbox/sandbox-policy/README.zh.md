@@ -122,25 +122,25 @@ kind: "package-reference"
 ##### 只读
 
 ```markdown
-Current DSH file policy: read-only. Any available operation enforced by the DSH file sandbox cannot modify files in the standing mode. Do not refuse a required modification from this policy alone: try an available tool normally and follow any denial and escalation guidance it returns.
+Current Stitch file policy: read-only. Any available operation enforced by the Stitch file sandbox cannot modify files in the standing mode. Do not refuse a required modification from this policy alone: try an available tool normally and follow any denial and escalation guidance it returns.
 ```
 
 ##### 工作区写入
 
 ```markdown
-Current DSH file policy: workspace-write. Any available operation enforced by the DSH file sandbox may modify files under the session workspace: "<workspace root>". Some platform temporary areas may also be writable.
+Current Stitch file policy: workspace-write. Any available operation enforced by the Stitch file sandbox may modify files under the session workspace: "<workspace root>". Some platform temporary areas may also be writable.
 ```
 
 ##### 带额外目录的工作区写入
 
 ```markdown
-Current DSH file policy: workspace-write. Any available operation enforced by the DSH file sandbox may modify files under the session workspace: "<workspace root>". Additional writable directories: ["/repo/.git"]. On Windows, these additional grants apply to file tools only, not sandboxed processes. Some platform temporary areas may also be writable.
+Current Stitch file policy: workspace-write. Any available operation enforced by the Stitch file sandbox may modify files under the session workspace: "<workspace root>". Additional writable directories: ["/repo/.git"]. On Windows, these additional grants apply to file tools only, not sandboxed processes. Some platform temporary areas may also be writable.
 ```
 
 ##### 完全访问
 
 ```markdown
-Current DSH file policy: danger-full-access. The DSH file sandbox does not restrict file modifications by available operations.
+Current Stitch file policy: danger-full-access. The Stitch file sandbox does not restrict file modifications by available operations.
 ```
 
 #### Token 影响

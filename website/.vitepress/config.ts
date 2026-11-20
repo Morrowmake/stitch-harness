@@ -161,35 +161,38 @@ const sharedTheme: Pick<DefaultTheme.Config, 'search' | 'socialLinks' | 'editLin
     },
   },
   socialLinks: [
-    { icon: 'github', link: 'https://github.com/deepseek-ai/deepseek-harness' },
+    { icon: 'github', link: 'https://github.com/Morrowmake/stitch-harness' },
   ],
   editLink: {
     pattern: ({ frontmatter }: PageData) => {
       const data: unknown = frontmatter
       const editSource: unknown = typeof data === 'object' && data !== null ? Reflect.get(data, 'editSource') : undefined
       if (typeof editSource !== 'string') throw new Error('Projected documentation page has no editSource frontmatter.')
-      return `https://github.com/deepseek-ai/deepseek-harness/edit/master/${editSource}`
+      return `https://github.com/Morrowmake/stitch-harness/edit/master/${editSource}`
     },
     text: '在 GitHub 上编辑此页',
   },
 }
 
-/** Site base path, carrying the leading and trailing slashes VitePress requires. */
-const base = process.env.DOCS_BASE ?? '/'
+/** Site base path for GitHub Pages, carrying the leading and trailing slashes VitePress requires. */
+const base = process.env.DOCS_BASE ?? '/stitch-harness/'
 
 /** Site identity shared by the VitePress configuration and the llms.txt index. */
 const siteIdentity = {
-  title: 'DeepSeek Harness',
+  title: 'Stitch',
   description: '用于构建 Agent Harness 的插件化 SDK',
 }
 
 /**
- * The DeepSeek wordmark, inlined so its `currentColor` fills follow the active
- * theme. An `<img>` would freeze the mark at the colors the file declares.
+ * The Stitch wordmark in its light- and dark-background variants, inlined so
+ * the navigation bar shows the one matching the active theme.
  */
-const wordmark = readFileSync(resolve(import.meta.dirname, '../public/wordmark.svg'), 'utf8')
-  .trim()
-  .replace('<svg ', '<svg class="dsh-wordmark" ')
+function inlineWordmark(file: string, variant: string): string {
+  return readFileSync(resolve(import.meta.dirname, `../public/${file}`), 'utf8')
+    .trim()
+    .replace('<svg ', `<svg class="dsh-wordmark dsh-wordmark-${variant}" `)
+}
+const wordmark = inlineWordmark('wordmark.svg', 'light') + inlineWordmark('wordmark-dark.svg', 'dark')
 
 /**
  * Head-injected styles for the site identity and sidebar scrollbar.
@@ -203,7 +206,9 @@ const wordmark = readFileSync(resolve(import.meta.dirname, '../public/wordmark.s
  */
 const siteStyle = `
 .dsh-lockup { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
-.dsh-wordmark { display: block; height: 22px; width: auto; color: var(--vp-c-text-1); }
+.dsh-wordmark { display: block; height: 28px; width: auto; }
+.dsh-wordmark-dark, .dark .dsh-wordmark-light { display: none; }
+.dark .dsh-wordmark-dark { display: block; }
 .dsh-tag {
   display: inline-flex;
   align-items: center;
@@ -255,7 +260,7 @@ const scrollbarScript = `
 `
 
 /**
- * Navigation-bar title: the DeepSeek wordmark and the release-stage tag.
+ * Navigation-bar title: the Stitch wordmark and the release-stage tag.
  * VitePress renders `siteTitle` as HTML.
  *
  * @param previewTag - Localized release-stage label.
@@ -331,7 +336,7 @@ export default withMermaid({
             const data: unknown = frontmatter
             const editSource: unknown = typeof data === 'object' && data !== null ? Reflect.get(data, 'editSource') : undefined
             if (typeof editSource !== 'string') throw new Error('Projected documentation page has no editSource frontmatter.')
-            return `https://github.com/deepseek-ai/deepseek-harness/edit/master/${editSource}`
+            return `https://github.com/Morrowmake/stitch-harness/edit/master/${editSource}`
           },
           text: 'Edit this page on GitHub',
         },
@@ -354,7 +359,7 @@ export default withMermaid({
     },
     plugins: [
       {
-        name: 'deepseek-harness-doc-projector',
+        name: 'stitch-doc-projector',
         configureServer(server) {
           watchCanonicalDocs(server)
           serveRawMarkdown(server)

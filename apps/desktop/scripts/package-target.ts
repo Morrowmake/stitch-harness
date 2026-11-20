@@ -24,14 +24,14 @@ import { withMacOSNotarizationProxy } from './macos-notarization-proxy.ts'
 
 const APP_ROOT = resolve(import.meta.dirname, '..')
 const REPOSITORY_ROOT = resolve(APP_ROOT, '..', '..')
-const WINDOWS_SIGNING_ENV_PREFIX = 'DSH_DESKTOP_WINDOWS_'
+const WINDOWS_SIGNING_ENV_PREFIX = 'STITCH_DESKTOP_WINDOWS_'
 const WINDOWS_SIGNING_ENV_NAMES = [
-  'DSH_DESKTOP_WINDOWS_CER_FILE',
-  'DSH_DESKTOP_WINDOWS_KEY_CONTAINER',
-  'DSH_DESKTOP_WINDOWS_SIGNTOOL',
-  'DSH_DESKTOP_WINDOWS_TOKEN_PIN',
-  'DSH_DESKTOP_WINDOWS_SIGNATURE_CACHE_DIR',
-  'DSH_DESKTOP_WINDOWS_SIGNATURE_CACHE_CONCURRENCY',
+  'STITCH_DESKTOP_WINDOWS_CER_FILE',
+  'STITCH_DESKTOP_WINDOWS_KEY_CONTAINER',
+  'STITCH_DESKTOP_WINDOWS_SIGNTOOL',
+  'STITCH_DESKTOP_WINDOWS_TOKEN_PIN',
+  'STITCH_DESKTOP_WINDOWS_SIGNATURE_CACHE_DIR',
+  'STITCH_DESKTOP_WINDOWS_SIGNATURE_CACHE_CONCURRENCY',
 ] as const
 
 /** `--build-version` value that numbers a build after the ones already taken. */
@@ -90,15 +90,15 @@ export function withoutWindowsSigningEnvironment(environment: NodeJS.ProcessEnv)
  * @returns Packaging environment without certificate inputs for unsigned builds.
  */
 export function desktopElectronBuilderEnvironment(environment: NodeJS.ProcessEnv, unsigned: boolean): NodeJS.ProcessEnv {
-  const selected: NodeJS.ProcessEnv = { ...environment, DSH_DESKTOP_UNSIGNED: unsigned ? '1' : '0' }
+  const selected: NodeJS.ProcessEnv = { ...environment, STITCH_DESKTOP_UNSIGNED: unsigned ? '1' : '0' }
   // The bundled NSIS decoder cannot extract 7-Zip's automatic ARM64-filtered entries.
-  if (environment.DSH_DESKTOP_TARGET_PLATFORM === 'win32') selected.ELECTRON_BUILDER_7Z_FILTER = 'BCJ'
+  if (environment.STITCH_DESKTOP_TARGET_PLATFORM === 'win32') selected.ELECTRON_BUILDER_7Z_FILTER = 'BCJ'
   if (!unsigned) return selected
   return {
     ...Object.fromEntries(Object.entries(withoutWindowsSigningEnvironment(selected))
-      .filter(([name]) => !/^(?:(?:WIN_)?CSC_|APPLE_|DSH_DESKTOP_MACOS_(?:SIGNING_|TEAM_ID$))/iu.test(name))),
+      .filter(([name]) => !/^(?:(?:WIN_)?CSC_|APPLE_|STITCH_DESKTOP_MACOS_(?:SIGNING_|TEAM_ID$))/iu.test(name))),
     CSC_IDENTITY_AUTO_DISCOVERY: 'false',
-    DSH_DESKTOP_UNSIGNED: '1',
+    STITCH_DESKTOP_UNSIGNED: '1',
   }
 }
 
@@ -174,6 +174,8 @@ interface DesktopPackageInvocation {
   readonly directory: boolean
   readonly prepareOnly: boolean
   readonly unsigned: boolean
+  /** Unsigned build with the official client profile instead of the local-build badge. */
+  readonly official: boolean
   readonly skipNotarization: boolean
   readonly check: boolean
   /** Build identifier to publish under, when this build does not publish the product version. */
@@ -207,6 +209,7 @@ export function parseDesktopPackageInvocation(
       dir: { type: 'boolean', default: false },
       'prepare-only': { type: 'boolean', default: false },
       unsigned: { type: 'boolean', default: false },
+      official: { type: 'boolean', default: false },
       'skip-notarization': { type: 'boolean', default: false },
       check: { type: 'boolean', default: false },
       'build-version': { type: 'string' },
@@ -215,6 +218,9 @@ export function parseDesktopPackageInvocation(
   if (positionals.length > 1) throw new Error('desktop package: expected at most one target')
   const name = positionals[0] ?? hostTargetName(hostPlatform, hostArch)
   if (values.unsigned && values['prepare-only']) throw new Error('desktop package: --unsigned cannot use --prepare-only')
+  if (values.official && !values.unsigned) {
+    throw new Error('desktop package: --official selects the official client profile for --unsigned builds; signed builds always use it')
+  }
   if (values['skip-notarization'] && (name === 'win-x64' || values.unsigned || values['prepare-only'])) {
     throw new Error('desktop package: --skip-notarization requires a signed macOS build, without --prepare-only')
   }
@@ -227,6 +233,7 @@ export function parseDesktopPackageInvocation(
     directory: values.dir,
     prepareOnly: values['prepare-only'],
     unsigned: values.unsigned,
+    official: values.official,
     skipNotarization: values['skip-notarization'],
     check: values.check,
     requestedBuildVersion,
@@ -330,7 +337,7 @@ async function main(): Promise<void> {
   environment[DESKTOP_BUILD_VERSION_ENV] = buildVersion
   if (invocation.check) {
     validateDesktopPackageEnvironment(environment, target, invocation)
-    await requireDesktopToolchain(target.platform, environment)
+    await requireDesktopToolchain(target.platform, environment, { computerUseHelper: invocation.unsigned })
     process.stdout.write(`desktop package: ${target.name} would publish ${buildVersion}; local configuration and toolchain valid, signing and notarization were not attempted\n`)
     return
   }
@@ -339,19 +346,19 @@ async function main(): Promise<void> {
   Object.assign(environment, desktopBuildCommitEnvironment(packaged))
   const secrets = Object.entries(environment).filter(([name]) => /KEY|SECRET|TOKEN|PASSWORD|APPLE_ID/iu.test(name)).map(([, value]) => value ?? '')
   const run = createPackagingRun(join(APP_ROOT, '.desktop-build', 'packaging-runs'), {
-    target: target.name, unsigned: invocation.unsigned, skipNotarization: invocation.skipNotarization,
+    target: target.name, unsigned: invocation.unsigned, official: invocation.official, skipNotarization: invocation.skipNotarization,
     directory: invocation.directory, prepareOnly: invocation.prepareOnly,
     version: buildVersion, productVersion, node: process.version,
     commit: packaged.commit,
     dirty: packaged.dirty,
   }, { parallel: true, secrets })
   console.log(`DESKTOP_PACKAGING_RECORD ${run.directory}`)
-  const previousDirectory = process.env.DSH_DESKTOP_PACKAGING_RUN_DIR
-  process.env.DSH_DESKTOP_PACKAGING_RUN_DIR = run.directory
+  const previousDirectory = process.env.STITCH_DESKTOP_PACKAGING_RUN_DIR
+  process.env.STITCH_DESKTOP_PACKAGING_RUN_DIR = run.directory
   let success = false
   try {
     await packagingStep(run.directory, 'configuration', async () => { validateDesktopPackageEnvironment(environment, target, invocation) }, secrets)
-    await packagingStep(run.directory, 'toolchain', () => requireDesktopToolchain(target.platform, environment), secrets)
+    await packagingStep(run.directory, 'toolchain', () => requireDesktopToolchain(target.platform, environment, { computerUseHelper: invocation.unsigned }), secrets)
     if (target.platform === 'darwin') {
       const settings = resolveMacOSPackageSettings(environment)
       recordPackagingEvent(run.directory, { type: 'macos-settings', packConcurrency: settings.packConcurrency, zipCompressionLevel: settings.zipCompressionLevel,
@@ -369,15 +376,16 @@ async function main(): Promise<void> {
     process.stderr.write(`desktop package: failed; see ${run.directory}/events.jsonl\n`)
     process.exitCode = 1
   } finally {
-    if (previousDirectory === undefined) delete process.env.DSH_DESKTOP_PACKAGING_RUN_DIR
-    else process.env.DSH_DESKTOP_PACKAGING_RUN_DIR = previousDirectory
+    if (previousDirectory === undefined) delete process.env.STITCH_DESKTOP_PACKAGING_RUN_DIR
+    else process.env.STITCH_DESKTOP_PACKAGING_RUN_DIR = previousDirectory
     run.finish(success)
   }
   if (success && target.platform === 'darwin' && !invocation.directory && !invocation.prepareOnly) {
     const paths = desktopTargetBuildPaths(target.name, environment)
     const output = desktopArtifactOutput(paths, invocation)
-    const filename = `deepseek-harness-${buildVersion}-mac-${target.arch}${output.suffix}.dmg`
-    console.log(`DMG: ${join(output.directory, filename)}`)
+    const basename = `stitch-${buildVersion}-mac-${target.arch}${output.suffix}`
+    console.log(`DMG: ${join(output.directory, `${basename}.dmg`)}`)
+    console.log(`ZIP: ${join(output.directory, `${basename}.zip`)}`)
   }
 }
 
@@ -395,7 +403,7 @@ export async function packageTarget(
 ): Promise<void> {
   const { target } = invocation
   const execute = (args: readonly string[], env: NodeJS.ProcessEnv, cwd: string = APP_ROOT) => runPnpm(args, env, cwd, run)
-  const journal = target.platform === 'darwin' ? process.env.DSH_DESKTOP_PACKAGING_RUN_DIR : undefined
+  const journal = target.platform === 'darwin' ? process.env.STITCH_DESKTOP_PACKAGING_RUN_DIR : undefined
   const proxyEvent = (status: string) => { if (journal) recordPackagingEvent(journal, { type: 'notarization-proxy', status }) }
   const mac = target.platform === 'darwin' ? resolveMacOSPackageSettings(environment) : undefined
   const packConcurrency = mac?.packConcurrency ?? resolveWindowsPackageSettings(environment).packConcurrency
@@ -410,9 +418,9 @@ export async function packageTarget(
   const buildEnv = withoutWindowsSigningEnvironment(desktopElectronBuilderEnvironment(environment, invocation.unsigned))
   const targetEnv: NodeJS.ProcessEnv = {
     ...buildEnv,
-    DSH_DESKTOP_MACOS_SKIP_NOTARIZATION: invocation.skipNotarization ? '1' : '0',
-    DSH_DESKTOP_TARGET_PLATFORM: target.platform,
-    DSH_DESKTOP_TARGET_ARCH: target.arch,
+    STITCH_DESKTOP_MACOS_SKIP_NOTARIZATION: invocation.skipNotarization ? '1' : '0',
+    STITCH_DESKTOP_TARGET_PLATFORM: target.platform,
+    STITCH_DESKTOP_TARGET_ARCH: target.arch,
   }
   const downloadEnv = macOSDownloadEnvironment(targetEnv, mac?.downloadProxy)
   const electronBuilderEnv = desktopElectronBuilderEnvironment(downloadEnv, invocation.unsigned)
@@ -451,20 +459,31 @@ export async function packageTarget(
         { cwd: APP_ROOT, env: electronBuilderEnv, timeoutMs: 60_000 })
     })
   }
-  await execute(invocation.unsigned ? ['run', 'build', '--profile', 'local'] : ['run', 'build:official'], buildEnv, REPOSITORY_ROOT)
+  const localProfile = invocation.unsigned && !invocation.official
+  await execute(localProfile ? ['run', 'build', '--profile', 'local'] : ['run', 'build:official'], buildEnv, REPOSITORY_ROOT)
   let preparationFailure: { error: unknown } | undefined
   const executePreparation = async (args: readonly string[], env: NodeJS.ProcessEnv, cwd?: string): Promise<void> => {
     if (preparationFailure !== undefined) throw preparationFailure.error
     try { await execute(args, env, cwd) }
     catch (error) { preparationFailure ??= { error }; throw error }
   }
+  // Unsigned builds compile the Computer Use helper for their target into the provider's native/bin just for
+  // packing it, then remove it again; signed releases stage the notarized helper themselves.
+  const unsignedHelper = invocation.unsigned ? ['exec', 'tsx', 'scripts/cua-helper/build-unsigned.ts'] : undefined
   const pack = async (): Promise<void> => {
-    await executePreparation([
-      ...(invocation.unsigned
-        ? ['exec', 'tsx', 'apps/desktop/scripts/pack-local-packages.ts']
-        : ['run', 'release:pack', '--family', 'dsh']),
-      '--out', buildPaths.packedDsh, ...packArguments,
-    ], buildEnv, REPOSITORY_ROOT)
+    if (unsignedHelper !== undefined) {
+      await executePreparation([...unsignedHelper, '--arch', target.arch], buildEnv, REPOSITORY_ROOT)
+    }
+    try {
+      await executePreparation([
+        ...(localProfile
+          ? ['exec', 'tsx', 'apps/desktop/scripts/pack-local-packages.ts']
+          : ['run', 'release:pack', '--family', 'dsh']),
+        '--out', buildPaths.packedDsh, ...packArguments,
+      ], buildEnv, REPOSITORY_ROOT)
+    } finally {
+      if (unsignedHelper !== undefined) await execute([...unsignedHelper, '--clean'], buildEnv, REPOSITORY_ROOT)
+    }
     await executePreparation([
       '--dir',
       'apps/desktop-host',
@@ -518,13 +537,13 @@ export async function packageTarget(
   } else if (target.platform === 'darwin' && !invocation.unsigned && !invocation.skipNotarization) {
     await execute([...desktopElectronBuilderArguments(target, true), '--config.mac.notarize=false'], electronBuilderEnv)
     await execute(['exec', 'tsx', 'scripts/smoke-packaged-runtime.ts'], targetEnv)
-    const appPath = join(buildPaths.artifacts, target.arch === 'arm64' ? 'mac-arm64' : 'mac', 'DeepSeek Harness.app')
+    const appPath = join(buildPaths.artifacts, target.arch === 'arm64' ? 'mac-arm64' : 'mac', 'Stitch.app')
     await withMacOSNotarizationProxy(mac?.notarizationProxy,
       () => notarizeMacOS({ appPath, ...resolveMacOSNotarizationEnvironment(environment) }), undefined, undefined, proxyEvent)
   } else {
     if (target.platform === 'darwin' && invocation.skipNotarization && !invocation.directory) {
       await execute(desktopElectronBuilderArguments(target, true), electronBuilderEnv)
-      const appPath = join(artifactsRoot, target.arch === 'arm64' ? 'mac-arm64' : 'mac', 'DeepSeek Harness.app')
+      const appPath = join(artifactsRoot, target.arch === 'arm64' ? 'mac-arm64' : 'mac', 'Stitch.app')
       for (const format of ['dmg', 'zip'] as const) {
         await buildMacArtifact({ format, appPath, output: artifactsRoot })
       }

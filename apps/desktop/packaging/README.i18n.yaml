@@ -12,41 +12,47 @@
   en: 675416ce293f2416
   zh: 0c1c233f1b3109c2
 /desktop-packaging/table-of-contents:
-  en: 73561a4bfa7f2360
-  zh: a19a2302e207cff3
+  en: 3cd354d5cbe9c9e8
+  zh: f09e252ff835a64b
 /desktop-packaging/choose-a-build-path:
-  en: 0b75275de371f4fa
-  zh: c2c5c84d9a24ccef
+  en: 3c753e347a26cb44
+  zh: 1926078ee154890c
 /desktop-packaging/release-versions:
-  en: d068520140a1f730
-  zh: fadd0050ce7ae0a2
+  en: ac078e8c2461d046
+  zh: 42986b245ab60382
 /desktop-packaging/configuration-and-local-builds:
-  en: 61ddcc6cba4b7add
-  zh: d1a92d65d1a63ea3
+  en: 5a98df9619220816
+  zh: 2b4846a87560e7e5
 /desktop-packaging/macos-machine-configuration:
-  en: db0cfdfc4c8b5520
-  zh: 482b5ea5129130a5
+  en: 45aed7fd62588d21
+  zh: 08298076d0c9e8af
 /desktop-packaging/unsigned-windows-test-installer:
-  en: 242c40ea8c1b2dbc
-  zh: 49fc0e05a5b30a2f
+  en: 6adf65f887141c2e
+  zh: 8e7db6b712a1411c
 /desktop-packaging/local-macos-dmg-without-release-signing:
-  en: 8f58e1eb9ae7e20f
-  zh: ef03f49d9bc2d9ac
+  en: d9b9eebf4b223239
+  zh: 46de5d7251361764
+/desktop-packaging/github-release-builds:
+  en: 9af3fa610724e12e
+  zh: 72aa50bcba872ebd
+/desktop-packaging/github-release-builds/update-signing-and-latest-json:
+  en: bffd2b3b5e8732e4
+  zh: 0612f72b3a318574
 /desktop-packaging/macos-release-signing-and-diagnostics:
-  en: 081a4242991de229
-  zh: cb39670fd8202c03
+  en: 0ac984742550fc81
+  zh: ee418ae7db14bd6a
 /desktop-packaging/directory-builds-and-preparation:
-  en: 5860c306375ddd63
-  zh: a76e3cdbbe25c79e
+  en: 36f29c23f038858c
+  zh: 34a54c8b1e390730
 /desktop-packaging/local-official-bundles-from-a-loopback-registry:
-  en: b42f103358d0dfd7
-  zh: a534164ad9eb00da
+  en: d614f595f30d9fc1
+  zh: 01afe958e318f0b4
 /desktop-packaging/runtime-file-selection-and-installation-checks:
-  en: 584e7bab7485c59f
-  zh: 451d63db120ec6f8
+  en: dacccde5db2bb9c9
+  zh: 274419919d32209f
 /desktop-packaging/desktop-runtime-preparation:
-  en: 57455fc1e9802484
-  zh: 170117b47c725c7a
+  en: c0a4f1bcddc91c90
+  zh: 2166a402a498350a
 /desktop-packaging/installation-and-release-verification:
   en: 35f59454b58297d0
   zh: aef39c483002fea3

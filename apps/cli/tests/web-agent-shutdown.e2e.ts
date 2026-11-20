@@ -34,8 +34,8 @@ it.each([
       tsconfigPath: fileURLToPath(new URL('../../../tsconfig.json', import.meta.url)),
       configArgs: ['--profile', 'web', '--patch', patch, '--no-open', '--port', '0'],
       env: {
-        DSH_HOME: join(root, '.dsh'),
-        DSH_AGENTS_HOME: join(root, '.agents'),
+        STITCH_HOME: join(root, '.stitch'),
+        STITCH_AGENTS_HOME: join(root, '.agents'),
       },
     })
     const child = execa(launch.command, launch.args, {
@@ -58,7 +58,7 @@ it.each([
       expect(result.timedOut, result.stderr).toBe(false)
       expect(result.signal, result.stderr).toBeUndefined()
       expect(result.exitCode, result.stderr).toBe(0)
-      expect(result.stderr).not.toMatch(/dsh: fatal|projection registration is not active/u)
+      expect(result.stderr).not.toMatch(/stitch: fatal|projection registration is not active/u)
       const evidence: unknown = JSON.parse(await readFile(resultPath, 'utf8'))
       expect(evidence).toMatchObject({
         abortHandled: 1,

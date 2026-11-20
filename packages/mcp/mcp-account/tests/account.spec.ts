@@ -83,7 +83,7 @@ it('offers Retry only where restarting the server recovers it', () => {
 
 it('fills the section copy with the connector text and the shared line on where authorization completes', () => {
   expect(sectionCopy(COPY)).toEqual({
-    title: 'Acme account', hint: text({ zh: '授权需要在运行 DSH 的这台电脑上的浏览器中完成。' }),
+    title: 'Acme account', hint: text({ zh: '授权需要在运行 Stitch 的这台电脑上的浏览器中完成。' }),
     activation: { title: 'Connect Acme?', body: 'The connector is on.', connect: 'Connect Acme' },
   })
   expect(Object.keys(sectionCopy(COPY).hint)).toEqual(['en', 'zh', 'ja', 'es', 'fr', 'de', 'ru', 'pt'])

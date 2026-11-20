@@ -1,4 +1,4 @@
-/** Real `dsh web` authentication against a temporary Harness home. */
+/** Real `stitch web` authentication against a temporary Harness home. */
 
 import type { ChildProcess } from 'node:child_process'
 import { spawn } from 'node:child_process'
@@ -14,7 +14,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 const REPO_ROOT = fileURLToPath(new URL('../../..', import.meta.url))
-const DSH_SOURCE_BIN = join(REPO_ROOT, 'apps/cli/src/bin.ts')
+const STITCH_SOURCE_BIN = join(REPO_ROOT, 'apps/cli/src/bin.ts')
 const TSX_LOADER = pathToFileURL(createRequire(join(REPO_ROOT, 'package.json')).resolve('tsx')).href
 
 interface RunningWeb {
@@ -54,8 +54,8 @@ function cleanEnvironment(root: string, dshHome: string): NodeJS.ProcessEnv {
     !/(?:KEY|SECRET|TOKEN|PASSWORD)/iu.test(name)))
   return {
     ...env,
-    DSH_AGENTS_HOME: join(root, '.agents'),
-    DSH_HOME: dshHome,
+    STITCH_AGENTS_HOME: join(root, '.agents'),
+    STITCH_HOME: dshHome,
     NODE_NO_WARNINGS: '1',
     SSH_CONNECTION: '',
     SSH_TTY: '',
@@ -67,7 +67,7 @@ function cleanEnvironment(root: string, dshHome: string): NodeJS.ProcessEnv {
 async function startWeb(root: string, dshHome: string, port: number): Promise<RunningWeb> {
   const child = spawn(process.execPath, [
     '--import', TSX_LOADER,
-    DSH_SOURCE_BIN,
+    STITCH_SOURCE_BIN,
     'web',
     '--no-open',
     '--port', String(port),
@@ -86,7 +86,7 @@ async function startWeb(root: string, dshHome: string, port: number): Promise<Ru
       reject(error)
     }
     const timer = setTimeout(() => {
-      fail(new Error(`dsh web did not become ready:\n${redact(output)}`))
+      fail(new Error(`stitch web did not become ready:\n${redact(output)}`))
     }, 90_000)
     const append = (chunk: Buffer | string): void => {
       output = `${output}${String(chunk)}`.slice(-100_000)
@@ -102,7 +102,7 @@ async function startWeb(root: string, dshHome: string, port: number): Promise<Ru
       fail(error)
     })
     child.once('exit', (code) => {
-      fail(new Error(`dsh web exited before readiness (${String(code)}):\n${redact(output)}`))
+      fail(new Error(`stitch web exited before readiness (${String(code)}):\n${redact(output)}`))
     })
   })
   return { child, launchUrl, output: () => output }
@@ -150,10 +150,10 @@ function describeSettings(port: number, host: string, cookie?: string): Promise<
   })
 }
 
-describe('dsh web authentication through the real CLI', () => {
+describe('stitch web authentication through the real CLI', () => {
   it('rejects a forged loopback Host and preserves the browser cookie across restart', { timeout: 180_000 }, async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-web-auth-real-cli-'))
-    const dshHome = join(root, '.dsh')
+    const dshHome = join(root, '.stitch')
     const port = await freePort()
     let first: RunningWeb | undefined
     let second: RunningWeb | undefined

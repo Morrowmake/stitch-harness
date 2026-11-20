@@ -17,7 +17,7 @@ interface NativeCompilerBuild {
 }
 
 /**
- * Recognize a declared package directory inside a DSH source checkout.
+ * Recognize a declared package directory inside a Stitch source checkout.
  * @param packageRoot - Real directory containing the platform package.
  * @param directory - Repository-relative source directory owned by that provider.
  * @returns Whether source compilation is permitted at this location.

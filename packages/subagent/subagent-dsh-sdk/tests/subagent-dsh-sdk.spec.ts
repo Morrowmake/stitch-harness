@@ -18,13 +18,13 @@ import SubagentRuntime from '@deepseek-ai/dsh-subagent'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import type { Agent, AgentOptions } from '@deepseek-ai/dsh-agent'
 import {
-  DeepSeekHarness,
+  Stitch,
   HarnessClient,
   SdkProtocolError,
 } from '@deepseek-ai/dsh-sdk-client'
-import { createProcessDeepSeekHarness } from '../../../sdk/client/src/api.ts'
+import { createProcessStitch } from '../../../sdk/client/src/api.ts'
 import type { RuntimeProcessOptions } from '../../../sdk/client/src/launch.ts'
-import type { DeepSeekHarnessOptions } from '@deepseek-ai/dsh-sdk-client'
+import type { StitchOptions } from '@deepseek-ai/dsh-sdk-client'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import type { ReasoningEffortId } from '@deepseek-ai/dsh-llm/types'
 import * as sdk from '../src/index.ts'
@@ -44,7 +44,7 @@ const existingPatch = fileURLToPath(new URL(
   import.meta.url,
 ))
 const defaultCreateHarness = runInternals.createHarness.bind(runInternals)
-let createdHarnessOptions: DeepSeekHarnessOptions[] = []
+let createdHarnessOptions: StitchOptions[] = []
 
 beforeEach(() => {
   createdHarnessOptions = []
@@ -62,7 +62,7 @@ beforeEach(() => {
       ...options.disposeEofGraceMs === undefined ? {} : { disposeEofGraceMs: options.disposeEofGraceMs },
       ...options.disposeGraceMs === undefined ? {} : { disposeGraceMs: options.disposeGraceMs },
     }
-    return createProcessDeepSeekHarness(runtime, options)
+    return createProcessStitch(runtime, options)
   }
 })
 
@@ -110,7 +110,7 @@ function text(blocks: readonly { type: string; text?: string }[]): string {
 }
 
 function expectedFailure(fields: string): string {
-  return `Subagent failure (provider: DSH SDK; ${fields})`
+  return `Subagent failure (provider: Stitch SDK; ${fields})`
 }
 
 /**
@@ -158,7 +158,7 @@ describe('sdkChildOutcome', () => {
 describe('dsh-subagent-dsh-sdk provider', () => {
   it('constructs the production dsh-backed harness lazily', async () => {
     const harness = defaultCreateHarness({})
-    expect(harness).toBeInstanceOf((await import('@deepseek-ai/dsh-sdk-client')).DeepSeekHarness)
+    expect(harness).toBeInstanceOf((await import('@deepseek-ai/dsh-sdk-client')).Stitch)
     await harness.close()
   })
 
@@ -291,22 +291,22 @@ describe('dsh-subagent-dsh-sdk provider', () => {
   })
 
   it('scrubs ambient credentials but forwards explicit config env', async () => {
-    process.env.DSH_TEST_AMBIENT_SECRET_KEY = 'leak-me-not'
+    process.env.STITCH_TEST_AMBIENT_SECRET_KEY = 'leak-me-not'
     try {
       const ctx = await setup({
-        FAKE_ECHO_ENV: 'DSH_TEST_AMBIENT_SECRET_KEY,DEEPSEEK_API_KEY',
+        FAKE_ECHO_ENV: 'STITCH_TEST_AMBIENT_SECRET_KEY,DEEPSEEK_API_KEY',
         DEEPSEEK_API_KEY: 'explicit-child-key',
         FAKE_TEXT: 'done',
       })
       const run = await startExternalActivation(ctx, 'dsh-sdk', request())
       const result = await run.result
       const answer = text(result.output)
-      expect(answer).toContain('DSH_TEST_AMBIENT_SECRET_KEY=\n')
+      expect(answer).toContain('STITCH_TEST_AMBIENT_SECRET_KEY=\n')
       expect(answer).toContain('DEEPSEEK_API_KEY=explicit-child-key')
       await run.dispose()
       await ctx.fiber.dispose()
     } finally {
-      delete process.env.DSH_TEST_AMBIENT_SECRET_KEY
+      delete process.env.STITCH_TEST_AMBIENT_SECRET_KEY
     }
   })
 
@@ -416,7 +416,7 @@ describe('dsh-subagent-dsh-sdk provider', () => {
 
   it('reports only safe shutdown facts when cancelled startup rollback fails', async () => {
     const rawCleanup = 'cancelled shutdown leaked SECRET_TOKEN'
-    const spy = vi.spyOn(DeepSeekHarness.prototype, 'close').mockImplementation(async function (this: DeepSeekHarness) {
+    const spy = vi.spyOn(Stitch.prototype, 'close').mockImplementation(async function (this: Stitch) {
       spy.mockRestore()
       await this.close()
       throw new Error(rawCleanup)
@@ -450,8 +450,8 @@ describe('dsh-subagent-dsh-sdk provider', () => {
 
   it('keeps an initialize failure authoritative when a later abort flag is already set', async () => {
     const rawFailure = new SdkProtocolError('scripted initialize rejection')
-    const start = vi.spyOn(DeepSeekHarness.prototype, 'start').mockRejectedValue(rawFailure)
-    const close = vi.spyOn(DeepSeekHarness.prototype, 'close').mockResolvedValue()
+    const start = vi.spyOn(Stitch.prototype, 'start').mockRejectedValue(rawFailure)
+    const close = vi.spyOn(Stitch.prototype, 'close').mockResolvedValue()
     try {
       const controller = new AbortController()
       const pending = startSdkRun(request('p', controller.signal), {
@@ -816,7 +816,7 @@ describe('dsh-subagent-dsh-sdk provider', () => {
   it('wraps a shutdown rejection with safe facts after the runtime is reaped', async () => {
     const rawCleanup = 'shutdown failed at /private/path SECRET_TOKEN'
     const ctx = await setup()
-    const spy = vi.spyOn(DeepSeekHarness.prototype, 'close').mockImplementation(async function (this: DeepSeekHarness) {
+    const spy = vi.spyOn(Stitch.prototype, 'close').mockImplementation(async function (this: Stitch) {
       spy.mockRestore()
       await this.close()
       throw new Error(rawCleanup)

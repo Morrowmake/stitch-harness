@@ -3,14 +3,14 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/connector/upstream-skills/README.md
 /:
-  en: 2901b7fe88b3d1e8
-  zh: 231b9b01a75b317f
+  en: eeea3e198c905e0d
+  zh: f8049e42b707258f
 /deepseek-ai-dsh-upstream-skills:
   en: f3158e9291ae2f3d
   zh: 58b89910c6fa6980
 /deepseek-ai-dsh-upstream-skills/summary:
-  en: 2e781eb79b5b8ef9
-  zh: 1e65268707f5eafb
+  en: d26156ef27728a29
+  zh: 89848d5e4b79926b
 /deepseek-ai-dsh-upstream-skills/table-of-contents:
   en: d152484eb41ac6b4
   zh: 5b6bd00fce5371c3
@@ -24,8 +24,8 @@
   en: aef0ab2f2d3a7728
   zh: 81eaa17bae4d8053
 /deepseek-ai-dsh-upstream-skills/use-this-package/register-an-entry-skill:
-  en: a4adb17bd22ccf36
-  zh: 0afd5dbd5e6d4c11
+  en: a837f160604fe142
+  zh: f1995321284ea170
 /deepseek-ai-dsh-upstream-skills/use-this-package/kept-files-and-verification:
   en: 0633b5470e6b4e6c
   zh: 419916b5b305aa7d
@@ -45,8 +45,8 @@
   en: 2a09699bc1130758
   zh: 972fc624936c8c2f
 /deepseek-ai-dsh-upstream-skills/known-limitations-and-deferred-work:
-  en: 31293ef35d3c40da
-  zh: db7b8e190085008e
+  en: 8d0bd9cd8271df59
+  zh: a384b6cec4a810af
 /deepseek-ai-dsh-upstream-skills/known-limitations-and-deferred-work/dev-note:
   en: e67f633dc6fe7773
   zh: e88aeb617ffb74ea

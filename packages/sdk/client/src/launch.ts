@@ -56,12 +56,12 @@ export function resolveDshBinFromManifests(dshManifestUrl: string, clientManifes
   const dshManifest = manifest(dshManifestUrl)
   const clientManifest = manifest(clientManifestUrl)
   if (typeof dshManifest.version !== 'string' || dshManifest.version !== clientManifest.version) {
-    throw new Error(`dsh SDK client ${String(clientManifest.version)} requires the same dsh version, got ${String(dshManifest.version)}`)
+    throw new Error(`Stitch SDK client ${String(clientManifest.version)} requires the same Stitch version, got ${String(dshManifest.version)}`)
   }
   const bin = typeof dshManifest.bin === 'object' && dshManifest.bin !== null
-    ? (dshManifest.bin as Record<string, unknown>).dsh
+    ? (dshManifest.bin as Record<string, unknown>).stitch
     : dshManifest.bin
-  if (typeof bin !== 'string' || bin === '') throw new Error('@deepseek-ai/dsh declares no dsh executable')
+  if (typeof bin !== 'string' || bin === '') throw new Error('@deepseek-ai/dsh declares no stitch executable')
   return resolve(dirname(fileURLToPath(dshManifestUrl)), bin)
 }
 
@@ -145,7 +145,7 @@ export function resolveDshLaunch(
     environment: () => ({
       ...(options.env ?? process.env),
       ...dshLaunch.environment,
-      ...dshHome === undefined ? {} : { DSH_HOME: dshHome },
+      ...dshHome === undefined ? {} : { STITCH_HOME: dshHome },
     }),
     description: `dsh profile ${JSON.stringify(profile)}`,
     initializeTimeoutMs: options.initializeTimeoutMs ?? DEFAULT_INITIALIZE_TIMEOUT_MS,

@@ -1,6 +1,6 @@
 /**
  * Tool-independent shell environment plugin: owns the `ctx.shellEnv` registry of
- * trusted, per-execution `DSH_*` variables consumed by the model-facing shell
+ * trusted, per-execution `STITCH_*` variables consumed by the model-facing shell
  * tools (`dsh-tool-bash`, `dsh-tool-pwsh`). Built-in shell facts are owned by
  * the registry itself while plugins can register additional, enumerable facts
  * with effect-scoped disposal.
@@ -32,7 +32,7 @@ export const inject: string[] = []
 
 /** Plugin config (all optional — the built-in facts resolve without defaults). */
 export interface Config {
-  /** DeepSeek Harness home directory exposed as `DSH_HOME`; defaults to `$DSH_HOME` or `~/.dsh`. */
+  /** Stitch home directory exposed as `STITCH_HOME`; defaults to `$STITCH_HOME` or `~/.stitch`. */
   dshHome?: string
 }
 
@@ -41,7 +41,7 @@ export const Config: z<Config> = z.object({
   dshHome: z.string(),
 })
 
-/** Model-visible metadata for one managed `DSH_*` environment variable. */
+/** Model-visible metadata for one managed `STITCH_*` environment variable. */
 export interface BashEnvVariable {
   /** Concise description of the environment fact represented by the variable. */
   description: string
@@ -55,7 +55,7 @@ export interface BashEnvVariable {
 export interface BashEnvContributor {
   /** Stable contributor name used in diagnostics and duplicate detection. */
   name: string
-  /** Complete set of `DSH_*` keys this contributor may return. */
+  /** Complete set of `STITCH_*` keys this contributor may return. */
   variables: Readonly<Record<DshEnvironmentKey, BashEnvVariable>>
   /**
    * Resolve this contributor's available values for one tool execution.
@@ -69,30 +69,30 @@ export interface BashEnvContributor {
 export interface BashEnvVariableInfo extends BashEnvVariable {
   /** Contributor that owns the variable. */
   contributor: string
-  /** Declared `DSH_*` environment variable name. */
+  /** Declared `STITCH_*` environment variable name. */
   key: DshEnvironmentKey
 }
 
-const DSH_SHELL_KEY = `${DSH_ENV_PREFIX}SHELL` as const
-const DSH_SESSION_ID_KEY = `${DSH_ENV_PREFIX}SESSION_ID` as const
-const DSH_PROFILE_KEY = `${DSH_ENV_PREFIX}PROFILE` as const
-const DSH_PROFILE_DIR_KEY = `${DSH_ENV_PREFIX}PROFILE_DIR` as const
-const DSH_INSTALL_DIR_KEY = `${DSH_ENV_PREFIX}INSTALL_DIR` as const
-const DSH_NODE_EXECUTABLE_KEY = `${DSH_ENV_PREFIX}NODE_EXECUTABLE` as const
+const STITCH_SHELL_KEY = `${DSH_ENV_PREFIX}SHELL` as const
+const STITCH_SESSION_ID_KEY = `${DSH_ENV_PREFIX}SESSION_ID` as const
+const STITCH_PROFILE_KEY = `${DSH_ENV_PREFIX}PROFILE` as const
+const STITCH_PROFILE_DIR_KEY = `${DSH_ENV_PREFIX}PROFILE_DIR` as const
+const STITCH_INSTALL_DIR_KEY = `${DSH_ENV_PREFIX}INSTALL_DIR` as const
+const STITCH_NODE_EXECUTABLE_KEY = `${DSH_ENV_PREFIX}NODE_EXECUTABLE` as const
 const RESERVED_BASH_ENV_KEYS = new Set<DshEnvironmentKey>([
   DSH_HOME_ENV,
-  DSH_SHELL_KEY,
-  DSH_SESSION_ID_KEY,
-  DSH_PROFILE_KEY,
-  DSH_PROFILE_DIR_KEY,
-  DSH_INSTALL_DIR_KEY,
-  DSH_NODE_EXECUTABLE_KEY,
+  STITCH_SHELL_KEY,
+  STITCH_SESSION_ID_KEY,
+  STITCH_PROFILE_KEY,
+  STITCH_PROFILE_DIR_KEY,
+  STITCH_INSTALL_DIR_KEY,
+  STITCH_NODE_EXECUTABLE_KEY,
 ])
 const BASH_ENV_KEY_SUFFIX = /^[A-Z][A-Z0-9_]*$/
 
 /**
- * Registry (`ctx.shellEnv`) for trusted, per-execution `DSH_*` variables.
- * The namespace is rebuilt for every model shell call: ambient `DSH_*` values
+ * Registry (`ctx.shellEnv`) for trusted, per-execution `STITCH_*` variables.
+ * The namespace is rebuilt for every model shell call: ambient `STITCH_*` values
  * are discarded by the executor, then the registry's current snapshot is
  * injected. Built-in shell facts remain owned by the registry itself while
  * plugins can register additional, enumerable facts with effect-scoped
@@ -157,27 +157,27 @@ export class ShellEnvRegistry extends Service {
   }
 
   /**
-   * Build the trusted `DSH_*` snapshot for one shell tool execution.
+   * Build the trusted `STITCH_*` snapshot for one shell tool execution.
    * @param execution - the current tool execution.
    * @returns an immutable environment overlay containing built-ins and current contributions.
    */
   collect(execution: ToolExecution): DshEnvironment {
     const values: Record<DshEnvironmentKey, string> = {
       [DSH_HOME_ENV]: this.dshHome,
-      [DSH_SHELL_KEY]: '1',
+      [STITCH_SHELL_KEY]: '1',
     }
     // A single-executable application runs its embedded entry instead of a script argument. The
     // browser worker image answers no `node:sea`, so the module is looked up at run time.
     const sea = process.getBuiltinModule('node:sea') as typeof import('node:sea') | undefined
-    if (sea === undefined || !sea.isSea()) values[DSH_NODE_EXECUTABLE_KEY] = process.execPath
+    if (sea === undefined || !sea.isSea()) values[STITCH_NODE_EXECUTABLE_KEY] = process.execPath
     if (execution.agent !== undefined) {
-      values[DSH_SESSION_ID_KEY] = execution.agent.session.header.id
+      values[STITCH_SESSION_ID_KEY] = execution.agent.session.header.id
     }
     const profile = this.ctx.get('profileContext')
     if (profile !== undefined) {
-      values[DSH_PROFILE_KEY] = profile.name
-      values[DSH_PROFILE_DIR_KEY] = profile.dir
-      values[DSH_INSTALL_DIR_KEY] = dirname(profile.installAnchor)
+      values[STITCH_PROFILE_KEY] = profile.name
+      values[STITCH_PROFILE_DIR_KEY] = profile.dir
+      values[STITCH_INSTALL_DIR_KEY] = dirname(profile.installAnchor)
     }
 
     for (const contributor of [...this.contributors.values()].sort((left, right) => left.name.localeCompare(right.name))) {

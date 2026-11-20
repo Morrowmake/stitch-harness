@@ -30,7 +30,7 @@ import { parsePublicUrl } from './public-url.ts'
 /** The Web GUI this process serves, provided by the `web-runtime` row. */
 export interface WebApp {
   /**
-   * The URL this GUI advertises, also used for `DSH_WEB_URL` and the startup URL line.
+   * The URL this GUI advertises, also used for `STITCH_WEB_URL` and the startup URL line.
    * @returns the configured `publicUrl`, otherwise the listener origin.
    */
   getAdvertisedUrl(): string
@@ -58,13 +58,13 @@ export interface Config {
   /** Print the URL lines on activation; a non-interactive layer can turn them off. */
   printUrl: boolean
   /**
-   * Register the `DSH_WEB_URL` bash variable naming this GUI. A one-shot
+   * Register the `STITCH_WEB_URL` bash variable naming this GUI. A one-shot
    * non-interactive layer can turn it off when its user is not in the GUI.
    */
   surfaceContext: boolean
   /**
    * Canonical HTTP(S) root to advertise in the printed and opened URL,
-   * `DSH_WEB_URL`, and `webApp.getAdvertisedUrl()`, which supplies the Web GUI
+   * `STITCH_WEB_URL`, and `webApp.getAdvertisedUrl()`, which supplies the Web GUI
    * URL in agent runtime context, e.g. `https://app.example/ui/`, normalized to end in `/`. Configures no routing
    * or authentication; see [public deployments](../README.md#public-deployments).
    * Absent or YAML `null` advertises the bind-address URL.
@@ -80,7 +80,7 @@ export const Config: z<Config> = z.object({
 })
 
 /** Environment variable naming the advertised URL of this Web GUI. */
-const DSH_WEB_URL = 'DSH_WEB_URL' as const
+const STITCH_WEB_URL = 'STITCH_WEB_URL' as const
 
 const BROWSER_OPENER_MODULE = import.meta.resolve('open')
 
@@ -205,7 +205,7 @@ export function apply(ctx: Context, config: Config): void {
     )
   }
   if (ctx.webServer.protocol === 'http:' && !isLoopbackHost(boundHost)) {
-    console.warn(`dsh web: listening on ${boundHost} over plain HTTP; restrict this port to a trusted proxy or network`)
+    console.warn(`stitch web: listening on ${boundHost} over plain HTTP; restrict this port to a trusted proxy or network`)
   }
   // The bind URL belongs to this host. Under SSH, the operator reaches it
   // through a local forwarding address that this process cannot derive.
@@ -219,9 +219,9 @@ export function apply(ctx: Context, config: Config): void {
       runtimeCtx.shellEnv.register({
         name: 'web-runtime',
         variables: {
-          [DSH_WEB_URL]: { description: 'Advertised URL of the DeepSeek Harness Web GUI serving this session.' },
+          [STITCH_WEB_URL]: { description: 'Advertised URL of the Stitch Web GUI serving this session.' },
         },
-        resolve: () => ({ [DSH_WEB_URL]: appRootUrl() }),
+        resolve: () => ({ [STITCH_WEB_URL]: appRootUrl() }),
       })
     })
   }
@@ -242,11 +242,11 @@ export function apply(ctx: Context, config: Config): void {
       }
       const entry = entries.find(entry => entry.open)
       if (handoffBrowser && entry !== undefined) {
-        console.log('dsh web: opening the default browser; pass --no-open to disable')
+        console.log('stitch web: opening the default browser; pass --no-open to disable')
         opening = internals.openBrowser(entry.url, lifetime.signal).catch((error: unknown) => {
           if (lifetime.signal.aborted) return
           const reason = (error instanceof Error ? error.message : String(error)).replaceAll(entry.url, '[login URL]')
-          console.error(`web-app: could not open the default browser because ${reason}; use the dsh web URL printed at startup`)
+          console.error(`web-app: could not open the default browser because ${reason}; use the stitch web URL printed at startup`)
         })
       }
     }
@@ -255,7 +255,7 @@ export function apply(ctx: Context, config: Config): void {
     else {
       void settled.then(async () => {
         if (lifetime.signal.aborted) return
-        await auditStartupEntries(ctx[Context.root], 'dsh web', () => {})
+        await auditStartupEntries(ctx[Context.root], 'stitch web', () => {})
         announceReady()
       }).catch(() => {
         // The Loader/startup audit owns failure diagnostics; failed startup remains unpublished.

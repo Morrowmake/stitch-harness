@@ -18,7 +18,7 @@ export interface TreeTransferActions {
 
 /** Download the acknowledged plan; no model request or host filesystem write is needed. */
 export function exportTree(tree: Tree, annotations: TimelineView['annotations'], sessionId: string): void {
-  const text = Checkpoint.fromTree(tree, annotations, Date.now(), sessionId, process.env.DSH_CLIENT_VERSION).toString()
+  const text = Checkpoint.fromTree(tree, annotations, Date.now(), sessionId, process.env.STITCH_CLIENT_VERSION).toString()
   const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }))
   try {
     const anchor = document.createElement('a')

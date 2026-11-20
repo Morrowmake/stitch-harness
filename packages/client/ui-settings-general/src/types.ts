@@ -8,7 +8,7 @@ export type DesktopUpdateCheckResult =
 
 /** Optional isolated preload API, absent in ordinary browsers. */
 export interface DesktopUpdateBridge {
-  /** @returns The persisted opt-in preference; off unless the user turned it on. */
+  /** @returns The persisted automatic-check preference; on unless the user turned it off. */
   getPreference(): Promise<boolean>
   /**
    * @param enabled - Explicit user choice to persist; enabling triggers an immediate check.

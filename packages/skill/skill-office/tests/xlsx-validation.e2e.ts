@@ -13,8 +13,8 @@ import { expectNoRenderContext, officeCalls, officeImages, officeModelPatches, o
 
 const repo = fileURLToPath(new URL('../../../../', import.meta.url))
 const assetRoot = fileURLToPath(new URL('../assets/', import.meta.url))
-// DSH_PRIMARY_RUNTIME names the same runtime.json + dependencies/ payload used by shipped deployments.
-const runtime = process.env.DSH_PRIMARY_RUNTIME
+// STITCH_PRIMARY_RUNTIME names the same runtime.json + dependencies/ payload used by shipped deployments.
+const runtime = process.env.STITCH_PRIMARY_RUNTIME
 const python = runtime && join(runtime, 'dependencies/python', process.platform === 'win32' ? 'python.exe' : 'bin/python3')
 const seed = `
 import sys
@@ -78,12 +78,12 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY || !runtime).each(['native', 'ptc'
       ],
       processTimeoutMs: 110_000,
       env: {
-        DSH_PRIMARY_RUNTIME: runtime,
-        DSH_PERMISSION_MODE: 'danger-full-access',
-        DSH_HOME: join(controlRoot, 'home'),
-        DSH_AGENTS_HOME: join(controlRoot, 'agents'),
-        HTTP_PROXY: process.env.DSH_OFFICE_TEST_PROXY,
-        HTTPS_PROXY: process.env.DSH_OFFICE_TEST_PROXY,
+        STITCH_PRIMARY_RUNTIME: runtime,
+        STITCH_PERMISSION_MODE: 'danger-full-access',
+        STITCH_HOME: join(controlRoot, 'home'),
+        STITCH_AGENTS_HOME: join(controlRoot, 'agents'),
+        HTTP_PROXY: process.env.STITCH_OFFICE_TEST_PROXY,
+        HTTPS_PROXY: process.env.STITCH_OFFICE_TEST_PROXY,
       },
       async prepare(cwd) {
         await execa(python!, ['-c', seed, kind], { cwd })
@@ -102,7 +102,7 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY || !runtime).each(['native', 'ptc'
         const logs = paths.filter(path => /session\.v\d+\.jsonl$/u.test(path))
         expect(logs).toHaveLength(1)
         const bytes = await readFile(join(sessionRoot, logs[0]!))
-        const traceDir = process.env.DSH_OFFICE_TRACE_DIR
+        const traceDir = process.env.STITCH_OFFICE_TRACE_DIR
         if (traceDir !== undefined) {
           await mkdir(traceDir, { recursive: true })
           await writeFile(join(traceDir, `xlsx-${kind}-${mode}.jsonl`), bytes)

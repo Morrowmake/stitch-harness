@@ -20,10 +20,10 @@ enum StandaloneApplication {
         let support = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask,
                                                   appropriateFor: nil, create: true)
         return try install(source, runtimeKey: runtimeKey,
-                           root: support.appendingPathComponent("DeepSeek Harness/Computer Use"), deadline: deadline)
+                           root: support.appendingPathComponent("Stitch/Computer Use"), deadline: deadline)
     }
 
-    // Published generations remain immutable while any installed DSH version may still run them.
+    // Published generations remain immutable while any installed Stitch version may still run them.
     static func install(_ source: URL, runtimeKey: String, root: URL, deadline: UInt64) throws -> URL {
         let files = FileManager.default
         try files.createDirectory(at: root, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])

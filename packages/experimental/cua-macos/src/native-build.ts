@@ -52,7 +52,7 @@ export interface NativeBuildSpec {
  */
 export async function nativeExecutablePath(directory: string, variant: 'release' | 'dev'): Promise<string> {
   const receipt = NativeApplication.parse(JSON.parse(await readFile(join(directory, 'current.json'), 'utf8')))
-  const application = variant === 'dev' ? 'DSH Computer Use Dev.app' : 'DSH Computer Use.app'
+  const application = variant === 'dev' ? 'Stitch Computer Use Dev.app' : 'Stitch Computer Use.app'
   const executable = join(directory, receipt.bundle, application, 'Contents', 'MacOS', 'dsh-cua-native')
   await access(executable, constants.X_OK)
   return executable
@@ -61,7 +61,7 @@ export async function nativeExecutablePath(directory: string, variant: 'release'
 /**
  * Recognize the repository-owned package location before allowing local compilation.
  * @param packageRoot - Real directory containing the CUA package manifest.
- * @returns True only for a CUA package in a DSH source checkout.
+ * @returns True only for a CUA package in a Stitch source checkout.
  */
 export async function isSourcePackage(packageRoot: string): Promise<boolean> {
   return sourceNativePackage(packageRoot, 'packages/experimental/cua-macos')

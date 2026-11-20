@@ -11,10 +11,10 @@ vi.mock('../scripts/windows-asar-unpack.mjs', async importOriginal => ({
 }))
 
 const ENVIRONMENT = {
-  DSH_DESKTOP_APP_ID: 'com.example.installer',
-  DSH_DESKTOP_TARGET_PLATFORM: 'win32',
-  DSH_DESKTOP_TARGET_ARCH: 'x64',
-  DSH_DESKTOP_UNSIGNED: '1',
+  STITCH_DESKTOP_APP_ID: 'com.example.installer',
+  STITCH_DESKTOP_TARGET_PLATFORM: 'win32',
+  STITCH_DESKTOP_TARGET_ARCH: 'x64',
+  STITCH_DESKTOP_UNSIGNED: '1',
 }
 
 const CONTEXT = { appOutDir: 'out', packager: { getResourcesDir: () => 'out/resources' } }
@@ -51,7 +51,7 @@ describe('packaged runtime verification', () => {
     const { createElectronBuilderConfig } = await import('../scripts/electron-builder-config.mjs')
     verifyDesktopRuntime.mockClear()
     const config = createElectronBuilderConfig(
-      { ...ENVIRONMENT, DSH_DESKTOP_BUILD_VERSION: `${productVersion}.20260921.1` }, 'win32', 'x64')
+      { ...ENVIRONMENT, STITCH_DESKTOP_BUILD_VERSION: `${productVersion}.20260921.1` }, 'win32', 'x64')
     expect(config.extraMetadata).toMatchObject({ version: `${productVersion}.20260921.1` })
     await config.afterPack(CONTEXT as never)
     expect(verifyDesktopRuntime.mock.calls[0]?.[1]).toBe(productVersion)

@@ -1,11 +1,11 @@
 /**
  * Keyless snapshot coverage for the TypeScript SDK path: each scenario spawns
- * the real `dsh --profile sdk` or `sdk-minimal` runtime through
+ * the real `stitch --profile sdk` or `sdk-minimal` runtime through
  * `@deepseek-ai/dsh-sdk-client`, drives recorded turns and standalone commands over stdio JSON-RPC,
  * and pins the SDK `RunResult`, the complete notification stream, and the
  * persisted session logs. Replay serves recorded model
- * responses via `llm-replay` (`cordis.snapshot.yml`); `DSH_SNAPSHOT=record`
- * re-records against the live API; `DSH_SNAPSHOT=refresh` replays committed
+ * responses via `llm-replay` (`cordis.snapshot.yml`); `STITCH_SNAPSHOT=record`
+ * re-records against the live API; `STITCH_SNAPSHOT=refresh` replays committed
  * fixtures and rewrites expected outputs.
  */
 
@@ -55,7 +55,7 @@ import {
   type WorkspaceSnapshotEntry,
 } from '@deepseek-ai/dsh-session-snapshot'
 import {
-  DeepSeekHarness,
+  Stitch,
   type HarnessNotification,
   type NotificationSubscription,
   type RunResult,
@@ -78,14 +78,14 @@ const MINIMAL_BASH_DESCRIPTION = `Run commands in a bash shell
 * Please avoid commands that may produce a very large amount of output.
 * Please run long lived commands in the background, e.g. 'sleep 10 &' or start a server in the background.`
 
-const mode = process.env.DSH_SNAPSHOT ?? 'replay'
+const mode = process.env.STITCH_SNAPSHOT ?? 'replay'
 const recording = mode === 'record'
 const refreshing = mode === 'refresh'
 const sessionWriteMode = recording ? 'record' : refreshing ? 'refresh' : 'replay'
 const RUNTIME_WORKSPACE_ENTRIES = [
   '.agents',
   '.child-dsh',
-  '.dsh',
+  '.stitch',
   '.replay-fixtures',
   '.snapshot-patches',
 ] as const
@@ -107,7 +107,7 @@ interface SdkAssertions {
   approvalOutcomes?: readonly ('allowed-once' | 'rejected')[]
   /** Additional profile patches applied after the shared composition. */
   patches?: readonly string[]
-  /** Captured model-request JSONL filename under this scenario's private DSH home. */
+  /** Captured model-request JSONL filename under this scenario's private Stitch home. */
   modelRequestsFile?: string
   /** Replay caller-owned commands between turns; profile fixtures own any in-turn commands. */
   replayStandaloneCommands?: boolean
@@ -121,7 +121,7 @@ interface SdkAssertions {
   expectedFinalResponse?: string
   /** Environment overrides passed to the runtime subprocess. */
   environment?: Readonly<Record<string, string>>
-  /** A separate DSH SDK child whose persisted session joins the evidence. */
+  /** A separate Stitch SDK child whose persisted session joins the evidence. */
   dshSdkChild?: {
     /** Profile patch materialized for the child runtime. */
     config: string
@@ -149,7 +149,7 @@ const SDK_ASSERTIONS: Readonly<Record<string, SdkAssertions>> = {
   },
   'approval': {
     approvalOutcomes: ['allowed-once', 'rejected'],
-    environment: { DSH_PERMISSION_MODE: 'workspace-write' },
+    environment: { STITCH_PERMISSION_MODE: 'workspace-write' },
     patches: [fileURLToPath(new URL('./approval/runtime.cordis.yml', import.meta.url))],
   },
 
@@ -157,13 +157,13 @@ const SDK_ASSERTIONS: Readonly<Record<string, SdkAssertions>> = {
     expectedFinalResponse: 'SDK snapshot OK',
     runtimeContext: {
       includes: ['Current working directory:'],
-      excludes: ['Current DeepSeek Harness implementation checkout:', 'Current DeepSeek Harness Web GUI URL:'],
+      excludes: ['Current Stitch implementation checkout:', 'Current Stitch Web GUI URL:'],
     },
   },
   'desktop-ptc-context': { expectedFinalResponse: 'SDK snapshot OK' },
   'cua-run-code': {
     expectedFinalResponse: 'The retained application and window report Count: 2. The counter persisted across calls, and the program exposes only tools.cua. The screenshot was attached after the first call.',
-    environment: { DSH_PERMISSION_MODE: 'danger-full-access' },
+    environment: { STITCH_PERMISSION_MODE: 'danger-full-access' },
     patches: [fileURLToPath(new URL('./cua-run-code/runtime.cordis.yml', import.meta.url))],
   },
   'manual-compact': {
@@ -174,34 +174,34 @@ const SDK_ASSERTIONS: Readonly<Record<string, SdkAssertions>> = {
   },
   'permission-switch': {
     expectedFinalResponse: 'SDK_PERMISSION_OK',
-    environment: { DSH_PERMISSION_MODE: 'danger-full-access' },
+    environment: { STITCH_PERMISSION_MODE: 'danger-full-access' },
     patches: [fileURLToPath(new URL('./permission-switch/capture.cordis.yml', import.meta.url))],
     modelRequestsFile: 'permission-requests.jsonl',
     replayStandaloneCommands: true,
   },
   'command-identity': {
     expectedFinalResponse: 'SDK_PERMISSION_OK',
-    environment: { DSH_PERMISSION_MODE: 'danger-full-access' },
+    environment: { STITCH_PERMISSION_MODE: 'danger-full-access' },
     patches: [fileURLToPath(new URL('./command-identity/runtime.cordis.yml', import.meta.url))],
     modelRequestsFile: 'command-identity-requests.jsonl',
     replayStandaloneCommands: true,
   },
   'plan-review': {
     expectedFinalResponse: 'SDK_PLAN_OK',
-    environment: { DSH_PERMISSION_MODE: 'workspace-write' },
+    environment: { STITCH_PERMISSION_MODE: 'workspace-write' },
     patches: [fileURLToPath(new URL('./plan-review/capture.cordis.yml', import.meta.url))],
     modelRequestsFile: 'plan-requests.jsonl',
     replayStandaloneCommands: true,
     planReviews: ['keep', 'approve', 'dismiss'],
   },
   'goal-rounds': {
-    environment: { DSH_PERMISSION_MODE: 'workspace-write' },
+    environment: { STITCH_PERMISSION_MODE: 'workspace-write' },
     patches: [fileURLToPath(new URL('./goal-rounds/capture.cordis.yml', import.meta.url))],
     modelRequestsFile: 'goal-requests.jsonl',
     replayStandaloneCommands: true,
   },
   'command-attachments': {
-    environment: { DSH_PERMISSION_MODE: 'workspace-write' },
+    environment: { STITCH_PERMISSION_MODE: 'workspace-write' },
     patches: [fileURLToPath(new URL('./command-attachments/capture.cordis.yml', import.meta.url))],
     modelRequestsFile: 'command-attachment-requests.jsonl',
     replayStandaloneCommands: true,
@@ -243,24 +243,24 @@ const SDK_ASSERTIONS: Readonly<Record<string, SdkAssertions>> = {
     patches: [fileURLToPath(new URL('./subagent-spawn-in-process/runtime.cordis.yml', import.meta.url))],
   },
   'subagent-continuable': {
-    environment: { DSH_SNAPSHOT_HUMAN_STEER: '1' },
+    environment: { STITCH_SNAPSHOT_HUMAN_STEER: '1' },
   },
   'subagent-dsh-sdk-diagnostic': {
     expectedFinalResponse: 'PARENT_OBSERVED_DSH_SDK_DIAGNOSTIC',
-    environment: { DSH_TEST_CHILD_PATCH: dshSdkDiagnosticChildPatch },
+    environment: { STITCH_TEST_CHILD_PATCH: dshSdkDiagnosticChildPatch },
   },
   'persistent-tools': {
-    environment: { DSH_SYSTEM_PROMPT: MINIMAL_SYSTEM_PROMPT },
+    environment: { STITCH_SYSTEM_PROMPT: MINIMAL_SYSTEM_PROMPT },
     expectedTools: { bash: ['command'], str_replace_editor: ['command', 'path'] },
     expectedSystem: MINIMAL_SYSTEM_PROMPT,
     expectedToolDescriptions: { bash: MINIMAL_BASH_DESCRIPTION },
     runtimeContext: {
-      includes: ['Current working directory:', 'Current DSH file policy: danger-full-access', 'Approval prompts are disabled in this session'],
+      includes: ['Current working directory:', 'Current Stitch file policy: danger-full-access', 'Approval prompts are disabled in this session'],
       excludes: ['workspace-write'],
     },
   },
   'subagent-dsh-sdk-dynamic-route': {
-    environment: { DSH_TEST_PARENT_PROVIDER: 'deepseek-official' },
+    environment: { STITCH_TEST_PARENT_PROVIDER: 'deepseek-official' },
     dshSdkChild: {
       config: dshSdkChildConfig,
       agentConfig: {
@@ -272,7 +272,7 @@ const SDK_ASSERTIONS: Readonly<Record<string, SdkAssertions>> = {
     },
   },
   'subagent-dsh-sdk-empty-route': {
-    environment: { DSH_TEST_PARENT_PROVIDER: 'deepseek-official', DSH_TEST_PARENT_ROUTE_SCRIPT: 'empty-after-denied' },
+    environment: { STITCH_TEST_PARENT_PROVIDER: 'deepseek-official', STITCH_TEST_PARENT_ROUTE_SCRIPT: 'empty-after-denied' },
     dshSdkChild: {
       config: dshSdkChildConfig,
       agentConfig: {
@@ -775,7 +775,7 @@ async function runScenario(scenario: CorpusScenario): Promise<{
   }
   const cwd = await realpath(await mkdtemp(join(workspaceParent, workspacePrefix)))
   if (fixedWidthCwd) expect(JSON.stringify(cwd)).toHaveLength(192)
-  const dshHome = join(cwd, '.dsh')
+  const dshHome = join(cwd, '.stitch')
   const sessionsRoot = join(dshHome, 'sessions')
   const replayFixtures = recording ? [] : await hydrateReplayFixtures(scenario, cwd)
   const fixtureContents = await Promise.all((await fixtureFiles(scenario)).map(file => readFile(file, 'utf8')))
@@ -801,8 +801,8 @@ async function runScenario(scenario: CorpusScenario): Promise<{
     await mkdir(childHome, { recursive: true })
     childSessionsRoot = join(childHome, 'sessions')
     childEnvironment = {
-      DSH_TEST_CHILD_PATCHES: JSON.stringify([legacyChildPatch, childPatch]),
-      DSH_TEST_CHILD_HOME: childHome,
+      STITCH_TEST_CHILD_PATCHES: JSON.stringify([legacyChildPatch, childPatch]),
+      STITCH_TEST_CHILD_HOME: childHome,
     }
   }
   const workspaceDir = join(scenario.dir, 'workspace')
@@ -831,22 +831,22 @@ async function runScenario(scenario: CorpusScenario): Promise<{
   if (firstTurn !== undefined) await prepareTurnReplay(firstTurn.turn)
   const env: Record<string, string> = {
     ...Object.fromEntries(Object.entries(process.env).filter(([, value]) => value !== undefined)) as Record<string, string>,
-    DSH_SNAPSHOT: mode,
-    DSH_SNAPSHOT_PROVIDER: route.provider,
-    DSH_SNAPSHOT_MODEL: route.model,
-    DSH_AGENTS_HOME: join(cwd, '.agents'),
+    STITCH_SNAPSHOT: mode,
+    STITCH_SNAPSHOT_PROVIDER: route.provider,
+    STITCH_SNAPSHOT_MODEL: route.model,
+    STITCH_AGENTS_HOME: join(cwd, '.agents'),
     NODE_OPTIONS: [process.env.NODE_OPTIONS, '--disable-warning=ExperimentalWarning'].filter(Boolean).join(' '),
     ...parentFixture === undefined ? {} : {
-      DSH_SNAPSHOT_FILE: parentFixture,
-      ...childFixtures.length > 0 ? { DSH_SNAPSHOT_CHILD_FILES: childFixtures.join(delimiter) } : {},
+      STITCH_SNAPSHOT_FILE: parentFixture,
+      ...childFixtures.length > 0 ? { STITCH_SNAPSHOT_CHILD_FILES: childFixtures.join(delimiter) } : {},
     },
     ...!recording && scenario.manifest.replay?.override === true
-      ? { DSH_SNAPSHOT_OVERRIDE: join(scenario.dir, 'replay.override.json') }
+      ? { STITCH_SNAPSHOT_OVERRIDE: join(scenario.dir, 'replay.override.json') }
       : {},
     ...scenario.manifest.environment,
     ...assertions.environment,
     ...childEnvironment,
-    ...resumeReplayFile === undefined ? {} : { DSH_SNAPSHOT_OVERRIDE: resumeReplayFile },
+    ...resumeReplayFile === undefined ? {} : { STITCH_SNAPSHOT_OVERRIDE: resumeReplayFile },
   }
 
   const planReviews = assertions.planReviews === undefined ? undefined : [...assertions.planReviews]
@@ -863,7 +863,7 @@ async function runScenario(scenario: CorpusScenario): Promise<{
       return { answers: [{ id: question.id, selected: [choice === 'approve' ? 'Approve' : 'Keep planning'],
         ...choice === 'keep' ? { custom: 'Add rollback.' } : {} }] }
     }
-  const createHarness = (model = route.model): DeepSeekHarness => new DeepSeekHarness({
+  const createHarness = (model = route.model): Stitch => new Stitch({
     profile: scenario.manifest.profile,
     ...(assertions.approvalOutcomes === undefined ? {} : { approvalRequests: true }),
     patches,
@@ -1022,7 +1022,7 @@ async function runScenario(scenario: CorpusScenario): Promise<{
             data: { turn: 2, message: { content: [{ type: 'text', text: 'SUBAGENT_SETTLED_NOTED' }] } },
           })
         }
-        if (scenario.manifest.environment?.DSH_SNAPSHOT_FEEDBACK === '1') {
+        if (scenario.manifest.environment?.STITCH_SNAPSHOT_FEEDBACK === '1') {
           const feedback = result.events.filter(event => event.type.startsWith('feedback/'))
           expect(feedback.map(event => event.type)).toEqual([
             'feedback/record', 'feedback/record', 'feedback/message-put', 'feedback/message-put', 'feedback/message-delete',
@@ -1207,7 +1207,7 @@ describe('TypeScript SDK snapshots over the jsonrpc runtime', () => {
       && (scenario.manifest.recording === 'authored' || scenario.manifest.sessionFormat !== undefined)
       ? it.skip
       : it
-    scenarioTest(`${mode}s ${scenario.name} through dsh --profile ${scenario.manifest.profile}`, async () => {
+    scenarioTest(`${mode}s ${scenario.name} through stitch --profile ${scenario.manifest.profile}`, async () => {
       const scenarioDir = scenario.dir
       const retained = scenario.manifest.sessionFormat !== undefined
       const notificationsExpectedPath = join(scenarioDir, retained ? 'notifications.current.expected.jsonl' : 'notifications.expected.jsonl')
@@ -1406,7 +1406,7 @@ describe('TypeScript SDK snapshots over the jsonrpc runtime', () => {
         }
         const runtimeContexts = continuationMessages.filter(message => (message.source as JsonObject | undefined)?.kind === 'runtime-context')
         const runtimeText = JSON.stringify(runtimeContexts.at(-1))
-        expect(runtimeText).toContain('Current DSH file policy: read-only.')
+        expect(runtimeText).toContain('Current Stitch file policy: read-only.')
         const texts = continuationMessages.flatMap(message => message.content as JsonObject[])
           .flatMap(block => block.type === 'text' ? [block.text] : [])
         expect(texts).toContain('SDK_PERMISSION_READY')

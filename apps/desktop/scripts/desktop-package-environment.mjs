@@ -13,10 +13,10 @@ import { resolveWindowsPackageSettings } from './windows-package-settings.mjs'
 import { resolveDesktopTargetBuildPaths } from './desktop-build-paths.mjs'
 
 const APP_ROOT = fileURLToPath(new URL('..', import.meta.url))
-const SHARED_SETTING = /^DSH_DESKTOP_(?:APP_ID|NPM_REGISTRY)$/u
-const WINDOWS_SETTING = /^DSH_DESKTOP_WINDOWS_(?:CER_FILE|SIGNTOOL|KEY_CONTAINER|TOKEN_PIN|SIGNATURE_CACHE_DIR|SIGNATURE_CACHE_CONCURRENCY|PACK_CONCURRENCY|COMPRESSION_LEVEL)$/u
-const MACOS_SETTING = /^(?:DSH_DESKTOP_MACOS_(?:SIGNING_IDENTITY|TEAM_ID|SIGNATURE_CACHE_DIR|PACK_CONCURRENCY|ZIP_COMPRESSION_LEVEL|DOWNLOAD_PROXY|NOTARIZATION_PROXY)|APPLE_(?:API_KEY|API_KEY_ID|API_ISSUER|ID|APP_SPECIFIC_PASSWORD|TEAM_ID|KEYCHAIN|KEYCHAIN_PROFILE)|CSC_(?:LINK|KEY_PASSWORD))$/u
-const AMBIENT_RELEASE_SETTING = /^(?:DSH_DESKTOP_(?:APP_ID|WINDOWS_.*|MACOS_.*)|APPLE_.*|(?:WIN_)?CSC_.*)$/iu
+const SHARED_SETTING = /^STITCH_DESKTOP_(?:APP_ID|NPM_REGISTRY)$/u
+const WINDOWS_SETTING = /^STITCH_DESKTOP_WINDOWS_(?:CER_FILE|SIGNTOOL|KEY_CONTAINER|TOKEN_PIN|SIGNATURE_CACHE_DIR|SIGNATURE_CACHE_CONCURRENCY|PACK_CONCURRENCY|COMPRESSION_LEVEL)$/u
+const MACOS_SETTING = /^(?:STITCH_DESKTOP_MACOS_(?:SIGNING_IDENTITY|TEAM_ID|SIGNATURE_CACHE_DIR|PACK_CONCURRENCY|ZIP_COMPRESSION_LEVEL|DOWNLOAD_PROXY|NOTARIZATION_PROXY)|APPLE_(?:API_KEY|API_KEY_ID|API_ISSUER|ID|APP_SPECIFIC_PASSWORD|TEAM_ID|KEYCHAIN|KEYCHAIN_PROFILE)|CSC_(?:LINK|KEY_PASSWORD))$/u
+const AMBIENT_RELEASE_SETTING = /^(?:STITCH_DESKTOP_(?:APP_ID|WINDOWS_.*|MACOS_.*)|APPLE_.*|(?:WIN_)?CSC_.*)$/iu
 
 /**
  * Select local macOS test defaults without reading dotenv files or inheriting release settings.
@@ -26,8 +26,8 @@ const AMBIENT_RELEASE_SETTING = /^(?:DSH_DESKTOP_(?:APP_ID|WINDOWS_.*|MACOS_.*)|
 export function localMacOSPackageEnvironment(environment = process.env) {
   return {
     ...Object.fromEntries(Object.entries(environment).filter(([name]) => !AMBIENT_RELEASE_SETTING.test(name))),
-    DSH_DESKTOP_APP_ID: 'com.deepseek.harness',
-    DSH_DESKTOP_UNSIGNED: '1',
+    STITCH_DESKTOP_APP_ID: 'io.github.morrowmake.stitch',
+    STITCH_DESKTOP_UNSIGNED: '1',
   }
 }
 
@@ -54,18 +54,18 @@ export function loadDesktopPackageEnvironment(platform, environment = process.en
     if (platform !== 'darwin') throw new Error('desktop package: PACKAGE_MACOS_ZIP_COMPRESSION_LEVEL requires macOS')
     if (!['3', '7'].includes(zipCompression)) throw new Error('desktop package: workflow ZIP compression must be 3 or 7')
   }
-  const preset = environment.DSH_PACKAGING_PRESET
+  const preset = environment.STITCH_PACKAGING_PRESET
   let path = join(appRoot, platform === 'win32' ? '.env.windows' : '.env.macos')
   if (preset !== undefined) {
     if (preset !== 'test' && preset !== 'production') throw new Error('desktop package: preset must be test or production')
-    const root = environment.DSH_PACKAGING_CONFIG_DIR
-    if (!root || !isAbsolute(root)) throw new Error('desktop package: DSH_PACKAGING_CONFIG_DIR must be an absolute directory')
+    const root = environment.STITCH_PACKAGING_CONFIG_DIR
+    if (!root || !isAbsolute(root)) throw new Error('desktop package: STITCH_PACKAGING_CONFIG_DIR must be an absolute directory')
     path = join(root, 'presets', `${preset}.env`)
   }
   const platformSetting = platform === 'win32' ? WINDOWS_SETTING : MACOS_SETTING
   const publicPlatformSetting = platform === 'win32'
-    ? /^DSH_DESKTOP_WINDOWS_(?:SIGNATURE_CACHE_(?:DIR|CONCURRENCY)|PACK_CONCURRENCY|COMPRESSION_LEVEL)$/u
-    : /^DSH_DESKTOP_MACOS_(?:SIGNATURE_CACHE_DIR|PACK_CONCURRENCY|ZIP_COMPRESSION_LEVEL|DOWNLOAD_PROXY|NOTARIZATION_PROXY)$/u
+    ? /^STITCH_DESKTOP_WINDOWS_(?:SIGNATURE_CACHE_(?:DIR|CONCURRENCY)|PACK_CONCURRENCY|COMPRESSION_LEVEL)$/u
+    : /^STITCH_DESKTOP_MACOS_(?:SIGNATURE_CACHE_DIR|PACK_CONCURRENCY|ZIP_COMPRESSION_LEVEL|DOWNLOAD_PROXY|NOTARIZATION_PROXY)$/u
   const settings = readSettings(path, name => preset === undefined
     ? SHARED_SETTING.test(name) || platformSetting.test(name)
     : SHARED_SETTING.test(name) || publicPlatformSetting.test(name))
@@ -74,18 +74,18 @@ export function loadDesktopPackageEnvironment(platform, environment = process.en
       const filename = platform === 'win32' ? 'windows-signing.env' : 'macos-signing.env'
       Object.assign(settings, readSettings(join(dirname(dirname(path)), 'secrets', filename),
         name => platform === 'win32'
-          ? /^DSH_DESKTOP_WINDOWS_(?:CER_FILE|SIGNTOOL|KEY_CONTAINER|TOKEN_PIN)$/u.test(name)
+          ? /^STITCH_DESKTOP_WINDOWS_(?:CER_FILE|SIGNTOOL|KEY_CONTAINER|TOKEN_PIN)$/u.test(name)
           : MACOS_SETTING.test(name) && !publicPlatformSetting.test(name)))
     }
   }
-  if (compression !== undefined && compression !== '') settings.DSH_DESKTOP_WINDOWS_COMPRESSION_LEVEL = compression
+  if (compression !== undefined && compression !== '') settings.STITCH_DESKTOP_WINDOWS_COMPRESSION_LEVEL = compression
   if (zipCompression !== undefined) {
-    settings.DSH_DESKTOP_MACOS_ZIP_COMPRESSION_LEVEL = zipCompression
+    settings.STITCH_DESKTOP_MACOS_ZIP_COMPRESSION_LEVEL = zipCompression
   }
   return {
     ...Object.fromEntries(Object.entries(environment).filter(([name]) => !AMBIENT_RELEASE_SETTING.test(name))),
     ...settings,
-    ...(preset === undefined ? {} : { DSH_PACKAGING_PRESET: preset }),
+    ...(preset === undefined ? {} : { STITCH_PACKAGING_PRESET: preset }),
   }
 }
 
@@ -115,14 +115,14 @@ export function validateDesktopPackageEnvironment(environment, target, options =
   if (options.unsigned) return
   if (target.platform === 'win32') {
     if (!options.prepareOnly) createWindowsTokenSigner({
-      certificateFile: environment.DSH_DESKTOP_WINDOWS_CER_FILE,
-      signTool: environment.DSH_DESKTOP_WINDOWS_SIGNTOOL,
-      tokenPin: environment.DSH_DESKTOP_WINDOWS_TOKEN_PIN,
-      keyContainer: environment.DSH_DESKTOP_WINDOWS_KEY_CONTAINER,
+      certificateFile: environment.STITCH_DESKTOP_WINDOWS_CER_FILE,
+      signTool: environment.STITCH_DESKTOP_WINDOWS_SIGNTOOL,
+      tokenPin: environment.STITCH_DESKTOP_WINDOWS_TOKEN_PIN,
+      keyContainer: environment.STITCH_DESKTOP_WINDOWS_KEY_CONTAINER,
     })
     if (!options.prepareOnly) resolveWindowsSignatureCacheDirectory(environment)
   } else {
-    if (environment.DSH_DESKTOP_MACOS_SIGNATURE_CACHE_DIR !== undefined) validateMacOSSignatureCacheDirectory(environment.DSH_DESKTOP_MACOS_SIGNATURE_CACHE_DIR)
+    if (environment.STITCH_DESKTOP_MACOS_SIGNATURE_CACHE_DIR !== undefined) validateMacOSSignatureCacheDirectory(environment.STITCH_DESKTOP_MACOS_SIGNATURE_CACHE_DIR)
     resolveMacOSSigningEnvironment(environment)
     if (!options.skipNotarization) {
       const strategies = [

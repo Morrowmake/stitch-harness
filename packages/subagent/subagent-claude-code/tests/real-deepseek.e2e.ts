@@ -130,7 +130,7 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY)(
       })
       expect(version.stdout.trim()).toBe('2.1.263 (Claude Code)')
 
-      const nonce = `DSH_CLAUDE_DEEPSEEK_${randomUUID()}`
+      const nonce = `STITCH_CLAUDE_DEEPSEEK_${randomUUID()}`
       const parent = await harness.create(brandString<SessionId>('deepseek-e2e-parent'), {}, { cwd: workspace })
       const run = await startExternalActivation(ctx, 'claude-code', {
         prompt: [{

@@ -7,7 +7,7 @@ import SessionStore, { appendPluginRecord, type SessionId, type SessionEvent } f
 import { brandString } from '@deepseek-ai/dsh-brand'
 import { type ReasoningEffortId, createUserMessage } from '@deepseek-ai/dsh-llm'
 import type {} from '@deepseek-ai/dsh-experimental-translator/types'
-import { createProcessDeepSeekHarness } from '../src/api.ts'
+import { createProcessStitch } from '../src/api.ts'
 
 const expectedPath = fileURLToPath(new URL('./expected/cot-translation-projection.json', import.meta.url))
 const fakeRuntime = fileURLToPath(new URL('./fake-runtime.ts', import.meta.url))
@@ -50,7 +50,7 @@ it('preserves common translation requests and results in SDK events without repl
     await ctx.fiber.dispose()
   }
   expect(records).toEqual(expected.auditEvents)
-  const harness = createProcessDeepSeekHarness({
+  const harness = createProcessStitch({
     command: process.execPath, args: [fakeRuntime],
     environment: () => ({ ...process.env, FAKE_TEXT: expected.finalResponse, FAKE_SESSION_EVENTS: JSON.stringify(records) }),
     description: 'scripted SDK audit projection', initializeTimeoutMs: 5000,

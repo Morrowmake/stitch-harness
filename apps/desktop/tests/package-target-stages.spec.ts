@@ -30,8 +30,8 @@ vi.mock('node:fs', async importOriginal => ({
 
 afterEach(() => { vi.unstubAllEnvs(); vi.clearAllMocks() })
 
-const environment = { DSH_DESKTOP_APP_ID: 'com.example.test',
-  DSH_DESKTOP_WINDOWS_TOKEN_PIN: 'fixture-pin', DSH_DESKTOP_WINDOWS_SIGNATURE_CACHE_CONCURRENCY: '2' }
+const environment = { STITCH_DESKTOP_APP_ID: 'com.example.test',
+  STITCH_DESKTOP_WINDOWS_TOKEN_PIN: 'fixture-pin', STITCH_DESKTOP_WINDOWS_SIGNATURE_CACHE_CONCURRENCY: '2' }
 
 function supervisor(failure?: string) {
   vi.stubEnv('npm_execpath', 'fixture-pnpm.cjs')
@@ -125,19 +125,19 @@ it.each([undefined, '3'])('passes the package cache and selected compression to 
   const { run } = supervisor()
   const cache = resolve('fixture-package-cache')
   await packageTarget(parseDesktopPackageInvocation(['win-x64'], 'win32', 'x64'), {
-    ...environment, DSH_DESKTOP_PACKAGE_CACHE_DIR: cache,
-    ...(level === undefined ? {} : { DSH_DESKTOP_WINDOWS_COMPRESSION_LEVEL: level }),
+    ...environment, STITCH_DESKTOP_PACKAGE_CACHE_DIR: cache,
+    ...(level === undefined ? {} : { STITCH_DESKTOP_WINDOWS_COMPRESSION_LEVEL: level }),
     ELECTRON_BUILDER_COMPRESSION_LEVEL: '0',
   }, run)
   const prepare = run.run.mock.calls.find(([stage]) => stage.startsWith('run prepare:dsh'))!
-  expect(prepare[3].env.DSH_DESKTOP_PACKAGE_CACHE_DIR).toBe(cache)
+  expect(prepare[3].env.STITCH_DESKTOP_PACKAGE_CACHE_DIR).toBe(cache)
   const builder = run.run.mock.calls.find(([stage]) => stage.startsWith('exec electron-builder'))!
   expect(builder[3].env.ELECTRON_BUILDER_COMPRESSION_LEVEL).toBe(level ?? '0')
 })
 
 it.each([undefined, '2'])('uses bounded Windows packing while retaining signing and smoke (workers=%s)', async (workers) => {
   const { run, stages } = supervisor()
-  const settings = workers === undefined ? environment : { ...environment, DSH_DESKTOP_WINDOWS_PACK_CONCURRENCY: workers }
+  const settings = workers === undefined ? environment : { ...environment, STITCH_DESKTOP_WINDOWS_PACK_CONCURRENCY: workers }
   await packageTarget(parseDesktopPackageInvocation(['win-x64'], 'win32', 'x64'), settings, run)
   const packs = stages.filter(stage => stage.startsWith('run release:pack'))
   expect(packs).toHaveLength(2)
@@ -154,17 +154,17 @@ it('requires one signing preflight before building, then records only the comple
   expect(stages.filter(stage => stage === 'preflight:windows-signing')).toHaveLength(1)
   expect(vi.mocked(withWindowsSigningStage).mock.calls.map(([options]) => options.stage))
     .toEqual(['preflight', 'artifacts'])
-  expect(run.run.mock.calls[0]![3]).toMatchObject({ env: { DSH_DESKTOP_WINDOWS_TOKEN_PIN: 'fixture-pin' }, timeoutMs: 60_000 })
-  expect(run.run.mock.calls[1]![3].env).not.toHaveProperty('DSH_DESKTOP_WINDOWS_TOKEN_PIN')
+  expect(run.run.mock.calls[0]![3]).toMatchObject({ env: { STITCH_DESKTOP_WINDOWS_TOKEN_PIN: 'fixture-pin' }, timeoutMs: 60_000 })
+  expect(run.run.mock.calls[1]![3].env).not.toHaveProperty('STITCH_DESKTOP_WINDOWS_TOKEN_PIN')
   expect(stages.indexOf('run sign:primary-runtime --dsh')).toBeGreaterThan(stages.indexOf('run prepare:dsh --defer-runtime-smoke'))
   expect(stages.at(-1)).toBe('exec tsx scripts/smoke-packaged-runtime.ts')
   for (const call of run.run.mock.calls) {
     if (call[0].startsWith('run prepare:') || call[0].includes('smoke-packaged-runtime')) {
-      expect(call[3].env).not.toHaveProperty('DSH_DESKTOP_WINDOWS_TOKEN_PIN')
-      expect(call[3].env).not.toHaveProperty('DSH_DESKTOP_WINDOWS_SIGNATURE_CACHE_CONCURRENCY')
+      expect(call[3].env).not.toHaveProperty('STITCH_DESKTOP_WINDOWS_TOKEN_PIN')
+      expect(call[3].env).not.toHaveProperty('STITCH_DESKTOP_WINDOWS_SIGNATURE_CACHE_CONCURRENCY')
     }
     if (call[0].startsWith('run sign:primary-runtime')) {
-      expect(call[3].env).toHaveProperty('DSH_DESKTOP_WINDOWS_SIGNATURE_CACHE_CONCURRENCY', '2')
+      expect(call[3].env).toHaveProperty('STITCH_DESKTOP_WINDOWS_SIGNATURE_CACHE_CONCURRENCY', '2')
     }
   }
   expect(writeFileSync).toHaveBeenCalledOnce()
@@ -202,16 +202,17 @@ it.each(['--unsigned', '--prepare-only'])('keeps %s hardware-free and creates no
   expect(stages).not.toContain('run sign:primary-runtime')
   expect(stages).not.toContain('run sign:primary-runtime --dsh')
   expect(withWindowsSigningStage).not.toHaveBeenCalled()
-  for (const call of run.run.mock.calls) expect(call[3].env).not.toHaveProperty('DSH_DESKTOP_WINDOWS_TOKEN_PIN')
+  for (const call of run.run.mock.calls) expect(call[3].env).not.toHaveProperty('STITCH_DESKTOP_WINDOWS_TOKEN_PIN')
   expect(writeFileSync).not.toHaveBeenCalled()
   expect(stages.includes('exec tsx scripts/smoke-packaged-runtime.ts --unsigned')).toBe(mode === '--unsigned')
 })
 
-it.each(['mac-arm64', 'mac-x64', 'win-x64'] as const)('selects branding from the signing mode for %s', async (target) => {
-  const modes = [[], ['--unsigned'], ['--dir'], ['--unsigned', '--dir'], ['--prepare-only'],
+it.each(['mac-arm64', 'mac-x64', 'win-x64'] as const)('selects branding from the signing mode and --official for %s', async (target) => {
+  const modes = [[], ['--unsigned'], ['--unsigned', '--official'], ['--dir'], ['--unsigned', '--dir'],
+    ['--unsigned', '--official', '--dir'], ['--prepare-only'],
     ...(target === 'win-x64' ? [] : [['--skip-notarization'], ['--skip-notarization', '--dir']])]
   for (const flags of modes) {
-    const unsigned = flags.includes('--unsigned')
+    const local = flags.includes('--unsigned') && !flags.includes('--official')
     const { run, stages } = supervisor()
     const platform = target === 'win-x64' ? 'win32' : 'darwin'
     const invocation = parseDesktopPackageInvocation([target, ...flags], platform,
@@ -219,31 +220,54 @@ it.each(['mac-arm64', 'mac-x64', 'win-x64'] as const)('selects branding from the
     await packageTarget(invocation, {
       ...environment,
       APPLE_KEYCHAIN_PROFILE: 'fixture',
-      DSH_BUILD_CLIENT_PROFILE: unsigned ? 'official' : 'local',
-      DSH_CLIENT_BUILD_PROFILE: unsigned ? 'official' : 'local',
-      DSH_CLIENT_TITLE: 'Inherited title',
+      STITCH_BUILD_CLIENT_PROFILE: local ? 'official' : 'local',
+      STITCH_CLIENT_BUILD_PROFILE: local ? 'official' : 'local',
+      STITCH_CLIENT_TITLE: 'Inherited title',
     }, run)
     const build = stages.find(stage => stage.startsWith('run build'))
-    expect(build).toBe(unsigned ? 'run build --profile local' : 'run build:official')
-    expect(stages.some(stage => stage.startsWith('exec tsx apps/desktop/scripts/pack-local-packages.ts'))).toBe(unsigned)
-    expect(stages.some(stage => stage.startsWith('run release:pack --family dsh'))).toBe(!unsigned)
+    expect(build).toBe(local ? 'run build --profile local' : 'run build:official')
+    expect(stages.some(stage => stage.startsWith('exec tsx apps/desktop/scripts/pack-local-packages.ts'))).toBe(local)
+    expect(stages.some(stage => stage.startsWith('run release:pack --family dsh'))).toBe(!local)
   }
 })
 
 it.each([
-  ['mac-arm64', 'run build --profile local'],
-  ['win-x64', 'run build --profile local'],
-  ['mac-arm64', 'exec tsx apps/desktop/scripts/pack-local-packages.ts'],
-  ['win-x64', 'exec tsx apps/desktop/scripts/pack-local-packages.ts'],
-] as const)('stops unsigned %s packaging when %s fails', async (target, failure) => {
+  ['mac-arm64', 'darwin', 'arm64', []], ['mac-x64', 'darwin', 'arm64', ['--official']], ['win-x64', 'win32', 'x64', ['--official']],
+] as const)('builds the %s Computer Use helper for unsigned packing and removes it afterwards (%s)', async (target, platform, host, flags) => {
+  const { run, stages } = supervisor()
+  await packageTarget(parseDesktopPackageInvocation([target, '--unsigned', ...flags], platform, host), environment, run)
+  const arch = target === 'mac-arm64' ? 'arm64' : 'x64'
+  const build = stages.indexOf(`exec tsx scripts/cua-helper/build-unsigned.ts --arch ${arch}`)
+  const pack = stages.findIndex(stage => stage.startsWith(flags.length === 0
+    ? 'exec tsx apps/desktop/scripts/pack-local-packages.ts' : 'run release:pack --family dsh '))
+  const clean = stages.indexOf('exec tsx scripts/cua-helper/build-unsigned.ts --clean')
+  expect(build).toBeGreaterThanOrEqual(0)
+  expect(pack).toBeGreaterThan(build)
+  expect(clean).toBeGreaterThan(pack)
+  expect(clean).toBeLessThan(stages.findIndex(stage => stage.startsWith('--dir apps/desktop-host pack')))
+})
+
+it('stages no source-built Computer Use helper for signed packaging', async () => {
+  const { run, stages } = supervisor()
+  await packageTarget(parseDesktopPackageInvocation(['mac-arm64'], 'darwin', 'arm64'), environment, run)
+  expect(stages.some(stage => stage.includes('cua-helper/build-unsigned.ts'))).toBe(false)
+})
+
+it.each([
+  ['mac-arm64', 'run build --profile local', []],
+  ['win-x64', 'run build --profile local', []],
+  ['mac-arm64', 'exec tsx scripts/cua-helper/build-unsigned.ts --arch arm64', []],
+  ['win-x64', 'exec tsx scripts/cua-helper/build-unsigned.ts --arch x64', ['run prepare:runtime']],
+  ['mac-arm64', 'exec tsx apps/desktop/scripts/pack-local-packages.ts', ['exec tsx scripts/cua-helper/build-unsigned.ts --clean']],
+  ['win-x64', 'exec tsx apps/desktop/scripts/pack-local-packages.ts', ['exec tsx scripts/cua-helper/build-unsigned.ts --clean']],
+] as const)('stops unsigned %s packaging when %s fails', async (target, failure, after) => {
   const { run, stages } = supervisor(failure)
   const invocation = parseDesktopPackageInvocation([target, '--unsigned'],
     target === 'win-x64' ? 'win32' : 'darwin', target === 'win-x64' ? 'x64' : 'arm64')
   await expect(packageTarget(invocation, environment, run)).rejects.toThrow('stage refused')
   const failedAt = stages.findIndex(stage => stage.startsWith(failure))
   expect(failedAt).toBeGreaterThanOrEqual(0)
-  expect(stages.slice(failedAt + 1)).toEqual(
-    target === 'win-x64' && failure.startsWith('exec tsx') ? ['run prepare:runtime'] : [])
+  expect(stages.slice(failedAt + 1)).toEqual(after)
   expect(stages.some(stage => stage.startsWith('--dir apps/desktop-host pack'))).toBe(false)
   expect(writeFileSync).not.toHaveBeenCalled()
 })
@@ -265,13 +289,13 @@ it.each([
   const { run, stages } = supervisor()
   await packageTarget(parseDesktopPackageInvocation([target, '--unsigned', ...(directory ? ['--dir'] : [])], 'darwin', 'arm64'), {
     ...environment, CSC_LINK: 'unused.p12', CSC_KEY_PASSWORD: 'unused-secret', APPLE_API_KEY: 'unused.p8',
-    DSH_DESKTOP_MACOS_SIGNING_IDENTITY: 'Unused identity', DSH_DESKTOP_MACOS_TEAM_ID: 'TEAMID1234',
+    STITCH_DESKTOP_MACOS_SIGNING_IDENTITY: 'Unused identity', STITCH_DESKTOP_MACOS_TEAM_ID: 'TEAMID1234',
   }, run)
   expect(stages.at(-2)).toBe(`exec electron-builder --config electron-builder.config.mjs --mac --${target === 'mac-arm64' ? 'arm64' : 'x64'} --publish never${directory ? ' --dir' : ''}`)
   expect(stages.at(-1)).toBe('exec tsx scripts/smoke-packaged-runtime.ts --unsigned')
   for (const call of run.run.mock.calls) {
-    expect(call[3].env).toMatchObject({ DSH_DESKTOP_UNSIGNED: '1', CSC_IDENTITY_AUTO_DISCOVERY: 'false' })
-    for (const key of ['CSC_LINK', 'CSC_KEY_PASSWORD', 'APPLE_API_KEY', 'DSH_DESKTOP_MACOS_SIGNING_IDENTITY', 'DSH_DESKTOP_MACOS_TEAM_ID']) {
+    expect(call[3].env).toMatchObject({ STITCH_DESKTOP_UNSIGNED: '1', CSC_IDENTITY_AUTO_DISCOVERY: 'false' })
+    for (const key of ['CSC_LINK', 'CSC_KEY_PASSWORD', 'APPLE_API_KEY', 'STITCH_DESKTOP_MACOS_SIGNING_IDENTITY', 'STITCH_DESKTOP_MACOS_TEAM_ID']) {
       expect(call[3].env).not.toHaveProperty(key)
     }
   }
@@ -308,9 +332,9 @@ it('checks macOS directory packages without writing a release record', async () 
 it.each([undefined, '2'])('passes macOS pack concurrency %s only to workspace packing and download routing only to download stages', async (concurrency) => {
   const { run } = supervisor()
   await packageTarget(parseDesktopPackageInvocation(['mac-arm64', '--prepare-only'], 'darwin', 'arm64'), {
-    ...environment, DSH_DESKTOP_MACOS_PACK_CONCURRENCY: concurrency,
-    DSH_DESKTOP_MACOS_DOWNLOAD_PROXY: 'http://downloads.example:8080',
-    DSH_DESKTOP_MACOS_NOTARIZATION_PROXY: 'http://apple.example:8081',
+    ...environment, STITCH_DESKTOP_MACOS_PACK_CONCURRENCY: concurrency,
+    STITCH_DESKTOP_MACOS_DOWNLOAD_PROXY: 'http://downloads.example:8080',
+    STITCH_DESKTOP_MACOS_NOTARIZATION_PROXY: 'http://apple.example:8081',
   }, run)
   const calls = run.run.mock.calls
   const packs = calls.filter(call => call[0].startsWith('run release:pack'))
@@ -325,7 +349,7 @@ it.each([undefined, '2'])('passes macOS pack concurrency %s only to workspace pa
 it.each([false, true])('scopes the Apple proxy around notarization (directory=%s)', async (directory) => {
   const { run } = supervisor()
   await packageTarget(parseDesktopPackageInvocation(['mac-arm64', ...(directory ? ['--dir'] : [])], 'darwin', 'arm64'), {
-    ...environment, APPLE_KEYCHAIN_PROFILE: 'fixture', DSH_DESKTOP_MACOS_NOTARIZATION_PROXY: 'http://apple.example:8081',
+    ...environment, APPLE_KEYCHAIN_PROFILE: 'fixture', STITCH_DESKTOP_MACOS_NOTARIZATION_PROXY: 'http://apple.example:8081',
   }, run)
   expect(withMacOSNotarizationProxy).toHaveBeenCalledExactlyOnceWith('http://apple.example:8081', expect.any(Function), undefined, undefined, expect.any(Function))
   expect(packageMacOSArtifacts).toHaveBeenCalledTimes(directory ? 0 : 1)
@@ -353,7 +377,7 @@ it.each([false, true])('keeps signing and runtime verification when notarization
   if (!directory) expect(stages.at(-2)).toContain('--mac zip')
   expect(stages.at(-1)).toBe('exec tsx scripts/smoke-packaged-runtime.ts --skip-notarization')
   expect(run.run.mock.calls.at(-2)![3].env).toMatchObject({
-    DSH_DESKTOP_UNSIGNED: '0', DSH_DESKTOP_MACOS_SKIP_NOTARIZATION: '1', CSC_LINK: 'signing.p12',
+    STITCH_DESKTOP_UNSIGNED: '0', STITCH_DESKTOP_MACOS_SKIP_NOTARIZATION: '1', CSC_LINK: 'signing.p12',
   })
   expect(withMacOSNotarizationProxy).not.toHaveBeenCalled()
   expect(packageMacOSArtifacts).not.toHaveBeenCalled()
@@ -365,7 +389,7 @@ it.each(['mac-arm64', 'mac-x64'] as const)('applies ZIP compression without chan
     const { run } = supervisor()
     await packageTarget(parseDesktopPackageInvocation([target, '--skip-notarization'], 'darwin', 'arm64'), {
       ...environment, ELECTRON_BUILDER_COMPRESSION_LEVEL: '9',
-      ...(level === undefined ? {} : { DSH_DESKTOP_MACOS_ZIP_COMPRESSION_LEVEL: level }),
+      ...(level === undefined ? {} : { STITCH_DESKTOP_MACOS_ZIP_COMPRESSION_LEVEL: level }),
     }, run)
     const builders = run.run.mock.calls.filter(call => call[0].startsWith('exec electron-builder'))
     expect(builders).toHaveLength(3)
@@ -379,8 +403,8 @@ it.each(['mac-arm64', 'mac-x64'] as const)('applies ZIP compression without chan
     for (const call of [dmg!, zip!]) {
       expect(call[0]).toContain('--prepackaged')
       expect(call[0]).toContain('unnotarized-artifacts')
-      expect(call[3].env.DSH_DESKTOP_MACOS_SKIP_NOTARIZATION).toBe('1')
-      expect(call[3].env.DSH_DESKTOP_UNSIGNED).toBe('0')
+      expect(call[3].env.STITCH_DESKTOP_MACOS_SKIP_NOTARIZATION).toBe('1')
+      expect(call[3].env.STITCH_DESKTOP_UNSIGNED).toBe('0')
     }
   }
   expect(packageMacOSArtifacts).not.toHaveBeenCalled()
@@ -414,7 +438,7 @@ it.each([undefined, '7'])('applies file-owned compression only to the final nota
     await build({ format: 'zip', appPath: '/fixture/app', output: '/fixture/zip' })
   })
   const settings = { ...environment, ELECTRON_BUILDER_COMPRESSION_LEVEL: '9',
-    ...(level === undefined ? {} : { DSH_DESKTOP_MACOS_ZIP_COMPRESSION_LEVEL: level }) }
+    ...(level === undefined ? {} : { STITCH_DESKTOP_MACOS_ZIP_COMPRESSION_LEVEL: level }) }
   await packageTarget(parseDesktopPackageInvocation(['mac-arm64'], 'darwin', 'arm64'), settings, run)
   const zip = run.run.mock.calls.find(call => call[0].includes('--mac zip'))
   const dmg = run.run.mock.calls.find(call => call[0].includes('--mac dmg'))

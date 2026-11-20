@@ -25,7 +25,7 @@ Use this package to apply one outbound HTTP proxy policy to Harness requests tha
 <a id="use-this-package"></a>
 ## Use this package
 
-Nothing to mount, and nothing to configure. The `dsh` launcher resolves and installs the policy for every profile before the first plugin loads, so a user who exports `HTTPS_PROXY` is proxied everywhere. This is a library rather than a plugin because transport policy has one answer per process: there is no second implementation to swap and no scope narrower than the process to give one.
+Nothing to mount, and nothing to configure. The `stitch` launcher resolves and installs the policy for every profile before the first plugin loads, so a user who exports `HTTPS_PROXY` is proxied everywhere. This is a library rather than a plugin because transport policy has one answer per process: there is no second implementation to swap and no scope narrower than the process to give one.
 
 ### Writing a new outbound call
 
@@ -48,7 +48,7 @@ That gate cannot see inside an SDK, so each outbound call site carries an `egres
 
 ### What the policy reads
 
-`http_proxy`, `https_proxy`, `no_proxy`, and `all_proxy`, lowercase first and uppercase as the fallback, with a blank value treated as unset. `ALL_PROXY` backs both schemes, and HTTPS falls back to the HTTP proxy last — neither Node nor undici derives the first of these on its own. Values come from the launcher's snapshot: an exported variable first, then `$DSH_HOME/.env`. A project's own `.env` cannot carry these names — that file arrives with a clone, and the launcher refuses to start rather than let a repository choose where the harness sends its traffic.
+`http_proxy`, `https_proxy`, `no_proxy`, and `all_proxy`, lowercase first and uppercase as the fallback, with a blank value treated as unset. `ALL_PROXY` backs both schemes, and HTTPS falls back to the HTTP proxy last — neither Node nor undici derives the first of these on its own. Values come from the launcher's snapshot: an exported variable first, then `$STITCH_HOME/.env`. A project's own `.env` cannot carry these names — that file arrives with a clone, and the launcher refuses to start rather than let a repository choose where the harness sends its traffic.
 
 Loopback is always bypassed — `localhost`, the whole `127.0.0.0/8` range, `::1`, `0.0.0.0`, and the IPv4-mapped spellings of those. The harness's own Web UI, Connection transport, and every local test server would otherwise route through the proxy and loop. The published bypass list names only the four literal entries an environment reader can match; `proxyForUrl` recognises the range itself, because a list entry cannot express one.
 

@@ -1,7 +1,7 @@
 /**
  * Upstream skills of CLI app plugins: the Host Service `ctx.upstreamSkills` downloads the files that a plugin's entry
  * skill indexes from one directory of the vendor's GitHub repository at a pinned commit, verifies them, publishes them
- * in the DSH cache, and lists the entry skill over them once they are there.
+ * in the Stitch cache, and lists the entry skill over them once they are there.
  * @module @deepseek-ai/dsh-upstream-skills
  */
 

@@ -37,6 +37,7 @@ Each package provides one primitive or one data set; open a package page for how
 | [`chunked-list/`](chunked-list/README.md) | Retains immutable list versions with bounded append copying and checkpoint validation |
 | [`values/`](values/README.md) | Validates, snapshots, compares, and freezes lossless JSON-compatible values |
 | [`home-paths/`](home-paths/README.md) | Resolves the single Harness home and joins shared user-data paths |
+| [`product/`](product/README.md) | Zero-dependency, browser-safe product identity constants (name, CLI command, home directory, repository, URLs) |
 | [`http-proxy/`](http-proxy/README.md) | Resolves one outbound proxy policy and installs it for `fetch`, SDK agents, and spawned children |
 | [`launch-environment/`](launch-environment/README.md) | Frozen launch environment that remembers which layer supplied each value |
 | [`atomic-write/`](atomic-write/README.md) | Atomic file replacement and cross-process writer locking |

@@ -60,8 +60,8 @@ it('mounts the Office tools in the standard and PTC presets and omits it from th
 async function boot(profile: string, primaryRuntime: (root: string) => string | undefined, mounted: readonly string[] = ROWS) {
   const root = await realpath(await mkdtemp(join(tmpdir(), 'dsh-desktop-office-rows-')))
   onTestFinished(() => rm(root, { recursive: true, force: true }))
-  vi.stubEnv('DSH_HOME', join(root, 'home'))
-  vi.stubEnv('DSH_PRIMARY_RUNTIME', primaryRuntime(root))
+  vi.stubEnv('STITCH_HOME', join(root, 'home'))
+  vi.stubEnv('STITCH_PRIMARY_RUNTIME', primaryRuntime(root))
   const nodePath = join(root, 'primary-runtime', 'dependencies', 'node', 'bin', process.platform === 'win32' ? 'node.exe' : 'node')
   await mkdir(dirname(nodePath), { recursive: true })
   await writeFile(nodePath, '')

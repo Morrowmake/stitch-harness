@@ -6,10 +6,18 @@ import type { DesktopUpdateOverlays, DesktopUpdateOverlay } from './update-overl
 /** Channels available only to the isolated update-dialog document. */
 export const UPDATE_DIALOG_IPC = { status: 'dsh-update-dialog:status', changed: 'dsh-update-dialog:changed', respond: 'dsh-update-dialog:respond' } as const
 
+/** Progress of a running main-owned action; `fraction` (0–1) absent means indeterminate. */
+export interface UpdateDialogProgress {
+  readonly label: string
+  readonly fraction?: number
+}
+
 /** Text and choices supplied by the main process, never by product documents. */
 export interface UpdateDialogView {
   /** Button running a main-owned action; responses are disabled until it settles. */
   readonly busyButton?: number
+  /** Shown while the busy action reports progress. */
+  readonly progress?: UpdateDialogProgress
   /** Identifies the displayed choices; a response from an older prompt is rejected. */
   readonly revision: number
   readonly locale: string
@@ -28,8 +36,8 @@ export interface UpdateDialogOptions extends MessageBoxOptions {
   readonly technicalDetails?: string
   /** Synchronous auxiliary action that leaves the current prompt and choices open. */
   readonly keepOpenAction?: { index: number; run: () => void }
-  /** Main-owned action kept in this dialog; false keeps the prompt open for correction. */
-  readonly action?: { index: number; run: () => Promise<boolean> }
+  /** Main-owned action kept in this dialog; false keeps the prompt open for correction. It may report progress. */
+  readonly action?: { index: number; run: (report: (progress: UpdateDialogProgress) => void) => Promise<boolean> }
 }
 
 /** The document can select only a displayed response index. */
@@ -122,9 +130,11 @@ export class DesktopUpdateDialog {
         resolve({ response, checkboxChecked: false })
       }
       const respond = async (index: number): Promise<void> => {
-        const publish = (busy: boolean): void => {
-          const { busyButton: _busy, ...rest } = view
-          view = { ...rest, revision: ++this.revision, ...(busy ? { busyButton: index } : {}) }
+        const publish = (busy: boolean, progress?: UpdateDialogProgress): void => {
+          const { busyButton: _busy, progress: _progress, ...rest } = view
+          view = {
+            ...rest, revision: ++this.revision, ...(busy ? { busyButton: index } : {}), ...(progress === undefined ? {} : { progress }),
+          }
           if (this.active !== undefined) this.active.view = view
           surface.webContents.send(UPDATE_DIALOG_IPC.changed, view)
         }
@@ -138,7 +148,7 @@ export class DesktopUpdateDialog {
         // Keep a fast local read perceptible without delaying the operation itself.
         const held = new Promise<void>((resolveHold) => { setTimeout(resolveHold, 500) })
         try {
-          const close = await options.action.run()
+          const close = await options.action.run((progress) => { if (this.active?.view === view) publish(true, progress) })
           await held
           if (this.active?.view !== view) return
           if (close) finish(index)

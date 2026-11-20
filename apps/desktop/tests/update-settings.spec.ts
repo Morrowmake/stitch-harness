@@ -14,37 +14,37 @@ async function fixture() {
 
 beforeEach(() => { vi.spyOn(console, 'warn').mockImplementation(() => {}); return () => { vi.restoreAllMocks() } })
 
-it('defaults to off for missing settings without creating the document', async () => {
+it('defaults to on for missing settings without creating the document', async () => {
   const settings = await fixture()
-  expect(await settings.load()).toBe(false)
+  expect(await settings.load()).toBe(true)
   await expect(readFile(settings.path)).rejects.toMatchObject({ code: 'ENOENT' })
 })
 
 it('preserves other fields during explicit saves and rereads external edits on load', async () => {
   const settings = await fixture()
   await writeFile(settings.path, JSON.stringify({ updates: { future: true, channel: 'stable' }, other: 4 }))
-  expect(await settings.load()).toBe(false)
-  await settings.save(true)
-  expect(JSON.parse(await readFile(settings.path, 'utf8')))
-    .toEqual({ updates: { future: true, channel: 'stable', checkForUpdates: true }, other: 4 })
   expect(await settings.load()).toBe(true)
-  await writeFile(settings.path, '{}')
+  await settings.save(false)
+  expect(JSON.parse(await readFile(settings.path, 'utf8')))
+    .toEqual({ updates: { future: true, channel: 'stable', checkForUpdates: false }, other: 4 })
   expect(await settings.load()).toBe(false)
+  await writeFile(settings.path, '{}')
+  expect(await settings.load()).toBe(true)
 })
 
 it.each(['{', 'null', '{"updates":[]}', '{"updates":{"checkForUpdates":"yes"}}', '{"updates":{"checkForUpdates":null}}'])(
-  'treats invalid settings as off without rewriting them: %s', async (raw) => {
+  'keeps the default (on) for invalid settings without rewriting them: %s', async (raw) => {
     const settings = await fixture()
     await writeFile(settings.path, raw)
-    expect(await settings.load()).toBe(false)
+    expect(await settings.load()).toBe(true)
     expect(console.warn).toHaveBeenCalled()
     expect(await readFile(settings.path, 'utf8')).toBe(raw)
   })
 
-it('treats unreadable settings as off', async () => {
+it('keeps the default (on) for unreadable settings', async () => {
   const settings = await fixture()
   await mkdir(settings.path)
-  expect(await settings.load()).toBe(false)
+  expect(await settings.load()).toBe(true)
 })
 
 it('refuses to replace malformed user JSON during a UI save', async () => {

@@ -64,7 +64,7 @@ if actual_exit != 130:
 async function runHeadlessPtySmoke(): Promise<string> {
   const cwd = await mkdtemp(join(tmpdir(), 'dsh-headless-shutdown-'))
   try {
-    const home = join(cwd, '.dsh')
+    const home = join(cwd, '.stitch')
     // Pre-initialize the headless profile with the never-dispose row in its
     // user patch layer (the same file a long-lived profile boot hot-reloads).
     const profileDir = join(home, 'profiles', 'headless')
@@ -86,9 +86,9 @@ async function runHeadlessPtySmoke(): Promise<string> {
       configArgs: ['--profile', 'headless', 'never complete'],
       tsconfigPath,
       env: {
-        DSH_HOME: home,
-        DSH_AGENTS_HOME: join(cwd, '.agents'),
-        DSH_TEST_SHUTDOWN_ARM_FILE: join(cwd, 'shutdown-armed'),
+        STITCH_HOME: home,
+        STITCH_AGENTS_HOME: join(cwd, '.agents'),
+        STITCH_TEST_SHUTDOWN_ARM_FILE: join(cwd, 'shutdown-armed'),
       },
     })
     const timeoutMs = 15_000
@@ -108,10 +108,10 @@ async function runHeadlessPtySmoke(): Promise<string> {
       stripFinalNewline: false,
     })
     if (result.timedOut) {
-      throw new Error(`dsh headless PTY driver did not exit. stdout:\n${result.stdout}\nstderr:\n${result.stderr}`)
+      throw new Error(`stitch headless PTY driver did not exit. stdout:\n${result.stdout}\nstderr:\n${result.stderr}`)
     }
     if (result.failed) {
-      throw new Error(`dsh headless PTY driver exited ${String(result.exitCode)}. stdout:\n${result.stdout}\nstderr:\n${result.stderr}`)
+      throw new Error(`stitch headless PTY driver exited ${String(result.exitCode)}. stdout:\n${result.stdout}\nstderr:\n${result.stderr}`)
     }
     return result.stdout
   } finally {
@@ -122,7 +122,7 @@ async function runHeadlessPtySmoke(): Promise<string> {
 describe.skipIf(process.platform === 'win32')('headless process shutdown (real Loader tree in a PTY)', () => {
   it('lets a second Ctrl+C force exit while the first signal is draining', async () => {
     const output = await runHeadlessPtySmoke()
-    expect(output).not.toContain('dsh: observing at ')
+    expect(output).not.toContain('stitch: observing at ')
     expect(output).toContain('dsh-test: never-dispose ready')
     expect(output).toContain('dsh-test: never-dispose started')
   }, LOADER_SMOKE_TEST_TIMEOUT_MS)

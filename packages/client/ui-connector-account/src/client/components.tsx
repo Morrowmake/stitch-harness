@@ -79,7 +79,7 @@ function useAccountCommand(
   return { busy, linked, run }
 }
 
-/** Ask before an action that changes the account outside DSH; the dialog closes before it confirms. */
+/** Ask before an action that changes the account outside Stitch; the dialog closes before it confirms. */
 function Confirm(props: {
   readonly t: Translate<ConnectorAccountKey>
   readonly title: string

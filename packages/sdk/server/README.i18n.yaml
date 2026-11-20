@@ -3,8 +3,8 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/sdk/server/README.md
 /:
-  en: 9fd8e0cf5872dc5b
-  zh: c5209369edd2e941
+  en: 0bcf9bd52db563ae
+  zh: 4d110b8190907839
 /deepseek-ai-dsh-sdk-jsonrpc-server:
   en: 96813b70808d7c86
   zh: ab20ab1cb59432c1
@@ -27,8 +27,8 @@
   en: 784b68b5a498f2d5
   zh: 2c3c5a1490845179
 /deepseek-ai-dsh-sdk-jsonrpc-server/use-this-package/what-sdk-clients-can-do:
-  en: 3e657fa4c9586454
-  zh: 26d572f91e124cc5
+  en: cd978f249a7d35e1
+  zh: dcc6d41bae4d32f9
 /deepseek-ai-dsh-sdk-jsonrpc-server/use-this-package/native-user-questions:
   en: 5100c311c8476f93
   zh: 60d4bc3165731246
@@ -51,8 +51,8 @@
   en: 7e4403a7b1da7ff4
   zh: ef75ee9411486b90
 /deepseek-ai-dsh-sdk-jsonrpc-server/further-exploration:
-  en: cea854984c56c75a
-  zh: 1ee5eaab8305e10d
+  en: 4a9cf8dd8d65628e
+  zh: ce1fb30b849d9ee8
 /deepseek-ai-dsh-sdk-jsonrpc-server/model-experience:
   en: 215e7ba838619b7b
   zh: a311da3843709f90

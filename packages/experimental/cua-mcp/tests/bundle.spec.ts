@@ -62,20 +62,20 @@ describe('cua-mcp bundle', () => {
     const policy = row('sandbox-policy')?.config as { mode: unknown; workspaceRoot: unknown }
     const approval = row('approval')?.config as { policy: unknown }
     expect(interpolate({ process: { env: {} } }, policy.mode)).toBe('workspace-write')
-    expect(interpolate({ process: { env: { DSH_PERMISSION_MODE: 'danger-full-access' } } }, policy.mode)).toBe('danger-full-access')
+    expect(interpolate({ process: { env: { STITCH_PERMISSION_MODE: 'danger-full-access' } } }, policy.mode)).toBe('danger-full-access')
     expect(interpolate({ process: { env: {} } }, approval.policy)).toBe('ask')
-    expect(interpolate({ process: { env: { DSH_PERMISSION_MODE: 'danger-full-access' } } }, approval.policy)).toBe('never')
+    expect(interpolate({ process: { env: { STITCH_PERMISSION_MODE: 'danger-full-access' } } }, approval.policy)).toBe('never')
   })
 
-  it('keeps programs in a workspace inside the Harness home unless DSH_CUA_WORKSPACE names another directory', () => {
-    const dshHomePath = (...segments: string[]) => ['/home/me/.dsh', ...segments].join('/')
+  it('keeps programs in a workspace inside the Harness home unless STITCH_CUA_WORKSPACE names another directory', () => {
+    const dshHomePath = (...segments: string[]) => ['/home/me/.stitch', ...segments].join('/')
     // The directory the client launched the server from is never the workspace.
     const launched = { env: {}, cwd: () => '/' }
-    const pinned = { env: { DSH_CUA_WORKSPACE: '/projects/desk' }, cwd: () => '/' }
+    const pinned = { env: { STITCH_CUA_WORKSPACE: '/projects/desk' }, cwd: () => '/' }
     // The frontend row sets the Agent's working directory, which is a program's workspace-write root; the policy
     // row's root is the fallback for calls without a Session, so both rows resolve the same directory.
     for (const value of [(row('cua-mcp')?.config as { workspace: unknown }).workspace, (row('sandbox-policy')?.config as { workspaceRoot: unknown }).workspaceRoot]) {
-      expect(interpolate({ process: launched, dshHomePath }, value)).toBe('/home/me/.dsh/cua-mcp/workspace')
+      expect(interpolate({ process: launched, dshHomePath }, value)).toBe('/home/me/.stitch/cua-mcp/workspace')
       expect(interpolate({ process: pinned, dshHomePath }, value)).toBe('/projects/desk')
     }
   })
@@ -93,9 +93,9 @@ describe('cua-mcp bundle', () => {
     }
   })
 
-  it('maps DSH_CUA_CONSENT onto the frontend consent and defaults to elicitation', () => {
+  it('maps STITCH_CUA_CONSENT onto the frontend consent and defaults to elicitation', () => {
     const consent = (row('cua-mcp')?.config as { consent: unknown }).consent
     expect(interpolate({ process: { env: {} } }, consent)).toBe('elicit')
-    expect(interpolate({ process: { env: { DSH_CUA_CONSENT: 'allow' } } }, consent)).toBe('allow')
+    expect(interpolate({ process: { env: { STITCH_CUA_CONSENT: 'allow' } } }, consent)).toBe('allow')
   })
 })

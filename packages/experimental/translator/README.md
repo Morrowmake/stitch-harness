@@ -36,7 +36,7 @@ Mount the package as a Cordis service. Call `resolve({ text, targetLanguage, sou
 | `maxTextChars` | `4000` | Maximum submitted UTF-16 code units per request |
 | `maxResponseBytes` | `1048576` | Maximum JSON response-body bytes |
 
-Endpoints accept HTTP(S) URLs without credentials or fragments. Native `fetch` uses the Host's global dispatcher and the HTTP proxy policy installed by the `dsh` launcher. No new translation library is required.
+Endpoints accept HTTP(S) URLs without credentials or fragments. Native `fetch` uses the Host's global dispatcher and the HTTP proxy policy installed by the `stitch` launcher. No new translation library is required.
 
 Supply an existing `sessionId` to retain translation requests and successful results in its Session log. A successful result is durably flushed before `translate()` returns and is reused after remounts or process restarts when the exact source text, source and target languages, provider, and translation recipe match. Saved results need only durable Session storage. A cache miss requires an active Session; consumers own its activation. Calls without `sessionId` remain stateless.
 
@@ -97,6 +97,6 @@ None; translation never touches a model conversation or its cache.
 <details>
 <summary>Maintainer details — click to expand</summary>
 
-Live provider tests use the actual default endpoints without credentials. They are skipped unless explicitly enabled with `DSH_TRANSLATION_LIVE=1 pnpm run test:e2e packages/experimental/translator/tests/upstream.e2e.ts`. They cover Bing automatic and explicit source selection, both providers' Chinese locale tags, and a Google request at the default 4000-character limit. Real Loader tests cover durable common records, active Session writes, and restart cache reuse.
+Live provider tests use the actual default endpoints without credentials. They are skipped unless explicitly enabled with `STITCH_TRANSLATION_LIVE=1 pnpm run test:e2e packages/experimental/translator/tests/upstream.e2e.ts`. They cover Bing automatic and explicit source selection, both providers' Chinese locale tags, and a Google request at the default 4000-character limit. Real Loader tests cover durable common records, active Session writes, and restart cache reuse.
 
 </details>

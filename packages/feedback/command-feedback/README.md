@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-command-feedback` lets a user tell the harness what they think of a session. `/feedback` plus a remark records it and acknowledges the session id; the Web dialog records a category and optional description through the `sessionFeedback` Host Remote. Recording never starts model work, and the model never sees the remark. Feedback stays in the local Session log until the user confirms a previewed GitHub report, filed on the Stitch repository through the `gh` CLI or a prefilled page. The package owns the shared category taxonomy and ships with the standard `dsh` base; headless, ACP, and JSON-RPC have no slash commands.
+`dsh-command-feedback` lets a user tell the harness what they think of a session. `/feedback` plus a remark records it and acknowledges the session id; the Web dialog records a category and optional description through the `sessionFeedback` Host Remote. Recording never starts model work, and the model never sees the remark. Feedback stays in the local Session log until the user confirms a previewed GitHub report, filed on the Stitch repository through the `gh` CLI or a prefilled page. The package owns the shared category taxonomy and ships with the standard `stitch` base; headless, ACP, and JSON-RPC have no slash commands.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Users can record feedback from the Web client out of the box: the `/feedback` command ships with the standard `dsh` base, needs no configuration, and works in any conversation. A custom app gets the same command by mounting the Session store, command registry, and this plugin together.
+Users can record feedback from the Web client out of the box: the `/feedback` command ships with the standard `stitch` base, needs no configuration, and works in any conversation. A custom app gets the same command by mounting the Session store, command registry, and this plugin together.
 
 ### The `/feedback` command
 

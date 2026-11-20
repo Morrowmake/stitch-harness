@@ -5,19 +5,19 @@
 - id: sandbox-policy
   name: '@deepseek-ai/dsh-sandbox-policy'
   config:
-    mode: !!js "process.env.DSH_PERMISSION_MODE ?? (process.env.DSH_SNAPSHOT === undefined ? 'workspace-write' : 'danger-full-access')"
+    mode: !!js "process.env.STITCH_PERMISSION_MODE ?? (process.env.STITCH_SNAPSHOT === undefined ? 'workspace-write' : 'danger-full-access')"
     workspaceRoot: !!js process.cwd()
 
 - id: approval
   name: '@deepseek-ai/dsh-user-approval'
   config:
-    policy: !!js "(process.env.DSH_PERMISSION_MODE ?? (process.env.DSH_SNAPSHOT === undefined ? 'workspace-write' : 'danger-full-access')) === 'danger-full-access' ? 'never' : 'ask'"
+    policy: !!js "(process.env.STITCH_PERMISSION_MODE ?? (process.env.STITCH_SNAPSHOT === undefined ? 'workspace-write' : 'danger-full-access')) === 'danger-full-access' ? 'never' : 'ask'"
 
 - id: session-persistence-jsonl
   name: '@deepseek-ai/dsh-session-persistence-jsonl'
   config:
-    root: !!js process.env.DSH_SNAPSHOT_SESSIONS_ROOT ?? dshHomePath('sessions')
-    compression: !!js "process.env.DSH_SNAPSHOT === undefined ? 'zstd' : 'none'"
+    root: !!js process.env.STITCH_SNAPSHOT_SESSIONS_ROOT ?? dshHomePath('sessions')
+    compression: !!js "process.env.STITCH_SNAPSHOT === undefined ? 'zstd' : 'none'"
 
 # Live runs use the pi-ai `deepseek` route; snapshot replay keeps the recorded
 # route name its llm-replay scripts declare.
@@ -31,8 +31,8 @@
 - id: acp
   name: '@deepseek-ai/dsh-acp'
   config:
-    provider: !!js "process.env.DSH_SNAPSHOT === undefined ? 'deepseek' : 'deepseek-official'"
-    model: !!js "process.env.DSH_SNAPSHOT === undefined ? 'deepseek-flash' : 'deepseek-v4-flash'"
+    provider: !!js "process.env.STITCH_SNAPSHOT === undefined ? 'deepseek' : 'deepseek-official'"
+    model: !!js "process.env.STITCH_SNAPSHOT === undefined ? 'deepseek-flash' : 'deepseek-v4-flash'"
 
 - id: system-prompt
   name: '@deepseek-ai/dsh-system-prompt'

@@ -119,9 +119,9 @@ Node 部署在受支持的 macOS、Linux 与 Windows 目标上获得 `@vscode/ri
 cd packages/fs/tool-fs-search
 node --input-type=module <<'JS'
 import { build } from 'tsdown';
-await build({ config: false, tsconfig: false, dts: false, entry: 'tests/glob-native.perf.ts', outDir: 'tests/.dsh-build', clean: false, deps: { neverBundle: [/^[^./]/] } });
+await build({ config: false, tsconfig: false, dts: false, entry: 'tests/glob-native.perf.ts', outDir: 'tests/.stitch-build', clean: false, deps: { neverBundle: [/^[^./]/] } });
 JS
-node tests/.dsh-build/glob-native.perf.mjs
+node tests/.stitch-build/glob-native.perf.mjs
 ```
 
 诊断脚本创建 20,000 个无关文件和六个匹配文件，然后通过 Native executor 测量五次 `ctx.tools.execute()` 调用，使用真实 Agent、工作目录服务和本地 subprocess 后端。输出包括原始耗时、中位数，以及完整值、文本和展示元数据的哈希。`--plugin <built-module>` 选择其他搜索包版本；`--workspace <directory>` 显式选择只读的现有工作区，替代合成目录。计时排除初始化、模型生成、UI 和 Session 持久化；不设耗时阈值。

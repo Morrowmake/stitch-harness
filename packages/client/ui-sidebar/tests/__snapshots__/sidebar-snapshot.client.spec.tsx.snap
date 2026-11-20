@@ -166,7 +166,7 @@ exports[`sidebar shell snapshots > renders Windows caption controls in expanded 
                 <span
                   class="localBuildTitle"
                 >
-                  DSH Local Build
+                  Stitch (local build)
                 </span>
                 <span
                   class="buildVersion"
@@ -459,7 +459,7 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
                 <span
                   class="localBuildTitle"
                 >
-                  DSH Local Build
+                  Stitch (local build)
                 </span>
                 <span
                   class="buildVersion"
@@ -626,7 +626,7 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
                 <span
                   class="localBuildTitle"
                 >
-                  DSH 本地构建
+                  Stitch（本地构建）
                 </span>
                 <span
                   class="buildVersion"

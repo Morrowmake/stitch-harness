@@ -27,12 +27,12 @@ Review the [safety notice](SAFETY.md) before running the project.
 
 Download the macOS or Windows installer from [GitHub Releases](https://github.com/Morrowmake/stitch-harness/releases). The builds are unsigned for now, so macOS Gatekeeper and Windows SmartScreen warn on first launch.
 
-### Run from `npm`
+### Terminal command
 
-Install `Node.js`, then run:
+The desktop app can install the `stitch` command for your terminal: choose **Manage stitch Command…** in the app menu. Then run:
 
 ```sh
-npx @stitch-harness/stitch web
+stitch web
 ```
 
 The command starts the Web UI at `http://127.0.0.1:3080` by default and opens it in the default browser for a local launch. An SSH launch only prints the host URL because the SSH client or editor owns the local forwarded address. Pass `--no-open` to run the server without opening a browser. See [Web UI guide](docs/user/guide/index.md).

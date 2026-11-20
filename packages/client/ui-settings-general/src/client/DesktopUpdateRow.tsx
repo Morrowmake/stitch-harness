@@ -1,4 +1,4 @@
-/** Desktop-only opt-in update check; persistence and the request itself stay in Electron. */
+/** Desktop-only daily update check (on by default); persistence, the request, and installation stay in Electron. */
 import { Button, Switch } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { DesktopUpdateSnapshot, DesktopUpdateSource } from './desktop-update-source.ts'

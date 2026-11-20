@@ -1,17 +1,33 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  checkLatestRelease, DesktopUpdateChecker, LATEST_RELEASE_URL, newerRelease, UPDATE_CHECK_INTERVAL_MS,
-  type DesktopUpdateFetch,
+  checkLatestRelease, DesktopUpdateChecker, newerRelease, releaseAssetUrl, releaseInstall, RELEASES_URL, UPDATE_CHECK_INTERVAL_MS,
+  type DesktopUpdateFetch, type DesktopUpdateTarget,
 } from '../src/update-check.ts'
+import { sha256Hex, signUpdateManifest, type UnsignedUpdateManifest } from '../src/update-manifest.ts'
+import { releaseKey } from './helpers/update-signing.ts'
 
-const PAGE = 'https://github.com/Morrowmake/stitch-harness/releases/tag/v1.2.0'
+const PAGE = 'https://github.com/Morrowmake/stitch-harness/releases/tag/stitch-v1.2.0'
+const key = releaseKey()
+const MAC: DesktopUpdateTarget = { keys: [key.publicKey], platform: 'darwin', arch: 'arm64' }
+const NO_KEYS: DesktopUpdateTarget = { keys: [], platform: 'darwin', arch: 'arm64' }
 
 function release(fields: Record<string, unknown> = {}): Record<string, unknown> {
-  return { tag_name: 'v1.2.0', name: 'Stitch 1.2.0', html_url: PAGE, draft: false, prerelease: false, ...fields }
+  return { tag_name: 'stitch-v1.2.0', name: 'Stitch 1.2.0', html_url: PAGE, draft: false, prerelease: false, ...fields }
 }
 
-function fetchReturning(body: unknown, status = 200) {
-  return vi.fn<DesktopUpdateFetch>(async () => new Response(JSON.stringify(body), { status }))
+function manifest(fields: Partial<UnsignedUpdateManifest> = {}, privateKey = key.privateKey): unknown {
+  const asset = { name: 'stitch-1.2.0-mac-arm64-unsigned.zip', size: 3, sha256: sha256Hex(Buffer.from('zip')), signature: 'x' }
+  return JSON.parse(JSON.stringify(signUpdateManifest({
+    schema: 1, version: '1.2.0', tag: 'stitch-v1.2.0', releaseUrl: PAGE, publishedAt: '2026-11-21T00:00:00Z',
+    assets: { 'darwin-arm64': asset }, ...fields,
+  }, privateKey)))
+}
+
+/** GitHub stand-in: the release list, and `latest.json` of each release. */
+function github(list: unknown, latest: unknown = manifest(), status = 200) {
+  return vi.fn<DesktopUpdateFetch>(async url => url === RELEASES_URL
+    ? new Response(JSON.stringify(list), { status })
+    : new Response(JSON.stringify(latest), { status: 200 }))
 }
 
 beforeEach(() => { vi.spyOn(console, 'warn').mockImplementation(() => {}) })
@@ -23,73 +39,117 @@ describe('newerRelease', () => {
     ['1.2.0', false],
     ['1.10.0', false],
     ['1.2.0-rc.1', true],
-  ])('compares v1.2.0 against running %s by semver', (current, newer) => {
-    expect(newerRelease(release(), current)).toEqual(newer ? { version: '1.2.0', name: 'Stitch 1.2.0', url: PAGE } : undefined)
+  ])('compares stitch-v1.2.0 against running %s by semver', (current, newer) => {
+    expect(newerRelease([release()], current))
+      .toEqual(newer ? { version: '1.2.0', tag: 'stitch-v1.2.0', name: 'Stitch 1.2.0', url: PAGE } : undefined)
   })
 
   it('ignores drafts and prereleases while the running version is a release', () => {
-    expect(newerRelease(release({ draft: true }), '1.0.0')).toBeUndefined()
-    expect(newerRelease(release({ prerelease: true }), '1.0.0')).toBeUndefined()
-    expect(newerRelease(release({ tag_name: 'v1.3.0-beta.1' }), '1.0.0')).toBeUndefined()
+    expect(newerRelease([release({ draft: true })], '1.0.0')).toBeUndefined()
+    expect(newerRelease([release({ prerelease: true })], '1.0.0')).toBeUndefined()
+    expect(newerRelease([release({ tag_name: 'stitch-v1.3.0-beta.1' })], '1.0.0')).toBeUndefined()
   })
 
   it('offers newer prereleases when the running version is itself a prerelease, but never drafts', () => {
-    expect(newerRelease(release({ tag_name: 'v1.3.0-beta.2', prerelease: true }), '1.3.0-beta.1'))
-      .toEqual({ version: '1.3.0-beta.2', name: 'Stitch 1.2.0', url: PAGE })
-    expect(newerRelease(release({ tag_name: 'v1.3.0-beta.1', prerelease: true }), '1.3.0-beta.1')).toBeUndefined()
-    expect(newerRelease(release({ tag_name: 'v1.3.0-beta.2', draft: true }), '1.3.0-beta.1')).toBeUndefined()
+    expect(newerRelease([release({ tag_name: 'stitch-v1.3.0-beta.2', prerelease: true })], '1.3.0-beta.1')?.version).toBe('1.3.0-beta.2')
+    expect(newerRelease([release({ tag_name: 'stitch-v1.3.0-beta.1', prerelease: true })], '1.3.0-beta.1')).toBeUndefined()
+    expect(newerRelease([release({ tag_name: 'stitch-v1.3.0-beta.2', draft: true })], '1.3.0-beta.1')).toBeUndefined()
+  })
+
+  it('picks the newest eligible entry and skips unusable ones', () => {
+    const list = [
+      release({ tag_name: 'nightly' }),
+      release({ tag_name: 'stitch-v1.4.0', html_url: 'https://example.com/releases/v1.4.0' }),
+      release({ tag_name: 'stitch-v1.5.0', draft: true }),
+      release({ tag_name: 'stitch-v1.1.0' }),
+      release({ tag_name: 'v1.3.0', name: 'Three' }),
+      null,
+    ]
+    expect(newerRelease(list, '1.0.0')).toMatchObject({ version: '1.3.0', tag: 'v1.3.0', name: 'Three' })
   })
 
   it('falls back to the tag when the release has no name', () => {
-    expect(newerRelease(release({ name: '  ' }), '1.0.0')?.name).toBe('v1.2.0')
+    expect(newerRelease([release({ name: '  ' })], '1.0.0')?.name).toBe('stitch-v1.2.0')
   })
 
-  it.each([
-    ['a non-object', null],
-    ['an invalid tag', release({ tag_name: 'nightly' })],
-    ['a foreign release page', release({ html_url: 'https://example.com/releases/v1.2.0' })],
-    ['another repository', release({ html_url: 'https://github.com/someone/else/releases/tag/v1.2.0' })],
-  ])('rejects %s', (_label, body) => {
+  it.each([['a non-list', release()], ['null', null]])('rejects %s', (_label, body) => {
     expect(() => newerRelease(body, '1.0.0')).toThrow()
   })
 })
 
+describe('releaseInstall', () => {
+  const selected = { version: '1.2.0', tag: 'stitch-v1.2.0' }
+
+  it('picks this platform asset from a verified manifest, using the manifest asset name', () => {
+    expect(releaseInstall(manifest(), selected, '1.0.0', MAC)?.asset.name).toBe('stitch-1.2.0-mac-arm64-unsigned.zip')
+    expect(releaseInstall(manifest(), selected, '1.0.0', { ...MAC, platform: 'win32', arch: 'x64' })).toBeUndefined()
+  })
+
+  it.each([
+    ['an untrusted signature', manifest({}, releaseKey().privateKey), selected, '1.0.0'],
+    ['an unsigned manifest', (({ manifestSignature: _s, ...rest }) => rest)(manifest() as Record<string, unknown>), selected, '1.0.0'],
+    ['another release tag', manifest({ tag: 'stitch-v1.1.0' }), selected, '1.0.0'],
+    ['another version', manifest({ version: '1.2.1' }), selected, '1.0.0'],
+    ['a downgrade', manifest({ version: '1.2.0' }), selected, '1.3.0'],
+  ])('rejects %s', (_label, body, chosen, current) => {
+    expect(() => releaseInstall(body, chosen, current, MAC)).toThrow()
+  })
+})
+
 describe('checkLatestRelease', () => {
-  it('requests only the latest release with a product User-Agent and no credentials', async () => {
-    const fetch = fetchReturning(release())
-    await expect(checkLatestRelease(fetch, '1.0.0')).resolves.toEqual({
-      kind: 'available', release: { version: '1.2.0', name: 'Stitch 1.2.0', url: PAGE },
-    })
-    expect(fetch).toHaveBeenCalledOnce()
-    const [url, init] = fetch.mock.calls[0]!
-    expect(url).toBe(LATEST_RELEASE_URL)
-    expect(url).toBe('https://api.github.com/repos/Morrowmake/stitch-harness/releases/latest')
+  it('requests the release list and the release manifest with a product User-Agent and no credentials', async () => {
+    const fetch = github([release()])
+    const result = await checkLatestRelease(fetch, '1.0.0', MAC)
+    expect(result).toMatchObject({ kind: 'available', release: { version: '1.2.0', url: PAGE, install: { asset: { size: 3 } } } })
+    expect(fetch).toHaveBeenCalledTimes(2)
+    const [[listUrl, init], [manifestUrl]] = fetch.mock.calls as [[string, RequestInit], [string, RequestInit]]
+    expect(listUrl).toBe('https://api.github.com/repos/Morrowmake/stitch-harness/releases?per_page=30')
+    expect(manifestUrl).toBe(releaseAssetUrl('stitch-v1.2.0', 'latest.json'))
+    expect(manifestUrl).toBe('https://github.com/Morrowmake/stitch-harness/releases/download/stitch-v1.2.0/latest.json')
     expect(init).toMatchObject({ method: 'GET', credentials: 'omit', referrerPolicy: 'no-referrer' })
     expect(init.headers).toEqual({ 'User-Agent': 'Stitch/1.0.0', Accept: 'application/vnd.github+json' })
   })
 
-  it('reports the running version when it is current', async () => {
-    await expect(checkLatestRelease(fetchReturning(release()), '1.2.0')).resolves.toEqual({ kind: 'current', version: '1.2.0' })
+  it('offers the release without one-click install and without fetching a manifest when no key is embedded', async () => {
+    const fetch = github([release()])
+    const result = await checkLatestRelease(fetch, '1.0.0', NO_KEYS)
+    expect(result).toEqual({ kind: 'available', release: { version: '1.2.0', tag: 'stitch-v1.2.0', name: 'Stitch 1.2.0', url: PAGE } })
+    expect(fetch).toHaveBeenCalledOnce()
   })
 
-  it('turns HTTP, network, and format failures into a failed result', async () => {
-    await expect(checkLatestRelease(fetchReturning({ message: 'rate limited' }, 403), '1.0.0')).resolves.toEqual({ kind: 'failed' })
-    await expect(checkLatestRelease(vi.fn<DesktopUpdateFetch>(async () => { throw new Error('offline') }), '1.0.0'))
+  it('still offers manual download when the manifest is missing or fails verification', async () => {
+    for (const latest of [{ message: 'Not Found' }, manifest({}, releaseKey().privateKey)]) {
+      const result = await checkLatestRelease(github([release()], latest), '1.0.0', MAC)
+      expect(result).toMatchObject({ kind: 'available', release: { version: '1.2.0' } })
+      expect(result.kind === 'available' && result.release.install).toBeUndefined()
+    }
+  })
+
+  it('reports the running version when it is current without fetching a manifest', async () => {
+    const fetch = github([release()])
+    await expect(checkLatestRelease(fetch, '1.2.0', MAC)).resolves.toEqual({ kind: 'current', version: '1.2.0' })
+    expect(fetch).toHaveBeenCalledOnce()
+  })
+
+  it('turns HTTP, network, and format failures of the list into a failed result', async () => {
+    await expect(checkLatestRelease(github({ message: 'rate limited' }, undefined, 403), '1.0.0', MAC)).resolves.toEqual({ kind: 'failed' })
+    await expect(checkLatestRelease(vi.fn<DesktopUpdateFetch>(async () => { throw new Error('offline') }), '1.0.0', MAC))
       .resolves.toEqual({ kind: 'failed' })
-    await expect(checkLatestRelease(fetchReturning({ unexpected: true }), '1.0.0')).resolves.toEqual({ kind: 'failed' })
+    await expect(checkLatestRelease(github({ unexpected: true }), '1.0.0', MAC)).resolves.toEqual({ kind: 'failed' })
   })
 })
 
 describe('DesktopUpdateChecker', () => {
-  function checker(enabled: { value: boolean }, fetch: DesktopUpdateFetch = fetchReturning(release())) {
+  function checker(enabled: { value: boolean }, fetch: DesktopUpdateFetch = github([release()])) {
     const onAvailable = vi.fn()
-    const instance = new DesktopUpdateChecker({ currentVersion: '1.0.0', enabled: () => enabled.value, fetch, onAvailable })
+    const instance = new DesktopUpdateChecker({ currentVersion: '1.0.0', enabled: () => enabled.value, fetch, target: NO_KEYS, onAvailable })
     return { instance, onAvailable }
   }
+  const available = { version: '1.2.0', tag: 'stitch-v1.2.0', name: 'Stitch 1.2.0', url: PAGE }
 
-  it('never requests GitHub while the preference is off, across startup and many days', async () => {
+  it('never requests GitHub automatically while the preference is off, across startup and many days', async () => {
     vi.useFakeTimers()
-    const fetch = fetchReturning(release())
+    const fetch = github([release()])
     const { instance, onAvailable } = checker({ value: false }, fetch)
     instance.sync()
     await vi.advanceTimersByTimeAsync(UPDATE_CHECK_INTERVAL_MS * 7)
@@ -102,12 +162,12 @@ describe('DesktopUpdateChecker', () => {
 
   it('checks at startup and then once a day while on, presenting newer releases', async () => {
     vi.useFakeTimers()
-    const fetch = fetchReturning(release())
+    const fetch = github([release()])
     const { instance, onAvailable } = checker({ value: true }, fetch)
     instance.sync()
     await vi.advanceTimersByTimeAsync(0)
     expect(fetch).toHaveBeenCalledTimes(1)
-    expect(onAvailable).toHaveBeenCalledWith({ version: '1.2.0', name: 'Stitch 1.2.0', url: PAGE })
+    expect(onAvailable).toHaveBeenCalledWith(available)
     instance.sync()
     await vi.advanceTimersByTimeAsync(UPDATE_CHECK_INTERVAL_MS - 1)
     expect(fetch).toHaveBeenCalledTimes(1)
@@ -123,7 +183,7 @@ describe('DesktopUpdateChecker', () => {
   it('checks immediately when turned on and stops the daily timer when turned off', async () => {
     vi.useFakeTimers()
     const enabled = { value: false }
-    const fetch = fetchReturning(release())
+    const fetch = github([release()])
     const { instance } = checker(enabled, fetch)
     instance.sync()
     enabled.value = true
@@ -145,10 +205,10 @@ describe('DesktopUpdateChecker', () => {
   })
 
   it.each([
-    ['an available release', release(), { kind: 'available', release: { version: '1.2.0', name: 'Stitch 1.2.0', url: PAGE } }],
-    ['the current version', release({ tag_name: 'v1.0.0' }), { kind: 'current', version: '1.0.0' }],
+    ['an available release', [release()], { kind: 'available', release: available }],
+    ['the current version', [release({ tag_name: 'stitch-v1.0.0' })], { kind: 'current', version: '1.0.0' }],
   ])('reports %s from Check now even while the preference is off', async (_label, body, expected) => {
-    const fetch = fetchReturning(body)
+    const fetch = github(body)
     const { instance, onAvailable } = checker({ value: false }, fetch)
     await expect(instance.checkNow()).resolves.toEqual(expected)
     expect(fetch).toHaveBeenCalledOnce()

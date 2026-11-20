@@ -7,7 +7,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it, vi } from 'vitest'
 import { resolveExampleLaunch } from '@deepseek-ai/dsh-loader-smoke'
-import { createProcessDeepSeekHarness } from '../../../sdk/client/src/api.ts'
+import { createProcessStitch } from '../../../sdk/client/src/api.ts'
 import { spawnSubprocess } from '../../../subprocess/subprocess-local/src/spawn.ts'
 import { startAcpRun } from '../../subagent-acp/src/run.ts'
 import { externalTestParent } from '../../subagent/tests/external-activation-helpers.ts'
@@ -30,9 +30,9 @@ describe('external tasks with a nested fork', () => {
     const idle = join(root, 'idle')
     const patch = join(root, 'nested.patch.yml')
     const env = {
-      DSH_HOME: join(root, 'home'),
-      DSH_TEST_CHILD_READY: ready, DSH_TEST_CHILD_RELEASE: release, DSH_TEST_ROOT_IDLE: idle,
-      DSH_TEST_SUMMARY_ERROR: outcome === 'error' ? '1' : '0',
+      STITCH_HOME: join(root, 'home'),
+      STITCH_TEST_CHILD_READY: ready, STITCH_TEST_CHILD_RELEASE: release, STITCH_TEST_ROOT_IDLE: idle,
+      STITCH_TEST_SUMMARY_ERROR: outcome === 'error' ? '1' : '0',
     }
     const launch = resolveExampleLaunch({
       srcBin: sourceBin, tsconfigPath: tsconfig, sourceImport: 'tsx/esm',
@@ -52,13 +52,13 @@ describe('external tasks with a nested fork', () => {
       const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(45_000)])
       const request = { parent, prompt: [{ type: 'text' as const, text: 'delegate with a fork' }], signal }
       if (profile === 'sdk') {
-        internals.createHarness = options => createProcessDeepSeekHarness({
+        internals.createHarness = options => createProcessStitch({
           command: launch.command, args: launch.args, cwd: root,
           environment: () => ({ ...process.env, ...launch.env }),
           description: 'nested SDK profile', initializeTimeoutMs: 30_000,
         }, options)
         run = await startSdkRun(request, {
-          profile, patches: [patch], dshHome: env.DSH_HOME, cwd: root, provider: 'mock', model: 'mock', env,
+          profile, patches: [patch], dshHome: env.STITCH_HOME, cwd: root, provider: 'mock', model: 'mock', env,
           shutdownTimeoutMs: 1_000, disposeEofGraceMs: 6_000, disposeGraceMs: 3_000,
         })
       } else {

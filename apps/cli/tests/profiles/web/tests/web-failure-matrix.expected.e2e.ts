@@ -117,7 +117,7 @@ function fixture() {
 function start(f: ReturnType<typeof fixture>, extra: string[] = [], nodeArgs: string[] = []) {
   const child = execa(process.execPath, [...nodeArgs, bin, '--profile', 'web', '--patch', f.watcher, ...extra, '--no-open', '--port', '0'], {
     cwd: f.root,
-    env: { ...process.env, DSH_HOME: f.home, DSH_AGENTS_HOME: join(f.root, '.agents'), NODE_NO_WARNINGS: '1' },
+    env: { ...process.env, STITCH_HOME: f.home, STITCH_AGENTS_HOME: join(f.root, '.agents'), NODE_NO_WARNINGS: '1' },
     input: '', reject: false, timeout: 110_000, killSignal: 'SIGKILL',
   })
   let stdout = ''
@@ -224,11 +224,11 @@ describe.skipIf(!built)('Web process failure matrix', () => {
     try {
       const result = await app.child
       exit(result, 1)
-      expect(result.stderr).toContain('dsh: startup failed: 1 required plugin did not activate')
+      expect(result.stderr).toContain('stitch: startup failed: 1 required plugin did not activate')
       expect(result.stderr).toContain('  web-runtime (required)\n    Package: @deepseek-ai/dsh-web-app')
       expect(result.stderr).toContain(`bind address "${host}" carries an interface zone id`)
       expect(result.stderr).toContain('pass --public-url')
-      expect(result.stdout).not.toContain('dsh web: http')
+      expect(result.stdout).not.toContain('stitch web: http')
       expect(app.events()).toBe('witness apply 0\nwitness dispose 0\n')
     } finally {
       exit(await app.close(), 1)
@@ -245,7 +245,7 @@ describe.skipIf(!built)('Web process failure matrix', () => {
         if (required) {
           const result = await app.child
           exit(result, 1)
-          expect(result.stdout).not.toContain('dsh web: http://')
+          expect(result.stdout).not.toContain('stitch web: http://')
           expect(result.stderr).toContain('startup failed:')
           expect(app.events()).toBe('witness apply 1\nwitness dispose 1\n')
         } else {
@@ -307,7 +307,7 @@ describe.skipIf(!built)('Web process failure matrix', () => {
       const result = await app.child
       exit(result, 1)
       expect(result.stderr).toContain(diagnostic)
-      expect(result.stdout).not.toContain('dsh web: http://')
+      expect(result.stdout).not.toContain('stitch web: http://')
       expect(app.events()).toBe('')
     } finally { exit(await app.close(), 1) }
   })

@@ -30,7 +30,7 @@ The Notion plugin registers Notion's hosted MCP server, `https://mcp.notion.com/
 Install the package as a bundle, for example from the Web sidebar's **Plugins** page or with the CLI:
 
 ```sh
-dsh plugin --profile web add @deepseek-ai/dsh-notion
+stitch plugin --profile web add @deepseek-ai/dsh-notion
 ```
 
 The bundle patch inserts the `notion` row after the profile's other layers. The plugin requires the `mcpManager` and `systemPrompt` services, which the Web and Desktop compositions provide through [`dsh-web-app`](../../bundle/web-app/README.md). In a profile without the MCP manager, such as `headless`, the plugin does not activate, and startup prints a warning that names the missing `mcpManager` service.
@@ -48,13 +48,13 @@ While the plugin is on, its page on the **Plugins** page shows a **Notion accoun
 | Connected | **Sign out** asks for confirmation, then deletes the local grant |
 | Cannot connect right now | **Retry** restarts the server and keeps the existing grant |
 
-Authorization must be completed in a browser on the Host machine. After the user approves access in Notion, the callback page says DSH received the authorization; the section then shows the result. Leaving the page does not cancel an attempt, which the Host owns. A failed attempt shows **Authorization was not completed. Try again.**; a failed page action shows a toast. Sign-out keeps the client registration and does not revoke the connection on Notion's side.
+Authorization must be completed in a browser on the Host machine. After the user approves access in Notion, the callback page says Stitch received the authorization; the section then shows the result. Leaving the page does not cancel an attempt, which the Host owns. A failed attempt shows **Authorization was not completed. Try again.**; a failed page action shows a toast. Sign-out keeps the client registration and does not revoke the connection on Notion's side.
 
 The page follows the account through the [`connectorAccounts` Remote](../../client/ui-connector-account/README.md) under the key `mcp:notion`, and its buttons start `connect`, `sign-out`, or `retry` or cancel the attempt there. On the Host, [`dsh-mcp-account`](../../mcp/mcp-account/README.md) runs them through the manager's [OAuth operations](../../mcp/mcp-manager/README.md#oauth-authorization): `startAuthorization('notion')` returns an attempt whose `authorizationUrl` the stream reports, `cancelAuthorization('notion', id)` cancels it, `signOut('notion')` deletes the grant, and `restart('notion')` retries. Other Remote clients can use the same operations.
 
 ### Turn off and uninstall
 
-Turning the row off in Plugin Manager, or uninstalling the package, ends the registration: the Notion tools leave the model's tool set, and the saved grant stays in the credentials store, so reinstalling reuses it. To remove the grant, sign out while the plugin is loaded, or delete the `mcp-client/notion` record from `$DSH_HOME/.credentials.yaml` as the [local credentials provider](../../credentials/credentials-local/README.md) documents.
+Turning the row off in Plugin Manager, or uninstalling the package, ends the registration: the Notion tools leave the model's tool set, and the saved grant stays in the credentials store, so reinstalling reuses it. To remove the grant, sign out while the plugin is loaded, or delete the `mcp-client/notion` record from `$STITCH_HOME/.credentials.yaml` as the [local credentials provider](../../credentials/credentials-local/README.md) documents.
 
 ### Configure
 
@@ -126,7 +126,7 @@ After authorization, the model sees Notion's server instructions under `### MCP 
 
 #### Token effect
 
-Notion's server defines the tool set and instructions, and their size can change without a DSH update. With `on-demand`, a connected Notion costs its instructions, the loader, and a catalog of about 6,400 characters for its 46 tools, plus the definitions an agent has loaded; with `eager`, all definitions, about 214,500 characters, repeat on every request.
+Notion's server defines the tool set and instructions, and their size can change without a Stitch update. With `on-demand`, a connected Notion costs its instructions, the loader, and a catalog of about 6,400 characters for its 46 tools, plus the definitions an agent has loaded; with `eager`, all definitions, about 214,500 characters, repeat on every request.
 
 #### KV Cache effect
 

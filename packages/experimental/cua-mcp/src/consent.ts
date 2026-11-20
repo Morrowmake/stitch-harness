@@ -58,7 +58,7 @@ export async function elicitAnswer(
 ): Promise<AskUserQuestionAnswer['answers'][number]> {
   if (!client.supportsElicitation()) {
     throw new Error('The connected MCP client does not support elicitation, so nobody can grant this request; '
-      + 'start the server with DSH_CUA_CONSENT=allow to grant application and pointer access without a human')
+      + 'start the server with STITCH_CUA_CONSENT=allow to grant application and pointer access without a human')
   }
   const labels = labelsOf(question)
   const message = question.detail === undefined ? question.question : `${question.question}\n\n${question.detail}`

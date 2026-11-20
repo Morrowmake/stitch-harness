@@ -122,11 +122,11 @@ describe('Python SDK dsh profile keyless smoke', () => {
       cwd: repoRoot,
       env: {
         ...launch.env,
-        DSH_HOME: join(root, '.dsh'),
-        DSH_PERMISSION_MODE: 'danger-full-access',
-        DSH_TOOLS_MODE: ptc ? 'native' : 'ptc',
+        STITCH_HOME: join(root, '.stitch'),
+        STITCH_PERMISSION_MODE: 'danger-full-access',
+        STITCH_TOOLS_MODE: ptc ? 'native' : 'ptc',
         [MOCK_ROUTE_KEY_ENV]: 'keyless-smoke-no-call',
-        ...(envValue === undefined ? {} : { DSH_MAX_TOKENS_AS_SUCCESS: envValue }),
+        ...(envValue === undefined ? {} : { STITCH_MAX_TOKENS_AS_SUCCESS: envValue }),
       },
       timeout: 35_000,
       killSignal: 'SIGKILL',
@@ -159,7 +159,7 @@ describe('Python SDK dsh profile keyless smoke', () => {
       expect(initialized).toMatchObject({
         jsonrpc: '2.0',
         id: 1,
-        result: { serverInfo: { name: 'deepseek-harness-sdk-runtime' } },
+        result: { serverInfo: { name: 'stitch-sdk-runtime' } },
       })
 
       child.stdin.write(`${JSON.stringify({
@@ -217,15 +217,15 @@ describe('Python SDK dsh profile keyless smoke', () => {
         'Time sampled while preparing']) {
         expect(requestText.includes(text), text).toBe(true)
       }
-      expect(requestText).not.toContain('Current DeepSeek Harness implementation checkout:')
-      expect(requestText).not.toContain('Current DeepSeek Harness Web GUI URL:')
+      expect(requestText).not.toContain('Current Stitch implementation checkout:')
+      expect(requestText).not.toContain('Current Stitch Web GUI URL:')
 
       child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', id: 3, method: 'shutdown' })}\n`)
       const shutdown = await waitForLine(lines, value => value.id === 3, () => stderr)
       expect(shutdown).toMatchObject({ jsonrpc: '2.0', id: 3, result: {} })
       const exit = await child
       expect(exit.exitCode, `signal=${String(exit.signal)}; stderr=${stderr}`).toBe(0)
-      const sessionsRoot = join(root, '.dsh', 'sessions')
+      const sessionsRoot = join(root, '.stitch', 'sessions')
       const files = await readdir(sessionsRoot, { recursive: true })
       // Session logs are JSONL across one zstd frame per batch, header frame
       // first. Decompress frames explicitly: a single call over concatenated
@@ -324,8 +324,8 @@ describe('Python SDK dsh profile keyless smoke', () => {
       cwd: repoRoot,
       env: {
         ...launch.env,
-        DSH_HOME: join(root, '.dsh'),
-        DSH_SYSTEM_PROMPT: 'Minimal allowlist prompt.',
+        STITCH_HOME: join(root, '.stitch'),
+        STITCH_SYSTEM_PROMPT: 'Minimal allowlist prompt.',
         [MOCK_ROUTE_KEY_ENV]: 'keyless-smoke-no-call',
       },
       timeout: 35_000,
@@ -369,7 +369,7 @@ describe('Python SDK dsh profile keyless smoke', () => {
       })
 
       const profile = JSON.parse(
-        await readFile(join(root, '.dsh', 'profiles', 'sdk-minimal', 'package.json'), 'utf8'),
+        await readFile(join(root, '.stitch', 'profiles', 'sdk-minimal', 'package.json'), 'utf8'),
       ) as { dsh?: { profile?: { bundles?: string[] } } }
       expect(profile.dsh?.profile).toEqual({
         bundles: ['@deepseek-ai/dsh-sdk-minimal'],
@@ -390,7 +390,7 @@ describe('Python SDK dsh profile keyless smoke', () => {
           .find(block => block.type === 'tool_result' && block.tool_use_id === 'minimal-image-read')
         expect(offloads).toEqual([])
         expect(imageResult?.content?.some(block => block.type === 'image')).toBe(true)
-        const stored = await readdir(join(root, '.dsh', 'attachments', 'v1', 'objects'), { recursive: true })
+        const stored = await readdir(join(root, '.stitch', 'attachments', 'v1', 'objects'), { recursive: true })
         expect(stored.some(file => /[a-f0-9]{64}$/u.test(file))).toBe(true)
       }
       if (editorEnabled) {
@@ -426,7 +426,7 @@ describe('Python SDK dsh profile keyless smoke', () => {
 
   it.each([false, true])('exits after startup failure with stdin open (logs blocked: %s)', async (blocked) => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-sdk-startup-exit-'))
-    const home = join(root, '.dsh')
+    const home = join(root, '.stitch')
     const patch = join(root, 'failure.yml')
     await mkdir(home)
     if (blocked) await writeFile(join(home, 'logs'), 'blocked')
@@ -435,7 +435,7 @@ describe('Python SDK dsh profile keyless smoke', () => {
       ...launch.args, '--profile', 'sdk', '--patch', patch,
     ], {
       cwd: repoRoot,
-      env: { ...launch.env, DSH_HOME: home },
+      env: { ...launch.env, STITCH_HOME: home },
       stdin: 'pipe',
       stripFinalNewline: false,
       timeout: 25_000,
@@ -476,8 +476,8 @@ describe('Python SDK dsh profile keyless smoke', () => {
         cwd: repoRoot,
         env: {
           ...launch.env,
-          DSH_HOME: join(root, '.dsh'),
-          DSH_MAX_TOKENS_AS_SUCCESS: 'sometimes',
+          STITCH_HOME: join(root, '.stitch'),
+          STITCH_MAX_TOKENS_AS_SUCCESS: 'sometimes',
         },
         stdin: 'ignore',
         timeout: 25_000,
@@ -559,8 +559,8 @@ it.each(['unset', 'empty', 'full', 'python-only', 'python-only-patched', 'wrong-
   const officeLaunch = resolveExampleLaunch({
     srcBin: fileURLToPath(new URL('../../../src/bin.ts', import.meta.url)), mode: 'lib',
     configArgs: ['--profile', 'sdk', '--patch', cliPatch],
-    env: { DSH_HOME: home, DSH_PRIMARY_RUNTIME: mode === 'unset' ? undefined : mode === 'empty' ? '' : source + '/',
-      DSH_PERMISSION_MODE: 'danger-full-access',
+    env: { STITCH_HOME: home, STITCH_PRIMARY_RUNTIME: mode === 'unset' ? undefined : mode === 'empty' ? '' : source + '/',
+      STITCH_PERMISSION_MODE: 'danger-full-access',
       [MOCK_ROUTE_KEY_ENV]: 'local-fixture' },
   })
   const child = execa(officeLaunch.command, officeLaunch.args, { cwd: repoRoot, env: officeLaunch.env, timeout: 60_000, reject: false })

@@ -411,7 +411,7 @@ class DshFamily extends ReleaseFamily {
     return member.name === '@deepseek-ai/dsh' ? ON_DEMAND_BUNDLES : []
   }
 
-  /** Require the packed DSH runtime graph to stay on the shared exact release version. */
+  /** Require the packed Stitch runtime graph to stay on the shared exact release version. */
   override validatePackedManifest(member: ReleaseMember, manifest: Readonly<Record<string, unknown>>): void {
     super.validatePackedManifest(member, manifest)
     for (const section of ['dependencies', 'optionalDependencies', 'peerDependencies']) {

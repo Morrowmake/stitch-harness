@@ -3,38 +3,38 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/shell/shell-env/README.md
 /:
-  en: c54342d0151b089c
-  zh: 9ad6284f24c5e3f6
+  en: 3c35162a311d2397
+  zh: 7d2c01c708fa20ea
 /deepseek-ai-dsh-shell-env:
   en: d26b77029fa722ab
   zh: 8e6bed763372b561
 /deepseek-ai-dsh-shell-env/summary:
-  en: 021be213f32988e1
-  zh: f3ce1ef82377b4f4
+  en: d52668029f3d7cd7
+  zh: 10d1df3eeb60afc2
 /deepseek-ai-dsh-shell-env/table-of-contents:
   en: d152484eb41ac6b4
   zh: 09388d293f9be9cb
 /deepseek-ai-dsh-shell-env/use-this-package:
-  en: 34d2f05183df200f
-  zh: 7753b97c91743901
+  en: d5d65dd344da06a8
+  zh: 598a902b798da6bb
 /deepseek-ai-dsh-shell-env/use-this-package/what-every-shell-call-receives:
-  en: bab0b75fb967d41a
-  zh: 8f636d9965d01ad1
+  en: ae5b91a2d397729e
+  zh: 9798fe70c99c2606
 /deepseek-ai-dsh-shell-env/use-this-package/adding-your-own-environment-facts:
-  en: 14da34f853d089be
-  zh: 5ad3942aa5321893
+  en: b6f2a791af7ee5f6
+  zh: 76be2b913b2b1e7a
 /deepseek-ai-dsh-shell-env/use-this-package/choosing-the-harness-home:
-  en: 0041438f2b7f7e4f
-  zh: 93fa165b07adcdf4
+  en: 7f07230cd6aaee89
+  zh: a765c980a70db24f
 /deepseek-ai-dsh-shell-env/use-this-package/what-can-go-wrong:
-  en: 737e5607cb1229cc
-  zh: 835b3f225d91f6ea
+  en: ddb5512fa6588884
+  zh: 5b92758fbc6129e3
 /deepseek-ai-dsh-shell-env/understand-the-implementation:
   en: f782557ca8da3138
   zh: e8f0082b9692cacc
 /deepseek-ai-dsh-shell-env/understand-the-implementation/design-philosophy:
-  en: 5438a951817526d9
-  zh: 66459cdea830a8c8
+  en: 9e1099f7062c8435
+  zh: c1818b963b376378
 /deepseek-ai-dsh-shell-env/understand-the-implementation/source-map:
   en: da18240c8c1dc687
   zh: a854ddaca8953832
@@ -42,17 +42,17 @@
   en: 0c2d7d5b2131630f
   zh: b44d4f0ddf89421b
 /deepseek-ai-dsh-shell-env/further-exploration:
-  en: 6a4175df7b7341c7
-  zh: 7885831274008502
+  en: a28cba1ac52e01a1
+  zh: 8c2252a71348bf6e
 /deepseek-ai-dsh-shell-env/model-experience:
-  en: 8acf3cd9aeef5f55
-  zh: 69725e78f73c2f16
+  en: 74fa42276938f8b2
+  zh: dcddc350d9c9e5b6
 /deepseek-ai-dsh-shell-env/model-experience/kv-cache-effect:
   en: e95e649f0410fa75
   zh: b3d64877420b4c0d
 /deepseek-ai-dsh-shell-env/known-limitations-and-deferred-work:
-  en: e61f29904019b35b
-  zh: bfe2e8363d6c7e58
+  en: f55e472470d04516
+  zh: 0a5894ccef7928a0
 /deepseek-ai-dsh-shell-env/known-limitations-and-deferred-work/dev-note:
   en: e67f633dc6fe7773
   zh: 3bb0c20c93f16f98

@@ -25,7 +25,7 @@ Open the tokenized launch URL to sign a browser Cookie, then continue accessing 
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this function plugin beside Connection and Credentials. It also injects `connection.authentication`, which the Connection plugin provides. A WebServer adds HTTP exchange routes; the authentication provider also works in compositions without a Web listener. The plugin contributes a signed `dsh web` entry through `webserver/entry-url`; WebApp owns printing and browser opening. The package's runtime entry exports `name`, `inject`, `Config`, and `apply`.
+Mount this function plugin beside Connection and Credentials. It also injects `connection.authentication`, which the Connection plugin provides. A WebServer adds HTTP exchange routes; the authentication provider also works in compositions without a Web listener. The plugin contributes a signed `stitch web` entry through `webserver/entry-url`; WebApp owns printing and browser opening. The package's runtime entry exports `name`, `inject`, `Config`, and `apply`.
 
 | Field | Default | Meaning |
 |---|---|---|

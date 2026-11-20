@@ -110,7 +110,7 @@ profile 编辑器可从 `@deepseek-ai/dsh-ptc-runtime-node/configuration` 导入
     executionMode: persistent-in-memory
 ```
 
-保存补丁，在使用 PTC 工具展示的配置中通过 `dsh headless --patch <path>` 加载。`per-call` 模式和 `scriptPersistence: false` 的 Script 模式不跨调用保留程序内存。修改配置会重载提供方并释放其执行资源。单文件打包宿主默认使用内嵌载体；宿主在每次执行中发送所选的程序格式和保留标志，因此内嵌的 `process.js` bootstrap 同时服务单次执行和保留执行。远端脚本部署使用 `node-script` 启动方式，并将 `launch.bootstrapPath` 指向本包构建出的 `persistent-process.js`。
+保存补丁，在使用 PTC 工具展示的配置中通过 `stitch headless --patch <path>` 加载。`per-call` 模式和 `scriptPersistence: false` 的 Script 模式不跨调用保留程序内存。修改配置会重载提供方并释放其执行资源。单文件打包宿主默认使用内嵌载体；宿主在每次执行中发送所选的程序格式和保留标志，因此内嵌的 `process.js` bootstrap 同时服务单次执行和保留执行。远端脚本部署使用 `node-script` 启动方式，并将 `launch.bootstrapPath` 指向本包构建出的 `persistent-process.js`。
 
 在 REPL 模式下，每个存活 Agent 保留独立进程，跨 `run_code` 调用和轮次保留顶层变量、函数及导入模块。使用 `await import(...)` 和 `inspect(...)`；不支持顶层 `return`。开头的 `{ ... }` 按语句块执行，可以包含顶层 await 和临时声明；需要返回对象表达式时，用圆括号包裹。保留的函数和工具方法引用调用当前执行的绑定。必须等待所有工具调用；已完成执行的回调不能在后续执行中调用工具。设置 `replScoped: false` 时，Node REPL 使用非严格模式，给未声明的名称赋值会创建保留的全局变量；`_` 和 `_error` 是普通的保留全局变量，不使用交互式 REPL 的结果设置器；声明遵循 Node REPL 规则，包括重复声明已有 `let`、`const` 或 `class` 名称时报错，应给可变绑定赋值或选择新名称。
 

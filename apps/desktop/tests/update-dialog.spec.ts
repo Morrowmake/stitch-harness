@@ -237,6 +237,26 @@ it('keeps a reload action visible for at least half a second and prevents repeat
   expect(await pending).toMatchObject({ response: 0 })
 })
 
+it('publishes action progress while busy and clears it when the action settles', async () => {
+  vi.useFakeTimers()
+  const f = setup()
+  const done = Promise.withResolvers<boolean>()
+  let report: ((progress: { label: string; fraction?: number }) => void) | undefined
+  const pending = f.show(undefined, { action: { index: 0, run: (next) => { report = next; return done.promise } } })
+  const responding = f.invoke(UPDATE_DIALOG_IPC.respond, 0)
+  report!({ label: 'Downloading… 40%', fraction: 0.4 })
+  expect(f.invoke(UPDATE_DIALOG_IPC.status)).toMatchObject({ busyButton: 0, progress: { label: 'Downloading… 40%', fraction: 0.4 } })
+  report!({ label: 'Verifying' })
+  expect(f.invoke(UPDATE_DIALOG_IPC.status)).toMatchObject({ busyButton: 0, progress: { label: 'Verifying' } })
+  expect(f.invoke(UPDATE_DIALOG_IPC.status)).not.toHaveProperty('progress.fraction')
+  done.resolve(false)
+  await vi.advanceTimersByTimeAsync(500)
+  await responding
+  expect(f.invoke(UPDATE_DIALOG_IPC.status)).not.toHaveProperty('progress')
+  dialogs!.cancel()
+  await pending
+})
+
 it('does not revive a busy prompt after cancellation', async () => {
   vi.useFakeTimers()
   const f = setup()

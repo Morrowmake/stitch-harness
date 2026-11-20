@@ -161,7 +161,7 @@ export class DesktopHostProcess {
    * @param inspectPort - Optional loopback inspector port for workspace development.
    * @param environment - Environment inherited by the Host and its plugin subprocesses.
    * @param onFailure - Receives the first unexpected child failure, including after readiness.
-   * @param primaryRuntime - Optional bundled dependency payload; the Host exposes it to its profile as `DSH_PRIMARY_RUNTIME`.
+   * @param primaryRuntime - Optional bundled dependency payload; the Host exposes it to its profile as `STITCH_PRIMARY_RUNTIME`.
    * @param packageManager - Bundled pnpm entry and Node launcher directory, scoped to package operations.
    * @param onPluginOperation - Optional diagnostic sink; malformed records are ignored without failing the Host.
    */
@@ -215,7 +215,7 @@ export class DesktopHostProcess {
         return
       }
       if (!isDesktopHostEvent(message)) {
-        this.fail(new Error('dsh desktop host sent an invalid IPC event'))
+        this.fail(new Error('stitch desktop host sent an invalid IPC event'))
         child.kill('SIGTERM')
         return
       }
@@ -238,7 +238,7 @@ export class DesktopHostProcess {
         })
       }
       else if (message.type === 'shutdown-complete') {
-        if (!this.stopping) this.fail(new Error('dsh desktop host acknowledged an unrequested shutdown'))
+        if (!this.stopping) this.fail(new Error('stitch desktop host acknowledged an unrequested shutdown'))
       }
       else if (message.type === 'fatal') this.fail(new DesktopHostFatalError(message.message, message.diagnostic))
       else {
@@ -251,8 +251,8 @@ export class DesktopHostProcess {
     this.exitPromise = new Promise<void>((resolve) => {
       child.once('close', (code) => {
         const suffix = this.stderr.trim() === '' ? '' : `: ${this.stderr.trim()}`
-        if (code !== 0 && code !== null) this.fail(new Error(`dsh desktop host exited with ${String(code)}${suffix}`))
-        else this.fail(new Error(`dsh desktop host stopped${suffix}`))
+        if (code !== 0 && code !== null) this.fail(new Error(`stitch desktop host exited with ${String(code)}${suffix}`))
+        else this.fail(new Error(`stitch desktop host stopped${suffix}`))
         resolve()
       })
     })
@@ -331,7 +331,7 @@ export class DesktopHostProcess {
     if (!await exitsWithin(exited, 5_000)) {
       child.kill('SIGKILL')
       if (!await exitsWithin(exited, 5_000)) {
-        throw new Error('dsh desktop host did not exit after SIGKILL')
+        throw new Error('stitch desktop host did not exit after SIGKILL')
       }
     }
     this.child = undefined

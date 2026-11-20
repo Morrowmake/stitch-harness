@@ -93,9 +93,9 @@ Var dshRecoveryStopped
 !macroend
 
 !macro dshStageApplication
-  !ifdef DSH_INSTALLER_LOG_DIR
+  !ifdef STITCH_INSTALLER_LOG_DIR
     ; electron-builder defines the cache name after including our function bodies, before this section expands.
-    StrCpy $dshDirectoryLogDirectory "${DSH_INSTALLER_LOG_DIR}"
+    StrCpy $dshDirectoryLogDirectory "${STITCH_INSTALLER_LOG_DIR}"
   !endif
   StrCpy $dshFinalDirectory $INSTDIR
   System::Call 'ole32::CoCreateGuid(g .r0) i .r1'
@@ -116,13 +116,13 @@ Var dshRecoveryStopped
     SetErrorLevel 2
     Quit
   ${EndIf}
-  File /oname=$PLUGINSDIR\dsh-7za.exe "${DSH_SEVENZIP_PATH}"
+  File /oname=$PLUGINSDIR\dsh-7za.exe "${STITCH_SEVENZIP_PATH}"
   StrCpy $INSTDIR $dshNewDirectory
   SetOutPath $INSTDIR
   !insertmacro installApplicationFiles
-  !ifdef DSH_SEVENZIP_LICENSE_DIR
-    File /oname=7zip-installer-LICENSE.txt "${DSH_SEVENZIP_LICENSE_DIR}\LICENSE.txt"
-    File /oname=7zip-installer-COPYING.txt "${DSH_SEVENZIP_LICENSE_DIR}\COPYING"
+  !ifdef STITCH_SEVENZIP_LICENSE_DIR
+    File /oname=7zip-installer-LICENSE.txt "${STITCH_SEVENZIP_LICENSE_DIR}\LICENSE.txt"
+    File /oname=7zip-installer-COPYING.txt "${STITCH_SEVENZIP_LICENSE_DIR}\COPYING"
   !endif
   !ifdef UNINSTALLER_ICON
     File /oname=uninstallerIcon.ico "${UNINSTALLER_ICON}"

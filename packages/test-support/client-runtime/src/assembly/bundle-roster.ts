@@ -1,5 +1,5 @@
 /**
- * The browser roster of a `dsh --profile`, read from its bundle patch files
+ * The browser roster of a `stitch --profile`, read from its bundle patch files
  * the way the launcher composes them: each bundle's `dsh.bundle.patch` file list is
  * parsed with the include plugin's `parseEntryYaml` and
  * composed by its `applyEntryPatches`; every enabled row whose package
@@ -23,7 +23,7 @@ import { exactPackageSpecifier, parseDshClient } from '@deepseek-ai/dsh-client-m
 import { ClientRoster, type ClientRosterRow } from './roster.ts'
 
 /**
- * The `web` profile's bundle layers, in the order `dsh --profile web` applies them
+ * The `web` profile's bundle layers, in the order `stitch --profile web` applies them
  * (`PROFILE_TEMPLATES.web` in `@deepseek-ai/dsh-official-bundles`).
  */
 export const WEB_PROFILE_BUNDLES: readonly string[] = ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app']

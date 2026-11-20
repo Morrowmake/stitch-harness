@@ -3,8 +3,8 @@
 # separate sequences with their own workflows and version lines.
 #
 # Pack and dependency-layout verification run without credentials on every pull
-# request and master push. Publication is a manual workflow_dispatch of
-# release-publish.yml from a dsh-v* tag.
+# request and master push. Stitch does not publish these packages to npm; the
+# desktop installers consume the same packed workspace.
 name: Release (dsh)
 
 on:
@@ -27,55 +27,18 @@ env:
 jobs:
   dependencies:
     name: Dependency layout
-    # Persistent runners accept only trusted, credential-free rehearsals.
-    runs-on: >-
-      ${{ vars.DSH_CI_FAILOVER_LINUX == 'blacksmith' && 'blacksmith-4vcpu-ubuntu-2404'
-        || vars.DSH_CI_FAILOVER_LINUX == 'selfhosted'
-        && github.repository == 'deepseek-harness/deepseek-harness'
-        && github.actor != 'dependabot[bot]'
-        && ((github.event_name == 'push' && github.ref == 'refs/heads/master')
-          || (github.event_name == 'pull_request'
-            && github.event.pull_request.head.repo.full_name == github.repository
-            && github.event.pull_request.head.repo.fork == false
-            && github.event.pull_request.user.login != 'dependabot[bot]'))
-        && fromJSON('["self-hosted", "linux", "x64", "vm-backup"]')
-        || 'ubuntu-24.04' }}
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
-          clean: true
-
-      - name: Configure runner-private caches
-        run: |
-          echo "NODE_COMPILE_CACHE=${{ runner.temp }}/node-compile-cache" >> "$GITHUB_ENV"
-          echo "npm_config_devdir=${{ runner.temp }}/node-gyp" >> "$GITHUB_ENV"
-          echo "TMPDIR=${{ runner.temp }}" >> "$GITHUB_ENV"
 
       - uses: pnpm/action-setup@v5.0.0
-        with:
-          dest: ${{ runner.temp }}/setup-pnpm-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
 
       - uses: actions/setup-node@v7.0.0
         with:
           node-version: ${{ env.PRIMARY_NODE_VERSION }}
-          package-manager-cache: false
-
-      - name: Configure pnpm store path
-        id: pnpm-store
-        run: |
-          store_root="$HOME/.local/share/pnpm/store"
-          echo "PNPM_CONFIG_STORE_DIR=$store_root" >> "$GITHUB_ENV"
-          store_path=$(PNPM_CONFIG_STORE_DIR="$store_root" pnpm store path --silent)
-          echo "path=$store_path" >> "$GITHUB_OUTPUT"
-
-      - uses: actions/cache/restore@v6.1.0
-        if: runner.environment == 'github-hosted'
-        with:
-          path: ${{ steps.pnpm-store.outputs.path }}
-          key: ${{ runner.os }}-node-${{ env.PRIMARY_NODE_VERSION }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-node-${{ env.PRIMARY_NODE_VERSION }}-pnpm-
+          cache: pnpm
 
       - name: Install (immutable)
         run: pnpm install --frozen-lockfile
@@ -97,56 +60,20 @@ jobs:
 
   pack:
     name: Pack npm tarballs
-    # Persistent runners accept only trusted, credential-free rehearsals.
-    runs-on: >-
-      ${{ vars.DSH_CI_FAILOVER_LINUX == 'selfhosted'
-        && github.repository == 'deepseek-harness/deepseek-harness'
-        && github.actor != 'dependabot[bot]'
-        && ((github.event_name == 'push' && github.ref == 'refs/heads/master')
-          || (github.event_name == 'pull_request'
-            && github.event.pull_request.head.repo.full_name == github.repository
-            && github.event.pull_request.head.repo.fork == false
-            && github.event.pull_request.user.login != 'dependabot[bot]'))
-        && fromJSON('["self-hosted", "linux", "x64", "vm-backup"]')
-        || 'ubuntu-24.04' }}
+    runs-on: ubuntu-24.04
     steps:
       # Complete history: the release scripts read tags.
       - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
-          clean: true
-
-      - name: Configure runner-private caches
-        run: |
-          echo "NODE_COMPILE_CACHE=${{ runner.temp }}/node-compile-cache" >> "$GITHUB_ENV"
-          echo "npm_config_devdir=${{ runner.temp }}/node-gyp" >> "$GITHUB_ENV"
-          echo "TMPDIR=${{ runner.temp }}" >> "$GITHUB_ENV"
 
       - uses: pnpm/action-setup@v5.0.0
-        with:
-          dest: ${{ runner.temp }}/setup-pnpm-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
 
       - uses: actions/setup-node@v7.0.0
         with:
           node-version: ${{ env.PRIMARY_NODE_VERSION }}
-          package-manager-cache: false
-
-      - name: Configure pnpm store path
-        id: pnpm-store
-        run: |
-          store_root="$HOME/.local/share/pnpm/store"
-          echo "PNPM_CONFIG_STORE_DIR=$store_root" >> "$GITHUB_ENV"
-          store_path=$(PNPM_CONFIG_STORE_DIR="$store_root" pnpm store path --silent)
-          echo "path=$store_path" >> "$GITHUB_OUTPUT"
-
-      - uses: actions/cache/restore@v6.1.0
-        if: runner.environment == 'github-hosted'
-        with:
-          path: ${{ steps.pnpm-store.outputs.path }}
-          key: ${{ runner.os }}-node-${{ env.PRIMARY_NODE_VERSION }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-node-${{ env.PRIMARY_NODE_VERSION }}-pnpm-
+          cache: pnpm
 
       - name: Install (immutable)
         run: pnpm install --frozen-lockfile

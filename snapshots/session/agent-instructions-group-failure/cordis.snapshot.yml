@@ -16,7 +16,7 @@
   config:
     maxBytes: 65536
     projectRootMarkers:
-      - .dsh-project
+      - .stitch-project
 
 - id: system-prompt
   name: '@deepseek-ai/dsh-system-prompt'

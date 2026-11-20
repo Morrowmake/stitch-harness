@@ -319,7 +319,7 @@ export function startConnection(
 
   async function connectGeneration(): Promise<void> {
     if (isStopped()) return
-    const client = new Client({ name: 'dsh-mcp-client', version: '0.0.1' }, {
+    const client = new Client({ name: 'stitch-mcp-client', version: '0.0.1' }, {
       capabilities: {}, versionNegotiation: { mode: 'auto' },
       listChanged: { tools: { autoRefresh: false, debounceMs: 0, onChanged: () => { void refreshTools() } } },
     })

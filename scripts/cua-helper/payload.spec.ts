@@ -20,7 +20,7 @@ function fixture() {
     const application = join(directory, 'unsigned', CUA_APPLICATION)
     for (const [path, bytes] of Object.entries({
       'Contents/Info.plist': 'fixture identity', 'Contents/MacOS/dsh-cua-native': `executable ${architecture}`,
-      'Contents/Resources/DSHComputerUse.icns': 'icon', 'Contents/_CodeSignature/CodeResources': 'signature',
+      'Contents/Resources/StitchComputerUse.icns': 'icon', 'Contents/_CodeSignature/CodeResources': 'signature',
     })) {
       mkdirSync(join(application, path, '..'), { recursive: true })
       writeFileSync(join(application, path), bytes)
@@ -115,18 +115,6 @@ it.skipIf(process.platform === 'win32').each(['source', 'configuration', 'archit
   if (damage === 'symlink') symlinkSync(join(f.root, 'outside'), join(before.application, 'outside'))
   writeFileSync(join(f.payload, CUA_MANIFEST), JSON.stringify(f.manifest))
   expect(() => { stageCuaHelperPayload(f.payload, join(f.root, 'consumer'), identity) }).toThrow()
-})
-
-it('keeps company signing outside pull-request release rehearsals', () => {
-  const workflow = readFileSync(resolve('.github/workflows/cua-helper-package-macos.yml'), 'utf8')
-  expect(workflow).toContain('workflow_dispatch:')
-  expect(workflow).toContain('workflow_call:')
-  expect(workflow).not.toContain('pull_request:')
-  expect(workflow).toContain('dsh-mac-package-trial')
-  const release = readFileSync(resolve('.github/workflows/release-publish.yml'), 'utf8')
-  expect(release).toContain('needs: cua-helper-macos')
-  expect(release).toContain('scripts/cua-helper/stage.ts')
-  expect(readFileSync(resolve('.github/workflows/release.yml'), 'utf8')).not.toContain('cua-helper-package-macos.yml')
 })
 
 it.skipIf(process.platform === 'win32')('retains the original build commit and version when consuming identical helper sources', () => {

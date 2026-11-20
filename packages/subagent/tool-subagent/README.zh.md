@@ -59,7 +59,7 @@ kind: "package-reference"
 
 可选的 `name` 参数为子任务命名，在调用方的子级之间唯一，且不能为 `lead`；省略时依次选择 `agent-1`、`agent-2` 等。[subagent 运行时](../subagent/README.zh.md#agent-names)定义名称规则及其错误。运行时接受子任务后，每次调用都会返回 `started subagent <name>`，其中 `<name>` 是子任务从根开始的完整名称，例如 `reviewer/checker`。顶层调用在结果展示 metadata 中持久化 `{ kind: 'activation', name: <name> }`；嵌套 Code 派发将其保存在对应 `tool/ptc-dispatch` 事件的 `meta` 字段中。调用不等待子任务结果。activation 独立于已完成的工具调用拥有这项工作；运行时发送完成通知并释放执行资源。
 
-所有后端都由运行时自动递送完成通知，前提是子任务结束时调用方 Agent 仍在线。通知包含最终回答，除非子任务在结束前刚向该 Agent 发过消息。本地 Spawn 和 Fork 子任务还可以发送消息，在活跃期间通过 `send_message` 接受更多工作，或在结束后恢复。Codex、Claude Code、ACP 与 DSH SDK 后端不接受后续消息。
+所有后端都由运行时自动递送完成通知，前提是子任务结束时调用方 Agent 仍在线。通知包含最终回答，除非子任务在结束前刚向该 Agent 发过消息。本地 Spawn 和 Fork 子任务还可以发送消息，在活跃期间通过 `send_message` 接受更多工作，或在结束后恢复。Codex、Claude Code、ACP 与 Stitch SDK 后端不接受后续消息。
 
 `maxDepth` 限制递归深度（`0` 禁止委派）；省略时，每次委派读取 Host 当前的 `subagent.maxDepth` 设置，初始值为 `1`。数值深度要求提供方具备 `depthLimit` 能力；`'provider-managed'` 把预算留给进程外提供方。工具在达到上限时仍然可见；每次尝试启动都会检查调用 agent 的当前深度，被拒绝时返回出错的工具结果。
 
@@ -74,7 +74,7 @@ kind: "package-reference"
 
 ### 选择子级 LLM
 
-设置 `modelSelection: true` 后，该实例公开可选的 `provider`、`model` 和 `reasoning_effort` 字段；未设置的实例拒绝选择字段。在每个工具作用域的一个实例上设置 `modelDiscovery: true`，以注册 `list_subagent_models`；该选项独立于 `modelSelection`，默认关闭。同一作用域的第二个发现工具所有者会注册失败。发现工具随其所属插件实例存续，在委派提供方缺席时仍然可用，并在该实例卸载时移除。Web 与 Desktop preset 为 spawn 启用发现和路由字段，为 fork 保持两者关闭。允许模型选择的委派工具在显式选择路由时、发现工具在每次调用时读取 Host 的 `/model-selection-settings` 服务，因此设置编辑会对所有运行中、已恢复和子 Session 的下一次调用生效。启用时，发现和显式选择允许其精确路由列表。设置关闭或未挂载时，只允许父 Agent 当前生效的 provider/model 及其支持的强度。启用但路由列表为空、格式无效或重复时，读取该设置的每次调用都会抛出错误码为 `INVALID_MODEL_SELECTION_SETTINGS` 的 `SubagentError`。普通委派和关闭模型选择的工具不读取路由列表；Host 设置关闭时也不读取该列表。Session 不记录授权；忽略早期的 `subagent/model-selection-policy` 事件。路由字段要求后端公布 `agentOptions`；进程内 Spawn、Fork 和 DSH SDK 满足条件，ACP、Codex 和 Claude Code 会使挂载失败。
+设置 `modelSelection: true` 后，该实例公开可选的 `provider`、`model` 和 `reasoning_effort` 字段；未设置的实例拒绝选择字段。在每个工具作用域的一个实例上设置 `modelDiscovery: true`，以注册 `list_subagent_models`；该选项独立于 `modelSelection`，默认关闭。同一作用域的第二个发现工具所有者会注册失败。发现工具随其所属插件实例存续，在委派提供方缺席时仍然可用，并在该实例卸载时移除。Web 与 Desktop preset 为 spawn 启用发现和路由字段，为 fork 保持两者关闭。允许模型选择的委派工具在显式选择路由时、发现工具在每次调用时读取 Host 的 `/model-selection-settings` 服务，因此设置编辑会对所有运行中、已恢复和子 Session 的下一次调用生效。启用时，发现和显式选择允许其精确路由列表。设置关闭或未挂载时，只允许父 Agent 当前生效的 provider/model 及其支持的强度。启用但路由列表为空、格式无效或重复时，读取该设置的每次调用都会抛出错误码为 `INVALID_MODEL_SELECTION_SETTINGS` 的 `SubagentError`。普通委派和关闭模型选择的工具不读取路由列表；Host 设置关闭时也不读取该列表。Session 不记录授权；忽略早期的 `subagent/model-selection-policy` 事件。路由字段要求后端公布 `agentOptions`；进程内 Spawn、Fork 和 Stitch SDK 满足条件，ACP、Codex 和 Claude Code 会使挂载失败。
 
 一次调用需同时提供 `provider` 与 `model`；`reasoning_effort` 要求同一次调用包含这两个字段。仅指定强度的调用会在查询路由或创建子级之前被拒绝。省略全部三个字段时，保留配置的子级默认值与现有回退行为。静态的 `provider.agentRouteDefaults` 在存在时构成提供方／模型基线；工具配置与模型字段会在路由相关强度合并和确切路由预检前覆盖它。没有这些默认值的提供方会使用父 agent 最新已记录请求中的兼容值，再使用父级首次请求前的创建选项，并保留配置的 `maxTokens`。显式提供提供方／模型组合但省略强度时，会清除配置及继承的强度，即使路由未变，也由所选模型解析自己的默认值。实时 LLM 适配器在创建子 agent 前校验有效路由。目录成员资格只提供建议，因此适配器接受时，模型可以使用未列出的 id。
 

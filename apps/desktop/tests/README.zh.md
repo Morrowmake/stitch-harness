@@ -50,7 +50,7 @@ pnpm exec tsc -b apps/desktop/tsconfig.host.json
 apps/desktop/.desktop-build/targets/mac-arm64/electron/Electron.app/Contents/MacOS/Electron apps/desktop/tests/fixtures/update-overlay-visibility.mjs
 ```
 
-夹具使用独立 profile，在 `.desktop-build/qualification/update-overlay-*` 下写入 `result.json`。它检查可见和隐藏的父窗口、不创建原生子窗口、父窗口可见性通知后独立对照窗口仍保留焦点，以及销毁父窗口时的视图和输入清理。它不使用网络、产品登录或 dsh Host。这项验证覆盖窗内承载方式，不覆盖完整的首次登录或安装流程。
+夹具使用独立 profile，在 `.desktop-build/qualification/update-overlay-*` 下写入 `result.json`。它检查可见和隐藏的父窗口、不创建原生子窗口、父窗口可见性通知后独立对照窗口仍保留焦点，以及销毁父窗口时的视图和输入清理。它不使用网络、产品登录或 stitch Host。这项验证覆盖窗内承载方式，不覆盖完整的首次登录或安装流程。
 
 <a id="verification-evidence"></a>
 
@@ -60,9 +60,11 @@ apps/desktop/.desktop-build/targets/mac-arm64/electron/Electron.app/Contents/Mac
 
 | 层级 | 观察结果 |
 |---|---|
-| 更新检查 | 使用替身 fetch 的单元测试覆盖 semver 比较、草稿与预发布处理、项目发布页校验、选择加入门控（关闭时在启动及多日内均不发出请求）、启动与每日调度、开启时立即检查、自动检查失败静默，以及"立即检查"结果 |
-| 主入口 | 主入口测试验证默认不发出任何 GitHub 请求；开启后保存 `updates.checkForUpdates`，立即检查并每日检查，提供"下载/稍后"且只打开发布页面；设置页和菜单分别报告有新版本、已是最新和检查失败 |
-| 设置行 | 客户端测试覆盖默认关闭的开关、保存失败及每种"立即检查"结果；[浏览器场景](../../web/tests/desktop-update-check.e2e.ts)通过替身 Desktop 载体驱动构建后的设置界面 |
+| 更新检查 | 使用替身 fetch 的单元测试覆盖对发布列表的 semver 比较、草稿与预发布处理、项目发布页校验、仅在内置公钥时请求清单、清单被拒绝（签名不受信任或缺失、标签或版本不符、降级）时回退到手动下载、偏好门控（关闭时不自动请求）、启动与每日调度、开启时立即检查、自动检查失败静默，以及"立即检查"结果 |
+| 更新清单 | 使用测试内生成的 ed25519 密钥对的单元测试覆盖规范 JSON、清单签名（轮换、键顺序、篡改、不受信任的公钥、无公钥）、内置公钥格式、平台附件选择，以及附件大小、SHA-256 和签名不符 |
+| 一键安装 | 单元测试覆盖 macOS 和 Windows 安装计划构建（辅助脚本步骤、转义、安装程序参数）、暂存应用的标识符和版本检查、不可写及 App Translocation 的应用、无公钥或无已验证来源时不提供一键安装、下载进度，以及验证失败时不启动任何进程 |
+| 主入口 | 主入口测试验证默认在启动时和每日检查、无内置公钥时回退到"下载/稍后"且只打开发布页面、关闭检查后停止自动请求并保存 `updates.checkForUpdates`，以及设置页和菜单分别报告有新版本、已是最新和检查失败 |
+| 设置行 | 客户端测试覆盖开关、保存失败及每种"立即检查"结果；[浏览器场景](../../web/tests/desktop-update-check.e2e.ts)通过替身 Desktop 载体驱动构建后的设置界面，初始为开启状态 |
 | 打包配置 | 元数据内置所配置的应用 ID，不含更新发布配置 |
 
 <a id="verification-open"></a>

@@ -8,7 +8,7 @@ import { createLaunchEnvironmentSnapshot } from '@deepseek-ai/dsh-launch-environ
 import { launchWebScaffold } from './scaffold.ts'
 import { connectFreshWorkspace } from './support.ts'
 
-const SHOTS = process.env.DSH_UI_REVIEW_OUTPUT
+const SHOTS = process.env.STITCH_UI_REVIEW_OUTPUT
 const ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect x="1" y="1" width="14" height="14" rx="3" fill="#3b82f6"/></svg>'
 
 /** @param page - assembled file or preview page. @returns visible header axes and action-seat geometry. */

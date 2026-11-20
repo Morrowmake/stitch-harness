@@ -1,13 +1,13 @@
 {
   "name": "@deepseek-ai/dsh-web-search-keyless",
-  "description": "Keyless web search provider (SearXNG, DuckDuckGo HTML, Marginalia) for the DeepSeek Harness web capability seam (ctx.web)",
+  "description": "Keyless web search provider (SearXNG, DuckDuckGo HTML, Marginalia) for the Stitch web capability seam (ctx.web)",
   "version": "0.2.2-rc.5",
   "publishConfig": {
     "access": "public"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
+    "url": "git+https://github.com/Morrowmake/stitch-harness.git",
     "directory": "packages/web/web-search-keyless"
   },
   "type": "module",

@@ -141,7 +141,7 @@ function fixture(name = '@deepseek-ai/dsh-core'): {
   installed: string
   profile: Profile
 } {
-  // root plays $DSH_HOME; the running dsh lives in a global install outside the profiles tree.
+  // root plays $STITCH_HOME; the running dsh lives in a global install outside the profiles tree.
   // Node reports resolved module paths through the native realpath: /private/var for a macOS tmpdir under /var,
   // and the long directory name for a Windows tmpdir spelled with an 8.3 short name.
   const root = realpathSync.native(mkdtempSync(join(tmpdir(), 'dsh-profile-resolution-')))
@@ -1076,7 +1076,7 @@ describe('runtime resolution', { concurrent: false }, () => {
     expect(await importFrom('left-pad', parent)).toMatchObject({ marker: 9 })
   })
 
-  it.each(['profile', 'plugin'] as const)('uses the installation DSH package from a %s while a stale shared link remains', async (importer) => {
+  it.each(['profile', 'plugin'] as const)('uses the installation Stitch package from a %s while a stale shared link remains', async (importer) => {
     const name = '@deepseek-ai/dsh-core'
     const f = fixture(name)
     file(join(f.profile.dir, 'package.json'), JSON.stringify({
@@ -1112,14 +1112,14 @@ describe('runtime resolution', { concurrent: false }, () => {
     expect(realpathSync(shared)).toBe(target)
   })
 
-  it('treats a profile symlink into .dsh-module-fallback as an ordinary local package', async () => {
+  it('treats a profile symlink into .stitch-module-fallback as an ordinary local package', async () => {
     const f = fixture()
     file(join(f.profile.dir, 'package.json'), JSON.stringify({
       name: 'dsh-profile-web', private: true, dependencies: { '@deepseek-ai/dsh-core': '*' },
     }))
     const target = join(f.root, 'old-dsh', 'node_modules', '@deepseek-ai', 'dsh-core')
     pkg(target, '@deepseek-ai/dsh-core', 9)
-    const owned = join(f.profile.dir, '.dsh-module-fallback', 'node_modules', '@deepseek-ai/dsh-core')
+    const owned = join(f.profile.dir, '.stitch-module-fallback', 'node_modules', '@deepseek-ai/dsh-core')
     const projected = join(f.profile.dir, 'node_modules', '@deepseek-ai/dsh-core')
     mkdirSync(dirname(owned), { recursive: true })
     mkdirSync(dirname(projected), { recursive: true })
@@ -1208,7 +1208,7 @@ describe('runtime resolution', { concurrent: false }, () => {
       pkg(join(modules, bundle, 'node_modules', plugin), plugin, marker)
     }
     // A link-backend launch projected bundle-a's plugin while bundle-a was selected.
-    const owned = join(profileDir, '.dsh-module-fallback', 'node_modules', plugin)
+    const owned = join(profileDir, '.stitch-module-fallback', 'node_modules', plugin)
     mkdirSync(dirname(owned), { recursive: true })
     symlinkSync(join(modules, 'bundle-a', 'node_modules', plugin), owned, process.platform === 'win32' ? 'junction' : 'dir')
     symlinkSync(owned, join(modules, plugin), process.platform === 'win32' ? 'junction' : 'dir')
@@ -1218,9 +1218,9 @@ describe('runtime resolution', { concurrent: false }, () => {
       dsh: { profile: { bundles: ['bundle-b'] } },
     }))
 
-    const profile = loadProfile('dsh', 'web', f.installAnchor, f.root)
+    const profile = loadProfile('stitch', 'web', f.installAnchor, f.root)
     expect(profile.layers.map(layer => layer.packageName)).toEqual(['bundle-b'])
-    expect(existsSync(join(profileDir, '.dsh-module-fallback'))).toBe(false)
+    expect(existsSync(join(profileDir, '.stitch-module-fallback'))).toBe(false)
     expect(existsSync(join(modules, plugin))).toBe(false)
     const resolution = await createRuntimeResolution({ installAnchor: f.installAnchor, profile, home: f.root })
     expect(resolution.entries.find(entry => entry.name === plugin)).toMatchObject({
@@ -1242,7 +1242,7 @@ describe('runtime resolution', { concurrent: false }, () => {
       patchPaths: [join(bundle, 'cordis.patch.yml')], patches: [],
     })
     const target = join(f.root, 'old-dsh', 'node_modules', 'bridge')
-    const owned = join(f.profile.dir, '.dsh-module-fallback', 'node_modules', 'bridge')
+    const owned = join(f.profile.dir, '.stitch-module-fallback', 'node_modules', 'bridge')
     const projected = join(f.profile.dir, 'node_modules', 'bridge')
     pkg(target, 'bridge', 9)
     mkdirSync(dirname(owned), { recursive: true })

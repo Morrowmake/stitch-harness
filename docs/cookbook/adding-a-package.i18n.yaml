@@ -6,8 +6,8 @@
   en: b94bcdbebcd6355e
   zh: 9fd61c2b986da759
 /cookbook-adding-a-workspace-package/1-create-the-package:
-  en: 8dced23a19db2c69
-  zh: ad9021f9fe5e9bb2
+  en: 8bfaca6f2db1a9ce
+  zh: a3556be227a0a19b
 /cookbook-adding-a-workspace-package/2-register-it-in-the-root-configs:
   en: 12b985dee93a47a7
   zh: 1027db3d251cd860
@@ -15,14 +15,14 @@
   en: 455fd18c17d2e813
   zh: 610f17d2ca673492
 /cookbook-adding-a-workspace-package/3-decide-the-package-topology/name-the-role-that-exists:
-  en: 995813ee34abfbd6
-  zh: 328d78e65599e0cc
+  en: 0209c901be93d34e
+  zh: 5260975e08607af6
 /cookbook-adding-a-workspace-package/4-write-the-package-readme:
   en: d225694e23b8ac5d
   zh: 5be18f1018720614
 /cookbook-adding-a-workspace-package/5-add-optional-plugin-display-metadata:
-  en: ee71fb0a70f02550
-  zh: 1f0d6936d6c2acad
+  en: fdc04d9fa60d5fc5
+  zh: 55cc5f2394438bf3
 /cookbook-adding-a-workspace-package/6-verify:
   en: 80c7fb90b1175aae
   zh: 2ba37962dbc57299

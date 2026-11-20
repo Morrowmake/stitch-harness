@@ -1,1 +1,1 @@
-dsh: SERVER: CLI mock provider failed
+stitch: SERVER: CLI mock provider failed

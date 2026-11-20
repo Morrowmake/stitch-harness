@@ -468,7 +468,7 @@ describe('task admission and package contracts', () => {
     const spawnSpecs: SubprocessSpawnSpec[] = []
     vi.spyOn(ctx.subprocess, 'spawn').mockImplementation((spec) => {
       spawnSpecs.push(spec)
-      return spec.env?.DSH_CODEX_INSTANCE === 'safe'
+      return spec.env?.STITCH_CODEX_INSTANCE === 'safe'
         ? safeChild.handle
         : bypassChild.handle
     })
@@ -483,14 +483,14 @@ describe('task admission and package contracts', () => {
     const safeFiber = await ctx.plugin(codex, {
       providerName: 'codex-safe',
       model: 'codex-safe-model',
-      env: { DSH_CODEX_INSTANCE: 'safe' },
+      env: { STITCH_CODEX_INSTANCE: 'safe' },
       permissionMode: 'never',
       disposeGraceMs: 11,
     })
     const bypassFiber = await ctx.plugin(codex, {
       providerName: 'codex-bypass',
       model: 'codex-bypass-model',
-      env: { DSH_CODEX_INSTANCE: 'bypass' },
+      env: { STITCH_CODEX_INSTANCE: 'bypass' },
       permissionMode: 'dangerously-bypass-approvals-and-sandbox',
       disposeGraceMs: 29,
     })
@@ -546,7 +546,7 @@ describe('task admission and package contracts', () => {
       stopReason: 'aborted',
     })
     expect(spawnSpecs.map(spec => ({
-      instance: spec.env?.DSH_CODEX_INSTANCE,
+      instance: spec.env?.STITCH_CODEX_INSTANCE,
       graceMs: spec.graceMs,
     }))).toEqual([
       { instance: 'safe', graceMs: 11 },
@@ -738,8 +738,8 @@ describe('CodexAppServerWire', () => {
     const initialize = await child.peer.nextMethod('initialize')
     expect(initialize.params).toEqual({
       clientInfo: {
-        name: 'deepseek-harness',
-        title: 'DeepSeek Harness',
+        name: 'stitch',
+        title: 'Stitch',
         version: '0.0.1',
       },
       capabilities: {

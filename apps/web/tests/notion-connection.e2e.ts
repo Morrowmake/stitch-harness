@@ -62,7 +62,7 @@ describe('web e2e: Notion plugin connection', () => {
     await section.getByRole('button', { name: '连接 Notion', exact: true }).click()
     const authorization = await opened
     await expect.poll(async () => await authorization.locator('body').textContent(), { timeout: 20_000 })
-      .toContain('已收到授权。可以关闭此页，回到 DSH 查看连接结果。')
+      .toContain('已收到授权。可以关闭此页，回到 Stitch 查看连接结果。')
     await expect.poll(() => section.getAttribute('data-connector-account'), { timeout: 20_000 }).toBe('connected')
     await page.getByText('Notion 已连接', { exact: true }).waitFor({ timeout: 10_000 })
     expect(fixture.authorizations()).toBe(1)

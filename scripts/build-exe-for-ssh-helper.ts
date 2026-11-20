@@ -123,8 +123,8 @@ export async function buildSshHelper(argv: string[]): Promise<void> {
     return
   }
   if (!values['skip-build']) await compileRuntime(definition.dependencies ?? {})
-  await mkdir(join(root, '.dsh-build'), { recursive: true })
-  const temporary = await mkdtemp(join(root, '.dsh-build/ssh-helper-'))
+  await mkdir(join(root, '.stitch-build'), { recursive: true })
+  const temporary = await mkdtemp(join(root, '.stitch-build/ssh-helper-'))
   try {
     const staging = join(temporary, 'staging')
     const product = join(temporary, 'dsh-ssh-helper')

@@ -88,6 +88,7 @@ const PACKAGE_LIBRARIES: Readonly<Record<string, string>> = {
   'packages/typert/protocol': 'Compiler-independent protocol declarations.',
   'packages/util/atomic-write': 'Zero-dependency filesystem write utility.',
   'packages/util/brand': 'Stateless nominal-string and canonical-key constructors.',
+  'packages/util/product': 'Zero-dependency product identity constants.',
   'packages/util/crypto': 'Zero-dependency identifier minting utility.',
   'packages/util/error': 'Zero-dependency HarnessError base class.',
   'packages/util/text-search': 'In-memory search filtering library.',

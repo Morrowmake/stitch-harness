@@ -2,36 +2,36 @@
 # section, a hash of its English and Chinese blocks outside code blocks and generated regions.
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/architecture.md
-/deepseek-harness-architecture:
-  en: 20678ed3f962afba
-  zh: 87a2b81675d93346
-/deepseek-harness-architecture/cordis:
-  en: da5060e577578ea7
-  zh: 2e77d570e32d8938
-/deepseek-harness-architecture/profiles-and-bundles:
-  en: fed68fae5ae9bb5f
-  zh: ec64e222d386cbe6
-/deepseek-harness-architecture/application-launch:
-  en: 334b4f390b6e376b
-  zh: ce094f24c6162be3
-/deepseek-harness-architecture/desktop-application:
-  en: b9eeb18645121a8b
-  zh: 70d87a12c43e042a
-/deepseek-harness-architecture/core-packages:
+/stitch-architecture:
+  en: 6596a6e28be6e6c1
+  zh: 1075ffc7c0c5954e
+/stitch-architecture/cordis:
+  en: 7186d42b42ac0cdb
+  zh: bfb804d5905004df
+/stitch-architecture/profiles-and-bundles:
+  en: ecdf1da9455f88b5
+  zh: 65f5b1627ef9288a
+/stitch-architecture/application-launch:
+  en: 90ead8e2c25a825e
+  zh: faffc1e89eb62bf1
+/stitch-architecture/desktop-application:
+  en: 89a6414a54ebf0da
+  zh: 7232161e975b4ecf
+/stitch-architecture/core-packages:
   en: 20ef882e44b06a10
   zh: c10c3934ed5570e9
-/deepseek-harness-architecture/events:
+/stitch-architecture/events:
   en: b054b52e8c6c85e9
   zh: 67bed6845a429e78
-/deepseek-harness-architecture/turn-flow:
+/stitch-architecture/turn-flow:
   en: 96ad2d8611fd5b88
   zh: 0a6bb22b3b0e1335
-/deepseek-harness-architecture/session-log:
+/stitch-architecture/session-log:
   en: d75af374a356d5f2
   zh: 30720a8c00a37768
-/deepseek-harness-architecture/capability-seams:
+/stitch-architecture/capability-seams:
   en: 1d425c445bfcc931
   zh: 834d486f88e68edf
-/deepseek-harness-architecture/where-new-behavior-goes:
+/stitch-architecture/where-new-behavior-goes:
   en: 9242b0a1f24e7894
   zh: 88cfd6e67f6637c5

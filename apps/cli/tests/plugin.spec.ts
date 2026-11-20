@@ -17,7 +17,7 @@ vi.mock('@deepseek-ai/dsh-plugin-manager/operations', async importOriginal => ({
 
 function fixture() {
   const home = mkdtempSync(join(tmpdir(), 'cli-version-exemptions-'))
-  vi.stubEnv('DSH_HOME', home)
+  vi.stubEnv('STITCH_HOME', home)
   const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
   const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
   onTestFinished(() => {
@@ -33,9 +33,9 @@ function fixture() {
 it('requires explicit acknowledgement, grants only the exact pair, lists and revokes it without pnpm', async () => {
   const { dir, stdout, stderr } = fixture()
   const runtime = getDshRuntimeVersion()
-  expect(await runPlugin('test', ['allow-version', '@example/plugin@1.2.3', '--dsh-version', runtime, '--accept-risk'])).toBe(0)
+  expect(await runPlugin('test', ['allow-version', '@example/plugin@1.2.3', '--stitch-version', runtime, '--accept-risk'])).toBe(0)
   expect(stderr.mock.calls.map(call => call[0]).join('')).toMatchInlineSnapshot(`
-    "dsh: warning: allowing incompatible plugin versions can break the application or corrupt data. Approval applies only to the exact package and DSH versions.
+    "stitch: warning: allowing incompatible plugin versions can break the application or corrupt data. Approval applies only to the exact package and Stitch versions.
     "
   `)
   expect(stderr.mock.invocationCallOrder[0]).toBeLessThan(stdout.mock.invocationCallOrder[0]!)
@@ -43,18 +43,18 @@ it('requires explicit acknowledgement, grants only the exact pair, lists and rev
   expect(JSON.parse(readFileSync(join(dir, 'compatibility.json'), 'utf8'))).toEqual({ '@example/plugin@1.2.3': [runtime] })
   expect(await runPlugin('test', ['version-exemptions'])).toBe(0)
   expect(stdout).toHaveBeenLastCalledWith(JSON.stringify({ '@example/plugin@1.2.3': [runtime] }, undefined, 2) + '\n')
-  expect(await runPlugin('test', ['revoke-version', '@example/plugin@1.2.3', `--dsh-version=${runtime}`])).toBe(0)
+  expect(await runPlugin('test', ['revoke-version', '@example/plugin@1.2.3', `--stitch-version=${runtime}`])).toBe(0)
   expect(readProfileVersionExemptions(dir)).toEqual({})
   expect(runPluginCommand).not.toHaveBeenCalled()
 })
 
 it.each([
-  ['allow-version', 'plugin@1.2.3', '--dsh-version', 'CURRENT'],
+  ['allow-version', 'plugin@1.2.3', '--stitch-version', 'CURRENT'],
   ['allow-version', 'plugin@1.2.3', '--accept-risk'],
-  ['allow-version', 'plugin@^1.2.3', '--dsh-version', 'CURRENT', '--accept-risk'],
-  ['allow-version', 'plugin@1.2.3', '--dsh-version', '999.0.0', '--accept-risk'],
-  ['allow-version', 'plugin@1.2.3', '--dsh-version', 'CURRENT', '--accept-risk=false'],
-  ['allow-version', 'plugin@1.2.3', '--dsh-version', 'CURRENT', '--accept-risk', '--accept-risk'],
+  ['allow-version', 'plugin@^1.2.3', '--stitch-version', 'CURRENT', '--accept-risk'],
+  ['allow-version', 'plugin@1.2.3', '--stitch-version', '999.0.0', '--accept-risk'],
+  ['allow-version', 'plugin@1.2.3', '--stitch-version', 'CURRENT', '--accept-risk=false'],
+  ['allow-version', 'plugin@1.2.3', '--stitch-version', 'CURRENT', '--accept-risk', '--accept-risk'],
   ['revoke-version', 'plugin@1.2.3'],
   ['version-exemptions', 'extra'],
 ])('rejects malformed or unacknowledged exemption command %j', async (...arguments_) => {
@@ -81,7 +81,7 @@ it.each([0, 1])('forwards ordinary pnpm output and exit status %s', async (exitC
   expect(await runPlugin('test', ['list'])).toBe(exitCode)
   expect(stdout).toHaveBeenCalledWith('pnpm output')
   if (exitCode === 0) expect(stderr).not.toHaveBeenCalled()
-  else expect(stderr).toHaveBeenCalledWith('dsh: plugin command failed; diagnostics: /profile/log\n')
+  else expect(stderr).toHaveBeenCalledWith('stitch: plugin command failed; diagnostics: /profile/log\n')
 })
 
 it('names the exact grant command for each package a compatibility check refused', async () => {
@@ -92,8 +92,8 @@ it('names the exact grant command for each package a compatibility check refused
   })
   expect(await runPlugin('test', ['add', '@example/plugin'])).toBe(1)
   expect(stderr.mock.calls.map(call => call[0])).toEqual([
-    'dsh: to accept the risk, run: dsh plugin --profile test allow-version @example/plugin@1.2.3 --dsh-version 0.1.0 --accept-risk\n',
-    'dsh: plugin command failed; diagnostics: /profile/log\n',
+    'stitch: to accept the risk, run: stitch plugin --profile test allow-version @example/plugin@1.2.3 --stitch-version 0.1.0 --accept-risk\n',
+    'stitch: plugin command failed; diagnostics: /profile/log\n',
   ])
 })
 
@@ -124,14 +124,14 @@ it('uses the installation package runtime without changing CLI authentication or
 it.each([
   ['list'], ['add', 'example-plugin'],
   ['version-exemptions'],
-  ['allow-version', 'example-plugin@1.2.3', '--dsh-version', 'CURRENT', '--accept-risk'],
-  ['revoke-version', 'example-plugin@1.2.3', '--dsh-version', 'CURRENT'],
+  ['allow-version', 'example-plugin@1.2.3', '--stitch-version', 'CURRENT', '--accept-risk'],
+  ['revoke-version', 'example-plugin@1.2.3', '--stitch-version', 'CURRENT'],
 ])('requires Desktop initialization before %j without creating a profile', async (...arguments_) => {
   const { home, stderr } = fixture()
   const args = arguments_.map(value => value === 'CURRENT' ? getDshRuntimeVersion() : value)
   expect(await runPlugin('desktop', args)).toBe(1)
   expect(stderr.mock.calls.map(call => call[0]).join('')).toMatchInlineSnapshot(`
-    "dsh: Error: Open DeepSeek Harness Desktop once to initialize its profile, then fully quit it before running dsh plugin --profile desktop.
+    "stitch: Error: Open Stitch Desktop once to initialize its profile, then fully quit it before running stitch plugin --profile desktop.
     "
   `)
   expect(existsSync(join(home, 'profiles', 'desktop'))).toBe(false)
@@ -166,10 +166,10 @@ it('applies version approvals to the existing Desktop profile without replacing 
   initProfile(dir, PROFILE_TEMPLATES.web!.bundles)
   const manifest = readFileSync(join(dir, 'package.json'), 'utf8')
   const runtime = getDshRuntimeVersion()
-  expect(await runPlugin('desktop', ['allow-version', 'example-plugin@1.2.3', '--dsh-version', runtime, '--accept-risk'])).toBe(0)
+  expect(await runPlugin('desktop', ['allow-version', 'example-plugin@1.2.3', '--stitch-version', runtime, '--accept-risk'])).toBe(0)
   expect(readProfileVersionExemptions(dir)).toEqual({ 'example-plugin@1.2.3': [runtime] })
   expect(await runPlugin('desktop', ['version-exemptions'])).toBe(0)
-  expect(await runPlugin('desktop', ['revoke-version', 'example-plugin@1.2.3', '--dsh-version', runtime])).toBe(0)
+  expect(await runPlugin('desktop', ['revoke-version', 'example-plugin@1.2.3', '--stitch-version', runtime])).toBe(0)
   expect(readProfileVersionExemptions(dir)).toEqual({})
   expect(readFileSync(join(dir, 'package.json'), 'utf8')).toBe(manifest)
   expect(existsSync(join(dir, 'package.json.lock'))).toBe(false)

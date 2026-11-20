@@ -547,7 +547,7 @@ it.each(['native', 'runtime'] as const)('reads a disabled bundle and its indepen
     for (const path of [
       join(root, 'node_modules'), join(dir, 'node_modules', 'local-child'),
       join(profile.home, 'profiles', 'node_modules'), join(profile.home, 'node_modules'),
-      join(dir, '.dsh-module-fallback'),
+      join(dir, '.stitch-module-fallback'),
     ]) expect(lstatSync(path, { throwIfNoEntry: false }), path).toBeUndefined()
   }
   const resolution: RuntimeResolution = {
@@ -702,7 +702,7 @@ it.each(['throw', 'reject'])('delivers diagnostics to later subscribers when an 
   expect(await manager.setBundleEnabled('extra', false)).toMatchObject({ changed: true, application: 'restart-required' })
   expect(readProfileManifest('test', dir).dsh?.profile?.bundles).not.toContain('extra')
   expect(facts.map(event => event.phase)).toEqual(['started', 'settled'])
-  await vi.waitFor(() => { expect(errors).toHaveBeenCalledWith('dsh plugin-manager: operation diagnostic delivery failed') })
+  await vi.waitFor(() => { expect(errors).toHaveBeenCalledWith('stitch plugin-manager: operation diagnostic delivery failed') })
 })
 
 it('turns a plugin off and on without leaving a patch override the bundle already implies', async () => {
@@ -1651,7 +1651,7 @@ it('installs from the next registry after one is unreachable, restoring the file
 it('does not ask the next registry after the manager terminated a silent run', async () => {
   const { manager } = await fixture()
   const install = vi.spyOn(operations, 'runProfilePnpm').mockResolvedValue({
-    exitCode: 1, output: 'installing\ndsh: pnpm printed nothing for 600000ms and was terminated\n',
+    exitCode: 1, output: 'installing\nstitch: pnpm printed nothing for 600000ms and was terminated\n',
     truncated: false, logPath: '/dev/null', timedOut: true,
   })
   onTestFinished(() => { install.mockRestore() })
@@ -1669,7 +1669,7 @@ it('drops the earlier registry failure once a later attempt is terminated for si
       truncated: false, logPath: '/dev/null',
     })
     .mockResolvedValueOnce({
-      exitCode: 1, output: 'installing\ndsh: pnpm printed nothing for 600000ms and was terminated\n',
+      exitCode: 1, output: 'installing\nstitch: pnpm printed nothing for 600000ms and was terminated\n',
       truncated: false, logPath: '/dev/null', timedOut: true,
     })
   onTestFinished(() => { install.mockRestore() })
@@ -1786,7 +1786,7 @@ it.each(['dsh-x', 'dsh-x@^2.0.0'])('retains the refused package identity for %s'
   ctx.on('plugin-manager/operation', (event) => { facts.push(event) })
   const incompatible = [{ name: 'dsh-x', version: '2.0.0', runtimeVersion: getDshRuntimeVersion(), requirements: { '@deepseek-ai/dsh': '999.0.0' } }]
   const install = vi.spyOn(operations, 'runProfilePnpm').mockResolvedValue({
-    exitCode: 1, output: 'dsh: installation rejected', truncated: false, logPath: 'pnpm.log', kind: 'unknown', incompatible,
+    exitCode: 1, output: 'stitch: installation rejected', truncated: false, logPath: 'pnpm.log', kind: 'unknown', incompatible,
   })
   onTestFinished(() => { install.mockRestore() })
   const result = await manager.installBundle(spec)
@@ -2052,7 +2052,7 @@ function extraRegistry(spec: string, fields: readonly string[]): object {
   return { name: 'extra', version, dsh: BUNDLE }
 }
 
-it('lists newer registry versions with tags, times, deprecation, bundle declaration, and DSH compatibility', async () => {
+it('lists newer registry versions with tags, times, deprecation, bundle declaration, and Stitch compatibility', async () => {
   const config = { inspectTimeoutMs: 1000, versionListLimit: 3, versionLookupConcurrency: 2 }
   const { manager, dir } = await fixture(undefined, false, undefined, config)
   const view = viewAnswers(extraRegistry)
@@ -2377,10 +2377,10 @@ function gitPnpm(
       return { exitCode: 1, output: `ERR_PNPM_GIT_CHECKOUT_FAILED  ${spec}`, truncated: false, logPath: '/install.log', kind: 'unknown' as const }
     } else if (options.expected !== undefined && `${installed.name}@${installed.version}` !== `${options.expected.name}@${options.expected.version}`) {
       const found = `${installed.name}@${installed.version}`
-      const output = `dsh: installation rejected: ${found} is installed where ${options.expected.name}@${options.expected.version} was expected`
+      const output = `stitch: installation rejected: ${found} is installed where ${options.expected.name}@${options.expected.version} was expected`
       return { exitCode: 1, output, truncated: false, logPath: '/install.log', kind: 'unknown' as const, unmet: 'unexpected-package' as const }
     } else if (options.expected !== undefined && installed.bundle === false) {
-      const output = `dsh: installation rejected: ${installed.name}@${installed.version} declares no bundle`
+      const output = `stitch: installation rejected: ${installed.name}@${installed.version} declares no bundle`
       return { exitCode: 1, output, truncated: false, logPath: '/install.log', kind: 'unknown' as const, unmet: 'not-bundle' as const }
     } else {
       bundle(installed.name, [{ id: `${installed.name}-row`, name: './plugin.mjs', config: { service: `${installed.name}Probe` } }])

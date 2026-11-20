@@ -33,6 +33,11 @@ function render(state) {
   document.getElementById('title').textContent = state.message
   document.getElementById('detail').textContent = state.detail
   document.getElementById('detail').hidden = state.detail === ''
+  const progress = document.getElementById('progress-bar')
+  document.getElementById('progress').hidden = state.progress === undefined
+  document.getElementById('progress-label').textContent = state.progress?.label ?? ''
+  if (state.progress?.fraction === undefined) progress.removeAttribute('value')
+  else progress.value = state.progress.fraction
   document.getElementById('close').disabled = state.busyButton !== undefined
   document.getElementById('close').setAttribute('aria-label', state.closeLabel)
   document.getElementById('technical-details').hidden = state.technicalDetails === ''

@@ -122,7 +122,7 @@ kind: "package-reference"
 
 为 Streamable HTTP 条目设置稳定的 `mcp-client/<id>` 凭据记录地址 `oauth.credentialKey`，并加载凭据提供方。在所属插件条目上声明 `inject: [credentials]`，使启动等待该提供方就绪。OAuth 不能与 `Authorization` 请求头同时配置。连接和探测只使用已提交的授权，不会打开浏览器或注册客户端。缺失凭据、令牌被拒绝或明确的权限不足响应会使连接进入 `waiting-authorization`；探测返回失败结果。其原因为：没有已保存授权时为 `missing`，access token 过期且没有 refresh token 时为 `expired`，授权与解析后的 `url` 或 OAuth 选项不再匹配时为 `binding`，服务器拒绝令牌时为 `rejected`，服务器要求更多权限范围时为 `scope`。授权失效时正在进行的工具调用会以该原因失败，例如 `MCP OAuth requires authorization: scope`。探测可能刷新并持久化过期授权。普通 HTTP 403 错误不改变授权状态。诊断、工具调用失败与 `isError` 结果会把连接发送过的每个 access token 替换为 `[redacted]`。
 
-显式授权通过[管理器](../mcp-manager/README.zh.md#oauth-authorization)使用 Authorization 与 WebServer 服务。`oauth.clientId` 指定预注册的公开客户端；省略时允许在显式授权中动态注册。`oauth.scope` 覆盖挑战中的权限范围；仅在配置的权限范围一致时复用动态注册。修改解析后的 `url`、`oauth.clientId` 或 `oauth.scope` 会使已保存授权以 `binding` 原因失效，条目需要重新显式授权。`oauth.requestTimeoutMs` 默认为 10,000 毫秒，`oauth.authorizationTimeoutMs` 默认为 600,000 毫秒。取消和重试等待未完成授权清理的时间由 `closeTimeoutMs` 限制。授权服务器请求和 OAuth 条目的 MCP 请求都要求 HTTPS（回环 HTTP 除外）并拒绝重定向，因此 `url` 必须是最终端点。浏览器回调是一个只在授权尝试期间存在的 `webserver/request` 监听器，在路由准入之前应答：授权服务器的跳转是跨站导航，[Connection](../../client/connection/README.zh.md) 对所有路由都拒绝这类请求。监听器只处理 authority 和路径都与重定向 URI 相同的请求，其余请求交给后续处理。回调返回一个中英双语的静态页面，说明 DSH 是否已收到授权，或提示回到 DSH 重试；页面不回显任何回调参数。授权服务器请求不携带资源请求头。失败尝试的 `lastError` 是固定或本地消息，例如 `MCP OAuth request failed`；该消息未包含上游原因时，宿主会以警告日志记录该原因，并把解析后的模板值、授权码、PKCE verifier、客户端密钥和签发的令牌替换为 `[redacted]`。刷新通过凭据提供方串行执行，保留授权身份及注册时的令牌端点认证方式；重新授权成功后会替换授权身份和连接，替换期间不会进入 `waiting-authorization`。
+显式授权通过[管理器](../mcp-manager/README.zh.md#oauth-authorization)使用 Authorization 与 WebServer 服务。`oauth.clientId` 指定预注册的公开客户端；省略时允许在显式授权中动态注册。`oauth.scope` 覆盖挑战中的权限范围；仅在配置的权限范围一致时复用动态注册。修改解析后的 `url`、`oauth.clientId` 或 `oauth.scope` 会使已保存授权以 `binding` 原因失效，条目需要重新显式授权。`oauth.requestTimeoutMs` 默认为 10,000 毫秒，`oauth.authorizationTimeoutMs` 默认为 600,000 毫秒。取消和重试等待未完成授权清理的时间由 `closeTimeoutMs` 限制。授权服务器请求和 OAuth 条目的 MCP 请求都要求 HTTPS（回环 HTTP 除外）并拒绝重定向，因此 `url` 必须是最终端点。浏览器回调是一个只在授权尝试期间存在的 `webserver/request` 监听器，在路由准入之前应答：授权服务器的跳转是跨站导航，[Connection](../../client/connection/README.zh.md) 对所有路由都拒绝这类请求。监听器只处理 authority 和路径都与重定向 URI 相同的请求，其余请求交给后续处理。回调返回一个中英双语的静态页面，说明 Stitch 是否已收到授权，或提示回到 Stitch 重试；页面不回显任何回调参数。授权服务器请求不携带资源请求头。失败尝试的 `lastError` 是固定或本地消息，例如 `MCP OAuth request failed`；该消息未包含上游原因时，宿主会以警告日志记录该原因，并把解析后的模板值、授权码、PKCE verifier、客户端密钥和签发的令牌替换为 `[redacted]`。刷新通过凭据提供方串行执行，保留授权身份及注册时的令牌端点认证方式；重新授权成功后会替换授权身份和连接，替换期间不会进入 `waiting-authorization`。
 
 -----
 
@@ -184,7 +184,7 @@ SDK 通过旧版通知或现代协议订阅接收工具列表变化。监督器�
 
 ### 环境清洗（stdio）
 
-子进程环境以子进程 seam 的 `scrubbedParentEnv()` 为基座——删除匹配 `/KEY|PASSWORD|SECRET|TOKEN/i` 的环境名称与所有 `DSH_*` 名称——再在其上合并配置的 `env`，因此显式覆盖得以保留。实际 spawn 由 MCP SDK 负责；本包共享清洗定义，而非 spawn 路径。
+子进程环境以子进程 seam 的 `scrubbedParentEnv()` 为基座——删除匹配 `/KEY|PASSWORD|SECRET|TOKEN/i` 的环境名称与所有 `STITCH_*` 名称——再在其上合并配置的 `env`，因此显式覆盖得以保留。实际 spawn 由 MCP SDK 负责；本包共享清洗定义，而非 spawn 路径。
 
 </details>
 
@@ -274,7 +274,7 @@ SDK 通过旧版通知或现代协议订阅接收工具列表变化。监督器�
 - **重连处理协商失败与传输关闭**——初始连接失败或 stdio 子进程崩溃都会使用配置的重连预算。普通 HTTP 请求失败使用 SDK 传输的恢复机制；凭据变化则替换连接。
 - **图片是唯一的持久丰富结果桥接**——PNG、JPEG、WebP 与 GIF 在确切能力得到证明后进入 Native 上下文。音频与嵌入资源载荷仍只存在于执行局部并带明确诊断，资源链接只以文本保留名称与 URI。
 - **无效的协议结果或输出 schema 由 SDK 拒绝**——桥接器不接受旧式 `toolResult` 替代结果，也不绕过已声明的 schema 校验。
-- **OAuth 授权需要浏览器能直接访问 Host Web 服务器**——回调地址是该服务器自身的源地址：监听地址加端口，启用 TLS 时使用 HTTPS。只能通过代理或 Web 应用的 `publicUrl` 访问 DSH 的浏览器无法完成授权。动态客户端注册以该回调地址区分，监听地址或端口改变、或端口随机分配时，下一次显式授权会注册新的客户端；退出登录会保留之前的注册记录。
+- **OAuth 授权需要浏览器能直接访问 Host Web 服务器**——回调地址是该服务器自身的源地址：监听地址加端口，启用 TLS 时使用 HTTPS。只能通过代理或 Web 应用的 `publicUrl` 访问 Stitch 的浏览器无法完成授权。动态客户端注册以该回调地址区分，监听地址或端口改变、或端口随机分配时，下一次显式授权会注册新的客户端；退出登录会保留之前的注册记录。
 - **按需加载不受工具限制约束**——已加载的工具位于调用方 agent 自己的作用域，`tools.restrict()` 的 allow 与 deny 掩码不过滤它们，而且这些掩码会拒绝继承工具列表中不存在的名称。要按名称禁止可加载的工具，使用执行 guard（`tools.guard`）。PTC 模式下程序在开始时绑定工具，`run_code` 内加载的工具要到下一个程序才能调用。
 - **要求基于任务的 MCP 工具在调用时被拒绝**——要求使用基于任务的执行（task-based execution）扩展的工具会抛出异常而非被桥接；该扩展未实现。
 
@@ -287,7 +287,7 @@ SDK 通过旧版通知或现代协议订阅接收工具列表变化。监督器�
 本开发备注是维护者的工作上下文：开放设计问题与尚未决定的探索方向。它明确不具权威性——已交付行为、限制与既定理由以上文、包代码与所链接的 Agent Note 为准。
 
 - 公开名称算法是由测试固定的 v1 约定；发布后更改会破坏会话历史与权限规则。
-- 由 DSH 拥有的通知驱动重同步预算是开放的探索方向；配置后的 `startupTimeoutMs` 约束启动尝试，SDK 的 60 秒默认值约束重同步请求。
+- 由 Stitch 拥有的通知驱动重同步预算是开放的探索方向；配置后的 `startupTimeoutMs` 约束启动尝试，SDK 的 60 秒默认值约束重同步请求。
 - MCP 提示词模板需要独立的用户选择和模板调用机制。
 - 固定的 MCP SDK 仍在演化；上游破坏性变更需要更新桥接。
 

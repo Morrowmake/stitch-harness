@@ -53,8 +53,8 @@ function spawnWeb(root: string, patch: string, interrupt: string, flags: string[
     cwd: root,
     env: {
       ...process.env,
-      DSH_AGENTS_HOME: join(root, '.agents'),
-      DSH_HOME: join(root, 'home'),
+      STITCH_AGENTS_HOME: join(root, '.agents'),
+      STITCH_HOME: join(root, 'home'),
       NODE_NO_WARNINGS: '1',
       WEB_INTERRUPT_FILE: interrupt,
     },
@@ -75,7 +75,7 @@ interface RunningWeb {
 }
 
 /**
- * Boot the built CLI and wait for its `dsh web:` line and bound listener port.
+ * Boot the built CLI and wait for its `stitch web:` line and bound listener port.
  * The marker plugin also polls for the interrupt file and emits `SIGTERM` on
  * the child's own process, because Windows has no deliverable SIGTERM.
  */
@@ -111,7 +111,7 @@ async function bootWeb(root: string, flags: string[]): Promise<RunningWeb> {
   }
   lines.on('line', (line) => {
     if (line.startsWith('public-url-listen-port: ')) port = Number(line.slice('public-url-listen-port: '.length))
-    if (line.startsWith('dsh web: http')) startup = new URL(line.slice('dsh web: '.length))
+    if (line.startsWith('stitch web: http')) startup = new URL(line.slice('stitch web: '.length))
     announced()
   })
   void child.then((result) => {

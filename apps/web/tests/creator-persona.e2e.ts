@@ -1,4 +1,4 @@
-/** Creator mode adds its DSH customization intent to the actual model prompt. */
+/** Creator mode adds its Stitch customization intent to the actual model prompt. */
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright'
@@ -8,7 +8,7 @@ import { fixtureUserPrompts, launchWebScaffold } from './scaffold.ts'
 import { connectFreshWorkspace, newEnglishPage } from './support.ts'
 
 const FIXTURE = fileURLToPath(new URL('../../../snapshots/web/creator-persona/session.v4.jsonl', import.meta.url))
-const CUSTOMIZATION_INTENT = 'You help the user customize DeepSeek Harness itself.'
+const CUSTOMIZATION_INTENT = 'You help the user customize Stitch itself.'
 
 it('sends the Creator customization intent without taking actions for an ordinary request', async () => {
   const scaffold = await launchWebScaffold({
@@ -35,7 +35,7 @@ it('sends the Creator customization intent without taking actions for an ordinar
       const system = agent.session.deriveMessages().find(message => message.role === 'system')
       if (system === undefined) throw new Error('Creator request has no system prompt')
       const prompt = system.content.flatMap(block => block.type === 'text' ? [block.text] : []).join('')
-      expect(prompt).toMatch(/^You are a coding agent powered by the .+ model\. You help the user customize DeepSeek Harness itself\.$/mu)
+      expect(prompt).toMatch(/^You are a coding agent powered by the .+ model\. You help the user customize Stitch itself\.$/mu)
       expect(prompt.split(CUSTOMIZATION_INTENT)).toHaveLength(2)
       const sharedPrompt = prompt.replace(` ${CUSTOMIZATION_INTENT}`, '')
       console.info('Creator persona context increment', {

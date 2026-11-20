@@ -1,7 +1,7 @@
 /**
  * Shared boot glue for `dsh` profiles, including the CLI packaged by the Python runtime wheel: load the gitignored
  * `.env`, install the fail-loud Loader guards, resolve the config path (snapshot-aware), load the
- * optional user patch layers from the Harness home (`~/.dsh`), expose its path resolver to
+ * optional user patch layers from the Harness home (`~/.stitch`), expose its path resolver to
  * config expressions, and drive the Cordis Loader against a leaf `cordis.yml` until the tree settles.
  * @module @deepseek-ai/dsh-app-boot
  */
@@ -98,7 +98,7 @@ export { ResolutionRestartRequired } from './profile-resolution/resolver.ts'
  * Resolve the config to boot. Replay swaps a `cordis.yml` basename for
  * `cordis.snapshot.yml` in the same directory; every other mode keeps the path.
  * @param configPath - the requested config path (absolute, or relative to `cwd`).
- * @param snapshotMode - the bin's `$DSH_SNAPSHOT` value; only `'replay'` swaps the
+ * @param snapshotMode - the bin's `$STITCH_SNAPSHOT` value; only `'replay'` swaps the
  *   basename.
  * @param cwd - the base a relative `configPath` resolves against.
  * @returns the absolute path of the config to boot.
@@ -159,7 +159,7 @@ const BOOTSTRAP_NAMES = new Set([
 ])
 
 /** Name prefixes no discovered file may set. */
-const BOOTSTRAP_PREFIXES = ['DSH_', 'XDG_', 'DYLD_', 'BASH_FUNC_']
+const BOOTSTRAP_PREFIXES = ['STITCH_', 'XDG_', 'DYLD_', 'BASH_FUNC_']
 
 /** Proxy names the Harness-home `.env` may set in any letter case: proxy clients read both spellings. */
 const HOME_LAYER_PROXY_NAMES = new Set(['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'NO_PROXY'])
@@ -174,7 +174,7 @@ const HOME_LAYER_ENDPOINT_NAMES = new Set(['DEEPSEEK_BASE_URL', 'DEEPSEEK_SEARCH
  * Whether the Harness-home `.env` alone may set a bootstrap-only name. Each such name chooses where requests go: a
  * proxy for every request, a DeepSeek endpoint for the model or search requests that carry the user's credential.
  * The invoking directory's file arrives with a clone and keeps refusing them. The home file is the user's own, and
- * the profile patches beside it can already set these endpoints as plugin `baseURL` fields; `DSH_HOME` is itself
+ * the profile patches beside it can already set these endpoints as plugin `baseURL` fields; `STITCH_HOME` is itself
  * bootstrap-only, so no `.env` can relocate this exemption. The CA and TLS names in the same group stay refused
  * everywhere: they change what is trusted, not where traffic goes.
  * @param name - the variable name as the file spells it.
@@ -753,7 +753,7 @@ function groupedDump(
  * @param patches - initial app and user patches, applied in order.
  * @param bareModuleBaseUrl - optional installed-host base for bare package
  * names; relative names continue to resolve beside the configuration file.
- * @param binName - diagnostic prefix for a profile plugin denied by compatibility policy; defaults to `dsh`.
+ * @param binName - diagnostic prefix for a profile plugin denied by compatibility policy; defaults to `stitch`.
  * @returns the created root Include entry, or `undefined` when a surface
  * disposed the whole tree (taking the Loader service with it) while the
  * entry creation was in flight.
@@ -763,7 +763,7 @@ export async function mountRootInclude(
   absoluteConfigPath: string,
   patches: readonly PatchOptions[] = [],
   bareModuleBaseUrl?: string,
-  binName = 'dsh',
+  binName = 'stitch',
 ): Promise<Entry | undefined> {
   ctx.loader.builtins.include = bareModuleBaseUrl === undefined
     ? Include
@@ -960,7 +960,7 @@ const FIBER_FAILED = 3 as FiberState.FAILED
 const FIBER_DISPOSED = 4 as FiberState.DISPOSED
 
 /**
- * Entry ids whose presence defines a usable DSH application.
+ * Entry ids whose presence defines a usable Stitch application.
  *
  * The list is global rather than profile metadata. Missing or disabled ids do
  * not affect startup; an enabled listed entry must activate. The list covers
@@ -1202,7 +1202,7 @@ function startupDiagnostic(binName: string, failures: readonly InactiveEntry[], 
 }
 
 /**
- * Apply DSH startup policy to a settled Loader tree.
+ * Apply Stitch startup policy to a settled Loader tree.
  *
  * Inactive entries from the global required list reject startup, including
  * options that their group rejected before creating an entry. Other

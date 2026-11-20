@@ -19,7 +19,7 @@ import { cleanupAcpExampleTest } from './cleanup.ts'
 /**
  * The default ACP composition (`cordis.yml`) end to end.
  *
- * Keyless smoke: boot the real profile patch through `dsh --profile acp` as
+ * Keyless smoke: boot the real profile patch through `stitch --profile acp` as
  * an ACP subprocess and drive initialize + session/new — the real-Loader-path
  * guard (postmortem 0001) for THIS tree's exports, including the
  * sandbox executor AND the approval service. No prompt is sent, so neither the
@@ -82,7 +82,7 @@ function launchExampleAcpAgent(
   const launched = launchAcpTestAgent({
     agent: AGENT,
     cwd,
-    env: { DSH_PERMISSION_MODE: sandboxMode },
+    env: { STITCH_PERMISSION_MODE: sandboxMode },
     requestPermission(params) {
       permissionRequests.push(params)
       const option = params.options.find(o => o.optionId === answer)

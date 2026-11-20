@@ -3,23 +3,23 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/sdk/client/README.md
 /:
-  en: 09cb25e4bcf56851
-  zh: a0a5913941d23eff
+  en: 8ba0c14559860cb9
+  zh: e571f547086be6df
 /deepseek-ai-dsh-sdk-client:
   en: b786affe03adf63c
   zh: aacb5d4af10ca477
 /deepseek-ai-dsh-sdk-client/summary:
-  en: 4c382739fc421ff5
-  zh: 5af8ac55e7cbf37a
+  en: 08fdc1c154943e45
+  zh: b6ea186c6e1b9d6e
 /deepseek-ai-dsh-sdk-client/table-of-contents:
   en: d152484eb41ac6b4
   zh: 09388d293f9be9cb
 /deepseek-ai-dsh-sdk-client/use-this-package:
-  en: 5a3d56e0605581d5
-  zh: 364e1562532f0039
-/deepseek-ai-dsh-sdk-client/use-this-package/running-agent-turns-with-deepseekharness:
-  en: 8b9aa1663ab3f16e
-  zh: acbe794051b4af2f
+  en: 4a80c6a8ee439fab
+  zh: 144d63df35cbaa37
+/deepseek-ai-dsh-sdk-client/use-this-package/running-agent-turns-with-stitch:
+  en: 996bfb99f4ba7c80
+  zh: 8cf91f2ad243dc85
 /deepseek-ai-dsh-sdk-client/use-this-package/run-text-and-native-commands:
   en: 0a0c9f44ccf17841
   zh: 1f881e22a10dbe49
@@ -27,17 +27,17 @@
   en: 93f5f28fa70aa1d8
   zh: 224b850b2f801bf2
 /deepseek-ai-dsh-sdk-client/use-this-package/native-user-questions:
-  en: f5b9d6a7363bd9e5
-  zh: f53b3786d22a729d
+  en: d392afb5677eeb9a
+  zh: 9cad88937de840d9
 /deepseek-ai-dsh-sdk-client/understand-the-implementation:
   en: 8773f50c51da85f0
   zh: 4649ebc69357deb0
 /deepseek-ai-dsh-sdk-client/understand-the-implementation/design-concept:
-  en: ac3c6eae3f8248fc
-  zh: b929079016396c8e
+  en: 03092e1ae7cf368b
+  zh: ce65238ce9c948c7
 /deepseek-ai-dsh-sdk-client/understand-the-implementation/source-map:
-  en: ee896439a5c07ca3
-  zh: 1b18751fe2db250e
+  en: 8390baddbc420088
+  zh: bad84a234b319ff1
 /deepseek-ai-dsh-sdk-client/understand-the-implementation/owned-activity-flow:
   en: 94a42babac5f1c7d
   zh: df9e42ed02f7d002
@@ -45,8 +45,8 @@
   en: 165364de2cee0a9f
   zh: c4dc37b44e1e621e
 /deepseek-ai-dsh-sdk-client/further-exploration:
-  en: 1048b6b2c0954717
-  zh: 7ce29dd1ca545e06
+  en: 7a687c4cff4d03d1
+  zh: a2b20085fbc93856
 /deepseek-ai-dsh-sdk-client/model-experience:
   en: e82a55513d3cd30e
   zh: ecd8c0875ff2fb87

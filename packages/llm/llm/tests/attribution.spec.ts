@@ -4,7 +4,7 @@ import { APP_IDENTITY, attributionHeaders, userAgent } from '@deepseek-ai/dsh-ll
 import type { AppIdentity } from '@deepseek-ai/dsh-llm'
 
 // The default identity must not depend on the developer's exported suffix.
-beforeEach(() => { vi.stubEnv('DSH_USER_AGENT_SUFFIX', undefined) })
+beforeEach(() => { vi.stubEnv('STITCH_USER_AGENT_SUFFIX', undefined) })
 afterEach(() => { vi.unstubAllEnvs() })
 
 const manifest = createRequire(import.meta.url)('../package.json') as { version: string }
@@ -42,26 +42,26 @@ describe('userAgent', () => {
   })
 
   it('appends the identity suffix after the comment', () => {
-    expect(userAgent({ ...forkIdentity, suffix: 'dsh-profile/web' })).toBe('fork-agent/9.9.9 (+https://example.com/fork-agent) dsh-profile/web')
+    expect(userAgent({ ...forkIdentity, suffix: 'stitch-profile/web' })).toBe('fork-agent/9.9.9 (+https://example.com/fork-agent) stitch-profile/web')
   })
 })
 
-describe('DSH_USER_AGENT_SUFFIX', () => {
+describe('STITCH_USER_AGENT_SUFFIX', () => {
   it('appends the launch suffix to the default User-Agent when read', () => {
-    vi.stubEnv('DSH_USER_AGENT_SUFFIX', 'dsh-profile/my%20web')
-    expect(APP_IDENTITY.suffix).toBe('dsh-profile/my%20web')
-    expect(userAgent()).toBe(`Stitch/${manifest.version} (+https://github.com/Morrowmake/stitch-harness) dsh-profile/my%20web`)
+    vi.stubEnv('STITCH_USER_AGENT_SUFFIX', 'stitch-profile/my%20web')
+    expect(APP_IDENTITY.suffix).toBe('stitch-profile/my%20web')
+    expect(userAgent()).toBe(`Stitch/${manifest.version} (+https://github.com/Morrowmake/stitch-harness) stitch-profile/my%20web`)
   })
 
   it.each(['', undefined])('omits the suffix when it is %j', (value) => {
-    vi.stubEnv('DSH_USER_AGENT_SUFFIX', value)
+    vi.stubEnv('STITCH_USER_AGENT_SUFFIX', value)
     expect(APP_IDENTITY.suffix).toBeUndefined()
     expect(userAgent()).toBe(`Stitch/${manifest.version} (+https://github.com/Morrowmake/stitch-harness)`)
   })
 
-  it.each(['dsh-profile/my web', 'dsh-profile/web\r\nx-injected: 1', 'dsh-profile/(web)', 'dsh-profile/a/b'])('rejects %j', (value) => {
-    vi.stubEnv('DSH_USER_AGENT_SUFFIX', value)
-    expect(() => userAgent()).toThrow('DSH_USER_AGENT_SUFFIX must be an RFC 9110 product token')
+  it.each(['stitch-profile/my web', 'stitch-profile/web\r\nx-injected: 1', 'stitch-profile/(web)', 'stitch-profile/a/b'])('rejects %j', (value) => {
+    vi.stubEnv('STITCH_USER_AGENT_SUFFIX', value)
+    expect(() => userAgent()).toThrow('STITCH_USER_AGENT_SUFFIX must be an RFC 9110 product token')
   })
 })
 

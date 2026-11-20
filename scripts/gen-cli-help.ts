@@ -68,7 +68,7 @@ export function topLevelHelpArgs(profiles: readonly string[]): string[][] {
 
 /**
  * Resolve the child-process allowance before any help invocation starts.
- * @param raw - optional DSH_CLI_HELP_CONCURRENCY override.
+ * @param raw - optional STITCH_CLI_HELP_CONCURRENCY override.
  * @param fallback - worker budget for an invocation without an explicit allowance.
  * @returns the maximum number of help children in flight.
  * @throws when a supplied override is not a positive decimal integer.
@@ -77,7 +77,7 @@ export function cliHelpConcurrency(raw: string | undefined, fallback: number): n
   if (raw === undefined || raw === '') return fallback
   const parsed = Number.parseInt(raw, 10)
   if (!Number.isSafeInteger(parsed) || parsed < 1 || String(parsed) !== raw) {
-    throw new Error(`gen-cli-help: DSH_CLI_HELP_CONCURRENCY must be a positive integer, got ${JSON.stringify(raw)}.`)
+    throw new Error(`gen-cli-help: STITCH_CLI_HELP_CONCURRENCY must be a positive integer, got ${JSON.stringify(raw)}.`)
   }
   return parsed
 }
@@ -174,7 +174,7 @@ export async function collectCliHelp(
 ): Promise<HelpPage[]> {
   const pages = new Map<string, HelpPage>()
   const visit = async (args: string[], path: ReadonlySet<HelpPage>): Promise<HelpPage> => {
-    const invocation = ['dsh', ...args].join(' ')
+    const invocation = ['stitch', ...args].join(' ')
     const help = parseCliHelp(await readHelp(args))
     const existing = pages.get(help.output)
     if (existing !== undefined) {
@@ -193,7 +193,7 @@ export async function collectCliHelp(
 }
 
 async function collectHelp(): Promise<HelpPage[]> {
-  const concurrency = cliHelpConcurrency(process.env.DSH_CLI_HELP_CONCURRENCY, defaultParallelism())
+  const concurrency = cliHelpConcurrency(process.env.STITCH_CLI_HELP_CONCURRENCY, defaultParallelism())
   const directory = mkdtempSync(join(tmpdir(), 'dsh-cli-help-'))
   const profiles = Object.keys(PROFILE_TEMPLATES)
   // Aggregate callers allocate this leaf's children separately from the other running gates.
@@ -202,8 +202,8 @@ async function collectHelp(): Promise<HelpPage[]> {
     const home = mkdtempSync(join(directory, 'invocation-'))
     const environment = {
       ...process.env,
-      DSH_HOME: join(home, 'harness'),
-      DSH_AGENTS_HOME: join(home, 'agents'),
+      STITCH_HOME: join(home, 'harness'),
+      STITCH_AGENTS_HOME: join(home, 'agents'),
       NO_COLOR: '1',
     }
     for (const name of ['NODE_OPTIONS', 'FORCE_COLOR']) Reflect.deleteProperty(environment, name)
@@ -218,7 +218,7 @@ async function collectHelp(): Promise<HelpPage[]> {
     signal.addEventListener('abort', abort, { once: true })
     try {
       const { stdout, stderr } = await help
-      if (stderr !== '') throw new Error(`${['dsh', ...args].join(' ')} --help wrote diagnostics: ${stderr}`)
+      if (stderr !== '') throw new Error(`${['stitch', ...args].join(' ')} --help wrote diagnostics: ${stderr}`)
       return stdout
     } finally {
       signal.removeEventListener('abort', abort)

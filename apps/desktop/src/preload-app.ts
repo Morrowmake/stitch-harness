@@ -1,5 +1,5 @@
 import type { FileSaveResult } from '@deepseek-ai/dsh-client-ui-file-actions/types'
-/** Origin-scoped boot, native directory selection, host paths of picked files, and the opt-in update check. */
+/** Origin-scoped boot, native directory selection, host paths of picked files, and the update-check preference. */
 
 import type { DesktopUpdateCheckResult } from '@deepseek-ai/dsh-client-ui-settings-general/types'
 import type { DesktopShortcutInput, ShortcutConfigSnapshot, ShortcutSaveResult } from '@deepseek-ai/dsh-client-shortcuts/protocol'

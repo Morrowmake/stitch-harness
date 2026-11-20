@@ -7,7 +7,7 @@
 // command-row surfaces: the seeded manual `/compact` lifecycle folds into its
 // checkpoint, an Access-chip pick later runs `/permission` on the host, and
 // `/feedback` pins its expandable correlation ids. The seed is a recorded
-// fixture under the same record discipline as every other: DSH_SNAPSHOT=record drives the turn
+// fixture under the same record discipline as every other: STITCH_SNAPSHOT=record drives the turn
 // live through the composer (real read tool against seeded workspace files)
 // and harvests session.v3.jsonl; replay/refresh seed it cold and only render.
 import { readFile, writeFile, mkdir } from 'node:fs/promises'
@@ -778,8 +778,8 @@ describe('web e2e: seeded history renders through cold resume', () => {
 
   it.skipIf(MODE === 'record')('reports the feedback session id in an expandable row', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-seeded-feedback-row'))
-    const previousDshHome = process.env.DSH_HOME
-    process.env.DSH_HOME = scaffold.harnessHome
+    const previousDshHome = process.env.STITCH_HOME
+    process.env.STITCH_HOME = scaffold.harnessHome
     try {
       const input = page.locator('[data-composer-input]').first()
       await input.fill('/feedback the diff view is unreadable')
@@ -806,8 +806,8 @@ describe('web e2e: seeded history renders through cold resume', () => {
         .split(SEED_ID).join('{{seededId}}')
       await compareOrRefreshGolden(FEEDBACK_ROW_EXPECTED, snapshot, MODE)
     } finally {
-      if (previousDshHome === undefined) delete process.env.DSH_HOME
-      else process.env.DSH_HOME = previousDshHome
+      if (previousDshHome === undefined) delete process.env.STITCH_HOME
+      else process.env.STITCH_HOME = previousDshHome
     }
   }, 60_000)
 

@@ -139,14 +139,14 @@ describe('bash tool through the agent loop', () => {
     }
   })
 
-  it('first-turn bash receives session identity in a scrubbed DSH_* namespace', async () => {
+  it('first-turn bash receives session identity in a scrubbed STITCH_* namespace', async () => {
     const root = mkdtempSync(join(tmpdir(), 'dsh-bash-session-env-'))
     dirs.push(root)
     const dshHome = join(root, 'dsh-home')
-    vi.stubEnv('DSH_STALE_PARENT', 'stale')
+    vi.stubEnv('STITCH_STALE_PARENT', 'stale')
     const adapter = new MockAdapter([
       toolCallResponse('call-1', 'bash', {
-        command: 'printf \'%s\\n%s\\n%s\\n%s\\n\' "$DSH_HOME" "$DSH_SHELL" "$DSH_SESSION_ID" "${DSH_STALE_PARENT-unset}"',
+        command: 'printf \'%s\\n%s\\n%s\\n%s\\n\' "$STITCH_HOME" "$STITCH_SHELL" "$STITCH_SESSION_ID" "${STITCH_STALE_PARENT-unset}"',
         description: 'inspect session environment',
       }),
       textResponse('Session environment inspected.'),

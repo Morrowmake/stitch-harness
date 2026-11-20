@@ -3,8 +3,8 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/cookbook/reviewing-ui-design.md
 /:
-  en: 7a1a3135b7683184
-  zh: b518133afc663a6e
+  en: c99a077459f6da1b
+  zh: cf29203c4600e827
 /cookbook-review-a-ui-design:
   en: d42b121ca63177aa
   zh: 68b637fae3252c7b

@@ -57,7 +57,7 @@ function field<T>(schema: z.ZodType<T>, value: unknown, name: keyof DesktopUpdat
 
 /**
  * Resolve the shell settings document.
- * @param userData - Electron userData, independent of Host and DSH_HOME.
+ * @param userData - Electron userData, independent of Host and STITCH_HOME.
  * @returns Settings file path without filesystem changes.
  */
 function desktopSettingsPath(userData: string): string {
@@ -68,7 +68,7 @@ function desktopSettingsPath(userData: string): string {
 export class DesktopSettingsFile {
   readonly path: string
 
-  /** @param userData - Electron userData, independent of Host and DSH_HOME. */
+  /** @param userData - Electron userData, independent of Host and STITCH_HOME. */
   constructor(userData: string) { this.path = desktopSettingsPath(userData) }
 
   /** @returns Fresh file and field states; performs no creation or repair. */

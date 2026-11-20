@@ -2016,17 +2016,17 @@ describe('installLlmReplay (per-session keying)', () => {
 
 describe('apply (the plugin entry)', () => {
   const ORIG = {
-    file: process.env.DSH_SNAPSHOT_FILE,
-    override: process.env.DSH_SNAPSHOT_OVERRIDE,
-    children: process.env.DSH_SNAPSHOT_CHILD_FILES,
+    file: process.env.STITCH_SNAPSHOT_FILE,
+    override: process.env.STITCH_SNAPSHOT_OVERRIDE,
+    children: process.env.STITCH_SNAPSHOT_CHILD_FILES,
   }
   afterEach(() => {
-    if (ORIG.file === undefined) delete process.env.DSH_SNAPSHOT_FILE
-    else process.env.DSH_SNAPSHOT_FILE = ORIG.file
-    if (ORIG.override === undefined) delete process.env.DSH_SNAPSHOT_OVERRIDE
-    else process.env.DSH_SNAPSHOT_OVERRIDE = ORIG.override
-    if (ORIG.children === undefined) delete process.env.DSH_SNAPSHOT_CHILD_FILES
-    else process.env.DSH_SNAPSHOT_CHILD_FILES = ORIG.children
+    if (ORIG.file === undefined) delete process.env.STITCH_SNAPSHOT_FILE
+    else process.env.STITCH_SNAPSHOT_FILE = ORIG.file
+    if (ORIG.override === undefined) delete process.env.STITCH_SNAPSHOT_OVERRIDE
+    else process.env.STITCH_SNAPSHOT_OVERRIDE = ORIG.override
+    if (ORIG.children === undefined) delete process.env.STITCH_SNAPSHOT_CHILD_FILES
+    else process.env.STITCH_SNAPSHOT_CHILD_FILES = ORIG.children
   })
 
   it('exposes the namespace plugin shape (name/inject, no default export)', () => {
@@ -2152,12 +2152,12 @@ describe('apply (the plugin entry)', () => {
     )
   })
 
-  it('falls back to $DSH_SNAPSHOT_FILE / $DSH_SNAPSHOT_OVERRIDE when config is empty', async () => {
+  it('falls back to $STITCH_SNAPSHOT_FILE / $STITCH_SNAPSHOT_OVERRIDE when config is empty', async () => {
     writeFileSync(file, sessionJsonl([]), 'utf8')
     const overrideFile = join(dir, 'replay.override.json')
     writeFileSync(overrideFile, JSON.stringify([{ kind: 'chunks', chunks: TEXT_CHUNKS }]), 'utf8')
-    process.env.DSH_SNAPSHOT_FILE = file
-    process.env.DSH_SNAPSHOT_OVERRIDE = overrideFile
+    process.env.STITCH_SNAPSHOT_FILE = file
+    process.env.STITCH_SNAPSHOT_OVERRIDE = overrideFile
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)
     apply(ctx)
@@ -2166,8 +2166,8 @@ describe('apply (the plugin entry)', () => {
 
   it('uses only the file when no override path is configured or in the env', async () => {
     writeFileSync(file, replaySessionJsonl([TEXT_CHUNKS]), 'utf8')
-    process.env.DSH_SNAPSHOT_FILE = file
-    delete process.env.DSH_SNAPSHOT_OVERRIDE
+    process.env.STITCH_SNAPSHOT_FILE = file
+    delete process.env.STITCH_SNAPSHOT_OVERRIDE
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)
     apply(ctx)
@@ -2175,14 +2175,14 @@ describe('apply (the plugin entry)', () => {
   })
 
   it('throws when no fixture path is given by config or env', async () => {
-    delete process.env.DSH_SNAPSHOT_FILE
+    delete process.env.STITCH_SNAPSHOT_FILE
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)
     expect(() => { apply(ctx, {}) }).toThrow(/a fixture path is required/)
   })
 
   it('treats an empty-string fixture path as missing', async () => {
-    delete process.env.DSH_SNAPSHOT_FILE
+    delete process.env.STITCH_SNAPSHOT_FILE
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)
     expect(() => { apply(ctx, { file: '' }) }).toThrow(/a fixture path is required/)
@@ -2206,7 +2206,7 @@ describe('apply (the plugin entry)', () => {
     expect(await drain(ctx.llm.stream(live('B')))).toEqual(childSecond)
   })
 
-  it('falls back to $DSH_SNAPSHOT_CHILD_FILES (path-delimited) when config omits childFiles', async () => {
+  it('falls back to $STITCH_SNAPSHOT_CHILD_FILES (path-delimited) when config omits childFiles', async () => {
     const childChunks: StreamChunk[] = [
       { type: 'block-start', index: 0, blockType: 'text' },
       { type: 'text-delta', index: 0, text: 'env-kid' },
@@ -2215,8 +2215,8 @@ describe('apply (the plugin entry)', () => {
     writeFileSync(file, replaySessionJsonl([TEXT_CHUNKS], { id: 'p', createdAt: 1 }), 'utf8')
     const childFile = join(dir, 'session.1.jsonl')
     writeFileSync(childFile, replaySessionJsonl([childChunks], { id: 'c', createdAt: 2 }), 'utf8')
-    process.env.DSH_SNAPSHOT_FILE = file
-    process.env.DSH_SNAPSHOT_CHILD_FILES = childFile // single entry, no delimiter needed
+    process.env.STITCH_SNAPSHOT_FILE = file
+    process.env.STITCH_SNAPSHOT_CHILD_FILES = childFile // single entry, no delimiter needed
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)
     apply(ctx)
@@ -2226,10 +2226,10 @@ describe('apply (the plugin entry)', () => {
     expect(await drain(ctx.llm.stream(live('B')))).toEqual(childChunks)
   })
 
-  it('ignores an empty $DSH_SNAPSHOT_CHILD_FILES (single-session)', async () => {
+  it('ignores an empty $STITCH_SNAPSHOT_CHILD_FILES (single-session)', async () => {
     writeFileSync(file, replaySessionJsonl([TEXT_CHUNKS], { id: 'p', createdAt: 1 }), 'utf8')
-    process.env.DSH_SNAPSHOT_FILE = file
-    process.env.DSH_SNAPSHOT_CHILD_FILES = ''
+    process.env.STITCH_SNAPSHOT_FILE = file
+    process.env.STITCH_SNAPSHOT_CHILD_FILES = ''
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)
     apply(ctx)

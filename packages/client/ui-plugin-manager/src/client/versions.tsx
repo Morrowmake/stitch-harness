@@ -49,7 +49,7 @@ function sourceName(source: UpdateSource, t: Translate): string {
   return source.spec.replace(/^git\+/i, '').replace(/#.*$/s, '').replace(/^[a-z]+:\/\//i, '').replace(/\.git$/i, '')
 }
 
-/** The DSH requirements an incompatible version states, as one phrase: `engines.dsh` or DSH peer ranges. */
+/** The Stitch requirements an incompatible version states, as one phrase: `engines.dsh` or Stitch peer ranges. */
 function peersText(incompatible: IncompatiblePlugin): string {
   return Object.entries(incompatible.requirements).map(([name, range]) => `${name} ${range}`).join(', ')
 }

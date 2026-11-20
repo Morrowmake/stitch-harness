@@ -9,7 +9,7 @@
       config:
         transport: streamable-http
         serverName: protected
-        url: !!js process.env.DSH_MCP_DEMO_URL
+        url: !!js process.env.STITCH_MCP_DEMO_URL
         oauth:
           credentialKey: mcp-client/snapshot
         expandTemplates: true

@@ -43,7 +43,7 @@ export interface MarketIndexSummary {
 
 /**
  * How a plugin relates to the profile's bundles, matched by package name and measured against its default version, or
- * its highest version when it has no default: `provided` when the DSH installation ships the package,
+ * its highest version when it has no default: `provided` when the Stitch installation ships the package,
  * `update-available` when that version is greater than the installed one, `different-version` when the installed
  * version is unknown, not valid SemVer, or greater.
  */
@@ -55,7 +55,7 @@ export interface MarketInstallation {
   readonly installedVersion?: string
 }
 
-/** Whether the running DSH version satisfies a version's `engines.dsh`, as DSH's installation check evaluates it. */
+/** Whether the running Stitch version satisfies a version's `engines.dsh`, as Stitch's installation check evaluates it. */
 export type MarketCompatibility =
   | { readonly compatible: true }
   | {
@@ -74,7 +74,7 @@ export interface MarketListingVersion extends MarketVersion {
   /**
    * Whether `pluginManager.updateBundle` accepts this version for the installed copy: the copy came from a Git commit
    * (`pluginManager` lists it with `update: 'git'`), this version is newer, and it pins a commit in the same repository
-   * and `path:` directory. `compatibility` reports separately whether the running DSH accepts it.
+   * and `path:` directory. `compatibility` reports separately whether the running Stitch accepts it.
    */
   readonly update: boolean
 }

@@ -5,8 +5,8 @@ import { cliPathContextText, registerCliPathContext, type CliPathContext } from 
 
 const CLI = { product: 'Fixture', program: 'fixture-cli', executable: '/opt/fixture/bin/fixture-cli' }
 const RUN = 'Fixture CLI: run `fixture-cli` by its absolute path "/opt/fixture/bin/fixture-cli"; the bare name may resolve to another installation or to none.'
-const WINDOWS_CLI = { ...CLI, executable: 'C:\\Users\\O\'Brien\\.dsh\\fixture\\fixture-cli.exe' }
-const WINDOWS_RUN = 'Fixture CLI: run `fixture-cli` by its absolute path with the call operator, & \'C:\\Users\\O\'\'Brien\\.dsh\\fixture\\fixture-cli.exe\'; the bare name may resolve to another installation or to none.'
+const WINDOWS_CLI = { ...CLI, executable: 'C:\\Users\\O\'Brien\\.stitch\\fixture\\fixture-cli.exe' }
+const WINDOWS_RUN = 'Fixture CLI: run `fixture-cli` by its absolute path with the call operator, & \'C:\\Users\\O\'\'Brien\\.stitch\\fixture\\fixture-cli.exe\'; the bare name may resolve to another installation or to none.'
 
 /** A prompt registry with optional runtime context off, so only required context renders. */
 async function requiredContextOnly(): Promise<Context> {
@@ -42,7 +42,7 @@ describe('cliPathContextText', () => {
 
   it('gives the commands that run the skill scripts the executable directory first on $env:PATH on Windows', () => {
     expect(cliPathContextText({ ...WINDOWS_CLI, scripts: true }, 'win32')).toBe(
-      `${WINDOWS_RUN}\nScripts in the Fixture skill call \`fixture-cli\` by name; start only the commands that run them with $env:PATH = 'C:\\Users\\O''Brien\\.dsh\\fixture;' + $env:PATH, and never run \`fixture-cli\` by name yourself.`,
+      `${WINDOWS_RUN}\nScripts in the Fixture skill call \`fixture-cli\` by name; start only the commands that run them with $env:PATH = 'C:\\Users\\O''Brien\\.stitch\\fixture;' + $env:PATH, and never run \`fixture-cli\` by name yourself.`,
     )
   })
 })

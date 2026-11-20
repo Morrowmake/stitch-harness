@@ -1,5 +1,5 @@
 ---
-description: "dsh Web 客户端插件页上的网页搜索与获取设置页：Search 与 Fetch 提供方下拉框，以及免密钥搜索可选的 SearXNG 地址。"
+description: "Stitch Web 客户端插件页上的网页搜索与获取设置页：Search 与 Fetch 提供方下拉框，以及免密钥搜索可选的 SearXNG 地址。"
 kind: "package-reference"
 ---
 
@@ -69,7 +69,7 @@ Host 侧只有一个空 `apply`，仅为让本包占有一行 Loader 配置，�
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **自动选择只读取部署组合** — 当组合层未为该能力设置提供方时，下拉框才提供自动选择。自动选择生效时，由 Host 的 `DSH_WEB_SEARCH_PROVIDER` 或 `DSH_WEB_FETCH_PROVIDER` 环境变量选择提供方，页面不显示该选择。
+- **自动选择只读取部署组合** — 当组合层未为该能力设置提供方时，下拉框才提供自动选择。自动选择生效时，由 Host 的 `STITCH_WEB_SEARCH_PROVIDER` 或 `STITCH_WEB_FETCH_PROVIDER` 环境变量选择提供方，页面不显示该选择。
 - **不探测 SearXNG 地址** — 页面只检查地址格式；实例不可达或未启用 JSON 输出时，会在搜索时失败。
 
 <a id="dev-note"></a>

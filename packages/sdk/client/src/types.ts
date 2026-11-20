@@ -54,8 +54,8 @@ export interface HarnessClientOptions {
   disposeGraceMs?: number
 }
 
-/** Options for the high-level {@link DeepSeekHarness} wrapper. */
-export interface DeepSeekHarnessOptions extends HarnessClientOptions {
+/** Options for the high-level {@link Stitch} wrapper. */
+export interface StitchOptions extends HarnessClientOptions {
   /** Workspace cwd recorded on every SDK-created session (default: the process cwd, else `process.cwd()`). */
   cwd?: string
   /** Provider route for SDK-created agents; give it with `model`, or omit both to use the runtime's default model. */

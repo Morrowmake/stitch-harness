@@ -1,5 +1,5 @@
 ---
-description: "Subagent conversation catalog in the Session panel, breadcrumb sibling switcher, continuation routing UI, and '@' reference source for the dsh web client."
+description: "Subagent conversation catalog in the Session panel, breadcrumb sibling switcher, continuation routing UI, and '@' reference source for the stitch web client."
 kind: "package-reference"
 ---
 

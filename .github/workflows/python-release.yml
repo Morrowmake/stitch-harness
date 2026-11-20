@@ -1,25 +1,17 @@
 name: Release (Python)
 
-# A manual run with publish=false builds and validates the complete release
-# without registry credentials. Publication is accepted only from a manual run
-# on the matching python-v* tag when the private publisher-repository identity
-# and public-PyPI switch are configured.
+# Build-only: a manual run builds and validates the complete wheel set on
+# GitHub-hosted runners and retains it as the python-release-<version>
+# artifact. Stitch does not publish to PyPI, so this workflow has no
+# registry credentials, OIDC permission, or publication job.
 on:
   workflow_dispatch:
-    inputs:
-      publish:
-        description: Publish the validated wheels to public PyPI. Must run from a python-v* tag.
-        required: true
-        type: boolean
-        default: false
 
 permissions:
   contents: read
 
 concurrency:
-  # Public runs stay globally serialized across tags. Dry runs remain isolated
-  # by ref so they do not block an intentional publication.
-  group: ${{ github.event_name == 'workflow_dispatch' && inputs.publish && 'python-publication' || format('{0}-{1}', github.workflow, github.ref) }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -50,7 +42,7 @@ jobs:
 
       - uses: actions/download-artifact@v8.0.1
         with:
-          pattern: deepseek_harness_*
+          pattern: stitch_harness*
           path: dist
           merge-multiple: true
 
@@ -70,8 +62,8 @@ jobs:
           VERSION: ${{ steps.compatibility-version.outputs.version }}
         run: |
           python -m pip install \
-            "dist/deepseek_harness_sdk-$VERSION-py3-none-any.whl" \
-            "dist/deepseek_harness_runtime_bin-$VERSION-py3-none-manylinux_2_28_x86_64.whl"
+            "dist/stitch_harness-$VERSION-py3-none-any.whl" \
+            "dist/stitch_harness_runtime_bin-$VERSION-py3-none-manylinux_2_28_x86_64.whl"
           python scripts/smoke-python-runtime.py --scenario sdk-default
           python scripts/smoke-python-runtime.py --scenario sdk-mcp
 
@@ -104,39 +96,9 @@ jobs:
           print(f"version={wheel_version}")
           PY
 
-      - name: Authorize publication request
-        env:
-          PUBLISH: ${{ github.event_name == 'workflow_dispatch' && inputs.publish }}
-          PUBLIC_PYPI_RELEASE_ENABLED: ${{ vars.PUBLIC_PYPI_RELEASE_ENABLED }}
-          PYPI_PUBLISHER_REPOSITORY: ${{ vars.PYPI_PUBLISHER_REPOSITORY }}
-          REPOSITORY: ${{ github.repository }}
-          REF_NAME: ${{ github.ref_name }}
-          REF_TYPE: ${{ github.ref_type }}
-          REPOSITORY_VERSION: ${{ steps.version.outputs.repository-version }}
-        run: |
-          set -euo pipefail
-          if [ "$PUBLISH" = true ]; then
-            [ -n "$PYPI_PUBLISHER_REPOSITORY" ] || {
-              echo "::error::Set the repository variable PYPI_PUBLISHER_REPOSITORY before publication."
-              exit 1
-            }
-            [ "$REPOSITORY" = "$PYPI_PUBLISHER_REPOSITORY" ] || {
-              echo "::error::This repository is not the configured PyPI publisher repository."
-              exit 1
-            }
-            [ "$PUBLIC_PYPI_RELEASE_ENABLED" = true ] || {
-              echo "::error::Set PUBLIC_PYPI_RELEASE_ENABLED=true before public publication."
-              exit 1
-            }
-            [ "$REF_TYPE" = tag ] && [ "$REF_NAME" = "python-v$REPOSITORY_VERSION" ] || {
-              echo "::error::Publication must run from tag python-v$REPOSITORY_VERSION."
-              exit 1
-            }
-          fi
-
       - uses: actions/download-artifact@v8.0.1
         with:
-          pattern: deepseek_harness_*
+          pattern: stitch_harness*
           path: dist
           merge-multiple: true
 
@@ -148,12 +110,12 @@ jobs:
           expected="$(mktemp)"
           actual="$(mktemp)"
           printf '%s\n' \
-            "deepseek_harness_runtime_bin-$VERSION-py3-none-macosx_14_0_arm64.whl" \
-            "deepseek_harness_runtime_bin-$VERSION-py3-none-macosx_14_0_x86_64.whl" \
-            "deepseek_harness_runtime_bin-$VERSION-py3-none-manylinux_2_28_aarch64.whl" \
-            "deepseek_harness_runtime_bin-$VERSION-py3-none-manylinux_2_28_x86_64.whl" \
-            "deepseek_harness_runtime_bin-$VERSION-py3-none-win_amd64.whl" \
-            "deepseek_harness_sdk-$VERSION-py3-none-any.whl" > "$expected"
+            "stitch_harness_runtime_bin-$VERSION-py3-none-macosx_14_0_arm64.whl" \
+            "stitch_harness_runtime_bin-$VERSION-py3-none-macosx_14_0_x86_64.whl" \
+            "stitch_harness_runtime_bin-$VERSION-py3-none-manylinux_2_28_aarch64.whl" \
+            "stitch_harness_runtime_bin-$VERSION-py3-none-manylinux_2_28_x86_64.whl" \
+            "stitch_harness_runtime_bin-$VERSION-py3-none-win_amd64.whl" \
+            "stitch_harness-$VERSION-py3-none-any.whl" > "$expected"
           find dist -maxdepth 1 -type f -name '*.whl' -exec basename {} \; | sort > "$actual"
           diff -u "$expected" "$actual"
           while IFS= read -r wheel; do
@@ -172,7 +134,7 @@ jobs:
       - name: Record artifact hashes
         run: |
           cd dist
-          sha256sum *.whl | sort -k2 > SHA256SUMS
+          sha256sum -- *.whl | sort -k2 > SHA256SUMS
           cat SHA256SUMS
 
       - uses: actions/upload-artifact@v7.0.1
@@ -181,68 +143,3 @@ jobs:
           path: dist/*
           if-no-files-found: error
           retention-days: 7
-
-  publish-runtime:
-    name: Publish runtime wheels to public PyPI
-    if: github.event_name == 'workflow_dispatch' && inputs.publish
-    needs: validate
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    environment: pypi-runtime
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - uses: actions/download-artifact@v8.0.1
-        with:
-          name: python-release-${{ needs.validate.outputs.version }}
-          path: dist
-
-      - name: Verify release artifact hashes
-        run: cd dist && sha256sum -c SHA256SUMS
-
-      - name: Select runtime wheels
-        run: |
-          mkdir -p dist/runtime
-          mv dist/deepseek_harness_runtime_bin-*.whl dist/runtime/
-
-      - name: Publish runtime wheels
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          packages-dir: dist/runtime/
-          # Public attestations reveal the private publisher repository. OIDC
-          # authentication remains enabled without uploading that repository identity.
-          attestations: false
-
-  # Keep the SDK in a dependent job. If its upload fails after the immutable
-  # runtime files arrive, "re-run failed jobs" resumes here without attempting
-  # to overwrite the runtime release.
-  publish-sdk:
-    name: Publish SDK wheel to public PyPI
-    if: github.event_name == 'workflow_dispatch' && inputs.publish
-    needs: [validate, publish-runtime]
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    environment: pypi
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - uses: actions/download-artifact@v8.0.1
-        with:
-          name: python-release-${{ needs.validate.outputs.version }}
-          path: dist
-
-      - name: Verify release artifact hashes
-        run: cd dist && sha256sum -c SHA256SUMS
-
-      - name: Select SDK wheel
-        run: |
-          mkdir -p dist/sdk
-          mv dist/deepseek_harness_sdk-*.whl dist/sdk/
-
-      - name: Publish SDK wheel
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          packages-dir: dist/sdk/
-          attestations: false

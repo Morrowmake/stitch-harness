@@ -1,5 +1,5 @@
 /**
- * Fresh-process SDK subagent client. Drives one child DeepSeek Harness
+ * Fresh-process SDK subagent client. Drives one child Stitch
  * runtime over stdio JSON-RPC through `@deepseek-ai/dsh-sdk-client` and owns
  * cancellation and quiescent disposal. It publishes after the child
  * handshake, maps child failures to stop reasons, and tears down to
@@ -13,8 +13,8 @@
 import { randomUUID } from 'node:crypto'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import {
-  DeepSeekHarness,
-  type DeepSeekHarnessOptions,
+  Stitch,
+  type StitchOptions,
   JsonRpcResponseError,
   SdkProtocolError,
   TransportClosedError,
@@ -98,7 +98,7 @@ interface SdkFailureFacts {
 /** Fixed safe failure text derived only from provider-owned structured facts. */
 function failureDiagnostic(facts: SdkFailureFacts): string {
   const fields = [
-    'provider: DSH SDK',
+    'provider: Stitch SDK',
     `stage: ${facts.stage}`,
     `category: ${facts.category}`,
   ]
@@ -113,14 +113,14 @@ class SdkRunFailure extends Error {
 }
 
 /** Runtime constructor seam replaced only by package-local fake-runtime tests. */
-export const internals: { createHarness(options: DeepSeekHarnessOptions): DeepSeekHarness } = {
-  createHarness: options => new DeepSeekHarness(options),
+export const internals: { createHarness(options: StitchOptions): Stitch } = {
+  createHarness: options => new Stitch(options),
 }
 
 /**
  * Hide a pre-spawn workspace/configuration failure behind fixed safe facts.
  * @param cause - original Host failure retained on the Error cause chain.
- * @returns an Error whose message contains only the fixed DSH SDK failure line.
+ * @returns an Error whose message contains only the fixed Stitch SDK failure line.
  */
 export function sdkConfigurationFailure(cause: unknown): Error {
   return new SdkRunFailure({ stage: 'initialize', category: 'configuration' }, cause)

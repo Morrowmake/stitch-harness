@@ -7,7 +7,7 @@ import argparse
 import os
 from pathlib import Path
 
-from deepseek_harness import DeepSeekHarness, RunResult
+from stitch_harness import Stitch, RunResult
 
 
 def display(result: RunResult) -> None:
@@ -20,11 +20,11 @@ def display(result: RunResult) -> None:
 def main() -> None:
     """Create conversation history, compact it, and ask a follow-up question."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--dsh-home", required=True, type=Path)
+    parser.add_argument("--stitch-home", required=True, type=Path)
     parser.add_argument("--workspace", type=Path, default=Path.cwd())
     parser.add_argument("--session-id")
-    parser.add_argument("--provider", default=os.environ.get("DSH_PROVIDER") or None)
-    parser.add_argument("--model", default=os.environ.get("DSH_MODEL") or None)
+    parser.add_argument("--provider", default=os.environ.get("STITCH_PROVIDER") or None)
+    parser.add_argument("--model", default=os.environ.get("STITCH_MODEL") or None)
     parser.add_argument("--max-tokens", type=int)
     args = parser.parse_args()
 
@@ -33,8 +33,8 @@ def main() -> None:
     if not readme.is_file():
         parser.error("--workspace must contain README.md to provide conversation history")
 
-    with DeepSeekHarness(
-        dsh_home=str(args.dsh_home.resolve()),
+    with Stitch(
+        stitch_home=str(args.stitch_home.resolve()),
         cwd=str(workspace),
         profile="sdk",
         provider=args.provider,

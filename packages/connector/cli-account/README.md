@@ -29,7 +29,7 @@ A CLI app plugin's Host row injects `cliAccounts` and calls `register` once; the
 
 ### When to choose it
 
-Register from the Host row of a plugin whose vendor CLI signs the user in and keeps the credentials, so DSH only starts commands, shows their results, and owns their processes. A plugin that connects a hosted service over MCP uses the MCP manager instead, which owns OAuth itself. The Service shows each account through `ctx.connectorAccounts` from [`@deepseek-ai/dsh-client-ui-connector-account`](../../client/ui-connector-account/README.md), which a plugin without a vendor CLI registers with directly.
+Register from the Host row of a plugin whose vendor CLI signs the user in and keeps the credentials, so Stitch only starts commands, shows their results, and owns their processes. A plugin that connects a hosted service over MCP uses the MCP manager instead, which owns OAuth itself. The Service shows each account through `ctx.connectorAccounts` from [`@deepseek-ai/dsh-client-ui-connector-account`](../../client/ui-connector-account/README.md), which a plugin without a vendor CLI registers with directly.
 
 ### Minimal configuration
 

@@ -96,7 +96,7 @@ def main():
                 "The replaced application is running after refusal"
 
         identities = []
-        mixed_case_identifier = "Test.DSH.MixedCase." + uuid.uuid4().hex
+        mixed_case_identifier = "Test.Stitch.MixedCase." + uuid.uuid4().hex
         for name, bundle_id in [("Version One", identifier), ("Version Two", identifier), ("Other", identifier + ".other"), ("No identifier", None), ("Mixed case", mixed_case_identifier)]:
             app, executable, state, info = fixture(name, bundle_id)
             pending = helper.call("getApp", {"selector": str(app)})

@@ -28,7 +28,7 @@ it('refuses incompatible installation and startup until an exact risk exemption 
   writeFileSync(join(source, 'index.mjs'), 'process.stdout.write("PLUGIN_IMPORTED\\n"); export function apply() { process.stdout.write("PLUGIN_STARTED\\n") }\n')
   const run = async (args: string[]) => {
     const result = await execa(process.execPath, [bin, ...args], {
-      cwd: home, env: { ...process.env, DSH_HOME: home }, extendEnv: false, reject: false, timeout: 60_000,
+      cwd: home, env: { ...process.env, STITCH_HOME: home }, extendEnv: false, reject: false, timeout: 60_000,
     })
     expect(result.timedOut).toBe(false)
     expect(result.signal).toBeUndefined()
@@ -44,7 +44,7 @@ it('refuses incompatible installation and startup until an exact risk exemption 
   expect(refused.stderr).toContain('nothing was installed')
   expect(existsSync(join(profile, 'node_modules', 'compatibility-fixture'))).toBe(false)
 
-  // A package installed outside DSH still goes through the independent startup check.
+  // A package installed outside Stitch still goes through the independent startup check.
   cpSync(source, join(profile, 'node_modules', 'compatibility-fixture'), { recursive: true })
   writeFileSync(profileFile, JSON.stringify({ ...initial,
     dependencies: { 'compatibility-fixture': `file:${source}` }, dsh: { profile: { bundles: ['compatibility-fixture'] } },
@@ -52,9 +52,9 @@ it('refuses incompatible installation and startup until an exact risk exemption 
   const deniedStartup = await run(['--profile', 'compatibility'])
   expect(deniedStartup.stdout).not.toContain('PLUGIN_IMPORTED')
   expect(deniedStartup.stderr).toContain('incompatible')
-  const missingConsent = await plugin(['allow-version', 'compatibility-fixture@1.0.0', '--dsh-version', version])
+  const missingConsent = await plugin(['allow-version', 'compatibility-fixture@1.0.0', '--stitch-version', version])
   expect(missingConsent.exitCode).toBe(1)
-  const granted = await plugin(['allow-version', 'compatibility-fixture@1.0.0', '--dsh-version', version, '--accept-risk'])
+  const granted = await plugin(['allow-version', 'compatibility-fixture@1.0.0', '--stitch-version', version, '--accept-risk'])
   expect(granted.exitCode).toBe(0)
   expect(granted.stderr).toContain('break the application or corrupt data')
   // The exemption is profile metadata of its own; the dependency manifest and bundle list stay untouched.
@@ -64,6 +64,6 @@ it('refuses incompatible installation and startup until an exact risk exemption 
   const admittedStartup = await run(['--profile', 'compatibility'])
   expect(admittedStartup.exitCode).toBe(0)
   expect(admittedStartup.stdout).toContain('PLUGIN_STARTED')
-  expect((await plugin(['revoke-version', 'compatibility-fixture@1.0.0', '--dsh-version', version])).exitCode).toBe(0)
+  expect((await plugin(['revoke-version', 'compatibility-fixture@1.0.0', '--stitch-version', version])).exitCode).toBe(0)
   expect((await run(['--profile', 'compatibility'])).stdout).not.toContain('PLUGIN_IMPORTED')
 })

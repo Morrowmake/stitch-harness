@@ -63,9 +63,9 @@ async function childLaunch(failure = false): Promise<{
   return {
     childHome,
     env: {
-      DSH_TEST_CHILD_PATCHES: JSON.stringify([childPatch]),
-      DSH_TEST_CHILD_HOME: childHome,
-      ...(failure ? { DSH_TEST_CHILD_FAILURE: '1' } : {}),
+      STITCH_TEST_CHILD_PATCHES: JSON.stringify([childPatch]),
+      STITCH_TEST_CHILD_HOME: childHome,
+      ...(failure ? { STITCH_TEST_CHILD_FAILURE: '1' } : {}),
     },
   }
 }
@@ -91,7 +91,7 @@ describe('SDK subagent routing and diagnostics through the production profile', 
         processTimeoutMs: 120_000,
         env: {
           ...child.env,
-          DSH_TEST_PARENT_MODEL_RECORD: '.parent-model-routes',
+          STITCH_TEST_PARENT_MODEL_RECORD: '.parent-model-routes',
         },
         inspect: async (cwd) => {
           // The child reports realpaths; canonicalize the temp workspace to match.
@@ -147,7 +147,7 @@ describe('SDK subagent routing and diagnostics through the production profile', 
         configPath,
         tsconfigPath: repoTsconfig,
         processTimeoutMs: 120_000,
-        env: { ...child.env, DSH_TEST_CHILD_EFFORT_ONLY: '1' },
+        env: { ...child.env, STITCH_TEST_CHILD_EFFORT_ONLY: '1' },
         inspect: async (cwd) => {
           const logs = await jsonlFiles(join(cwd, '.sessions'))
           expect(logs).toHaveLength(1)
@@ -192,7 +192,7 @@ describe('SDK subagent routing and diagnostics through the production profile', 
       expect(settlementText(events)).toEqual([
         'Its closing message:',
         'partial child loader answer',
-        'Subagent failure (provider: DSH SDK; stage: session-run; category: child-error)',
+        'Subagent failure (provider: Stitch SDK; stage: session-run; category: child-error)',
       ])
     } finally {
       await rm(child.childHome, { recursive: true, force: true })

@@ -56,7 +56,7 @@ export function apply(ctx: Context, config: { cwd: string }): void {
         errors,
         events,
       }
-      process.stdout.write(`DSH_SOURCE_TOOL_RESULT ${JSON.stringify(evidence)}\n`)
+      process.stdout.write(`STITCH_SOURCE_TOOL_RESULT ${JSON.stringify(evidence)}\n`)
     } finally {
       await handle.dispose()
     }

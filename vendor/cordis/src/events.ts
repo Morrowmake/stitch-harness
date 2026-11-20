@@ -177,7 +177,7 @@ export class EventsService {
    * @param type Dispatch mode reported to observers.
    * @param args Dispatch arguments, consumed through the event name.
    * @returns Matching callbacks bound to the dispatch receiver.
-   * DSH retains callback enumeration for per-listener error containment.
+   * Stitch retains callback enumeration for per-listener error containment.
    */
   dispatch(type: string, args: any[]) {
     const [thisArg, callbacks] = this._resolve(type, args)

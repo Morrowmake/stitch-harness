@@ -60,7 +60,7 @@ export type MarketSource =
 
 /** Runtime requirements of one version. */
 export interface MarketEngines {
-  /** SemVer range of DSH versions the version runs on; absent means any DSH version. */
+  /** SemVer range of Stitch versions the version runs on; absent means any Stitch version. */
   readonly dsh?: string
 }
 

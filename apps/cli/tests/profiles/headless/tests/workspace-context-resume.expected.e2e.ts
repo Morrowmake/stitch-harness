@@ -39,7 +39,7 @@ const configPath = fileURLToPath(new URL('../workspace-context-resume-snapshot.p
 const binScript = fileURLToPath(new URL('../../../../../../packages/test-support/loader-smoke/tests/fixtures/headless-driver.ts', import.meta.url))
 const tsconfigPath = fileURLToPath(new URL('../../../../../../tsconfig.json', import.meta.url))
 const sessionId = brandString<SessionId>('workspace-context-resume')
-const refreshing = process.env.DSH_SNAPSHOT === 'refresh'
+const refreshing = process.env.STITCH_SNAPSHOT === 'refresh'
 const oldInstruction = 'Old workspace instruction.'
 const newInstruction = 'New workspace instruction after offline edit.'
 
@@ -147,8 +147,8 @@ describe('agent-instructions resume snapshot', () => {
       binArgs: [configPath, 'Acknowledge the current workspace instruction.'],
       tsconfigPath,
       env: {
-        DSH_SNAPSHOT_FILE: replayFixture,
-        DSH_SNAPSHOT_OVERRIDE: replayOverride,
+        STITCH_SNAPSHOT_FILE: replayFixture,
+        STITCH_SNAPSHOT_OVERRIDE: replayOverride,
       },
       prepare: async (runCwd) => {
         cwd = runCwd
@@ -204,8 +204,8 @@ describe('agent-instructions resume snapshot', () => {
       binArgs: [configPath, 'Acknowledge the current workspace instruction.'],
       tsconfigPath,
       env: {
-        DSH_SNAPSHOT_FILE: replayFixture,
-        DSH_SNAPSHOT_OVERRIDE: replayOverride,
+        STITCH_SNAPSHOT_FILE: replayFixture,
+        STITCH_SNAPSHOT_OVERRIDE: replayOverride,
       },
       prepare: async (runCwd) => {
         cwd = runCwd

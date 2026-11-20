@@ -48,4 +48,4 @@
     - id: linear
       name: '@deepseek-ai/dsh-linear'
       config:
-        url: !!js process.env.DSH_MCP_DEMO_URL
+        url: !!js process.env.STITCH_MCP_DEMO_URL

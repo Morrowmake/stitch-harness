@@ -21,7 +21,7 @@ export const inject = ['sessions', 'sessionPersistence', 'storageDomain']
  */
 export async function apply(ctx: Context): Promise<void> {
   const cwd = process.cwd()
-  const emptyPath = join(cwd, '.dsh', 'empty-workspace')
+  const emptyPath = join(cwd, '.stitch', 'empty-workspace')
   await mkdir(emptyPath, { recursive: true })
   const alpha = ctx.sessions.create(SessionId('list-alpha'), { meta: { cwd, createdAt: 1_000 } })
   alpha.append('session/title', { title: 'Alpha', messageSeqs: [], source: { kind: 'user' } })

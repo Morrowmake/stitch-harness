@@ -1,4 +1,4 @@
-/** Verify npm's physical package placement for two incompatible DSH releases. */
+/** Verify npm's physical package placement for two incompatible Stitch releases. */
 
 import { readFileSync } from 'node:fs'
 import { posix, resolve } from 'node:path'
@@ -10,7 +10,7 @@ import {
   type RegistryIndex,
 } from './benchmark-npm-resolution.ts'
 
-const DSH_PACKAGE = '@deepseek-ai/dsh'
+const STITCH_PACKAGE = '@deepseek-ai/dsh'
 const CORDIS_PACKAGE = '@deepseek-ai/cordis'
 const NESTED_DSH_ALIAS = 'dsh-previous'
 const NESTED_DSH_PATH = `node_modules/${NESTED_DSH_ALIAS}`
@@ -70,7 +70,7 @@ export interface DshInstallLayoutSummary {
 }
 
 function isDshPackage(name: string): boolean {
-  return name === DSH_PACKAGE || name.startsWith(`${DSH_PACKAGE}-`)
+  return name === STITCH_PACKAGE || name.startsWith(`${STITCH_PACKAGE}-`)
 }
 
 function cloneForVersion(manifest: object, version: string): MutableRegistryManifest {
@@ -87,10 +87,10 @@ function cloneForVersion(manifest: object, version: string): MutableRegistryMani
 }
 
 /**
- * Replace the working release with two incompatible, internally consistent DSH releases.
+ * Replace the working release with two incompatible, internally consistent Stitch releases.
  * @param index - Registry metadata containing the working release.
  * @param sourceVersion - Workspace version copied into each synthetic release.
- * @returns Registry metadata containing both synthetic DSH releases and unchanged external packages.
+ * @returns Registry metadata containing both synthetic Stitch releases and unchanged external packages.
  */
 export function buildDualDshRegistry(index: RegistryIndex, sourceVersion: string): RegistryIndex {
   const output = new Map(index)
@@ -108,7 +108,7 @@ export function buildDualDshRegistry(index: RegistryIndex, sourceVersion: string
       cloneForVersion(source, version),
     ])))
   }
-  if (dshPackages === 0) throw new Error('registry contains no DSH packages')
+  if (dshPackages === 0) throw new Error('registry contains no Stitch packages')
   return output
 }
 
@@ -144,9 +144,9 @@ function setDifference(left: ReadonlySet<string>, right: ReadonlySet<string>): s
 }
 
 /**
- * Assert that npm isolates both DSH releases while sharing the Cordis runtime.
+ * Assert that npm isolates both Stitch releases while sharing the Cordis runtime.
  * @param packageLock - Metadata-only package lock produced by npm.
- * @returns Counts for the verified DSH packages and dependency edges.
+ * @returns Counts for the verified Stitch packages and dependency edges.
  */
 export function assertDualDshInstallLayout(packageLock: NpmPackageLock): DshInstallLayoutSummary {
   const [nestedVersion, rootVersion] = SYNTHETIC_DSH_VERSIONS
@@ -161,18 +161,18 @@ export function assertDualDshInstallLayout(packageLock: NpmPackageLock): DshInst
   for (const [path, manifest] of installed) {
     const name = packageNameAtPath(path, manifest)
     if (name === 'react' || name === 'react-dom') {
-      errors.push(`${path}: ${name} is a browser build input, not a dependency of the synthetic DSH-only consumer`)
+      errors.push(`${path}: ${name} is a browser build input, not a dependency of the synthetic Stitch-only consumer`)
     }
     if (name === undefined || !isDshPackage(name)) continue
     const version = manifest.version
     if (version !== nestedVersion && version !== rootVersion) {
-      errors.push(`${path}: expected DSH version ${nestedVersion} or ${rootVersion}, got ${String(version)}`)
+      errors.push(`${path}: expected Stitch version ${nestedVersion} or ${rootVersion}, got ${String(version)}`)
       continue
     }
     namesByVersion.get(version)?.add(name)
     const expectedPath = version === rootVersion
       ? `node_modules/${name}`
-      : name === DSH_PACKAGE
+      : name === STITCH_PACKAGE
         ? NESTED_DSH_PATH
         : `${NESTED_DSH_PATH}/node_modules/${name}`
     if (path !== expectedPath) {
@@ -203,8 +203,8 @@ export function assertDualDshInstallLayout(packageLock: NpmPackageLock): DshInst
 
   const nestedNames = namesByVersion.get(nestedVersion) ?? new Set<string>()
   const rootNames = namesByVersion.get(rootVersion) ?? new Set<string>()
-  if (!nestedNames.has(DSH_PACKAGE)) errors.push(`${NESTED_DSH_PATH}: missing ${DSH_PACKAGE}@${nestedVersion}`)
-  if (!rootNames.has(DSH_PACKAGE)) errors.push(`node_modules/${DSH_PACKAGE}: missing ${DSH_PACKAGE}@${rootVersion}`)
+  if (!nestedNames.has(STITCH_PACKAGE)) errors.push(`${NESTED_DSH_PATH}: missing ${STITCH_PACKAGE}@${nestedVersion}`)
+  if (!rootNames.has(STITCH_PACKAGE)) errors.push(`node_modules/${STITCH_PACKAGE}: missing ${STITCH_PACKAGE}@${rootVersion}`)
   const onlyNested = setDifference(nestedNames, rootNames)
   const onlyRoot = setDifference(rootNames, nestedNames)
   if (onlyNested.length > 0) errors.push(`only ${nestedVersion} contains: ${onlyNested.join(', ')}`)
@@ -252,14 +252,14 @@ async function main(): Promise<void> {
   const index = buildDualDshRegistry(buildRegistryIndex(root), workspaceVersion(root))
   const [nestedVersion, rootVersion] = SYNTHETIC_DSH_VERSIONS
   const result = await resolveNpmPackageLock(index, {
-    [DSH_PACKAGE]: rootVersion,
-    [NESTED_DSH_ALIAS]: `npm:${DSH_PACKAGE}@${nestedVersion}`,
+    [STITCH_PACKAGE]: rootVersion,
+    [NESTED_DSH_ALIAS]: `npm:${STITCH_PACKAGE}@${nestedVersion}`,
   }, NPM_HANG_GUARD_MS, 'npm resolution hang guard')
   if (result.archiveRequests !== 0) throw new Error(`npm requested ${String(result.archiveRequests)} package archive(s)`)
   const summary = assertDualDshInstallLayout(result.packageLock)
   const units = assertResolutionWorkBudget(summary)
   console.log(
-    `verify-npm-install-layout: ${String(summary.dshPackagesPerVersion)} DSH package(s) per release and `
+    `verify-npm-install-layout: ${String(summary.dshPackagesPerVersion)} Stitch package(s) per release and `
     + `${String(summary.checkedDshEdges)} internal edge(s) verified in ${(result.durationMs / 1000).toFixed(2)} s; `
     + `${String(units)} of ${String(MAX_RESOLUTION_WORK_UNITS)} budgeted resolution work unit(s); `
     + `both releases share one Cordis installation; ${String(result.unknownPackages.length)} unavailable optional `

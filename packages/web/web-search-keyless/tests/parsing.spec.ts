@@ -51,8 +51,8 @@ describe('DuckDuckGo results page', () => {
       },
       {
         url: 'https://floatboat.ai/blog/cordis-plugin-framework',
-        title: 'Cordis Plugin Framework: Services Inside DeepSeek Harness｜Floatboat',
-        snippet: 'Cordis under DeepSeek Harness connects contexts, services, effects, and events. Examine dependency injection, isolation, hot reload, and when a plugin system suits an agent.',
+        title: 'Cordis Plugin Framework: Services Inside Stitch｜Floatboat',
+        snippet: 'Cordis under Stitch connects contexts, services, effects, and events. Examine dependency injection, isolation, hot reload, and when a plugin system suits an agent.',
       },
       {
         url: 'https://cordis.example.org/guide?page=1&lang=en',
@@ -61,8 +61,8 @@ describe('DuckDuckGo results page', () => {
       },
       {
         url: 'https://deepseekai.works/cordis/',
-        title: 'Cordis Framework: The Plugin Kernel Behind DeepSeek Harness',
-        snippet: 'See how Cordis, a TypeScript meta-framework born in 2019, ended up powering DeepSeek Harness — plugins, fibers, and revertible effects explained.',
+        title: 'Cordis Framework: The Plugin Kernel Behind Stitch',
+        snippet: 'See how Cordis, a TypeScript meta-framework born in 2019, ended up powering Stitch — plugins, fibers, and revertible effects explained.',
       },
     ])
   })

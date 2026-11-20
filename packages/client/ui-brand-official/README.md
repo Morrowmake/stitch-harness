@@ -29,7 +29,7 @@ The shipped Web and Desktop compositions already mount this plugin; an `official
 
 ### Choosing the profile
 
-`DSH_CLIENT_BUILD_PROFILE` selects which brand renders. An `official` build shows the Stitch sidebar mark and name; any other value leaves the shell fallbacks — the Stitch mark and the local-build label — in place. The conversation hero shows the Stitch mark fallback from `dsh-client-ui-conversation` regardless of profile. The plugin still loads and validates in both cases; only the sidebar artwork registration is profile-gated.
+`STITCH_CLIENT_BUILD_PROFILE` selects which brand renders. An `official` build shows the Stitch sidebar mark and name; any other value leaves the shell fallbacks — the Stitch mark and the local-build label — in place. The conversation hero shows the Stitch mark fallback from `dsh-client-ui-conversation` regardless of profile. The plugin still loads and validates in both cases; only the sidebar artwork registration is profile-gated.
 
 The mark's palette follows the light or dark theme; the name follows the sidebar text color. The artwork takes no configuration. This is built-in presentation, without a separately installed bundle or Plugins-page toggle.
 
@@ -79,7 +79,7 @@ None; this package neither assembles nor sends a provider request.
 These limits define how brand presentation is supplied. They are current package constraints, not a brand-design comparison or a task backlog.
 
 - **One occupant set** — alternative presentation belongs in another Cordis package occupying the same slots.
-- **The browser title is independent** — `DSH_CLIENT_TITLE` selects title text at build time rather than through a UI slot.
+- **The browser title is independent** — `STITCH_CLIENT_TITLE` selects title text at build time rather than through a UI slot.
 
 <a id="dev-note"></a>
 ### Dev Note

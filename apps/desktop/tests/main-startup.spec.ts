@@ -10,7 +10,7 @@ import type { MenuItemConstructorOptions, MessageBoxOptions } from 'electron'
 import { DESKTOP_IPC } from '../src/ipc.ts'
 import { DesktopHostFatalError } from '../src/host-process.ts'
 import { en, zh } from '../src/locale.ts'
-import { LATEST_RELEASE_URL, UPDATE_CHECK_INTERVAL_MS } from '../src/update-check.ts'
+import { RELEASES_URL, UPDATE_CHECK_INTERVAL_MS } from '../src/update-check.ts'
 import { writeCrashReport } from '../src/crash-report.ts'
 import { runOperationReportJob } from '../src/operation-report-job.ts'
 
@@ -55,7 +55,7 @@ const harness = await vi.hoisted(async () => {
   let quitCompleted = deferred()
   let closeWindowsOnQuit = false
   const readLoginShell = async (base: NodeJS.ProcessEnv) => ({
-    environment: { ...base, DSH_TEST_LOGIN_SHELL: 'login' }, failures: [{ shell: '/account/shell', reason: 'timeout' }],
+    environment: { ...base, STITCH_TEST_LOGIN_SHELL: 'login' }, failures: [{ shell: '/account/shell', reason: 'timeout' }],
   })
   const loginShell = vi.fn((base: NodeJS.ProcessEnv, _config: unknown, _options: { signal?: AbortSignal }) => readLoginShell(base))
   const netFetch = vi.fn<(url: string, init: RequestInit) => Promise<Response>>()
@@ -232,8 +232,9 @@ const harness = await vi.hoisted(async () => {
       pluginsEnabled = false
       closeWindowsOnQuit = false
       loginShell.mockReset().mockImplementation(base => readLoginShell(base))
-      netFetch.mockReset().mockImplementation(async () => Response.json({ tag_name: 'v1.1.0', name: 'Stitch 1.1.0',
-        html_url: 'https://github.com/Morrowmake/stitch-harness/releases/tag/v1.1.0', draft: false, prerelease: false }))
+      // Startup checks run by default; the running version is current unless a test serves a newer release.
+      netFetch.mockReset().mockImplementation(async () => Response.json([{ tag_name: 'stitch-v1.0.0',
+        html_url: 'https://github.com/Morrowmake/stitch-harness/releases/tag/stitch-v1.0.0', draft: false, prerelease: false }]))
       nativeTheme.removeAllListeners()
       nativeTheme.themeSource = 'system'; nativeTheme.shouldUseDarkColors = false
       preparing = deferred(); prepared = deferred(); hostStarted = deferred()
@@ -279,7 +280,7 @@ vi.mock('node:fs/promises', async (importOriginal) => {
   const original = await importOriginal<typeof import('node:fs/promises')>()
   return { ...original, readFile: vi.fn((path: Parameters<typeof original.readFile>[0], encoding?: 'utf8') => {
     if (path === join('desktop-test-app', 'package.json')) {
-      return Promise.resolve(JSON.stringify({ dshDesktopAppId: 'com.deepseek.dsh' }))
+      return Promise.resolve(JSON.stringify({ dshDesktopAppId: 'io.github.morrowmake.stitch' }))
     }
     return encoding === undefined ? original.readFile(path) : original.readFile(path, encoding)
   }) }
@@ -289,6 +290,8 @@ vi.mock('../src/login-shell-environment.ts', async importOriginal => ({
   readDesktopLoginShellEnvironment: harness.loginShell,
 }))
 vi.mock('../src/paths.ts', () => ({ resolveDesktopPaths: () => ({ profile: 'desktop-test-profile' }) }))
+// Without embedded keys no manifest is fetched; one-click install is covered by the update-install and update-check specs.
+vi.mock('../src/update-public-key.ts', () => ({ UPDATE_PUBLIC_KEYS: [] }))
 vi.mock('../src/project-manager.ts', () => ({
   DesktopProjectManager: class {
     readonly applyRelease = harness.applyRelease
@@ -360,13 +363,13 @@ beforeEach(() => {
   vi.spyOn(console, 'error').mockImplementation(() => {})
   vi.spyOn(console, 'info').mockImplementation(() => {})
   vi.spyOn(console, 'warn').mockImplementation(() => {})
-  vi.stubEnv('DSH_DESKTOP_PNPM_ENTRY', 'test-pnpm')
-  vi.stubEnv('DSH_DESKTOP_DSH_DIR', 'test-runtime')
-  vi.stubEnv('DSH_DESKTOP_PRIMARY_RUNTIME_DIR', 'test-primary-runtime')
+  vi.stubEnv('STITCH_DESKTOP_PNPM_ENTRY', 'test-pnpm')
+  vi.stubEnv('STITCH_DESKTOP_STITCH_DIR', 'test-runtime')
+  vi.stubEnv('STITCH_DESKTOP_PRIMARY_RUNTIME_DIR', 'test-primary-runtime')
   vi.stubGlobal('process', { ...process, platform: 'win32', arch: 'x64', resourcesPath: 'desktop-test-resources' })
-  vi.stubEnv('DSH_DESKTOP_HOST_INSPECT_PORT', undefined)
-  vi.stubEnv('DSH_DESKTOP_DEV_PROJECT_DIR', undefined)
-  vi.stubEnv('DSH_CLIENT_VERSION', '1.2.3')
+  vi.stubEnv('STITCH_DESKTOP_HOST_INSPECT_PORT', undefined)
+  vi.stubEnv('STITCH_DESKTOP_DEV_PROJECT_DIR', undefined)
+  vi.stubEnv('STITCH_CLIENT_VERSION', '1.2.3')
 })
 
 afterEach(async () => {
@@ -400,39 +403,57 @@ describe('desktop main startup', () => {
     })
   })
 
-  const RELEASE_PAGE = 'https://github.com/Morrowmake/stitch-harness/releases/tag/v1.1.0'
+  const RELEASE_PAGE = 'https://github.com/Morrowmake/stitch-harness/releases/tag/stitch-v1.1.0'
+  const CURRENT_RELEASE = [{ tag_name: 'stitch-v1.0.0', html_url: RELEASE_PAGE }]
+  const serveNewerRelease = (): void => {
+    harness.netFetch.mockImplementation(async () => Response.json([{ tag_name: 'stitch-v1.1.0', name: 'Stitch 1.1.0',
+      html_url: RELEASE_PAGE, draft: false, prerelease: false }]))
+  }
+  const persistUpdateChecks = (enabled: boolean): void => {
+    writeFileSync(settingsPath(), JSON.stringify({ updates: { checkForUpdates: enabled } }))
+  }
 
   /** Let main() finish its post-startup work, where automatic checks begin. */
   async function settled() {
     for (let turn = 0; turn < 5; turn++) await vi.advanceTimersByTimeAsync(0)
   }
 
-  it('keeps update checks off by default and never contacts GitHub without an opt-in', async () => {
-    await readyWorkspace()
-    await settled()
-    await vi.advanceTimersByTimeAsync(UPDATE_CHECK_INTERVAL_MS * 3)
-    expect(await invoke(DESKTOP_IPC.updatesPreferenceGet, 'app')).toBe(false)
-    expect(harness.netFetch).not.toHaveBeenCalled()
-    expect(existsSync(settingsPath())).toBe(false)
-  })
-
-  it('persists the opt-in, checks immediately and daily, and offers the release page without downloading', async () => {
-    await readyWorkspace()
-    await settled()
+  it('checks by default at startup and daily, offering the release page when no one-click install is available', async () => {
+    serveNewerRelease()
     harness.dialog.showMessageBox.mockResolvedValueOnce({ response: 0 })
-    await expect(invoke(DESKTOP_IPC.updatesPreferenceSet, 'app', true)).resolves.toBe(true)
-    expect(JSON.parse(readFileSync(settingsPath(), 'utf8'))).toEqual({ updates: { checkForUpdates: true } })
-    expect(harness.windows[0]!.webContents.send).toHaveBeenCalledWith(DESKTOP_IPC.updatesPreferenceChanged, true)
+    await readyWorkspace()
     await settled()
+    expect(await invoke(DESKTOP_IPC.updatesPreferenceGet, 'app')).toBe(true)
     expect(harness.netFetch).toHaveBeenCalledOnce()
     const [url, init] = harness.netFetch.mock.calls[0]!
-    expect(url).toBe(LATEST_RELEASE_URL)
+    expect(url).toBe(RELEASES_URL)
     expect(init.headers).toEqual({ 'User-Agent': 'Stitch/1.0.0', Accept: 'application/vnd.github+json' })
     expect(harness.dialog.showMessageBox).toHaveBeenLastCalledWith(expect.objectContaining({
       message: 'New version available: 1.1.0', buttons: [en.updateDownload, en.later], cancelId: 1,
     }))
     expect((harness.dialog.showMessageBox.mock.lastCall![0] as MessageBoxOptions).detail).toContain('Stitch 1.1.0')
     expect(harness.openExternal).toHaveBeenCalledWith(RELEASE_PAGE)
+    expect(existsSync(settingsPath())).toBe(false)
+    await vi.advanceTimersByTimeAsync(UPDATE_CHECK_INTERVAL_MS)
+    expect(harness.netFetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('never contacts GitHub automatically once turned off, and checks immediately when turned back on', async () => {
+    persistUpdateChecks(false)
+    await readyWorkspace()
+    await settled()
+    await vi.advanceTimersByTimeAsync(UPDATE_CHECK_INTERVAL_MS * 3)
+    expect(await invoke(DESKTOP_IPC.updatesPreferenceGet, 'app')).toBe(false)
+    expect(harness.netFetch).not.toHaveBeenCalled()
+    serveNewerRelease()
+    harness.dialog.showMessageBox.mockResolvedValueOnce({ response: 1 })
+    await expect(invoke(DESKTOP_IPC.updatesPreferenceSet, 'app', true)).resolves.toBe(true)
+    expect(JSON.parse(readFileSync(settingsPath(), 'utf8'))).toEqual({ updates: { checkForUpdates: true } })
+    expect(harness.windows[0]!.webContents.send).toHaveBeenCalledWith(DESKTOP_IPC.updatesPreferenceChanged, true)
+    await settled()
+    expect(harness.netFetch).toHaveBeenCalledOnce()
+    expect(harness.netFetch.mock.calls[0]![0]).toBe(RELEASES_URL)
+    expect(harness.openExternal).not.toHaveBeenCalled()
     await vi.advanceTimersByTimeAsync(UPDATE_CHECK_INTERVAL_MS)
     expect(harness.netFetch).toHaveBeenCalledTimes(2)
     await expect(invoke(DESKTOP_IPC.updatesPreferenceSet, 'app', false)).resolves.toBe(false)
@@ -443,7 +464,7 @@ describe('desktop main startup', () => {
   })
 
   it('checks at startup when the persisted preference is on and keeps automatic failures silent', async () => {
-    writeFileSync(settingsPath(), JSON.stringify({ updates: { checkForUpdates: true } }))
+    persistUpdateChecks(true)
     harness.netFetch.mockRejectedValue(new Error('offline'))
     await readyWorkspace()
     await settled()
@@ -453,13 +474,15 @@ describe('desktop main startup', () => {
   })
 
   it('reports every Check now outcome to Settings even while the preference is off', async () => {
+    persistUpdateChecks(false)
+    serveNewerRelease()
     await readyWorkspace()
     await settled()
     await expect(invoke(DESKTOP_IPC.updatesCheck, 'app')).resolves.toEqual({ kind: 'available', version: '1.1.0', name: 'Stitch 1.1.0' })
     await settled()
     expect(harness.dialog.showMessageBox).toHaveBeenCalledOnce()
     expect(harness.openExternal).not.toHaveBeenCalled()
-    harness.netFetch.mockImplementationOnce(async () => Response.json({ tag_name: 'v1.0.0', html_url: RELEASE_PAGE }))
+    harness.netFetch.mockImplementationOnce(async () => Response.json(CURRENT_RELEASE))
     await expect(invoke(DESKTOP_IPC.updatesCheck, 'app')).resolves.toEqual({ kind: 'current', version: '1.0.0' })
     harness.netFetch.mockImplementationOnce(async () => new Response('limited', { status: 403 }))
     await expect(invoke(DESKTOP_IPC.updatesCheck, 'app')).resolves.toEqual({ kind: 'failed' })
@@ -468,10 +491,11 @@ describe('desktop main startup', () => {
   })
 
   it('reports the current version and failures from the Check for Updates menu', async () => {
+    persistUpdateChecks(false)
     await readyWorkspace()
     await settled()
     const check = applicationMenuItems().find(item => item.label === en.checkUpdatesMenu)!.click as () => void
-    harness.netFetch.mockImplementationOnce(async () => Response.json({ tag_name: 'v1.0.0', html_url: RELEASE_PAGE }))
+    harness.netFetch.mockImplementationOnce(async () => Response.json(CURRENT_RELEASE))
     check()
     await settled()
     expect(harness.dialog.showMessageBox).toHaveBeenLastCalledWith(expect.objectContaining({
@@ -490,7 +514,7 @@ describe('desktop main startup', () => {
     onTestFinished(() => { rmSync(root, { recursive: true, force: true }) })
     writeFileSync(join(root, 'app.asar'), 'archive fixture')
     harness.app.isPackaged = false
-    vi.stubEnv('DSH_DESKTOP_DSH_DIR', join(root, 'app.asar', 'dsh'))
+    vi.stubEnv('STITCH_DESKTOP_STITCH_DIR', join(root, 'app.asar', 'dsh'))
     const host = await readyForUpdate()
     expect(host.primaryRuntime).toBe('test-primary-runtime')
     expect(existsSync(harness.app.getPath('logs'))).toBe(false)
@@ -621,7 +645,7 @@ describe('desktop main startup', () => {
     await vi.advanceTimersByTimeAsync(0)
     const zh = locale === 'zh-CN'
     expect(harness.dialog.showMessageBox).toHaveBeenLastCalledWith(expect.objectContaining({
-      type: 'info', title: zh ? '关于 DeepSeek Harness' : 'About DeepSeek Harness', message: 'DeepSeek Harness',
+      type: 'info', title: zh ? '关于 Stitch' : 'About Stitch', message: 'Stitch',
       detail: zh ? '版本 V1.0.0' : 'Version V1.0.0', buttons: [zh ? '确定' : 'OK'], cancelId: 0,
     }))
     // A dialog that cannot open is logged, not surfaced as an unhandled rejection.
@@ -892,7 +916,7 @@ describe('desktop main startup', () => {
     expect(() => handler(event, 'application', NaN, 34)).toThrow('invalid popup request')
     const application = handler(event, 'application', 48, 34)
     expect(harness.menu.buildFromTemplate.mock.lastCall![0].map(item => item.label ?? item.type)).toEqual([
-      '关于 DeepSeek Harness', 'separator', '检查更新…', '管理 dsh 命令…', 'separator', zh.toggleDevToolsMenu, 'separator', '退出',
+      '关于 Stitch', 'separator', '检查更新…', '管理 stitch 命令…', 'separator', zh.toggleDevToolsMenu, 'separator', '退出',
     ])
     expect(harness.popup.mock.lastCall![0]).toMatchObject({ window, x: 48, y: 34 })
     expect(harness.popup.mock.lastCall![0].callback).toBeTypeOf('function')
@@ -1516,7 +1540,7 @@ describe('desktop main startup', () => {
       level: 'error', message: 'client-modules: bundle script plugins/??a/client.js&rev=1 failed to load',
       sourceId: 'dsh-app://app/assets/entry.js', lineNumber: 12,
     })
-    host.onFailure!(new Error('dsh desktop host exited with 1: fatal uncaught exception: ENOENT'))
+    host.onFailure!(new Error('stitch desktop host exited with 1: fatal uncaught exception: ENOENT'))
     await host.stopping.promise
     expect(writeCrashReport).toHaveBeenCalledOnce()
     const [directory, report] = vi.mocked(writeCrashReport).mock.calls[0]!
@@ -1561,7 +1585,7 @@ describe('desktop main startup', () => {
         expect(quitCompleted).toBe(false)
         await vi.advanceTimersByTimeAsync(1)
         expect(workerExited).toBe(false)
-        expect(console.error).toHaveBeenCalledWith('dsh desktop: operation report Worker has not exited; continuing shutdown')
+        expect(console.error).toHaveBeenCalledWith('stitch desktop: operation report Worker has not exited; continuing shutdown')
       } else {
         finishReport()
         await vi.advanceTimersByTimeAsync(0)
@@ -1603,7 +1627,7 @@ describe('desktop main startup', () => {
     else finishReport({ appended: false, timedOut: false, cancelled: true })
     await harness.quitCompleted.promise
     if (stuck) {
-      expect(console.error).toHaveBeenCalledWith('dsh desktop: operation report Worker has not exited; continuing shutdown')
+      expect(console.error).toHaveBeenCalledWith('stitch desktop: operation report Worker has not exited; continuing shutdown')
       finishReport({ appended: false, timedOut: false, cancelled: true })
     }
     expect(harness.app.relaunch).toHaveBeenCalledTimes(response === 0 ? 0 : 1)
@@ -1631,7 +1655,7 @@ describe('desktop main startup', () => {
     expect(harness.hosts).toHaveLength(0)
     finishRead()
     await harness.hostStarted.promise
-    expect(harness.hosts[0]!.environment?.DSH_TEST_LOGIN_SHELL).toBe('login')
+    expect(harness.hosts[0]!.environment?.STITCH_TEST_LOGIN_SHELL).toBe('login')
     harness.hosts[0]!.ready.resolve()
     await Promise.all([boot, harness.navigated.promise])
     const { signal } = harness.loginShell.mock.calls[0]![2]
@@ -1665,8 +1689,8 @@ describe('desktop main startup', () => {
       profile: 'desktop-test-profile',
     })
     expect(harness.hosts[0]!.environment).not.toBe(process.env)
-    expect(harness.hosts[0]!.environment?.DSH_CLIENT_VERSION).toBe('1.2.3')
-    expect(harness.hosts[0]!.environment?.DSH_TEST_LOGIN_SHELL).toBe('login')
+    expect(harness.hosts[0]!.environment?.STITCH_CLIENT_VERSION).toBe('1.2.3')
+    expect(harness.hosts[0]!.environment?.STITCH_TEST_LOGIN_SHELL).toBe('login')
     expect(console.warn).toHaveBeenCalledWith('desktop login shell: /account/shell failed (timeout)')
     expect(harness.hosts[0]!.start).toHaveBeenCalledTimes(1)
     expect(harness.windows).toHaveLength(1)
@@ -1675,7 +1699,7 @@ describe('desktop main startup', () => {
 
   it('prepares an independent plugin profile for the unpackaged Host', async () => {
     harness.app.isPackaged = false
-    vi.stubEnv('DSH_DESKTOP_DSH_DIR', undefined)
+    vi.stubEnv('STITCH_DESKTOP_STITCH_DIR', undefined)
     await import('../src/main.ts')
     await harness.preparing.promise
     harness.prepared.resolve()
@@ -1691,11 +1715,11 @@ describe('desktop main startup', () => {
 
   it('fails an unpackaged launch that receives no primary runtime directory', async () => {
     harness.app.isPackaged = false
-    vi.stubEnv('DSH_DESKTOP_PRIMARY_RUNTIME_DIR', undefined)
+    vi.stubEnv('STITCH_DESKTOP_PRIMARY_RUNTIME_DIR', undefined)
     await import('../src/main.ts')
     await harness.dialogShown.promise
     const options = harness.dialog.showMessageBox.mock.calls[0]![0] as MessageBoxOptions
-    expect(options.detail).toContain('DSH_DESKTOP_PRIMARY_RUNTIME_DIR is required for an unpackaged launch')
+    expect(options.detail).toContain('STITCH_DESKTOP_PRIMARY_RUNTIME_DIR is required for an unpackaged launch')
     expect(harness.hosts).toHaveLength(0)
   })
 

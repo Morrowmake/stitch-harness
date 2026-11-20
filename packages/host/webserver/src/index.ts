@@ -31,7 +31,7 @@ export type { IndexInjection, IndexInjectionPlacement } from './injections.ts'
 
 /** One application entry URL contributed for startup printing or browser handoff. */
 export interface WebEntryUrl {
-  /** Output prefix, such as `dsh web`. */
+  /** Output prefix, such as `stitch web`. */
   readonly label: string
   /** Complete entry URL, including any credentials required by its provider. */
   readonly url: string

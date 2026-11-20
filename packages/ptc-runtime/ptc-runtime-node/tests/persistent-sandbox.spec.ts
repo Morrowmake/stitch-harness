@@ -13,7 +13,7 @@ import type { Config } from '../src/index.ts'
 import { brandString } from '@deepseek-ai/dsh-brand'
 
 async function setup(mode: 'read-only' | 'workspace-write' = 'read-only', executionMode: NonNullable<Config['executionMode']> = 'persistent-in-memory') {
-  const root = realpathSync.native(await mkdtemp(join(homedir(), '.dsh-persistent-sandbox-')))
+  const root = realpathSync.native(await mkdtemp(join(homedir(), '.stitch-persistent-sandbox-')))
   const cwd = join(root, 'workspace')
   await mkdir(cwd)
   const ctx = new Context()

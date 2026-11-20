@@ -58,7 +58,7 @@ pnpm run mock:llm \
 ```
 
 ```sh
-MOCK_API_KEY=mock-key pnpm dsh --profile headless --patch ./mock.patch.yml "test provider recovery"
+MOCK_API_KEY=mock-key pnpm stitch --profile headless --patch ./mock.patch.yml "test provider recovery"
 ```
 
 仓库脚本将 JSONL 写入 stdout：`ready` 记录携带以 `/v1` 结尾的 base URL 与随机种子，后续请求/结果记录同时命名脚本行为与实际选中的具体行为。本包不公开可安装的二进制命令。

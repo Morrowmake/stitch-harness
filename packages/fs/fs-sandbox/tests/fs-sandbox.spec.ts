@@ -41,7 +41,7 @@ async function boot(mode: SandboxMode): Promise<void> {
 
 beforeEach(async ({ onTestFinished }) => {
   // Both siblings must be outside automatic temp grants for containment denials to be meaningful.
-  const directory = await mkdtemp(join(outsideTempWorkspaceParent(), '.dsh-fssbx-'))
+  const directory = await mkdtemp(join(outsideTempWorkspaceParent(), '.stitch-fssbx-'))
   onTestFinished(async () => { await rm(directory, { recursive: true, force: true }) })
   base = realpathSync.native(directory)
   assertWorkspaceOutsideTemp(base)

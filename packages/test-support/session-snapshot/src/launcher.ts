@@ -123,13 +123,13 @@ export function launchAcpTestAgent(options: AcpTestLaunchOptions): LaunchedAcpTe
     libBin: agent.libBinScript,
     configArgs: agent.profile === undefined
       ? ['--config', selectedConfig]
-      : profileArgs(agent.profile, agent.configPath, selectedConfig, options.env?.DSH_SNAPSHOT, cwd),
+      : profileArgs(agent.profile, agent.configPath, selectedConfig, options.env?.STITCH_SNAPSHOT, cwd),
     tsconfigPath: agent.tsconfigPath,
     ...agent.profile === undefined ? {} : { sourceImport: 'tsx/esm' },
     env: {
       ...options.env,
-      DSH_HOME: join(cwd, '.dsh'),
-      DSH_AGENTS_HOME: join(cwd, '.agents'),
+      STITCH_HOME: join(cwd, '.stitch'),
+      STITCH_AGENTS_HOME: join(cwd, '.agents'),
     },
   })
   const child = spawn(
@@ -196,7 +196,7 @@ export function launchAcpTestAgent(options: AcpTestLaunchOptions): LaunchedAcpTe
   }
   const requestPermission = options.requestPermission
     ?? (() => Promise.resolve({ outcome: { outcome: 'cancelled' as const } }))
-  const clientApp = createAcpClientApp({ name: 'deepseek-harness-acp-test-client' })
+  const clientApp = createAcpClientApp({ name: 'stitch-acp-test-client' })
     .onNotification(methods.client.session.update, ({ params }) => {
       return trackClientCallback(() => {
         updates.push(params.update)
@@ -354,7 +354,7 @@ function profileArgs(
   const patches = snapshotMode === 'replay'
     ? [base, replayPatchPath(selected)]
     : [...new Set([base, selected])]
-  const materializedRoot = join(cwd, '.dsh-profile-patches')
+  const materializedRoot = join(cwd, '.stitch-profile-patches')
   mkdirSync(materializedRoot, { recursive: true })
   const materializedDir = mkdtempSync(join(materializedRoot, 'launch-'))
   const materialized = patches.map((file, index) => materializeProfilePatch(file, cwd, profile, materializedDir, index))
@@ -385,14 +385,14 @@ function packageDirFromPatch(source: string, packageName: string): string | unde
 
 /**
  * Install an authored patch's resolvable bare package into the temporary
- * profile. This mirrors `dsh plugin` while retaining the bare entry
+ * profile. This mirrors `stitch plugin` while retaining the bare entry
  * name and package identity used by request metadata.
  */
 function linkProfilePackage(source: string, cwd: string, profile: string, packageName: string): void {
   const packageDir = packageDirFromPatch(source, packageName)
   // The package may instead belong to the dsh installation; profile boot heals those links.
   if (packageDir === undefined) return
-  const link = join(cwd, '.dsh', 'profiles', profile, 'node_modules', packageName)
+  const link = join(cwd, '.stitch', 'profiles', profile, 'node_modules', packageName)
   mkdirSync(dirname(link), { recursive: true })
   if (existsSync(link)) {
     if (realpathSync(link) !== packageDir) {

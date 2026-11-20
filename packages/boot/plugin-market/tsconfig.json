@@ -8,6 +8,9 @@
     "src"
   ],
   "references": [
+    {
+      "path": "../../util/product"
+    },
     { "path": "../../../vendor/cordis" },
     { "path": "../../../vendor/loader" },
     { "path": "../../../vendor/schemastery" },

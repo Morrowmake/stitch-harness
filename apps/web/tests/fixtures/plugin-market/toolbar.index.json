@@ -1,6 +1,6 @@
 {
   "format": 1,
-  "title": { "en": "Awesome DSH Plugin", "zh": "Awesome DSH Plugin 插件精选" },
+  "title": { "en": "Awesome Stitch Plugin", "zh": "Awesome Stitch Plugin 插件精选" },
   "metadata": {
     "categories": { "tools": { "title": { "en": "Tools", "zh": "工具与能力" } } },
     "labels": { "featured": { "title": { "en": "Featured", "zh": "精选" } } }

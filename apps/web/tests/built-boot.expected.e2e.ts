@@ -61,18 +61,18 @@ it('boots the built plugin graph and renders a fixture session end to end', asyn
 
   // The sidebar renders from the boot graph: every inject layer activated.
   const tree = await screen.findByRole('tree', { name: 'Sessions' }, { timeout: 10_000 })
-  if (clientBuildValue('DSH_CLIENT_BUILD_PROFILE') === 'official') {
+  if (clientBuildValue('STITCH_CLIENT_BUILD_PROFILE') === 'official') {
     expect(document.querySelector('svg[viewBox="28 0 62 24"]')).not.toBeNull()
-    expect(screen.queryByText('DSH Local Build')).toBeNull()
+    expect(screen.queryByText('Stitch (local build)')).toBeNull()
   } else {
     expect(document.querySelector('svg[viewBox="4 4 40 40"]')).not.toBeNull()
-    const version = clientBuildValue('DSH_CLIENT_VERSION')
-    if (version === undefined) throw new Error('default client build record must carry DSH_CLIENT_VERSION')
-    const commit = clientBuildValue('DSH_CLIENT_COMMIT_HASH')
+    const version = clientBuildValue('STITCH_CLIENT_VERSION')
+    if (version === undefined) throw new Error('default client build record must carry STITCH_CLIENT_VERSION')
+    const commit = clientBuildValue('STITCH_CLIENT_COMMIT_HASH')
     const buildVersion = version
       + (commit === undefined ? '' : `-${commit}`)
-      + (clientBuildValue('DSH_CLIENT_GIT_DIRTY') === 'true' ? '-dirty' : '')
-    screen.getByText('DSH Local Build')
+      + (clientBuildValue('STITCH_CLIENT_GIT_DIRTY') === 'true' ? '-dirty' : '')
+    screen.getByText('Stitch (local build)')
     screen.getByText(buildVersion)
   }
   // The compact layout dropped group session counts; the fixture workspace

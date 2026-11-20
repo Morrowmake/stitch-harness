@@ -29,12 +29,14 @@ Stitch 处于 _开发者预览_ 阶段，正在快速迭代。**未来将出现�
 
 从 [GitHub Releases](https://github.com/Morrowmake/stitch-harness/releases) 下载 macOS 或 Windows 安装程序。目前的构建未签名，因此 macOS Gatekeeper 与 Windows SmartScreen 会在首次启动时发出警告。
 
-### 通过 `npm` 运行
+<a id="terminal-command"></a>
 
-安装 `Node.js`，然后运行：
+### 终端命令
+
+桌面应用可以为终端安装 `stitch` 命令：在应用菜单中选择「管理 stitch 命令…」。安装后运行：
 
 ```sh
-npx @stitch-harness/stitch web
+stitch web
 ```
 
 该命令默认会在 `http://127.0.0.1:3080` 启动 Web UI，本机启动时还会用默认浏览器打开页面。通过 SSH 启动时只打印宿主机 URL，因为本地转发地址由 SSH 客户端或编辑器持有。传入 `--no-open` 可仅运行服务器而不打开浏览器。详见 [Web UI 指南](docs/user/guide/index.zh.md)。

@@ -28,7 +28,7 @@ const CODEX = recordKeyFor('openai-codex')
 
 const dirs: string[] = []
 
-/** A context whose credential records live in a throwaway `$DSH_HOME`. */
+/** A context whose credential records live in a throwaway `$STITCH_HOME`. */
 async function stored(
   layers?: Parameters<typeof createLaunchEnvironmentSnapshot>[0],
   initialRefs?: Record<string, string>,
@@ -216,7 +216,7 @@ describe('pi-ai ambient auth context', () => {
     const ctx = await stored([
       { source: 'process', values: { OPENAI_API_KEY: 'from-launch' } },
       { source: 'project-env', path: '/work/.env', values: { OPENAI_API_KEY: 'from-project' } },
-      { source: 'user-env', path: '/home/.dsh/.env', values: { OPENAI_API_KEY: 'from-home' } },
+      { source: 'user-env', path: '/home/.stitch/.env', values: { OPENAI_API_KEY: 'from-home' } },
     ], { OPENAI_API_KEY: 'from-credentials' })
 
     await expect(authContextFrom(ctx).env('OPENAI_API_KEY')).resolves.toBe('from-credentials')

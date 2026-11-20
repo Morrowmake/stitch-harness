@@ -31,14 +31,14 @@ function lastStep(context: ConversationNodeContext<TurnErrorState>): number {
 
 /**
  * Failure shown for a turn ending: a recorded error, or a turn that restart
- * recovery closed because the DSH process exited mid-turn.
+ * recovery closed because the Stitch process exited mid-turn.
  */
 function endFailure(reason: TurnEndReason): { readonly message: string; readonly code?: string } | undefined {
   switch (reason.kind) {
     case 'error':
       return reason.error
     case 'interrupted':
-      return { message: 'The DSH process exited before this turn finished.', code: 'INTERRUPTED' }
+      return { message: 'The Stitch process exited before this turn finished.', code: 'INTERRUPTED' }
     default:
       // Completed, aborted, blocked, max-tokens, forked, and plugin-merged endings have no failure row;
       // cancellations show only the stopped turn summary.

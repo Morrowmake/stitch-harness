@@ -3,15 +3,15 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleIdentifier</key>
-    <string>com.deepseek.harness.computer-use</string>
+    <string>io.github.morrowmake.stitch.computer-use</string>
     <key>CFBundleExecutable</key>
     <string>dsh-cua-native</string>
     <key>CFBundleName</key>
-    <string>DSH Computer Use</string>
+    <string>Stitch Computer Use</string>
     <key>CFBundleDisplayName</key>
-    <string>DSH Computer Use</string>
+    <string>Stitch Computer Use</string>
     <key>CFBundleIconFile</key>
-    <string>DSHComputerUse.icns</string>
+    <string>StitchComputerUse.icns</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleVersion</key>

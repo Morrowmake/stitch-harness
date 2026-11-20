@@ -5,7 +5,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { DeepSeekHarness } from '@deepseek-ai/dsh-sdk-client'
+import { Stitch } from '@deepseek-ai/dsh-sdk-client'
 import { describe, expect, it, onTestFinished } from 'vitest'
 import { MOCK_ROUTE, MOCK_ROUTE_KEY_ENV, mockRouteRow } from './fixtures/profile-environment.ts'
 
@@ -52,7 +52,7 @@ describe.skipIf(!existsSync(dshBin))('sdk-minimal durability checkpoints', () =>
       { insert: [{ id: 'checkpoint-failure', name: fixture }] },
       ...disabled ? [{ id: 'session-checkpoint-policy', disabled: true }] : [],
     ]))
-    const harness = new DeepSeekHarness({
+    const harness = new Stitch({
       dshBin, profile: 'sdk-minimal', dshHome: join(root, 'home'), ...MOCK_ROUTE,
       cwd: root, processCwd: root, patches: [patch],
       env: { ...process.env, [MOCK_ROUTE_KEY_ENV]: 'keyless-checkpoint-test' },

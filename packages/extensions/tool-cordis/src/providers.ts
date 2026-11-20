@@ -31,7 +31,7 @@ const CONFIG_OUTPUT = {
   description: 'One directory page of live entries with patch ids, Config status, total, and nextOffset, or one entry\'s projected JSON Schema with shared definitions, omission acceptance, and projection limitations.',
 } as const
 const RUNTIME_OUTPUT = {
-  description: 'Object whose version field is the exact running DSH version.',
+  description: 'Object whose version field is the exact running Stitch version.',
 } as const
 const HOST_EVENTS = EVENT_API.filter(event => !event.name.startsWith('cordis/'))
 
@@ -68,7 +68,7 @@ export function hostInspectProviders(ctx: Context): HostCordisInspectProviderReg
     ),
     registration(
       'Runtime',
-      'Running DSH version, the version that plugin engines.dsh ranges and DSH peer dependencies are checked against.',
+      'Running Stitch version, the version that plugin engines.dsh ranges and Stitch peer dependencies are checked against.',
       'getVersion',
       () => ({ version: getDshRuntimeVersion() }),
       undefined,

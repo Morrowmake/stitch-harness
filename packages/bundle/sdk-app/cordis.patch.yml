@@ -18,7 +18,7 @@
       name: '@deepseek-ai/dsh-sdk-jsonrpc-server'
       inject: [sdkAppStartup, loader]
       config:
-        maxTokensAsSuccess: !!js "process.env.DSH_MAX_TOKENS_AS_SUCCESS === undefined ? true : JSON.parse(process.env.DSH_MAX_TOKENS_AS_SUCCESS)"
+        maxTokensAsSuccess: !!js "process.env.STITCH_MAX_TOKENS_AS_SUCCESS === undefined ? true : JSON.parse(process.env.STITCH_MAX_TOKENS_AS_SUCCESS)"
 
 - id: hmr
   disabled: true
@@ -26,7 +26,7 @@
 - id: tool-plugin-manager
   disabled: false
 
-# DSH_PRIMARY_RUNTIME names the primary runtime; the packaged launcher fills it
+# STITCH_PRIMARY_RUNTIME names the primary runtime; the packaged launcher fills it
 # from its download cache when unset, and an empty value opts out. Each row can
 # be patched independently. Office skills and the Office tools always load, and
 # the skills use their packaged assets. With a primary runtime the skills select
@@ -44,14 +44,14 @@
 
     - id: workspace-dependencies
       name: '@deepseek-ai/dsh-tool-workspace-dependencies'
-      disabled: !!js "!process.env.DSH_PRIMARY_RUNTIME"
+      disabled: !!js "!process.env.STITCH_PRIMARY_RUNTIME"
       config:
-        source: !!js "process.getBuiltinModule('node:path').resolve(process.env.DSH_PRIMARY_RUNTIME ?? '')"
+        source: !!js "process.getBuiltinModule('node:path').resolve(process.env.STITCH_PRIMARY_RUNTIME ?? '')"
 
     - id: skill-office
       name: '@deepseek-ai/dsh-skill-office'
       config:
-        pythonEnvironment: !!js "process.env.DSH_PRIMARY_RUNTIME ? 'workspace-dependencies' : 'user'"
+        pythonEnvironment: !!js "process.env.STITCH_PRIMARY_RUNTIME ? 'workspace-dependencies' : 'user'"
 
 # Share native desktop tools and model context without starting a Web server.
 - insert:

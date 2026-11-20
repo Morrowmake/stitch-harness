@@ -9,8 +9,8 @@ import { z } from 'zod'
 import { Config } from '../src/index.ts'
 import { WindowsNativeRuntime } from '../src/native-runtime.ts'
 
-const helperPath = process.env.DSH_CUA_DESKTOP_TEST_HELPER
-const fixturePath = process.env.DSH_CUA_DESKTOP_TEST_FIXTURE
+const helperPath = process.env.STITCH_CUA_DESKTOP_TEST_HELPER
+const fixturePath = process.env.STITCH_CUA_DESKTOP_TEST_FIXTURE
 const Counts = z.object({ left: z.number().int(), right: z.number().int(), middle: z.number().int() })
 const FixtureState = z.object({
   window: z.string(), foreground: z.string(),

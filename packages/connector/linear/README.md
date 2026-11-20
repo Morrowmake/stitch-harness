@@ -30,7 +30,7 @@ The Linear plugin registers Linear's hosted MCP server, `https://mcp.linear.app/
 Install the package as a bundle, for example from the Web sidebar's **Plugins** page or with the CLI:
 
 ```sh
-dsh plugin --profile web add @deepseek-ai/dsh-linear
+stitch plugin --profile web add @deepseek-ai/dsh-linear
 ```
 
 The bundle patch inserts the `linear` row after the profile's other layers. The plugin requires the `mcpManager` and `systemPrompt` services: the [base bundle](../../bundle/base/README.md) provides `systemPrompt`, and the Web and Desktop compositions add the MCP manager through [`dsh-web-app`](../../bundle/web-app/README.md). In a profile without the MCP manager, such as `headless`, the plugin does not activate, and startup prints a warning that names the missing `mcpManager` service.
@@ -48,13 +48,13 @@ While the plugin is on, its page on the **Plugins** page shows a **Linear accoun
 | Connected | **Sign out** asks for confirmation, then deletes the local grant |
 | Cannot connect right now | **Retry** restarts the server and keeps the existing grant |
 
-Authorization must be completed in a browser on the Host machine. After the user approves access in Linear, the callback page says DSH received the authorization; the section then shows the result. Leaving the page does not cancel an attempt, which the Host owns. A failed attempt shows **Authorization was not completed. Try again.**; a failed page action shows a toast. Sign-out keeps the client registration and does not revoke the connection on Linear's side.
+Authorization must be completed in a browser on the Host machine. After the user approves access in Linear, the callback page says Stitch received the authorization; the section then shows the result. Leaving the page does not cancel an attempt, which the Host owns. A failed attempt shows **Authorization was not completed. Try again.**; a failed page action shows a toast. Sign-out keeps the client registration and does not revoke the connection on Linear's side.
 
 The page follows the account through the [`connectorAccounts` Remote](../../client/ui-connector-account/README.md) under the key `mcp:linear`, and its buttons start `connect`, `sign-out`, or `retry` or cancel the attempt there. On the Host, [`dsh-mcp-account`](../../mcp/mcp-account/README.md) runs them through the manager's [OAuth operations](../../mcp/mcp-manager/README.md#oauth-authorization): `startAuthorization('linear')` returns an attempt whose `authorizationUrl` the stream reports, `cancelAuthorization('linear', id)` cancels it, `signOut('linear')` deletes the grant, and `restart('linear')` retries. Other Remote clients can use the same operations.
 
 ### Turn off and uninstall
 
-Turning the row off in Plugin Manager, or uninstalling the package, ends the registration: the Linear tools leave the model's tool set, and the saved grant stays in the credentials store, so reinstalling reuses it. To remove the grant, sign out while the plugin is loaded, or delete the `mcp-client/linear` record from `$DSH_HOME/.credentials.yaml` as the [local credentials provider](../../credentials/credentials-local/README.md) documents.
+Turning the row off in Plugin Manager, or uninstalling the package, ends the registration: the Linear tools leave the model's tool set, and the saved grant stays in the credentials store, so reinstalling reuses it. To remove the grant, sign out while the plugin is loaded, or delete the `mcp-client/linear` record from `$STITCH_HOME/.credentials.yaml` as the [local credentials provider](../../credentials/credentials-local/README.md) documents.
 
 ### Configure
 
@@ -126,7 +126,7 @@ After authorization, the model sees Linear's server instructions under `### MCP 
 
 #### Token effect
 
-Linear's server defines the tool set and instructions, and their size can change without a DSH update. With `on-demand`, a connected Linear costs its instructions, the loader, and a catalog of about 9,600 characters for its 70 tools, plus the definitions an agent has loaded; with `eager`, all definitions, about 97,900 characters, repeat on every request.
+Linear's server defines the tool set and instructions, and their size can change without a Stitch update. With `on-demand`, a connected Linear costs its instructions, the loader, and a catalog of about 9,600 characters for its 70 tools, plus the definitions an agent has loaded; with `eager`, all definitions, about 97,900 characters, repeat on every request.
 
 #### KV Cache effect
 

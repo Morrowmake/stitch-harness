@@ -20,17 +20,17 @@ const CLEANUP_FAILED = 'MCP OAuth cleanup failed'
 const CLEANUP_UNSETTLED = 'MCP OAuth cleanup did not settle'
 
 const CALLBACK_PAGE = (lines: readonly string[]): string => '<!doctype html><html><head><meta charset="utf-8">'
-  + '<meta name="viewport" content="width=device-width"><title>DSH</title>'
+  + '<meta name="viewport" content="width=device-width"><title>Stitch</title>'
   + '<style>body{font:15px/1.6 system-ui,sans-serif;max-width:32em;margin:20vh auto;padding:0 1em}</style></head><body>'
   + lines.map(line => '<p>' + line + '</p>').join('') + '</body></html>'
 const CALLBACK_PAGES = {
   received: CALLBACK_PAGE([
-    '已收到授权。可以关闭此页，回到 DSH 查看连接结果。',
-    'Authorization received. You can close this page and check the connection in DSH.',
+    '已收到授权。可以关闭此页，回到 Stitch 查看连接结果。',
+    'Authorization received. You can close this page and check the connection in Stitch.',
   ]),
   incomplete: CALLBACK_PAGE([
-    '授权未完成。请回到 DSH 重试。',
-    'Authorization was not completed. Return to DSH to try again.',
+    '授权未完成。请回到 Stitch 重试。',
+    'Authorization was not completed. Return to Stitch to try again.',
   ]),
 }
 
@@ -248,7 +248,7 @@ export class McpOAuthAuthorization {
       const issuerKey = (issuer: string) => this.credentials.clientKey(serverUrl, issuer, redirectUri)
       const provider: OAuthClientProvider = {
         redirectUrl: redirectUri,
-        clientMetadata: { client_name: 'DeepSeek Harness', redirect_uris: [redirectUri],
+        clientMetadata: { client_name: 'Stitch', redirect_uris: [redirectUri],
           grant_types: ['authorization_code', 'refresh_token'], response_types: ['code'], token_endpoint_auth_method: 'none',
           ...this.config.oauth.scope === undefined ? {} : { scope: this.config.oauth.scope },
         },

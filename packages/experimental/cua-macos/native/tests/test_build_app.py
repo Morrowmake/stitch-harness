@@ -27,7 +27,7 @@ class PublicationCases:
         self.binary.chmod(0o755)
         self.plist = self.root / "Info.plist"
         self.plist.write_text("application identity")
-        self.icon = self.root / "DSHComputerUse.icns"
+        self.icon = self.root / "StitchComputerUse.icns"
         self.icon.write_bytes(b"computer use icon")
         for filename in ["LICENSE.computer-use-icon", "LICENSE.cua-driver"]:
             (self.root / filename).write_text("fixture license notice")
@@ -41,7 +41,7 @@ class PublicationCases:
 
     def test_unchanged_bundles_reuse_the_inode_and_changed_bundles_leave_old_clients_intact(self):
         first = self.publish()
-        self.assertEqual((first.parents[1] / "Resources/DSHComputerUse.icns").read_bytes(), self.icon.read_bytes())
+        self.assertEqual((first.parents[1] / "Resources/StitchComputerUse.icns").read_bytes(), self.icon.read_bytes())
         inode = first.stat().st_ino
         self.assertEqual(self.publish(), first)
         self.assertEqual(first.stat().st_ino, inode)
@@ -96,7 +96,7 @@ class ReleasePublicationTests(PublicationCases, unittest.TestCase):
 
     def test_release_publication_keeps_info_plist_bytes_and_records_no_sources(self):
         first = self.publish()
-        self.assertEqual(first.parents[2].name, "DSH Computer Use.app")
+        self.assertEqual(first.parents[2].name, "Stitch Computer Use.app")
         self.assertEqual((first.parents[1] / "Info.plist").read_text(), "application identity")
         self.assertEqual(sorted(path.name for path in self.output.iterdir()), sorted([first.parents[3].name, "current.json"]))
 
@@ -132,18 +132,18 @@ class DevelopmentPublicationTests(PublicationCases, unittest.TestCase):
 
     def test_development_bundle_has_its_own_identifier_and_display_name(self):
         executable = self.publish()
-        self.assertEqual(executable.parents[2].name, "DSH Computer Use Dev.app")
+        self.assertEqual(executable.parents[2].name, "Stitch Computer Use Dev.app")
         info = plistlib.loads((executable.parents[1] / "Info.plist").read_bytes())
         self.assertEqual(info["CFBundleIdentifier"], "com.example.helper.dev")
-        self.assertEqual((info["CFBundleName"], info["CFBundleDisplayName"]), ("DSH Computer Use Dev", "DSH Computer Use Dev"))
+        self.assertEqual((info["CFBundleName"], info["CFBundleDisplayName"]), ("Stitch Computer Use Dev", "Stitch Computer Use Dev"))
         self.assertEqual(info["CFBundleExecutable"], "dsh-cua-native")
 
     def test_old_bundle_filename_is_republished_without_deleting_the_running_generation(self):
         first = self.publish()
-        legacy = first.parents[2].with_name("DSH Computer Use.app")
+        legacy = first.parents[2].with_name("Stitch Computer Use.app")
         first.parents[2].rename(legacy)
         second = self.publish()
-        self.assertEqual(second.parents[2].name, "DSH Computer Use Dev.app")
+        self.assertEqual(second.parents[2].name, "Stitch Computer Use Dev.app")
         self.assertTrue(second.is_file())
         self.assertTrue((legacy / "Contents/MacOS/dsh-cua-native").is_file())
         self.assertEqual(len(self.signings()), 2)

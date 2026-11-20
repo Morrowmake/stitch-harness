@@ -70,7 +70,7 @@ export interface ConnectorAccountButton {
   readonly command: ConnectorAccountCommand
   /** Defaults to an outline button. */
   readonly variant?: 'primary' | 'ghost'
-  /** Ask first, for an action that changes the account outside DSH, such as signing out. */
+  /** Ask first, for an action that changes the account outside Stitch, such as signing out. */
   readonly confirm?: ConnectorAccountConfirmation
 }
 

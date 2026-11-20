@@ -259,7 +259,7 @@ export class HarnessSdkJsonRpcServer {
     this.userQuestions.enabled = params.capabilities?.userQuestions === true
     this.initialized = true
     this.initialization.resolve()
-    return { serverInfo: { name: 'deepseek-harness-sdk-runtime', version: '0.0.1' } }
+    return { serverInfo: { name: 'stitch-sdk-runtime', version: '0.0.1' } }
   }
 
   /**
@@ -555,7 +555,7 @@ export class HarnessSdkJsonRpcServer {
       case 'shutdown':
         return this.shutdown()
       default:
-        throw new Error(`unknown DeepSeek Harness SDK runtime method: ${method}`)
+        throw new Error(`unknown Stitch SDK runtime method: ${method}`)
     }
   }
 

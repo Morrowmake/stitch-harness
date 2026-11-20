@@ -2,30 +2,30 @@
 # section, a hash of its English and Chinese blocks outside code blocks and generated regions.
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write apps/cli/reference/README.md
-/dsh-cli-behavior-reference:
-  en: abffba1bcc44698c
-  zh: d58c479481cfa5fe
-/dsh-cli-behavior-reference/profile-boot:
-  en: b474a6fc3c98837d
-  zh: da9219f91177b6c8
-/dsh-cli-behavior-reference/profile-boot/app-arguments:
-  en: 60b4e6837299427e
-  zh: 88eac566a2e63881
-/dsh-cli-behavior-reference/profile-boot/config-schema-dump:
-  en: a356f8a68f3b3685
-  zh: c718713b5d709295
-/dsh-cli-behavior-reference/startup-diagnostics:
-  en: d6368bf97a02bd57
-  zh: 2ab7888a108961ce
-/dsh-cli-behavior-reference/plugin-management:
-  en: 8d2cfff9bab7327f
-  zh: 21515ab6e6798504
-/dsh-cli-behavior-reference/web-profile:
-  en: b9bf517793555b80
-  zh: 3dd96ecaaa6faea3
-/dsh-cli-behavior-reference/shared-deployment-behavior:
-  en: 41184066b5cb78e1
-  zh: c0ccfffcb0d07e67
-/dsh-cli-behavior-reference/source-execution:
-  en: 0fd6c72ba9a7eb3b
-  zh: 011c0ac4008ee480
+/stitch-cli-behavior-reference:
+  en: 1358d62d8f3521e3
+  zh: 1093f808f89b16e3
+/stitch-cli-behavior-reference/profile-boot:
+  en: f71151db851522b3
+  zh: 182ecb09f44319a7
+/stitch-cli-behavior-reference/profile-boot/app-arguments:
+  en: 8df2380ac6dbf1e6
+  zh: 7d21802c12e98b77
+/stitch-cli-behavior-reference/profile-boot/config-schema-dump:
+  en: 3a2886cbd86fc408
+  zh: 158f43c7dc39ec25
+/stitch-cli-behavior-reference/startup-diagnostics:
+  en: b6dbf9181f0eb286
+  zh: 7ffb7f427ba59e5a
+/stitch-cli-behavior-reference/plugin-management:
+  en: b7e03ea239895121
+  zh: f05adbbaf2aa425f
+/stitch-cli-behavior-reference/web-profile:
+  en: 9ad2713bd59dfce3
+  zh: 2130275887748a06
+/stitch-cli-behavior-reference/shared-deployment-behavior:
+  en: c4f7064a0fe73bd2
+  zh: a2eb1694da29b98a
+/stitch-cli-behavior-reference/source-execution:
+  en: 7c62d56984e3b211
+  zh: 3ed540117e1b50ff

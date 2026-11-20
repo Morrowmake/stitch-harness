@@ -40,8 +40,8 @@ function consumerEnvironment(consumerRoot: string): NodeJS.ProcessEnv {
   delete environment.NPM_CONFIG_USER_AGENT
   delete environment.NODE_OPTIONS
   delete environment.NODE_PATH
-  environment.DSH_HOME = resolve(consumerRoot, '.dsh')
-  environment.DSH_AGENTS_HOME = resolve(consumerRoot, '.agents')
+  environment.STITCH_HOME = resolve(consumerRoot, '.stitch')
+  environment.STITCH_AGENTS_HOME = resolve(consumerRoot, '.agents')
   return environment
 }
 

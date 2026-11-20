@@ -11,7 +11,7 @@ import { officeCalls, officeModelPatches, officeToolPatches } from './real-offic
 
 const repo = fileURLToPath(new URL('../../../../../', import.meta.url))
 const assetRoot = fileURLToPath(new URL('../../assets/', import.meta.url))
-const runtime = process.env.DSH_PRIMARY_RUNTIME
+const runtime = process.env.STITCH_PRIMARY_RUNTIME
 const python = runtime && join(runtime, 'dependencies/python', process.platform === 'win32' ? 'python.exe' : 'bin/python3')
 
 type DocumentFormat = 'docx' | 'pptx' | 'xlsx'
@@ -80,13 +80,13 @@ export function registerVisualIntentCases(selected: readonly DocumentFormat[]): 
         configPath, processTimeoutMs: 110_000,
         binArgs: ['--profile', 'headless', '--patch', configPath,
           `In input.${format}, ${task}; save result.${format}. ${suffix} Respond briefly in English.`],
-        env: { DSH_PRIMARY_RUNTIME: runtime, DSH_PERMISSION_MODE: 'danger-full-access',
-          DSH_HOME: join(controlRoot, 'home'), DSH_AGENTS_HOME: join(controlRoot, 'agents'),
+        env: { STITCH_PRIMARY_RUNTIME: runtime, STITCH_PERMISSION_MODE: 'danger-full-access',
+          STITCH_HOME: join(controlRoot, 'home'), STITCH_AGENTS_HOME: join(controlRoot, 'agents'),
           TMPDIR: previewRoot, TMP: previewRoot, TEMP: previewRoot,
-          HTTP_PROXY: process.env.DSH_OFFICE_TEST_PROXY, HTTPS_PROXY: process.env.DSH_OFFICE_TEST_PROXY },
+          HTTP_PROXY: process.env.STITCH_OFFICE_TEST_PROXY, HTTPS_PROXY: process.env.STITCH_OFFICE_TEST_PROXY },
         async prepare(cwd) {
           await execa(python!, ['-c', seed], { cwd })
-          const testAssetRoot = process.env.DSH_OFFICE_TEST_ASSET_ROOT ?? assetRoot
+          const testAssetRoot = process.env.STITCH_OFFICE_TEST_ASSET_ROOT ?? assetRoot
           await writeFile(configPath, JSON.stringify([
             { insert: [{ id: 'skill-office', name: '@deepseek-ai/dsh-skill-office', config: { assetRoot: testAssetRoot } }] },
             ...officeToolPatches(),
@@ -100,7 +100,7 @@ export function registerVisualIntentCases(selected: readonly DocumentFormat[]): 
           const log = logs.find(path => path.endsWith('session.v4.jsonl'))
           expect(log, `No recorded session for ${format} ${intent} in ${sessionRoot}`).toBeDefined()
           const bytes = await readFile(join(sessionRoot, log!))
-          const traceDir = process.env.DSH_OFFICE_TRACE_DIR
+          const traceDir = process.env.STITCH_OFFICE_TRACE_DIR
           if (traceDir !== undefined) {
             await mkdir(traceDir, { recursive: true })
             await writeFile(join(traceDir, `${format}-${kind}-${intent}.jsonl`), bytes)

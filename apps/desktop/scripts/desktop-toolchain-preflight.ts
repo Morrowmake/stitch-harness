@@ -68,20 +68,49 @@ async function probeWindowsInstallerToolchain(environment: NodeJS.ProcessEnv): P
   return failures
 }
 
+async function probeComputerUseHelperToolchain(platform: 'darwin' | 'win32'): Promise<DesktopToolchainProbeFailure | undefined> {
+  // The helper's Package.swift declares swift-tools-version 6.0 and its project targets .NET 10.
+  try {
+    if (platform === 'darwin') {
+      const { stdout } = await run('/usr/bin/xcrun', ['swift', '--version'], { timeout: 60_000 })
+      const major = Number(/Swift version (\d+)\./u.exec(stdout)?.[1] ?? 0)
+      return major >= 6 ? undefined : { tool: 'swift', detail: `Swift 6 or later is required to build the Computer Use helper; found ${JSON.stringify(stdout.trim())}` }
+    }
+    const { stdout } = await run('dotnet', ['--list-sdks'], { windowsHide: true, timeout: 60_000 })
+    const majors = stdout.split(/\r?\n/u).map(line => Number(/^(\d+)\./u.exec(line)?.[1] ?? 0))
+    return majors.some(major => major >= 10) ? undefined : { tool: 'dotnet', detail: `the .NET 10 SDK is required to build the Computer Use helper; found ${JSON.stringify(stdout.trim())}` }
+  }
+  catch (error) {
+    return { tool: platform === 'darwin' ? 'swift' : 'dotnet', detail: error instanceof Error ? error.message : String(error) }
+  }
+}
+
+/** Optional work a packaging run adds beyond the installer itself. */
+export interface DesktopToolchainOptions {
+  /** Whether the run builds the Computer Use helper from source (unsigned builds). */
+  readonly computerUseHelper?: boolean
+}
+
 /**
  * Probe every external tool one packaging run needs.
  * @param platform - Target platform; a Windows target already requires a Windows build host.
  * @param environment - Packaging environment used to locate Windows tooling.
+ * @param options - Additional source builds the run performs.
  * @returns Every probe that failed, empty when the host can run the packaging sequence.
  */
 export async function probeDesktopToolchain(
   platform: 'darwin' | 'win32',
   environment: NodeJS.ProcessEnv = process.env,
+  options: DesktopToolchainOptions = {},
 ): Promise<readonly DesktopToolchainProbeFailure[]> {
   const failures: DesktopToolchainProbeFailure[] = []
   const tar = await probeTar()
   if (tar !== undefined) failures.push({ tool: 'tar', detail: tar })
   if (platform === 'win32') failures.push(...await probeWindowsInstallerToolchain(environment))
+  if (options.computerUseHelper) {
+    const helper = await probeComputerUseHelperToolchain(platform)
+    if (helper !== undefined) failures.push(helper)
+  }
   return failures
 }
 
@@ -89,13 +118,15 @@ export async function probeDesktopToolchain(
  * Probe the toolchain and fail with every problem the host has.
  * @param platform - Target platform; a Windows target already requires a Windows build host.
  * @param environment - Packaging environment used to locate Windows tooling.
+ * @param options - Additional source builds the run performs.
  * @returns Resolves when every probe passes.
  */
 export async function requireDesktopToolchain(
   platform: 'darwin' | 'win32',
   environment: NodeJS.ProcessEnv = process.env,
+  options: DesktopToolchainOptions = {},
 ): Promise<void> {
-  const failures = await probeDesktopToolchain(platform, environment)
+  const failures = await probeDesktopToolchain(platform, environment, options)
   if (failures.length === 0) return
   throw new Error(`desktop package: the build host cannot run this packaging sequence:\n${
     failures.map(failure => `  ${failure.tool}: ${failure.detail}`).join('\n')}`)

@@ -1033,7 +1033,7 @@ describe('web e2e: plugin manager', () => {
       const dialog = page.getByRole('dialog', { name: '添加插件', exact: true })
       await dialog.getByRole('textbox', { name: '包名或地址', exact: true }).fill(name)
       await dialog.getByRole('button', { name: '安装', exact: true }).click()
-      const ready = page.getByRole('dialog', { name: '插件已随 DSH 提供', exact: true })
+      const ready = page.getByRole('dialog', { name: '插件已随 Stitch 提供', exact: true })
       await ready.waitFor()
       expect((await scaffold.ctx.pluginManager.listBundles()).find(bundle => bundle.name === name)?.enabled).toBe(false)
       expect(await ready.getByText('无需下载，启用即可使用', { exact: true }).count()).toBe(1)
@@ -1459,16 +1459,16 @@ describe('web e2e: plugin manager', () => {
     const install = dialog.getByRole('button', { name: '安装', exact: true })
     expect(await install.isDisabled()).toBe(true)
     expect(await dialog.getByRole('note').textContent()).toContain('请确认插件来源可信')
-    expect(await dialog.getByRole('note').textContent()).toContain('按需安装的官方插件会在版本与 DSH 不同时提供“更新”')
+    expect(await dialog.getByRole('note').textContent()).toContain('按需安装的官方插件会在版本与 Stitch 不同时提供“更新”')
     expect(await dialog.getByRole('note').textContent()).toContain('其他插件请先卸载再安装新版')
     await dialog.getByRole('button', { name: '插件安装引导和示例' }).click()
     // The guide carries the package-name example only; the former template strings keep their replacement reminder.
     await expect.poll(() => dialog.getByRole('listitem').count()).toBe(1)
-    await dialog.getByRole('button', { name: '填入示例 dsh-plugin-whale-pet' }).click()
-    expect(await field.inputValue()).toBe('dsh-plugin-whale-pet')
+    await dialog.getByRole('button', { name: '填入示例 stitch-plugin-whale-pet' }).click()
+    expect(await field.inputValue()).toBe('stitch-plugin-whale-pet')
     expect(await dialog.getByRole('status').count()).toBe(0)
     for (const [example, hint] of [
-      ['https://github.com/author/dsh-plugin', '请替换为实际的 Git 仓库地址'],
+      ['https://github.com/author/stitch-plugin', '请替换为实际的 Git 仓库地址'],
       ['/Users/name/my-plugin', '请替换为本机插件目录的实际路径'],
     ] as const) {
       await field.fill(example)
@@ -1575,7 +1575,7 @@ describe('web e2e: startup-applied plugin management', () => {
       // The selection is saved and the switch turns on, but nothing mounts before the next start; a toast says so.
       await expect.poll(bundles, { timeout: PLUGIN_TOGGLE_SETTLE_MS }).toEqual([...SCAFFOLD_BUNDLES, '@fixture/bundle'])
       await expect.poll(() => toggle.getAttribute('aria-checked'), { timeout: PLUGIN_TOGGLE_SETTLE_MS }).toBe('true')
-      await page.getByText('请重启 DSH 使更改生效。这个 profile 只在启动时应用更改。', { exact: true }).waitFor({ timeout: 10_000 })
+      await page.getByText('请重启 Stitch 使更改生效。这个 profile 只在启动时应用更改。', { exact: true }).waitFor({ timeout: 10_000 })
       expect(mounted()?.fiber?.state).toBeUndefined()
       // The pack's page lists its rows from their declarations, with no live entry to switch.
       await panel.getByRole('button', { name: '查看 @fixture/bundle' }).click()

@@ -255,14 +255,14 @@ describe('Computer Use MCP composition', () => {
     expect(lastJson(b)).toEqual(['a', 'b'])
     const failed = await run('throw new Error("boom")')
     expect(failed.isError).toBe(true)
-    // The client marks the error; the text is DSH's failure message without its `Error: ` prefix.
+    // The client marks the error; the text is Stitch's failure message without its `Error: ` prefix.
     expect(texts(failed)[0]).toMatch(/^code run failed \(exception\): .*boom/s)
     const controller = new AbortController()
     const hanging = run('await new Promise(resolve => setTimeout(resolve, 60_000))', {}, controller.signal)
     setTimeout(() => { controller.abort() }, 100)
     await expect(hanging).rejects.toThrow()
     expect(lastJson(await run('inspect(1 + 1)'))).toBe(2)
-    // Argument validation belongs to the DSH executor: a program without the required description is refused there.
+    // Argument validation belongs to the Stitch executor: a program without the required description is refused there.
     const invalid = await client.callTool({ name: 'cua_run_code', arguments: { code: '1' } })
     expect(invalid.isError).toBe(true)
     expect(texts(invalid)).toEqual(['invalid arguments: missing required property "description"'])
@@ -439,7 +439,7 @@ describe('Computer Use MCP composition', () => {
     const unsupported = await setup({ consent: 'elicit', granted: false })
     const refused = await unsupported.run('var app = await cua.getApp("test.fixture"); app.appHandle')
     expect(refused.isError).toBe(true)
-    expect(texts(refused).join('\n')).toContain('DSH_CUA_CONSENT=allow')
+    expect(texts(refused).join('\n')).toContain('STITCH_CUA_CONSENT=allow')
   })
 
   it('lists no program tool on a Host without a CUA provider and releases the connection Agent on disposal', async () => {

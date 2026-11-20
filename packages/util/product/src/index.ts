@@ -1,0 +1,15 @@
+/** Product identity constants. Zero dependencies, browser-safe. */
+
+export const PRODUCT_NAME = 'Stitch'
+export const PRODUCT_SLUG = 'stitch'
+export const CLI_COMMAND = 'stitch'
+export const HOME_DIR_NAME = '.stitch'
+export const PROJECT_DIR_NAME = '.stitch'
+export const ENV_PREFIX = 'STITCH_'
+export const REPOSITORY = 'Morrowmake/stitch-harness'
+export const REPOSITORY_URL = 'https://github.com/Morrowmake/stitch-harness'
+export const DOCS_URL = 'https://morrowmake.github.io/stitch-harness/'
+export const NPM_PACKAGE = '@stitch-harness/stitch'
+export const PROTOCOL_SCHEME = 'stitch'
+export const DESKTOP_APP_ID = 'io.github.morrowmake.stitch'
+export const PLUGIN_INDEX_REPOSITORY = 'Morrowmake/stitch-plugins'

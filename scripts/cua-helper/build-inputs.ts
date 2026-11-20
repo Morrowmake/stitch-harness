@@ -12,7 +12,6 @@ const sourceDirectories = [
   'packages/experimental/cua-macos/native', 'scripts/cua-helper', 'apps/desktop/scripts', 'patches',
 ]
 const sourceFiles = new Set([
-  '.github/workflows/cua-helper-package-macos.yml', '.github/workflows/release-publish.yml',
   'package.json', 'scripts/package.json', 'apps/package.json', 'apps/desktop/package.json', 'scripts/release/process.ts',
   'pnpm-lock.yaml', 'pnpm-workspace.yaml', '.npmrc', '.pnpmfile.cjs', '.pnpmfile.mjs',
 ])
@@ -56,7 +55,7 @@ function gitBlobHash(bytes: Buffer): string {
  * Hash tracked build inputs by path, bytes and executable mode; only package manifest version fields is excluded.
  * Missing tracked files and links fail; build outputs and untracked files never enter the digest.
  * @param root - Clean repository root containing all helper build inputs.
- * @returns SHA-256 of sources, resources, workflows, package configuration, patches and locked dependencies.
+ * @returns SHA-256 of sources, resources, package configuration, patches and locked dependencies.
  */
 export function cuaHelperSourceDigest(root: string): string {
   const hash = createHash('sha256')
@@ -123,13 +122,13 @@ export async function cuaHelperSourceMatches(root: string, repository: string, c
  * @returns File-owned signing settings and the selected preset; no values are logged.
  */
 export function readCuaSigningSettings(environment: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
-  const root = environment.DSH_PACKAGING_CONFIG_DIR
-  const preset = environment.DSH_PACKAGING_PRESET
+  const root = environment.STITCH_PACKAGING_CONFIG_DIR
+  const preset = environment.STITCH_PACKAGING_PRESET
   if (!root || !isAbsolute(root) || !['test', 'production'].includes(preset ?? '')) {
-    throw new Error('CUA reuse: DSH_PACKAGING_CONFIG_DIR and a test or production preset are required')
+    throw new Error('CUA reuse: STITCH_PACKAGING_CONFIG_DIR and a test or production preset are required')
   }
   const settings = readDesktopPackageSettings(join(root, 'secrets/macos-signing.env'), () => true)
-  return { ...settings, DSH_PACKAGING_PRESET: preset }
+  return { ...settings, STITCH_PACKAGING_PRESET: preset }
 }
 
 /**
@@ -146,7 +145,7 @@ export function cuaHelperBuildKey(source: string, environment: NodeJS.ProcessEnv
   const certificate = environment.CSC_LINK
   if (!certificate || !isAbsolute(certificate)) throw new Error('CUA reuse: CSC_LINK must identify the signing certificate file')
   const configuration = {
-    source, preset: environment.DSH_PACKAGING_PRESET ?? 'local', ...signing,
+    source, preset: environment.STITCH_PACKAGING_PRESET ?? 'local', ...signing,
     certificate: createHash('sha256').update(readFileSync(certificate)).digest('hex'),
     node: process.version,
     swift: run('/usr/bin/xcrun', ['swift', '--version']),

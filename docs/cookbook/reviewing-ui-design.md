@@ -1,5 +1,5 @@
 ---
-description: "Review a DSH page or modal as a whole, explain findings through design principles, and verify supported changes."
+description: "Review a Stitch page or modal as a whole, explain findings through design principles, and verify supported changes."
 ---
 
 # Cookbook: review a UI design

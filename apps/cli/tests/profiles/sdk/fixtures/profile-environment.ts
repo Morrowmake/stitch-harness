@@ -33,10 +33,10 @@ export async function writeMockRoutePatch(dir: string, baseUrl: string): Promise
 
 /** Isolate SDK profile processes from ambient profile, runtime and Node loader settings. */
 export function profileEnvironment(root: string): NodeJS.ProcessEnv {
-  const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('DSH_')))
+  const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('STITCH_')))
   Object.assign(env, {
-    DSH_PERMISSION_MODE: 'danger-full-access',
-    DSH_AGENTS_HOME: join(root, 'agents'), DSH_PRIMARY_RUNTIME: '',
+    STITCH_PERMISSION_MODE: 'danger-full-access',
+    STITCH_AGENTS_HOME: join(root, 'agents'), STITCH_PRIMARY_RUNTIME: '',
     [MOCK_ROUTE_KEY_ENV]: 'keyless-profile-test',
     NODE_OPTIONS: '', NODE_PATH: '',
   })

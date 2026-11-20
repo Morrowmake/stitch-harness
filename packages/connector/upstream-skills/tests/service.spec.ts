@@ -58,7 +58,7 @@ beforeEach(async () => {
   host.routes = {}
   host.requests.length = 0
   home = await mkdtemp(join(tmpdir(), 'dsh-upstream-skills-home-'))
-  vi.stubEnv('DSH_HOME', home)
+  vi.stubEnv('STITCH_HOME', home)
   release = () => {}
 })
 

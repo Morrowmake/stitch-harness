@@ -16,7 +16,7 @@ private struct ApplicationFixture {
 
     init() throws {
         root = FileManager.default.temporaryDirectory.appendingPathComponent("cua-application-\(UUID().uuidString)")
-        application = root.appendingPathComponent("Desktop.app/Contents/Resources/DSH Computer Use.app")
+        application = root.appendingPathComponent("Desktop.app/Contents/Resources/Stitch Computer Use.app")
         cache = root.appendingPathComponent("support")
         try FileManager.default.createDirectory(at: executable.deletingLastPathComponent(), withIntermediateDirectories: true)
         try FileManager.default.createDirectory(at: resource.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -24,7 +24,7 @@ private struct ApplicationFixture {
         try Data("original resource".utf8).write(to: resource)
         let plist = try PropertyListSerialization.data(fromPropertyList: [
             "CFBundleIdentifier": "dev.dsh.cua.cache-test.\(UUID().uuidString)",
-            "CFBundleExecutable": "dsh-cua-native", "CFBundleName": "DSH Computer Use", "CFBundlePackageType": "APPL",
+            "CFBundleExecutable": "dsh-cua-native", "CFBundleName": "Stitch Computer Use", "CFBundlePackageType": "APPL",
         ], format: .xml, options: 0)
         try plist.write(to: application.appendingPathComponent("Contents/Info.plist"))
         try sign()

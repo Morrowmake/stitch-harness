@@ -1,4 +1,4 @@
-# TypeScript SDK snapshot patch for automatic DSH SDK failure notices.
+# TypeScript SDK snapshot patch for automatic Stitch SDK failure notices.
 
 - id: skill-filesystem
   name: '@deepseek-ai/dsh-skill-filesystem'
@@ -9,7 +9,7 @@
   name: '@deepseek-ai/dsh-session-persistence-jsonl'
   config:
     root: !!js dshHomePath('sessions')
-    compression: !!js "process.env.DSH_SNAPSHOT === undefined ? 'zstd' : 'none'"
+    compression: !!js "process.env.STITCH_SNAPSHOT === undefined ? 'zstd' : 'none'"
 
 - insert:
     - id: subagent-dsh-sdk-diagnostic
@@ -18,12 +18,12 @@
         providerName: dsh-sdk-diagnostic
         profile: sdk
         patches:
-          - !!js process.env.DSH_TEST_CHILD_PATCH
+          - !!js process.env.STITCH_TEST_CHILD_PATCH
         dshHome: !!js dshHomePath('children/first')
         provider: mock
         model: mock-echo
         env:
-          DSH_TEST_CHILD_FAILURE: '1'
+          STITCH_TEST_CHILD_FAILURE: '1'
     - id: tool-subagent-dsh-sdk-diagnostic
       name: '@deepseek-ai/dsh-tool-subagent'
       config:
@@ -36,12 +36,12 @@
         providerName: dsh-sdk-diagnostic-second
         profile: sdk
         patches:
-          - !!js process.env.DSH_TEST_CHILD_PATCH
+          - !!js process.env.STITCH_TEST_CHILD_PATCH
         dshHome: !!js dshHomePath('children/second')
         provider: mock
         model: mock-echo
         env:
-          DSH_TEST_CHILD_FAILURE: '1'
+          STITCH_TEST_CHILD_FAILURE: '1'
     - id: tool-subagent-dsh-sdk-diagnostic-second
       name: '@deepseek-ai/dsh-tool-subagent'
       config:

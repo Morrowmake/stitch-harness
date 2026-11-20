@@ -22,8 +22,8 @@ class ImageAdapter extends LlmAdapter {
   }
   stream(): AsyncIterable<StreamChunk> { throw new Error('Desktop tests do not request model generation') }
 }
-const helperPath = process.env.DSH_CUA_DESKTOP_TEST_HELPER
-const selector = process.env.DSH_CUA_DESKTOP_TEST_APP
+const helperPath = process.env.STITCH_CUA_DESKTOP_TEST_HELPER
+const selector = process.env.STITCH_CUA_DESKTOP_TEST_APP
 it.skipIf(!helperPath || !selector)('admits real application screenshots through the CUA tool', async () => {
   const root = await mkdtemp(join(tmpdir(), 'dsh-cua-desktop-tool-'))
   const ctx = new Context()

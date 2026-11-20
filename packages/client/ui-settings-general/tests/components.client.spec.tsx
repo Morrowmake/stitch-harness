@@ -64,7 +64,7 @@ it('toggles developer tools using the accepted setting and disables duplicate wr
   expect(toggle.hasAttribute('disabled')).toBe(false)
 })
 
-it('renders the off-by-default update-check toggle and reports each Check now outcome', () => {
+it('renders the update-check toggle and reports each Check now outcome', () => {
   const store = createSnapshotStore<DesktopUpdateSnapshot>({ saving: false, saveFailed: false, check: { phase: 'idle' } })
   const setEnabled = vi.fn(async () => {})
   const check = vi.fn(async () => {})
@@ -72,7 +72,7 @@ it('renders the off-by-default update-check toggle and reports each Check now ou
     .reduce((message, [name, value]) => message.replaceAll(`{${name}}`, String(value)), (en as Record<string, string>)[key] ?? key)
   render(<DesktopUpdateRow {...kit} t={format} useDesktopUpdate={bindSnapshotSelector(store)} setEnabled={setEnabled} check={check} />)
   expect(screen.getByText(en['desktop.update.description'])).toBeTruthy()
-  const toggle = screen.getByRole('switch', { name: 'Check for updates' })
+  const toggle = screen.getByRole('switch', { name: 'Check for updates daily (contacts api.github.com)' })
   expect(toggle.getAttribute('aria-checked')).toBe('false')
   expect(toggle.hasAttribute('disabled')).toBe(true)
   act(() => { store.set({ ...store.getSnapshot(), enabled: false }) })
@@ -230,7 +230,7 @@ describe('current version', () => {
     ['Current version: 1.2.3-rc.4', en],
     ['当前版本：1.2.3-rc.4', zh],
   ])('renders the localized release label %s', (expected, dictionary) => {
-    vi.stubEnv('DSH_CLIENT_VERSION', '1.2.3-rc.4')
+    vi.stubEnv('STITCH_CLIENT_VERSION', '1.2.3-rc.4')
     const translate: TriggerContentProps['t'] = (key, params) => {
       let text = (dictionary as Record<string, string>)[key] ?? key
       for (const [name, value] of Object.entries(params ?? {})) text = text.replace(`{${name}}`, String(value))
@@ -242,7 +242,7 @@ describe('current version', () => {
   })
 
   it('omits the row when a partial build has no version metadata', () => {
-    vi.stubEnv('DSH_CLIENT_VERSION', undefined)
+    vi.stubEnv('STITCH_CLIENT_VERSION', undefined)
     const view = render(<CurrentVersionRow {...kit} t={t} />)
     expect(view.container.textContent).toBe('')
   })

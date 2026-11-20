@@ -58,7 +58,7 @@ The server speaks the Anthropic Messages protocol, answering `/messages` beneath
 ```
 
 ```sh
-MOCK_API_KEY=mock-key pnpm dsh --profile headless --patch ./mock.patch.yml "test provider recovery"
+MOCK_API_KEY=mock-key pnpm stitch --profile headless --patch ./mock.patch.yml "test provider recovery"
 ```
 
 The repository script writes JSONL to stdout: a `ready` record carries the `/v1` base URL and random seed, followed by request/result records that name both the scripted behavior and the concrete behavior selected. The package exposes no installable binary.

@@ -5,7 +5,7 @@ import { brandString } from '@deepseek-ai/dsh-brand'
 import type { ToolCallId, ReasoningEffortId } from '@deepseek-ai/dsh-llm/types'
 import { LlmAdapter } from '@deepseek-ai/dsh-llm'
 
-/** Delegation argument sequences selected by `DSH_TEST_PARENT_ROUTE_SCRIPT`. */
+/** Delegation argument sequences selected by `STITCH_TEST_PARENT_ROUTE_SCRIPT`. */
 const ROUTE_SCRIPTS: Readonly<Record<string, readonly Readonly<Record<string, string>>[]>> = {
   // An unauthorized route, then the empty optional strings some models send for omitted fields.
   'empty-after-denied': [
@@ -31,8 +31,8 @@ async function * delegate(id: string, selectedRoute: Readonly<Record<string, str
 /** Script delegation calls, then acknowledge the receipt and the completion notice. */
 class MockDelegatingAdapter extends LlmAdapter {
   override resolveModel(provider: string, model: string): Promise<LlmResolvedModelInfo> {
-    if (process.env.DSH_TEST_PARENT_MODEL_RECORD !== undefined) {
-      appendFileSync(process.env.DSH_TEST_PARENT_MODEL_RECORD, `${provider}/${model}\n`)
+    if (process.env.STITCH_TEST_PARENT_MODEL_RECORD !== undefined) {
+      appendFileSync(process.env.STITCH_TEST_PARENT_MODEL_RECORD, `${provider}/${model}\n`)
     }
     return Promise.resolve({
       provider,
@@ -54,7 +54,7 @@ class MockDelegatingAdapter extends LlmAdapter {
       : ''
 
     const toolResults = options.messages.filter(message => message.role === 'tool').length
-    const script = ROUTE_SCRIPTS[process.env.DSH_TEST_PARENT_ROUTE_SCRIPT ?? '']
+    const script = ROUTE_SCRIPTS[process.env.STITCH_TEST_PARENT_ROUTE_SCRIPT ?? '']
     if (script !== undefined) {
       const scripted = script[toolResults]
       if (scripted !== undefined) {
@@ -62,7 +62,7 @@ class MockDelegatingAdapter extends LlmAdapter {
         return
       }
     } else if (toolResults === 0) {
-      yield * delegate('call-delegate', process.env.DSH_TEST_CHILD_EFFORT_ONLY === '1'
+      yield * delegate('call-delegate', process.env.STITCH_TEST_CHILD_EFFORT_ONLY === '1'
         ? { reasoning_effort: 'max' }
         : { provider: 'mock', model: 'mock-routed', reasoning_effort: 'max' })
       return
@@ -85,7 +85,7 @@ export const inject = ['llm']
  * @param ctx - the plugin context supplying `ctx.llm`.
  */
 export function apply(ctx: Context): void {
-  const providers = process.env.DSH_TEST_PARENT_PROVIDER === 'deepseek-official'
+  const providers = process.env.STITCH_TEST_PARENT_PROVIDER === 'deepseek-official'
     ? ['deepseek-official', 'mock']
     : ['mock']
   ctx.llm.registerAdapter(providers, new MockDelegatingAdapter())

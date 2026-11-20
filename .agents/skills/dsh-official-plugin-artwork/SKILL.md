@@ -1,11 +1,11 @@
 ---
 name: dsh-official-plugin-artwork
-description: Draw and review official DeepSeek Harness plugin icons and optional feature previews, including experimental plugins. Use for package artwork and PluginArtwork glyphs; covers official references and palettes, feature previews, package metadata gates, and designer review, and links the shared drawing rules that the `dsh-doc` skill ships. Not for toolbar or action icons.
+description: Draw and review official Stitch plugin icons and optional feature previews, including experimental plugins. Use for package artwork and PluginArtwork glyphs; covers official references and palettes, feature previews, package metadata gates, and designer review, and links the shared drawing rules that the `stitch-doc` skill ships. Not for toolbar or action icons.
 ---
 
 # Official plugin artwork
 
-Read and follow [plugin artwork](../../../packages/preset/agent-preset/skills/dsh-doc/references/artwork.md) first; installed DSH ships it in the `dsh-doc` skill, and it owns the subject, drawing, and export rules. Its Review section describes Creator bundles installed through Plugin Manager; for official plugins, follow its comparison step and replace its other steps with [Review and verify](#review-and-verify) below. Official and official experimental plugins share one visual language; the UI label communicates experimental status. This guidance does not replace designer approval.
+Read and follow [plugin artwork](../../../packages/preset/agent-preset/skills/stitch-doc/references/artwork.md) first; installed Stitch ships it in the `stitch-doc` skill, and it owns the subject, drawing, and export rules. Its Review section describes Creator bundles installed through Plugin Manager; for official plugins, follow its comparison step and replace its other steps with [Review and verify](#review-and-verify) below. Official and official experimental plugins share one visual language; the UI label communicates experimental status. This guidance does not replace designer approval.
 
 When reviewing the containing page, use the [UI review baseline](../../../docs/ui-design-review-cases.md#review-baseline) to combine artwork balance with its tile, label, neighboring cards and theme material. Keep package artwork distinct from action icons: coherent optical weight does not require equal drawing bounds, monochrome fills or identical geometry across those roles.
 
@@ -26,5 +26,5 @@ Before drawing a larger image for the top of an official bundle's detail documen
 
 1. Before polishing uncertain geometry, show a few numbered alternatives and keep their numbers through designer review. Apply the chosen one; existing files and generated drafts do not establish approval. Keep comparison artifacts in a gitignored directory, not the product package.
 2. Run `pnpm run verify-package-meta` for [package metadata and SVG artwork](../../../scripts/verify-package-meta.ts), `pnpm run constraints` for the canonical package payload, and `pnpm run verify-official-bundle-catalog`. Regenerate a stale catalog with `pnpm run gen-official-bundle-catalog`, never by hand. Structural checks do not replace visual review.
-3. Build affected artifacts and inspect the real page through `dsh web`. Batch approved refinements before restarting a metadata-caching Host, then verify the entry and nested component rows in both themes.
-4. Follow the repository's UI testing policy and [record-browser-gif](../record-browser-gif/SKILL.md) for a GUI PR. Obtain designer approval before landing new glyphs. Record reusable drawing principles in [plugin artwork](../../../packages/preset/agent-preset/skills/dsh-doc/references/artwork.md), not the history of rejected drafts.
+3. Build affected artifacts and inspect the real page through `stitch web`. Batch approved refinements before restarting a metadata-caching Host, then verify the entry and nested component rows in both themes.
+4. Follow the repository's UI testing policy and [record-browser-gif](../record-browser-gif/SKILL.md) for a GUI PR. Obtain designer approval before landing new glyphs. Record reusable drawing principles in [plugin artwork](../../../packages/preset/agent-preset/skills/stitch-doc/references/artwork.md), not the history of rejected drafts.

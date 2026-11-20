@@ -5,14 +5,14 @@ const NODE_PLATFORMS: readonly string[] = Object.freeze([
   'aix', 'android', 'darwin', 'freebsd', 'haiku', 'linux', 'openbsd', 'sunos', 'win32', 'cygwin', 'netbsd',
 ] satisfies NodeJS.Platform[])
 
-/** A valid bundle declaration excludes the operating system running DSH. */
+/** A valid bundle declaration excludes the operating system running Stitch. */
 export class UnsupportedBundlePlatformError extends Error {
   /**
    * @param platforms Node platform names or `wsl` supported by the bundle.
-   * @param platform Operating system of the DSH Host.
+   * @param platform Operating system of the Stitch Host.
    */
   constructor(platforms: readonly string[], platform: string) {
-    super(`Bundle supports Host platforms ${platforms.join(', ')}; the DSH Host is running ${platform}`)
+    super(`Bundle supports Host platforms ${platforms.join(', ')}; the Stitch Host is running ${platform}`)
     this.name = 'UnsupportedBundlePlatformError'
   }
 }
@@ -20,7 +20,7 @@ export class UnsupportedBundlePlatformError extends Error {
 /**
  * Validate package metadata and reject an unsupported Host before selecting or composing a bundle.
  * @param platforms The optional `dsh.bundle.platforms` field read from package.json.
- * @param platform Operating system of the DSH Host, from Node's `process.platform`.
+ * @param platform Operating system of the Stitch Host, from Node's `process.platform`.
  * @param facts Environment and kernel facts used to admit `wsl` on a Linux Host.
  * @throws When the declaration is malformed or excludes the Host; omission allows every platform.
  */

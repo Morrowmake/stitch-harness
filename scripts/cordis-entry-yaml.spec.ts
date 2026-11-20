@@ -1,4 +1,4 @@
-/** Include's YAML dialect exports used by DSH configuration tools. */
+/** Include's YAML dialect exports used by Stitch configuration tools. */
 import { entryYamlErrorPosition, parseEntryYaml, stringifyEntryYaml } from '@deepseek-ai/cordis-plugin-include'
 import { describe, expect, it } from 'vitest'
 

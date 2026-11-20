@@ -1,11 +1,11 @@
 {
   "name": "@deepseek-ai/dsh-experimental-auto-review",
-  "description": "Per-tool LLM authorization review for the DeepSeek Harness Auto permission preset",
+  "description": "Per-tool LLM authorization review for the Stitch Auto permission preset",
   "version": "0.2.2-rc.5",
   "icon": "./icon.svg",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
+    "url": "git+https://github.com/Morrowmake/stitch-harness.git",
     "directory": "packages/experimental/auto-review"
   },
   "type": "module",

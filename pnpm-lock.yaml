@@ -15,13 +15,13 @@ patchedDependencies:
   '@electron/osx-sign@1.3.3': 280e7b2816caf01423097d24e79107a66afeb563a348630ce9928ae8499a5861
   '@fortune-sheet/core@1.0.4': 8791a230763dbf853fd65d627c68c31de37209992851377855e16cf08ea70532
   '@fortune-sheet/react@1.0.4': 2932e52e79afcd4ced08cfa123b5eded786c85043da32f622f3e80af6fc96c37
-  '@yao-pkg/pkg@6.21.0': 6004ea831bf18a0272276f3308456b7799d5ac32a5e69c138008b6329c1bfb9f
+  '@yao-pkg/pkg@6.21.0': b78c66d556c03f0b16089f8225e0ff2c1f06d8c9b432aef2d17adb30ab342635
   app-builder-lib@26.17.0: b70dc2a2a78ffabb80a4f14fafc7c103237f2b0a207e1f296fa1c1387ea29348
   exceljs@4.4.0: c1bf8ac8f319dab382f08e3a669b715e691d46c703ac5a4163eb383fbedd1d48
   lexical@0.49.0: 54c4413db208cf234cb68c6a837f2523d3b319aa17911f1da385af08362e1356
   mdast-util-gfm-autolink-literal@2.0.1: 7fa6fc7927128a45c3f148d31faf388806895e2de39c14a144200edbc1e7aaa0
   micromark-extension-gfm-autolink-literal@2.1.0: 906ae7c0cd1f69e7ee308a41bc0542e0085276ac7517e56e96f0ccaf5a89327d
-  node-pty@1.2.0-beta.15: 9d30053266d0f39d3debe894c675867f6782da6bcadbc94a693b3cfb9eff8ed0
+  node-pty@1.2.0-beta.15: b397ced9cb65396ff5ecb3eb458be01eeb911ed02d02e358bea7aa861ada5aa3
 
 importers:
 
@@ -197,7 +197,7 @@ importers:
         version: 4.1.11(vitest@4.1.11)
       '@yao-pkg/pkg':
         specifier: 6.21.0
-        version: 6.21.0(patch_hash=6004ea831bf18a0272276f3308456b7799d5ac32a5e69c138008b6329c1bfb9f)(supports-color@9.4.0)
+        version: 6.21.0(patch_hash=b78c66d556c03f0b16089f8225e0ff2c1f06d8c9b432aef2d17adb30ab342635)(supports-color@9.4.0)
       '@yarnpkg/cli-dist':
         specifier: 4.18.0
         version: 4.18.0
@@ -2299,6 +2299,9 @@ importers:
       '@deepseek-ai/dsh-plugin-market-index':
         specifier: workspace:*
         version: link:../../util/plugin-market-index
+      '@deepseek-ai/dsh-product':
+        specifier: workspace:*
+        version: link:../../util/product
       '@deepseek-ai/dsh-timeout':
         specifier: workspace:*
         version: link:../../util/timeout
@@ -11791,6 +11794,9 @@ importers:
       '@deepseek-ai/dsh-brand':
         specifier: workspace:*
         version: link:../../util/brand
+      '@deepseek-ai/dsh-product':
+        specifier: workspace:*
+        version: link:../../util/product
       zod:
         specifier: 4.6.6
         version: 4.6.6
@@ -12954,6 +12960,9 @@ importers:
       '@deepseek-ai/dsh-brand':
         specifier: workspace:*
         version: link:../../util/brand
+      '@deepseek-ai/dsh-product':
+        specifier: workspace:*
+        version: link:../../util/product
       '@deepseek-ai/dsh-timeout':
         specifier: workspace:*
         version: link:../../util/timeout
@@ -16679,7 +16688,7 @@ importers:
         version: 3.1.1
       node-pty:
         specifier: 1.2.0-beta.15
-        version: 1.2.0-beta.15(patch_hash=9d30053266d0f39d3debe894c675867f6782da6bcadbc94a693b3cfb9eff8ed0)
+        version: 1.2.0-beta.15(patch_hash=b397ced9cb65396ff5ecb3eb458be01eeb911ed02d02e358bea7aa861ada5aa3)
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: workspace:~
@@ -17457,6 +17466,10 @@ importers:
         version: link:../brand
 
   packages/util/home-paths:
+    dependencies:
+      '@deepseek-ai/dsh-product':
+        specifier: workspace:*
+        version: link:../product
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: workspace:~
@@ -17533,6 +17546,8 @@ importers:
       '@types/semver':
         specifier: ^7.8.0
         version: 7.8.0
+
+  packages/util/product: {}
 
   packages/util/ripgrep:
     dependencies:
@@ -28989,7 +29004,7 @@ snapshots:
       - bare-buffer
       - react-native-b4a
 
-  '@yao-pkg/pkg@6.21.0(patch_hash=6004ea831bf18a0272276f3308456b7799d5ac32a5e69c138008b6329c1bfb9f)(supports-color@9.4.0)':
+  '@yao-pkg/pkg@6.21.0(patch_hash=b78c66d556c03f0b16089f8225e0ff2c1f06d8c9b432aef2d17adb30ab342635)(supports-color@9.4.0)':
     dependencies:
       '@babel/generator': 7.29.7
       '@babel/parser': 7.29.7
@@ -31831,7 +31846,7 @@ snapshots:
 
   node-int64@0.4.0: {}
 
-  node-pty@1.2.0-beta.15(patch_hash=9d30053266d0f39d3debe894c675867f6782da6bcadbc94a693b3cfb9eff8ed0):
+  node-pty@1.2.0-beta.15(patch_hash=b397ced9cb65396ff5ecb3eb458be01eeb911ed02d02e358bea7aa861ada5aa3):
     dependencies:
       node-addon-api: 7.1.1
 

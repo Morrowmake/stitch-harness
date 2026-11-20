@@ -2537,7 +2537,7 @@ const OVERVIEW = {
   closingIssues: { totalCount: 2, nodes: [
     { number: 6, title: 'Show review progress in the panel', state: 'OPEN', url: 'https://github.com/octo/demo/issues/6',
       repository: { name: 'demo', owner: { login: 'octo' } } },
-    { number: 12, title: 'Rerun failed checks from DSH', state: 'OPEN', url: 'https://github.com/octo/tracker/issues/12',
+    { number: 12, title: 'Rerun failed checks from Stitch', state: 'OPEN', url: 'https://github.com/octo/tracker/issues/12',
       repository: { name: 'tracker', owner: { login: 'octo' } } },
   ] },
 }
@@ -2590,7 +2590,7 @@ it.skipIf(MODE === 'record')('summarizes checks, reviewers, and the merge state 
   const issues = card.locator('[data-forge-closing-issues]')
   expect(await issues.textContent()).toBe('关联 issue #6、octo/tracker#12')
   await issues.getByRole('link', { name: '打开 issue #6：Show review progress in the panel', exact: true }).waitFor()
-  await issues.getByRole('link', { name: '打开 issue octo/tracker#12：Rerun failed checks from DSH', exact: true }).waitFor()
+  await issues.getByRole('link', { name: '打开 issue octo/tracker#12：Rerun failed checks from Stitch', exact: true }).waitFor()
 
   const update = card.locator('[data-forge-update-branch]')
   await expect.poll(() => update.textContent()).toBe('合并无冲突 · 落后于 main更新分支')

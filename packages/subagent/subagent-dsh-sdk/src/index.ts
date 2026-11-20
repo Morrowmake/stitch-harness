@@ -97,7 +97,7 @@ function resolveConfiguredFile(field: string, value: string): string {
   throw new TypeError(`subagent-dsh-sdk ${field} must name an existing file: ${path}`)
 }
 
-/** DSH SDK can apply Agent route options while the other start features remain child-owned. */
+/** Stitch SDK can apply Agent route options while the other start features remain child-owned. */
 const SDK_START_CAPABILITIES: SubagentCapabilities = Object.freeze({
   ...NO_START_CAPABILITIES,
   agentOptions: true,

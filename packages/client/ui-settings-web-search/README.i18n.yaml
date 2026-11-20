@@ -3,8 +3,8 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/client/ui-settings-web-search/README.md
 /:
-  en: 48cd7aa2009f4de9
-  zh: ec407c666e83750e
+  en: be7596c75e50a13c
+  zh: 6893bf92e7221fae
 /deepseek-ai-dsh-client-ui-settings-web-search:
   en: 968c0f6ba2415331
   zh: aaf9e2aa22eafc98
@@ -30,8 +30,8 @@
   en: ca75c51c89c2c9b0
   zh: 6e1c9a8fdde89577
 /deepseek-ai-dsh-client-ui-settings-web-search/known-limitations-and-deferred-work:
-  en: 050c4608f770e149
-  zh: e0344a8e07cff65f
+  en: f68955b3e4ac3d9f
+  zh: a43ea4bdce7a9d9e
 /deepseek-ai-dsh-client-ui-settings-web-search/known-limitations-and-deferred-work/dev-note:
   en: e67f633dc6fe7773
   zh: e88aeb617ffb74ea

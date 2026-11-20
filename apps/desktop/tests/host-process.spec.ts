@@ -354,7 +354,7 @@ process.send({ type: 'starting', runId: randomUUID() })
     const { url } = await host.start()
     await fetch(new URL('/crash', url))
     await expect.poll(() => failure.mock.calls.length).toBe(1)
-    expect(failure).toHaveBeenCalledWith(expect.objectContaining({ message: 'dsh desktop host exited with 7: plugin crashed', hostRunId: 'c254ab28-97c9-4382-95e6-2db9c66f98c8' }))
+    expect(failure).toHaveBeenCalledWith(expect.objectContaining({ message: 'stitch desktop host exited with 7: plugin crashed', hostRunId: 'c254ab28-97c9-4382-95e6-2db9c66f98c8' }))
   })
 
   it('retains only recent diagnostics from a noisy child', async () => {

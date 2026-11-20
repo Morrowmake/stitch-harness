@@ -50,8 +50,8 @@ function thrownBy(action: () => void): unknown {
 it.each([
   ['/App.app/Contents/Resources/app.asar/dsh/node_modules/@deepseek-ai/libreoffice-kit-darwin-arm64/package.json',
     '/App.app/Contents/Resources/app.asar.unpacked/dsh/node_modules/@deepseek-ai/libreoffice-kit-darwin-arm64/package.json'],
-  ['C:\\DSH\\resources\\app.asar\\dsh\\node_modules\\@deepseek-ai\\libreoffice-kit-win32-x64\\package.json',
-    'C:\\DSH\\resources\\app.asar.unpacked\\dsh\\node_modules\\@deepseek-ai\\libreoffice-kit-win32-x64\\package.json'],
+  ['C:\\Stitch\\resources\\app.asar\\dsh\\node_modules\\@deepseek-ai\\libreoffice-kit-win32-x64\\package.json',
+    'C:\\Stitch\\resources\\app.asar.unpacked\\dsh\\node_modules\\@deepseek-ai\\libreoffice-kit-win32-x64\\package.json'],
   ['/App/resources/app.asar.unpacked/dsh/node_modules/x/package.json', '/App/resources/app.asar.unpacked/dsh/node_modules/x/package.json'],
   ['/workspace/node_modules/x/package.json', '/workspace/node_modules/x/package.json'],
   ['/workspace/notes.asar.txt/package.json', '/workspace/notes.asar.txt/package.json'],

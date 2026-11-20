@@ -69,12 +69,12 @@ function snapshotMode(value: string | undefined): SnapshotMode {
     case 'replay': return 'replay'
     case 'record': return 'record'
     case 'refresh': return 'refresh'
-    default: throw new Error(`unknown DSH_SNAPSHOT mode: ${value}`)
+    default: throw new Error(`unknown STITCH_SNAPSHOT mode: ${value}`)
   }
 }
 
-const mode = snapshotMode(process.env.DSH_SNAPSHOT)
-const RUNTIME_WORKSPACE_ENTRIES = ['.agents', '.dsh', '.snapshot-patches'] as const
+const mode = snapshotMode(process.env.STITCH_SNAPSHOT)
+const RUNTIME_WORKSPACE_ENTRIES = ['.agents', '.stitch', '.snapshot-patches'] as const
 
 interface JsonObject {
   [key: string]: unknown
@@ -196,7 +196,7 @@ function contextOf(logs: readonly string[]): NormalizeContext {
 }
 
 async function persistedSessions(cwd: string): Promise<SessionLog[]> {
-  const root = join(cwd, '.dsh', 'sessions')
+  const root = join(cwd, '.stitch', 'sessions')
   const files = latestPersistedSessionPaths(await readdir(root, { recursive: true }))
   const logs = await Promise.all(files.map(async (file): Promise<SessionLog> => {
     const content = await readFile(join(root, file), 'utf8')
@@ -388,7 +388,7 @@ function stderrFromSession(log: string): string {
   const appendReasoning = (text: string): void => {
     if (text === '') return
     if (!open) {
-      output += 'dsh: reasoning:\n'
+      output += 'stitch: reasoning:\n'
       open = true
     }
     output += text
@@ -465,7 +465,7 @@ function stderrFromSession(log: string): string {
   if (typeof error?.code !== 'string' || typeof error.message !== 'string') {
     throw new Error('headless snapshot error reason has no code and message')
   }
-  return `${output}dsh: ${error.code}: ${error.message}\n`
+  return `${output}stitch: ${error.code}: ${error.message}\n`
 }
 
 function modelFromSession(log: string): { provider: string; model: string } {
@@ -517,10 +517,10 @@ const workspaceSetups: Record<string, (cwd: string) => Promise<void>> = {
     await copyFile(join(repoRoot, `packages/experimental/cua-macos/${guidanceDirectory}/guidance.${extension}`), join(target, `guidance.${extension}`))
   },
   async 'dsh-doc-resources'(cwd) {
-    await cp(join(repoRoot, 'packages/preset/agent-preset/skills/dsh-doc'), join(cwd, '.dsh/skills/dsh-doc'), { recursive: true })
+    await cp(join(repoRoot, 'packages/preset/agent-preset/skills/stitch-doc'), join(cwd, '.stitch/skills/stitch-doc'), { recursive: true })
   },
   async 'windows-acl-skill'(cwd) {
-    const target = join(cwd, '.dsh', 'skills', 'diagnose-windows-sandbox-acl', 'SKILL.md')
+    const target = join(cwd, '.stitch', 'skills', 'diagnose-windows-sandbox-acl', 'SKILL.md')
     await mkdir(dirname(target), { recursive: true })
     await copyFile(join(repoRoot, 'packages/sandbox/sandbox-windows-acl/assets/diagnose-windows-sandbox-acl/SKILL.md'), target)
   },
@@ -543,14 +543,14 @@ const workspaceSetups: Record<string, (cwd: string) => Promise<void>> = {
     await writeFile(join(cwd, '.git', 'info', 'attributes'), WORKTREE_CHECKOUT_ATTRIBUTES)
     snapshotGit(cwd, ['config', 'filter.dsh-snapshot-checkout.smudge', WORKTREE_CHECKOUT_FILTER])
     await copyFile(join(cwd, '.git', 'config'), join(cwd, '.git', 'config.before-worktree'))
-    await writeFile(join(cwd, '.git', 'info', 'exclude'), '/.dsh/\n/.snapshot-patches/\n')
+    await writeFile(join(cwd, '.git', 'info', 'exclude'), '/.stitch/\n/.snapshot-patches/\n')
     await writeFile(join(cwd, 'tracked.txt'), 'DIRTY SOURCE\n')
     await writeFile(join(cwd, 'local.txt'), 'UNTRACKED SOURCE\n')
   },
   async 'skill-root-isolation'(cwd) {
-    const target = join(cwd, '.dsh', 'skills', 'editing-cordis-compositions', 'SKILL.md')
+    const target = join(cwd, '.stitch', 'skills', 'editing-cordis-compositions', 'SKILL.md')
     await mkdir(dirname(target), { recursive: true })
-    await copyFile(join(snapshotsRoot, 'skill-load/workspace/.dsh/skills/editing-cordis-compositions/SKILL.md'), target)
+    await copyFile(join(snapshotsRoot, 'skill-load/workspace/.stitch/skills/editing-cordis-compositions/SKILL.md'), target)
     // A symlink loop produces a real, non-absence read error without relying on chmod or root privileges.
     await symlink('broken-skills', join(cwd, 'broken-skills'))
   },
@@ -894,7 +894,7 @@ function snapshotGit(cwd: string, args: string[]): string {
     env: {
       ...Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith('GIT_'))),
       GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null',
-      GIT_AUTHOR_NAME: 'DSH Snapshot', GIT_COMMITTER_NAME: 'DSH Snapshot',
+      GIT_AUTHOR_NAME: 'Stitch Snapshot', GIT_COMMITTER_NAME: 'Stitch Snapshot',
       GIT_AUTHOR_EMAIL: 'snapshot@example.invalid', GIT_COMMITTER_EMAIL: 'snapshot@example.invalid',
       GIT_AUTHOR_DATE: '2000-01-01T00:00:00Z', GIT_COMMITTER_DATE: '2000-01-01T00:00:00Z',
     },
@@ -951,19 +951,19 @@ async function verifyProviderCwdResume(
   fixture: string,
   task: string,
 ): Promise<void> {
-  const providerCwd = scenario.manifest.environment?.DSH_SNAPSHOT_PROVIDER_CWD
+  const providerCwd = scenario.manifest.environment?.STITCH_SNAPSHOT_PROVIDER_CWD
   const primary = initial[0]
   expect(providerCwd).toBeDefined()
   expect(primary?.header.cwd).toBe(providerCwd)
   expect(primary?.header.cwd).not.toBe(cwd)
   const otherHostCwd = await mkdtemp(join(tmpdir(), 'dsh-provider-resume-'))
   const env = {
-    DSH_HOME: join(cwd, '.dsh'),
-    DSH_SNAPSHOT: 'replay',
-    DSH_SNAPSHOT_FILE: fixture,
-    DSH_SNAPSHOT_PROVIDER: model.provider,
-    DSH_SNAPSHOT_MODEL: model.model,
-    DSH_PERMISSION_MODE: 'read-only',
+    STITCH_HOME: join(cwd, '.stitch'),
+    STITCH_SNAPSHOT: 'replay',
+    STITCH_SNAPSHOT_FILE: fixture,
+    STITCH_SNAPSHOT_PROVIDER: model.provider,
+    STITCH_SNAPSHOT_MODEL: model.model,
+    STITCH_PERMISSION_MODE: 'read-only',
     NODE_OPTIONS: [process.env.NODE_OPTIONS, '--disable-warning=ExperimentalWarning'].filter(Boolean).join(' '),
   }
   const launch = {
@@ -980,7 +980,7 @@ async function verifyProviderCwdResume(
   try {
     const refused = await runLoaderSmoke({
       ...launch, label: 'provider-cwd mismatched resume', expectedExitCode: 1,
-      env: { ...env, DSH_SNAPSHOT_PROVIDER_CWD: `${providerCwd}/other` },
+      env: { ...env, STITCH_SNAPSHOT_PROVIDER_CWD: `${providerCwd}/other` },
     })
     expect(refused.stdout).toBe('')
     expect(refused.stderr).toContain(`was recorded in "${providerCwd}", not "${providerCwd}/other"`)
@@ -988,7 +988,7 @@ async function verifyProviderCwdResume(
     const resumed = await runLoaderSmoke({
       ...launch, label: 'provider-cwd matching resume',
       binArgs: [...launch.binArgs.slice(0, -1), '--json', task],
-      env: { ...env, DSH_SNAPSHOT_PROVIDER_CWD: providerCwd },
+      env: { ...env, STITCH_SNAPSHOT_PROVIDER_CWD: providerCwd },
     })
     const output = records(resumed.stdout)
     expect(output[0]).toEqual({ type: 'session', sessionId: primary?.header.id, cwd: providerCwd })
@@ -1172,11 +1172,11 @@ describe('headless recorded-session snapshots', () => {
     ].map(record => JSON.stringify(record)).join('\n')
 
     expect(stderrFromSession(log)).toBe([
-      'dsh: reasoning:',
+      'stitch: reasoning:',
       'first',
-      'dsh: reasoning:',
+      'stitch: reasoning:',
       'second',
-      'dsh: reasoning:',
+      'stitch: reasoning:',
       'third',
       '',
     ].join('\n'))
@@ -1200,7 +1200,7 @@ describe('headless recorded-session snapshots', () => {
         { type: 'turn/end', data: { turn: 1, reason: { kind: 'completed' } } },
       ].map(record => JSON.stringify(record)).join('\n')
 
-      expect(stderrFromSession(log)).toBe('dsh: reasoning:\nfirst thought\n')
+      expect(stderrFromSession(log)).toBe('stitch: reasoning:\nfirst thought\n')
     },
   )
 
@@ -1223,7 +1223,7 @@ describe('headless recorded-session snapshots', () => {
       { type: 'turn/end', data: { turn: 1, reason: { kind: 'completed' } } },
     ].map(record => JSON.stringify(record)).join('\n')
 
-    expect(stderrFromSession(log)).toBe('dsh: reasoning:\nfirst thought\ndsh: reasoning:\nsecond\n')
+    expect(stderrFromSession(log)).toBe('stitch: reasoning:\nfirst thought\nstitch: reasoning:\nsecond\n')
   })
 
   it.each([10, 20])('assigns sibling roles by catalog order when the first child timestamp is %i', async (firstCreatedAt) => {
@@ -1239,7 +1239,7 @@ describe('headless recorded-session snapshots', () => {
         [{ type: 'session', version: SESSION_FORMAT_VERSION, id: 'child-a', createdAt: 10, parentSession: 'parent' }],
       ].map(rows => rows.map(row => JSON.stringify(row)).join('\n') + '\n')
       for (const content of logs) {
-        const directory = join(cwd, '.dsh', 'sessions', String(headerOf(content).id))
+        const directory = join(cwd, '.stitch', 'sessions', String(headerOf(content).id))
         await mkdir(directory, { recursive: true })
         await writeFile(join(directory, `session.v${SESSION_FORMAT_VERSION}.jsonl`), content)
       }
@@ -1357,7 +1357,7 @@ describe('headless recorded-session snapshots', () => {
       || mode === 'record' && scenario.manifest.sessionFormat !== undefined
     const scenarioTest = skipped ? it.skip : mode === 'replay' ? it.concurrent : it
     const inputLabel = retainedToolInput === undefined ? '' : ' from retained V3 input'
-    scenarioTest(`${mode}s ${scenario.name}${inputLabel} through dsh --profile headless`, async () => {
+    scenarioTest(`${mode}s ${scenario.name}${inputLabel} through stitch --profile headless`, async () => {
       let fixtureFiles = retainedToolInput === undefined
         ? recordingFixtureNames(await readdir(scenario.dir), mode) : [retainedToolInput]
       let fixtures = await fixtureSessions(scenario, fixtureFiles)
@@ -1420,29 +1420,29 @@ describe('headless recorded-session snapshots', () => {
             ? 0
             : 1,
           env: {
-            DSH_SNAPSHOT: replaying ? 'replay' : 'record',
+            STITCH_SNAPSHOT: replaying ? 'replay' : 'record',
             ...(model === undefined ? {} : {
-              DSH_SNAPSHOT_PROVIDER: model.provider,
-              DSH_SNAPSHOT_MODEL: model.model,
+              STITCH_SNAPSHOT_PROVIDER: model.provider,
+              STITCH_SNAPSHOT_MODEL: model.model,
             }),
-            DSH_SNAPSHOT_SPILL_ROOT: spillRoot,
-            DSH_SNAPSHOT_SPILL_LOCATOR_ROOT: locatorRoot,
-            DSH_SNAPSHOT_FILE: fixturePath,
+            STITCH_SNAPSHOT_SPILL_ROOT: spillRoot,
+            STITCH_SNAPSHOT_SPILL_LOCATOR_ROOT: locatorRoot,
+            STITCH_SNAPSHOT_FILE: fixturePath,
             ...(replaying && fixtureFiles.length > 1
-              ? { DSH_SNAPSHOT_CHILD_FILES: fixtureFiles.slice(1).map(file => join(scenario.dir, file)).join(delimiter) }
+              ? { STITCH_SNAPSHOT_CHILD_FILES: fixtureFiles.slice(1).map(file => join(scenario.dir, file)).join(delimiter) }
               : {}),
             ...(replaying && scenario.manifest.replay?.override === true
-              ? { DSH_SNAPSHOT_OVERRIDE: join(scenario.dir, 'replay.override.json') }
+              ? { STITCH_SNAPSHOT_OVERRIDE: join(scenario.dir, 'replay.override.json') }
               : {}),
             ...(scenario.manifest.permission === undefined
               ? {}
-              : { DSH_PERMISSION_MODE: scenario.manifest.permission }),
+              : { STITCH_PERMISSION_MODE: scenario.manifest.permission }),
             ...scenario.manifest.environment,
             ...(scenario.name === 'mcp-resources' || scenario.name === 'mcp-resources-ptc' ? {
-              DSH_MCP_RESOURCES_FIXTURE: join(repoRoot, 'packages/mcp/mcp-client/tests/fixtures/resources-server.ts'),
+              STITCH_MCP_RESOURCES_FIXTURE: join(repoRoot, 'packages/mcp/mcp-client/tests/fixtures/resources-server.ts'),
             } : {}),
             NODE_OPTIONS: [process.env.NODE_OPTIONS, '--disable-warning=ExperimentalWarning'].filter(Boolean).join(' '),
-            ...(mcpDemo === undefined ? {} : { DSH_MCP_DEMO_URL: mcpDemo.url }),
+            ...(mcpDemo === undefined ? {} : { STITCH_MCP_DEMO_URL: mcpDemo.url }),
           },
           prepare: async (cwd) => {
             if (scenario.manifest.workspace?.parent === 'outside-temp') assertWorkspaceOutsideTemp(cwd)
@@ -1451,18 +1451,18 @@ describe('headless recorded-session snapshots', () => {
               materializeProfilePatch(source, cwd, 'headless', join(cwd, patchRoot), index)
             })
             if (scenario.name === 'plugin-manager-mcp') {
-              const profileDir = join(cwd, '.dsh/profiles/headless')
+              const profileDir = join(cwd, '.stitch/profiles/headless')
               await mkdir(profileDir, { recursive: true })
               await copyFile(join(scenario.dir, 'profile.patch.yml'), join(profileDir, 'cordis.patch.yml'))
             }
             if (scenario.name === 'mcp-oauth-error' && mcpDemo !== undefined) {
-              await mkdir(join(cwd, '.dsh'), { recursive: true })
-              await writeFile(join(cwd, '.dsh/.credentials.yaml'), JSON.stringify({ version: 1, records: {
+              await mkdir(join(cwd, '.stitch'), { recursive: true })
+              await writeFile(join(cwd, '.stitch/.credentials.yaml'), JSON.stringify({ version: 1, records: {
                 'mcp-client/snapshot': { kind: 'grant', payload: {
                   version: 1, type: 'mcp-oauth-grant', id: '00000000-0000-4000-8000-000000000001',
                   serverUrl: mcpDemo.url, issuer: new URL(mcpDemo.url).origin,
                   clientKey: 'mcp-client/snapshot-client', clientId: 'snapshot-client',
-                  tokens: { access_token: scenario.manifest.environment?.DSH_MCP_OAUTH_TOKEN, token_type: 'Bearer' },
+                  tokens: { access_token: scenario.manifest.environment?.STITCH_MCP_OAUTH_TOKEN, token_type: 'Bearer' },
                 } },
               } }) + '\n', { mode: 0o600 })
             }
@@ -1489,13 +1489,13 @@ describe('headless recorded-session snapshots', () => {
               expect(log).toContain('mcp__demo__ping')
               expect(log).toContain('pong')
               expect(mcpDemo.calls).toEqual(['ping'])
-              const saved = await readFile(join(cwd, '.dsh/profiles/headless/cordis.patch.yml'), 'utf8')
+              const saved = await readFile(join(cwd, '.stitch/profiles/headless/cordis.patch.yml'), 'utf8')
               expect(saved).toContain('id: demo')
               expect(saved).toContain('disabled: false')
             }
             if ((scenario.name === 'mcp-template-error' || scenario.name === 'mcp-oauth-error') && mcpDemo !== undefined) {
               const oauth = scenario.name === 'mcp-oauth-error'
-              const secret = scenario.manifest.environment?.[oauth ? 'DSH_MCP_OAUTH_TOKEN' : 'DSH_MCP_TEMPLATE_TOKEN']
+              const secret = scenario.manifest.environment?.[oauth ? 'STITCH_MCP_OAUTH_TOKEN' : 'STITCH_MCP_TEMPLATE_TOKEN']
               expect(secret).toBeDefined()
               verifyMcpError(actualLogs[0]!.content, secret!, oauth)
               expect(mcpDemo.calls).toEqual(['ping'])
