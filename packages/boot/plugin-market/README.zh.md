@@ -24,11 +24,13 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-可选的[自定义插件索引组合包](../../experimental/plugin-market-bundle/README.zh.md)把该服务挂载为 `plugin-market` 行；随附的 profile 默认不启用该组合包。与 `plugin-manager` 一样，该行在没有 profile 时被禁用，并等待 `pluginManager`。默认索引源是 Stitch 插件索引 `DEFAULT_PLUGIN_INDEX`（`https://raw.githubusercontent.com/Morrowmake/stitch-plugins/main/index.json`，由 [`Morrowmake/stitch-plugins`](https://github.com/Morrowmake/stitch-plugins) 仓库生成，其 README 说明了如何提交插件）。挂载服务本身不发送任何请求：只有发现区或 `plugin_market` 工具搜索某个索引时，Host 才会读取它。在发现区移除默认索引后，剩余列表（包括空列表）会写入 profile 条目，因此移除会保持生效。
+[`dsh-web-app` 组合包](../../bundle/web-app/cordis.patch.yml)在每个 Web profile 中把该服务挂载为 `plugin-market` 行，与 `ui-plugin-market` 发现标签页并列。与 `plugin-manager` 一样，该行在没有 profile 时被禁用，并等待 `pluginManager`。默认索引源只有 Stitch 插件索引 `DEFAULT_PLUGIN_INDEX`（`https://raw.githubusercontent.com/Morrowmake/stitch-plugins/main/index.json`，由 [`Morrowmake/stitch-plugins`](https://github.com/Morrowmake/stitch-plugins) 仓库生成，其 README 说明了如何提交插件）。挂载服务本身不发送任何请求：只有发现区或 `plugin_market` 工具搜索某个索引时，Host 才会读取它。在发现区移除默认索引后，剩余列表（包括空列表）会写入 profile 条目，因此移除会保持生效。
+
+`./indexes` 入口可在浏览器中使用，列出 Stitch 已知的索引：`DEFAULT_PLUGIN_INDEX`，以及 `COMMUNITY_PLUGIN_INDEXES`，即 DeepSeek Harness 社区索引 `https://awesome-dsh-plugin.com/index.json` 和 `https://cdn.dsh.so/market/index.json`。社区索引从不作为默认值；发现区在索引源对话框中提供它们，并把 Stitch 索引以外的每个索引标为未经 Stitch 审核的社区索引。
 
 | 配置 | 默认值 | 含义 |
 |---|---|---|
-| `indexes` | `DEFAULT_PLUGIN_INDEXES` | 按显示顺序排列的规范索引源 URL。默认值为 `DEFAULT_PLUGIN_INDEX`，其后是 DeepSeek Harness 索引 `https://awesome-dsh-plugin.com/index.json` 和 `https://cdn.dsh.so/market/index.json`，每个索引都只在读取时才会请求。发现区、设置和 `setIndexes` 可修改此字段，无需重新挂载本服务或 `plugin-manager`。 |
+| `indexes` | `DEFAULT_PLUGIN_INDEXES` | 按显示顺序排列的规范索引源 URL。默认值为 `[DEFAULT_PLUGIN_INDEX]`，只在读取时才会请求。发现区、设置和 `setIndexes` 可修改此字段，无需重新挂载本服务或 `plugin-manager`；已保存的列表（包括其中的社区索引）保持原样。 |
 | `fetchTimeoutMs` | `15000` | 单次通过 HTTP(S) 请求索引或详细介绍文件的时限，包括读取响应体。 |
 | `maxBytes` | `134217728` | 接受的最大索引文件大小。 |
 | `cacheTtlMs` | `600000` | 成功读取的索引文档、详细介绍的读取结果以及仓库默认分支提交的缓存时长。 |
@@ -119,7 +121,7 @@ Host 使用进程的 `fetch` 读取直接返回 JSON 的地址，因此配置的
 
 #### Token 影响
 
-预设挂载该工具时提供工具声明；每次调用追加其 JSON 结果，大小受 `limit` 限制（最多 100 个插件或版本）。
+只有预设挂载该工具时才提供工具声明：在随附的 Web 组合中，即 [plugin-market-tool 组件](../../component/plugin-market-tool/README.zh.md)开启时的 Creator 预设，而任何组件集都不选中该组件。每次调用追加其 JSON 结果，大小受 `limit` 限制（最多 100 个插件或版本）。
 
 #### KV Cache 影响
 

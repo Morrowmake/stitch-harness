@@ -4,14 +4,18 @@
  */
 import type { Context } from '@deepseek-ai/cordis'
 import type {
-  AccountId, AccountPatch, AccountUsageView, AccountView, SignInAttemptId, SignInAttemptView, SignInRequest,
+  AccountId, AccountPatch, AccountRetryResult, AccountUsageView, AccountView, ApiKeyAccountAdded, SignInAttemptId,
+  SignInAttemptView, SignInRequest,
 } from '@deepseek-ai/dsh-api-remotes/client'
 
 /** One Host call's answer: the value, or the refusal a surface shows. */
 export type Outcome<T> =
   | { readonly ok: true; readonly value: T }
-  /** `busy`: another sign-in holds the provider; `invalid-key`: the key was refused; `other`: the Host's own text. */
-  | { readonly ok: false; readonly reason: 'busy' | 'invalid-key' | 'other'; readonly message: string }
+  /**
+   * `busy`: another sign-in holds the provider; `invalid-key`: the key's format was refused; `key-rejected`: the
+   * provider refused the key; `other`: the Host's own text.
+   */
+  | { readonly ok: false; readonly reason: 'busy' | 'invalid-key' | 'key-rejected' | 'other'; readonly message: string }
 
 /** One catalog model the allowlist editor offers. */
 export interface CatalogModel {
@@ -26,11 +30,13 @@ export interface AccountsOperations {
   watchSignIn(attempt: SignInAttemptId, signal: AbortSignal): AsyncIterable<SignInAttemptView>
   answerSignInPrompt(attempt: SignInAttemptId, promptId: string, answer: { value: string } | { declined: true }): Promise<Outcome<void>>
   cancelSignIn(attempt: SignInAttemptId): Promise<Outcome<void>>
-  addApiKeyAccount(provider: string, request: { key: string; alias?: string }): Promise<Outcome<AccountView>>
+  /** Check the key with the provider, then store it; a key the provider refuses is not stored (`key-rejected`). */
+  addApiKeyAccount(provider: string, request: { key: string; alias?: string }): Promise<Outcome<ApiKeyAccountAdded>>
   updateAccount(provider: string, account: AccountId, patch: AccountPatch): Promise<Outcome<AccountView>>
   setDefaultAccount(provider: string, account: AccountId): Promise<Outcome<void>>
   removeAccount(provider: string, account: AccountId): Promise<Outcome<void>>
-  retryAccountNow(provider: string, account: AccountId): Promise<Outcome<void>>
+  /** Re-check a key account with the provider, or clear another account's failure state. */
+  retryAccountNow(provider: string, account: AccountId): Promise<Outcome<AccountRetryResult>>
   /** Forced usage refresh; the Host still honours a live failure cooldown. */
   refreshUsage(provider: string, account: AccountId): Promise<Outcome<AccountUsageView>>
   /** The provider's catalog models (pinned `~acct:` entries excluded). */
@@ -49,7 +55,10 @@ type Wire<T> =
 export function outcomeOf<T>(response: Wire<T>): Outcome<T> {
   if (response.ok) return { ok: true, value: response.value }
   const { code, message } = response.error
-  const reason = code === 'llm-accounts/attempt-busy' ? 'busy' : code === 'llm-accounts/invalid-key' ? 'invalid-key' : 'other'
+  const reason = code === 'llm-accounts/attempt-busy' ? 'busy'
+    : code === 'llm-accounts/invalid-key' ? 'invalid-key'
+      : code === 'llm-accounts/key-rejected' ? 'key-rejected'
+        : 'other'
   return { ok: false, reason, message }
 }
 

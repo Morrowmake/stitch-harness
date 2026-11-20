@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-component-short-prompt",
-  "description": "Replaces the long tool guidance of the default preset with a short prompt.",
+  "description": "Gives the agent shorter built-in instructions, which can make replies faster.",
   "version": "0.2.2-rc.5",
   "icon": "./icon.svg",
   "publishConfig": {

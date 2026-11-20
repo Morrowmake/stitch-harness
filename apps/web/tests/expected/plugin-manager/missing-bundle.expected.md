@@ -4,9 +4,5 @@
 - switch "启用 @fixture/missing-bundle" [checked]
 - heading "@fixture/missing-bundle" [level=3]
 - text: 未运行 未安装
-- paragraph:
-  - code: "@fixture/missing-bundle"
-- status: "原因: dsh: cannot resolve profile bundle \"@fixture/missing-bundle\" from the dsh installation or {{home}}/profiles/scaffold; run 'stitch plugin --profile scaffold install' if its dependency is not installed"
-- heading "来源信息" [level=4]
-- term: 代码来源
-- definition: 未安装
+- status: "原因: stitch: cannot resolve profile bundle \"@fixture/missing-bundle\" from the dsh installation or {{home}}/profiles/scaffold; run 'stitch plugin --profile scaffold install' if its dependency is not installed"
+- button "开发者信息"

@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Tâches en arrière-plan",
-    "description": "Exécutez des commandes en arrière-plan, avec les outils de tâches et leur panneau."
+    "description": "Lance des commandes longues en arrière-plan et suivez-les dans un panneau."
   }
 }

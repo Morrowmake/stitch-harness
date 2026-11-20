@@ -10,8 +10,8 @@
 import { execFile } from 'node:child_process'
 import { readFileSync, realpathSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { createRequire } from 'node:module'
-import { dirname, join, posix, win32 } from 'node:path'
+import { basename, dirname, isAbsolute, join, posix, win32 } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import semver from 'semver'
 import { codexTargetTriple, PRODUCT_CLIS, productCliPackage } from './catalog.ts'
 import { downloadedProductCliPath } from './store.ts'
@@ -260,35 +260,52 @@ function installCandidates(id: ProductCliId, env: NodeJS.ProcessEnv, platform: N
   return [...new Set(directories.map(directory => posix.join(directory, command)))]
 }
 
-/** The native package installed beside the SDK in a development checkout or CLI install, when present. */
+/**
+ * The directory of package `name` as seen from `dir`: the first
+ * `node_modules/<name>` in `dir` or an ancestor, canonicalized like Node's own
+ * resolution. Unlike `require.resolve` it never consults NODE_PATH or the
+ * global folders, so a package manager's or launcher's own install (pnpm puts
+ * its whole store on NODE_PATH) cannot answer for the anchor.
+ */
+function packageDirFrom(host: ProductCliHost, dir: string, name: string): string | undefined {
+  for (let current = dir; ; current = dirname(current)) {
+    if (basename(current) !== 'node_modules') {
+      const candidate = join(current, 'node_modules', name)
+      if (host.isFile(join(candidate, 'package.json'))) return host.realpath(candidate)
+    }
+    if (dirname(current) === current) return undefined
+  }
+}
+
+/**
+ * The native package installed beside the SDK in a development checkout or CLI
+ * install, when present. Both the SDK and its platform package are looked up
+ * only above `from`, so the answer depends on the anchor alone.
+ */
 function bundledExecutable(
   host: ProductCliHost, id: ProductCliId, from: string, platform: NodeJS.Platform, arch: string,
 ): string | undefined {
+  const anchor = from.startsWith('file:') ? fileURLToPath(from) : from
+  if (!isAbsolute(anchor)) return undefined
   const key = `${platform}-${arch}`
   const suffix = platform === 'win32' ? '.exe' : ''
-  try {
-    const require = createRequire(from)
-    if (id === 'claude-code') {
-      const sdkRequire = createRequire(require.resolve('@anthropic-ai/claude-agent-sdk'))
-      for (const name of platform === 'linux' ? [key, `${key}-musl`] : [key]) {
-        try {
-          const executable = join(dirname(sdkRequire.resolve(`@anthropic-ai/claude-agent-sdk-${name}/package.json`)), `claude${suffix}`)
-          if (host.isFile(executable)) return executable
-        } catch (_notInstalled) {
-          // The optional platform package is absent; try the next libc variant.
-        }
-      }
-      return undefined
+  if (id === 'claude-code') {
+    const sdk = packageDirFrom(host, dirname(anchor), '@anthropic-ai/claude-agent-sdk')
+    if (sdk === undefined) return undefined
+    for (const name of platform === 'linux' ? [key, `${key}-musl`] : [key]) {
+      const native = packageDirFrom(host, sdk, `@anthropic-ai/claude-agent-sdk-${name}`)
+      const executable = native === undefined ? undefined : join(native, `claude${suffix}`)
+      if (executable !== undefined && host.isFile(executable)) return executable
     }
-    const triple = codexTargetTriple(key)
-    if (triple === undefined) return undefined
-    const manifest = createRequire(require.resolve('@openai/codex/package.json')).resolve(`@openai/codex-${key}/package.json`)
-    const executable = join(dirname(manifest), 'vendor', triple, 'bin', `codex${suffix}`)
-    return host.isFile(executable) ? executable : undefined
-  } catch (_notInstalled) {
-    // Packaged installations omit the native platform packages.
     return undefined
   }
+  const triple = codexTargetTriple(key)
+  if (triple === undefined) return undefined
+  const codex = packageDirFrom(host, dirname(anchor), '@openai/codex')
+  // Packaged installations omit the native platform packages.
+  const native = codex === undefined ? undefined : packageDirFrom(host, codex, `@openai/codex-${key}`)
+  const executable = native === undefined ? undefined : join(native, 'vendor', triple, 'bin', `codex${suffix}`)
+  return executable !== undefined && host.isFile(executable) ? executable : undefined
 }
 
 /**

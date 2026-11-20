@@ -398,6 +398,19 @@ it.each(['live', 'startup'] as const)('removes a bundle skipped at startup in a 
   expect((await manager.listBundles()).some(row => row.name === 'extra')).toBe(false)
 })
 
+it('lists no bundle and no problem for a retired bundle the profile still selected', async () => {
+  const retired = '@deepseek-ai/dsh-experimental-plugin-market-bundle'
+  const { manager, dir } = await fixture('live', false, undefined, {}, undefined, (dir) => {
+    const manifest = readProfileManifest('test', dir)
+    manifest.dsh = { profile: { bundles: ['core', retired, 'extra'] } }
+    writeFileSync(join(dir, 'package.json'), JSON.stringify(manifest))
+  })
+  expect(readProfileManifest('test', dir).dsh?.profile?.bundles).toEqual(['core', 'extra'])
+  const bundles = await manager.listBundles()
+  expect(bundles.some(row => row.name === retired)).toBe(false)
+  expect(bundles.filter(row => row.error !== undefined)).toEqual([])
+})
+
 it('recomposes the remaining layers while another bundle is broken and mounts it after repair', async () => {
   const { manager, dir, bundle, ctx } = await fixture()
   writeFileSync(join(dir, 'node_modules', 'extra', 'cordis.patch.yml'), '[invalid')
@@ -776,6 +789,13 @@ it('disables the components that require a disabled prerequisite and reports the
   expect(readProfileManifest('test', dir).dsh?.profile?.bundles).toEqual(['core', '@deepseek-ai/dsh-web-app', component('files'), 'extra'])
   // A toggle the closure does not widen reports no selection.
   expect(await manager.setBundleEnabled(component('files'), false)).not.toHaveProperty('selection')
+})
+
+it('lists the prerequisites each bundle declares, so a client can name what switching one off also switches off', async () => {
+  const { manager, component } = await componentFixture()
+  const bundles = await manager.listBundles()
+  expect(bundles.find(bundle => bundle.name === component('agent-teams'))?.requires).toEqual([component('subagents')])
+  expect(bundles.find(bundle => bundle.name === component('subagents'))).not.toHaveProperty('requires')
 })
 
 it('names the component set the profile selects', async () => {

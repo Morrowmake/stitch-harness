@@ -73,6 +73,17 @@ export interface HeroShellProps {
 }
 
 /**
+ * Whether this client build is a preview: a SemVer prerelease (`0.2.2-rc.5`)
+ * or a development build that carries no release version. Stable releases
+ * (`1.2.3`) are not previews.
+ * @param version - the build's `STITCH_CLIENT_VERSION`, if embedded.
+ * @returns true when the hero shows the preview badge.
+ */
+function isPreviewBuild(version: string | undefined): boolean {
+  return version === undefined || !/^\d+\.\d+\.\d+(?:\+[0-9A-Za-z.-]+)?$/u.test(version)
+}
+
+/**
  * Render the hero chrome (headline only; no composer, no workspace row).
  * @param props - see {@link HeroShellProps}.
  * @returns the centered hero element tree.
@@ -91,7 +102,8 @@ export function HeroShell({ t, renderSlot, headline, children }: HeroShellProps)
           <span className={css.titleGroup}>
             {/* Own element: keeps the headline text addressable apart from the badge. */}
             <span>{headline ?? t('hero.headline')}</span>
-            {headline === undefined && <span className={css.previewBadge}>{t('hero.preview')}</span>}
+            {headline === undefined && isPreviewBuild(process.env.STITCH_CLIENT_VERSION)
+              && <span className={css.previewBadge}>{t('hero.preview')}</span>}
           </span>
         </div>
         <div className={css.body}>

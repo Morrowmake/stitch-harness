@@ -401,15 +401,17 @@ describe('the session-header label', () => {
     expect(screen.getByTitle(en.headerHint).textContent).toBe('mine')
   })
 
-  it('shows the id until the roster resolves it', () => {
+  it('names a shipped preset, never its internal id, until the roster resolves it', () => {
     renderLabel({
       blank: false,
-      projectionValues: { agentPreset: 'standard' },
+      projectionValues: { agentPreset: 'cordis' },
     }, { options: [] })
 
     // The session's own summary is the authority on which preset it runs; the
-    // roster only supplies the display name, and its arrival is a later frame.
-    expect(screen.getByTitle(en.headerHint).textContent).toBe('standard')
+    // roster only supplies a custom name, and its arrival is a later frame.
+    const label = screen.getByTitle(en.presetCordisDescription)
+    expect(label.textContent).toBe(en.presetCordisName)
+    expect(label.textContent).not.toMatch(/cordis/i)
   })
 
   it('renders nothing, and reads no roster, when the session records no preset', async () => {

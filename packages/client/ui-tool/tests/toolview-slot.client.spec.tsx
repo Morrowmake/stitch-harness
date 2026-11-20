@@ -276,10 +276,10 @@ describe('keyed toolview hole through the real machinery', () => {
     // names its act and carries the package id rather than falling back to the
     // generic "Tool call · <name> · <id>" row.
     const rowText = (name: string) => view.container.querySelector(`[data-tool="${name}"]`)?.textContent
-    expect(rowText('cordis_runtime_inspect')).toContain('Query Cordis environment')
-    expect(rowText('cordis_run')).toContain('Run Cordis Plugindyn-2')
-    expect(rowText('cordis_stop')).toContain('Stop Cordis Plugindyn-2')
-    expect(rowText('cordis_undefine')).toContain('Remove Cordis Plugindyn-2')
+    expect(rowText('cordis_runtime_inspect')).toContain('Inspect the Stitch environment')
+    expect(rowText('cordis_run')).toContain('Run plugindyn-2')
+    expect(rowText('cordis_stop')).toContain('Stop plugindyn-2')
+    expect(rowText('cordis_undefine')).toContain('Remove plugindyn-2')
     // No run-control verb is a code row; the program is cordis_define's, and its
     // own keyed card owns that rendering.
     expect(view.container.querySelector('[data-variant="code"]')).toBeNull()

@@ -25,7 +25,7 @@ import TypertRegistry, { type TypertContribution } from '@deepseek-ai/dsh-typert
 import type { AuthInteraction, AuthType, Credential } from '@earendil-works/pi-ai'
 import type { SettingsPathOp } from '@deepseek-ai/dsh-settings'
 import type { AccountRuntime, AccountsRuntime } from '../src/accounts/runtime.ts'
-import type { AccountView, SignInAttemptView } from '../src/accounts/types.ts'
+import type { ApiKeyAccountAdded, SignInAttemptView } from '../src/accounts/types.ts'
 
 type CredentialStore = { modify: (id: string, mutate: () => Promise<Credential>) => Promise<unknown> }
 type LoginMock = (providerId: string, type: AuthType, interaction: AuthInteraction, store: CredentialStore) => Promise<unknown>
@@ -90,6 +90,8 @@ async function gateway() {
   const runtime: AccountsRuntime = {
     settingsNs: 'llm-pi-ai',
     routes: () => new Map([['anthropic', { displayName: 'Anthropic' }]]),
+    endpoint: () => undefined,
+    resolveKeyRef: () => Promise.resolve(undefined),
     directory: {
       async forRoute(route) {
         const accounts: AccountRuntime[] = []
@@ -109,7 +111,7 @@ async function gateway() {
       },
       invalidate: () => {},
     },
-    health: { view: () => ({ state: 'ok' }), clear: () => {}, onChange: () => () => {} },
+    health: { view: () => ({ state: 'ok' }), clear: () => {}, markNeedsSignIn: () => {}, onChange: () => () => {} },
     sticky: { get: () => undefined },
     models: () => ({ getAuth: () => Promise.resolve(undefined) }) as never,
     onObservation: () => () => {},
@@ -171,7 +173,7 @@ describe.skipIf(!existsSync(artifact))('llmAccounts through the Typert Gateway',
 
   it('passes account ids and options of every other method through the generated codecs', async () => {
     const { call, stream } = await gateway()
-    const account = await call<AccountView>('addApiKeyAccount', { provider: 'anthropic', req: { key: 'sk-ant-api03-gateway-fixture', alias: 'Key' } })
+    const { account } = await call<ApiKeyAccountAdded>('addApiKeyAccount', { provider: 'anthropic', req: { key: 'sk-ant-api03-gateway-fixture', alias: 'Key' } })
     await call('updateAccount', { provider: 'anthropic', account: account.id, patch: { alias: 'Renamed', pinned: true, models: null } })
     await call('setDefaultAccount', { provider: 'anthropic', account: account.id })
     await call('retryAccountNow', { provider: 'anthropic', account: account.id })

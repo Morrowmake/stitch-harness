@@ -2,7 +2,7 @@
 
 [English](approval.md) | 中文
 
-[dsh-user-approval](../../packages/interaction/user-approval) 的用户审批 seam 回答一个问题：这个具体操作是否可以继续？它拥有共享的请求/结果词汇、`ctx.approval` 分发服务、`approval/request` 应答者 waterfall（瀑布式事件）、仅记录日志的审计事件对，以及按会话的 `ask`/`never` 策略。UI 通道可以提供人类应答者；[ACP（Agent Client Protocol）自动化桥接层](../../packages/acp/acp)为其拥有的 agent（智能体）提供一次性机器决策。调用方如 [dsh-tools](../../packages/core/tools) 和 [dsh-tool-bash](../../packages/shell/tool-bash) 消费闭合的结果，除非结果为 `allowed-once`，否则一律拒绝。
+[dsh-user-approval](../../packages/interaction/user-approval) 的用户审批 seam 回答一个问题：这个具体操作是否可以继续？它拥有共享的请求/结果词汇、`ctx.approval` 分发服务、`approval/request` 应答者 waterfall（瀑布式事件）、仅记录日志的审计事件对、对话内授权，以及按会话的 `ask`/`never` 策略。UI 通道可以提供人类应答者；[ACP（Agent Client Protocol）自动化桥接层](../../packages/acp/acp)为其拥有的 agent（智能体）提供一次性机器决策。调用方如 [dsh-tools](../../packages/core/tools) 和 [dsh-tool-bash](../../packages/shell/tool-bash) 消费闭合的结果，除非结果为 `allowed-once`，否则一律拒绝。
 
 源码：[`packages/interaction/user-approval/src/index.ts`](../../packages/interaction/user-approval/src/index.ts)
 
@@ -22,11 +22,28 @@ type ApprovalRequestId = Branded<'ApprovalRequestId'>
 
 ```ts type-equiv
 /**
- * Closed approval outcomes: a one-shot grant, explicit rejection, withdrawn
- * request, or unavailable answerer. Callers fail closed on `unavailable`.
+ * Closed approval outcomes returned to askers: a one-shot grant, explicit
+ * rejection, withdrawn request, or unavailable answerer. Callers fail closed
+ * on `unavailable`. A chat grant reaches the asker as `allowed-once` because
+ * it permits exactly the asked action; later asks it covers never reach an
+ * answerer.
  */
 type ApprovalOutcome = 'allowed-once' | 'rejected' | 'cancelled' | 'unavailable'
 ```
+
+应答者返回 `ApprovalAnswer`。除上述四种结果外，`allowed-for-session` 允许所询问的操作，并为该请求的工具名与 `grant` 操作类别授予对话内授权。服务把它记录在 `approval/decided` 中，向请求方返回 `allowed-once`，并在同一会话中直接放行之后工具名与 `grant` 都相同的请求，不再分发给应答者；这些请求仍会追加各自的审计事件对，结果为 `allowed-for-session`。没有 `grant` 的请求不提供对话内授权，服务会把该回答收窄为 `allowed-once`。`never` 策略和已中止的信号仍优先于授权。
+
+```ts type-equiv
+/**
+ * An answerer's decision: an {@link ApprovalOutcome}, or `allowed-for-session`
+ * to permit this action and every later ask with the same tool name and
+ * {@link ApprovalRequestEvent.grant} in the same Session. The service treats
+ * `allowed-for-session` as `allowed-once` when the request offers no grant.
+ */
+type ApprovalAnswer = ApprovalOutcome | 'allowed-for-session'
+```
+
+对话内授权保存在私有的 `approvalState` 投影中，并从会话日志重建，因此重新打开对话后授权仍然有效。其他会话（包括在继承的 `session/end-seed` 切点之后的分叉会话）开始时没有任何授权；授权不会跨对话传递，也不会写入 profile。
 
 ## 按会话策略
 
@@ -50,7 +67,7 @@ type ApprovalPolicy = 'ask' | 'never'
 
 ## 审批请求
 
-`ApprovalRequest` 以足够精确的方式标识 agent 和工具操作，以便路由和审计该问题。它有意省略工具参数：应答者通过 `callId` 将提示附加到已流式输出的工具调用上，而非渲染另一份可能漂移的副本。可选的 `displayReason` 向界面传递请求方提供的本地化字符串；`reason` 仍是审计文本。
+`ApprovalRequest` 以足够精确的方式标识 agent 和工具操作，以便路由和审计该问题。它有意省略工具参数：应答者通过 `callId` 将提示附加到已流式输出的工具调用上，而非渲染另一份可能漂移的副本。可选的 `displayReason` 向界面传递请求方提供的本地化字符串；`reason` 仍是审计文本。可选的 `grant` 继承自 `ApprovalRequestEvent`，指明请求方允许用户在本对话剩余时间内放行的操作类别；每次都必须确认的决定不提供该字段。
 
 ```ts type-equiv
 /**
@@ -119,13 +136,17 @@ setPolicy(agent: Agent, policy: ApprovalPolicy): void
  * appending anything. The answerer phase always produces an outcome: an
  * aborted signal yields `'cancelled'`, a missing or throwing answerer yields
  * `'unavailable'` (fail closed), and a rogue non-vocabulary return value is
- * normalized to `'unavailable'`. A failure that prevents either audit append
+ * normalized to `'unavailable'`. A request with a `grant` that an earlier
+ * `allowed-for-session` answer in this Session covers is allowed without
+ * dispatching; the `never` policy and an aborted signal still take
+ * precedence. A failure that prevents either audit append
  * from committing still rejects because returning an unlogged decision would
  * violate the pair. Session contains post-commit observer failures, so an
  * authoritative append cannot reject the request or suppress its matching
  * audit event.
- * @param req - the pending decision (agent, tool identity, reason, signal).
- * @returns the closed outcome; `'allowed-once'` is the only grant.
+ * @param req - the pending decision (agent, tool identity, reason, grant, signal).
+ * @returns the closed outcome; `'allowed-once'` is the only grant, including
+ *   an action a chat grant allows.
  * @throws when no turn is open or either audit event fails before the session
  *   append commit point.
  */
@@ -161,7 +182,7 @@ Ask composed answerers for one decision. Return an outcome to claim the request 
  * @param req - pending approval request.
  * @mode waterfall
  */
-'approval/request'( this: Scoped<Agent>, req: ApprovalRequestEvent, next: () => Promise<ApprovalOutcome>, ): Promise<ApprovalOutcome>
+'approval/request'( this: Scoped<Agent>, req: ApprovalRequestEvent, next: () => Promise<ApprovalAnswer>, ): Promise<ApprovalAnswer>
 ```
 
 Types: [Agent](core.zh.md) · [Scoped](scope.zh.md)

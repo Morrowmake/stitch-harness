@@ -35,6 +35,14 @@ export interface ILayout {
    */
   selectPanel(panelId: MainPanelId | null): void
   /**
+   * Observe a panel being selected again while it is already shown, as a second click on its sidebar entry does, so the
+   * panel can return to its start (a list from one of its detail pages). Listeners run synchronously inside
+   * {@link ILayout.selectPanel}, before its caller's next step.
+   * @param listener - called with the reselected panel's id.
+   * @returns stops the observation.
+   */
+  onReselect(listener: (panelId: MainPanelId) => void): () => void
+  /**
    * Start an asynchronous navigation, superseding any earlier pending navigation.
    * @returns a signal aborted by the next navigation or layout disposal; check it before committing UI state.
    */
@@ -56,6 +64,7 @@ export interface ILayout {
 /** Cross-plugin panel-action face (ctx.layout). */
 export class LayoutController implements ILayout {
   private navigation = new AbortController()
+  private readonly reselectListeners = new Set<(panelId: MainPanelId) => void>()
 
   /**
    * @param panels - actions of the instance shared with the root entry.
@@ -68,13 +77,21 @@ export class LayoutController implements ILayout {
     readonly panelInfo: HostObservable<PanelInfo>,
   ) {}
 
-  /** Select a global panel or return to the Conversation. */
+  /** Select a global panel or return to the Conversation; selecting the shown panel again tells its reselect listeners. */
   selectPanel(panelId: MainPanelId | null): void {
     if (panelId !== null && !this.hasMainPanel(panelId)) {
       throw new Error(`layout.selectPanel: main panel "${panelId}" is not registered`)
     }
+    const again = panelId !== null && this.panelInfo.getSnapshot().activePanelId === panelId
     this.navigation.abort()
     this.panels.selectPanel(panelId)
+    if (again) for (const listener of [...this.reselectListeners]) listener(panelId)
+  }
+
+  /** @returns stops the observation. */
+  onReselect(listener: (panelId: MainPanelId) => void): () => void {
+    this.reselectListeners.add(listener)
+    return () => { this.reselectListeners.delete(listener) }
   }
 
   /** @returns the new pending navigation's cancellation signal. */

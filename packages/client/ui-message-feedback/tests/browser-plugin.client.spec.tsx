@@ -8,8 +8,8 @@
  * that Session, a reconnect refreshes only Sessions that were already read,
  * and registration plus surface disposal ride the plugin fiber (HMR safety).
  * A typed `/feedback <text>` the Host recorded opens the GitHub issue
- * preview, which files through `sessionFeedback.reportIssue` and opens only
- * GitHub pages. The node half stays inert.
+ * preview, which sends through `sessionFeedback.reportIssue` with the method
+ * the human chose and opens only GitHub pages. The node half stays inert.
  */
 import { Context, Service } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -69,7 +69,7 @@ async function bench(options: { recordResult?: unknown; recordCarrier?: unknown;
     },
     draftIssue: (request: unknown) => {
       calls.push({ method: 'draftIssue', request })
-      return carried({ title: 'preview title', body: 'preview body' })
+      return carried({ title: 'preview title', body: 'preview body', repository: 'Morrowmake/stitch-harness' })
     },
     reportIssue: (request: unknown) => {
       calls.push({ method: 'reportIssue', request })
@@ -187,7 +187,7 @@ describe('ui-message-feedback browser plugin', () => {
     expect(b.ctx.get('feedbackUi')).toBeUndefined()
   })
 
-  it('offers a typed /feedback remark the Host recorded as a GitHub issue preview, filed only on confirm', async () => {
+  it('offers a typed /feedback remark the Host recorded as a GitHub issue preview, sent only the chosen way', async () => {
     const opened = vi.spyOn(window, 'open').mockReturnValue(null)
     try {
       const b = await bench()
@@ -200,16 +200,18 @@ describe('ui-message-feedback browser plugin', () => {
 
       b.ctx.emit('command/executed', sid('s1'), 'feedback', { kind: 'success', text: 'ok' }, '/feedback  the diff is slow ')
       await vi.waitFor(() => {
-        expect(dialog.hooks.dialog.getSnapshot().report).toMatchObject({ title: 'preview title', recorded: true })
+        expect(dialog.hooks.dialog.getSnapshot().report).toMatchObject({
+          title: 'preview title', repository: 'Morrowmake/stitch-harness', recorded: true,
+        })
       })
       expect(b.calls).toEqual([{ method: 'draftIssue', request: { text: 'the diff is slow' } }])
       expect(opened).not.toHaveBeenCalled()
 
       dialog.editReport({ body: 'edited body' })
-      await dialog.confirmReport()
+      await dialog.confirmReport('github-cli')
 
       expect(b.calls.map(call => call.method)).toEqual(['draftIssue', 'reportIssue'])
-      expect(b.calls[1]?.request).toEqual({ title: 'preview title', body: 'edited body' })
+      expect(b.calls[1]?.request).toEqual({ title: 'preview title', body: 'edited body', via: 'github-cli' })
       expect(opened).toHaveBeenCalledWith('https://github.com/Morrowmake/stitch-harness/issues/9', '_blank', 'noopener,noreferrer')
       expect(dialog.hooks.dialog.getSnapshot()).toMatchObject({ target: null, notice: 'issue-created' })
     } finally {
@@ -225,9 +227,10 @@ describe('ui-message-feedback browser plugin', () => {
       const dialog = b.dialogEntry()!.inject!(sid('s1'))
       b.ctx.feedbackUi.openSession(sid('s1'))
       await dialog.previewReport()
-      await dialog.confirmReport()
+      await dialog.confirmReport('browser')
 
       expect(b.calls.map(call => call.method)).toEqual(['draftIssue', 'record', 'reportIssue'])
+      expect(b.calls[2]?.request).toEqual({ title: 'preview title', body: 'preview body', via: 'browser' })
       expect(opened).not.toHaveBeenCalled()
     } finally {
       opened.mockRestore()

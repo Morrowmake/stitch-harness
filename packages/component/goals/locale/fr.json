@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Objectifs",
-    "description": "/goal, les outils d’objectifs et la barre d’objectif."
+    "description": "Fixez un objectif avec /goal ; l'agent y travaille, affiché dans une barre."
   }
 }

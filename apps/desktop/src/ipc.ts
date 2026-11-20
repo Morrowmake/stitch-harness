@@ -1,8 +1,8 @@
 import type { DesktopFileActions } from '@deepseek-ai/dsh-client-ui-file-actions/types'
 /** Typed preload operations exposed only by the Electron shell. */
 
-export type { DesktopUpdateCheckResult } from '@deepseek-ai/dsh-client-ui-settings-general/types'
-import type { DesktopUpdateBridge } from '@deepseek-ai/dsh-client-ui-settings-general/types'
+export type { DesktopCommandStatus, DesktopUpdateCheckResult } from '@deepseek-ai/dsh-client-ui-settings-general/types'
+import type { DesktopCommandBridge, DesktopUpdateBridge } from '@deepseek-ai/dsh-client-ui-settings-general/types'
 import type { DesktopKeyboardApi, DesktopShortcutsApi } from '@deepseek-ai/dsh-client-shortcuts/protocol'
 import type { IpcMainInvokeEvent } from 'electron'
 import type { DesktopBrowserBridge } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
@@ -35,6 +35,8 @@ export const DESKTOP_IPC = {
   updatesPreferenceSet: 'dsh-desktop:updates-preference-set',
   updatesPreferenceChanged: 'dsh-desktop:updates-preference-changed',
   updatesCheck: 'dsh-desktop:updates-check',
+  commandStatus: 'dsh-desktop:command-status',
+  commandRun: 'dsh-desktop:command-run',
   nativeThemeSet: 'dsh-desktop:native-theme-set',
   windowFullscreen: 'dsh-desktop:window-fullscreen',
   windowsAppearance: 'dsh-desktop:windows-appearance',
@@ -55,6 +57,7 @@ export interface DshDesktopProductApi {
    */
   deviceInfo(): Promise<string>
   readonly updates: DesktopUpdateBridge
+  readonly command: DesktopCommandBridge
 }
 
 /** Scheme of Desktop-owned application documents. */

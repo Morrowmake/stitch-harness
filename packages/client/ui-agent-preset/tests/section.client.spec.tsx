@@ -97,6 +97,25 @@ it('omits an empty group instead of leaving a heading behind', () => {
   expect(screen.getByRole('heading', { name: en.builtInGroup })).toBeTruthy()
   expect(screen.queryByRole('heading', { name: en.customGroup })).toBeNull()
 })
+it('keeps built-in preset ids such as cordis off the cards, even with developer tools on', () => {
+  const actions = view({ rows: [
+    { id: 'standard', isDefault: true }, { id: 'cordis', isDefault: false }, { id: 'mine', name: 'Mine', isDefault: false },
+  ] }, vi.fn(), undefined, false)
+  const visibleText = (card: HTMLElement): string => [card.textContent ?? '',
+    ...[...card.querySelectorAll('[title]')].map(node => node.getAttribute('title') ?? '')].join(' ')
+  expect(visibleText(rowFor('cordis'))).not.toMatch(/cordis/i)
+  expect(within(rowFor('cordis')).getByText(en.presetCordisName)).toBeTruthy()
+  expect(visibleText(rowFor('standard'))).not.toContain('standard')
+  // A custom preset's id is the user's own file name, so it stays visible.
+  expect(within(rowFor('mine')).getByText('mine')).toBeTruthy()
+  act(() => { actions.developerTools.set(true) })
+  expect(visibleText(rowFor('cordis'))).not.toMatch(/cordis/i)
+})
+it('keeps the full preset name available as a tooltip', () => {
+  view({ rows: [{ id: 'standard', isDefault: true }] })
+  const name = within(rowFor('standard')).getByText(en.presetStandardName)
+  expect(name.getAttribute('title')).toBe(en.presetStandardName)
+})
 it('keeps the custom group and its Creator entry while the roster has none', () => {
   view({ rows: [{ id: 'cordis', isDefault: true }] }, vi.fn())
   const group = screen.getByRole('heading', { name: en.customGroup }).closest('section')

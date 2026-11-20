@@ -1031,7 +1031,10 @@ registerConfigurableProviders(entries: readonly LlmConfigurableProvider[]): Dire
  * directory, and because a provider being *added* has no route to name yet.
  * Disposed with the fiber.
  * @param settingsNs - the namespace whose profiles this discovery serves.
- * @param discover - interrogates one endpoint and must honor the supplied signal.
+ * @param discover - interrogates one endpoint and must honor the supplied signal. Its
+ *   `LlmError` tells the surface why it failed: `TRANSPORT`/`TIMEOUT` for an
+ *   unreachable endpoint, the HTTP `status` of a refusal, `INVALID_RESPONSE`
+ *   for a reply that is not a model listing.
  * @returns the disposer that withdraws the offer.
  */
 registerModelDiscovery( settingsNs: string, discover: ( request: LlmModelDiscoveryRequest, signal?: AbortSignal, ) => Promise<readonly LlmDiscoveredModel[]>, ): () => void

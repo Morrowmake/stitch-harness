@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "MCP 连接器",
-    "description": "MCP 服务器及其工具与资源、连接器账户和 MCP 设置。"
+    "title": "连接器",
+    "description": "连接外部应用和服务（MCP 服务器），并管理账号和设置。"
   }
 }

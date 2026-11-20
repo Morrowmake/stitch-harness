@@ -1,0 +1,11 @@
+# Plugin market tool component: marks `plugin-market-tool` enabled for the
+# `component: plugin-market-tool` gate of the Creator preset's `tool-plugin-market`
+# row, so the agent gets the read-only `plugin_market` tool. The Discover tab and
+# the `pluginMarket` service do not depend on it. Deselecting the bundle removes
+# the tool again.
+
+- insert:
+    - id: component-plugin-market-tool
+      name: '@deepseek-ai/dsh-agent-preset-registry/component'
+      config:
+        id: plugin-market-tool

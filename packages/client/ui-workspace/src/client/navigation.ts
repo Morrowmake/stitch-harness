@@ -22,7 +22,7 @@ import type {
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type { DraftInitializationOptions } from '@deepseek-ai/dsh-client-ui-conversation/client'
-import type { RowToast } from './contract/slots.ts'
+import type { DraftReplaceRequest, RowToast } from './contract/slots.ts'
 import { pinOrderAccounts, pinOrderSource } from './pin-order.ts'
 import { RecentSessionViews } from './recent-views.ts'
 import type { WorkspaceViewStoreActions } from './stores.ts'
@@ -34,8 +34,17 @@ interface MainSelection {
 
 /** Content preparation and Agent preset for the Session a Workspace flow opens. */
 export interface StartSessionOptions extends DraftInitializationOptions {
-  /** Agent preset the Session runs; the Host default when omitted. */
+  /**
+   * Agent preset the Session runs. Omitted, a request with a prompt keeps the preset of the blank
+   * it reuses, and any other request takes the Host default.
+   */
   readonly agentPreset?: string
+}
+
+/** Preset choice for the blank a connection names. */
+type BlankReuse = Pick<StartSessionOptions, 'agentPreset'> & {
+  /** Without `agentPreset`, a reused blank keeps the preset its log recorded instead of the Host default. */
+  readonly keepListedPreset?: boolean
 }
 
 /** Workspace archive and directory operations consumed by Client UI domains. */
@@ -86,7 +95,8 @@ export interface UiWorkspace {
    * selection as it was.
    * @param workspaceId - explicit target; absent inherits the current or most recent Workspace.
    * @param options - initial content, the blank's preset, and `whenDraftExists`, which decides
-   * whether existing text or attachments are kept, replaced, or followed by the prompt.
+   * whether existing text or attachments are kept, replaced, or followed by the prompt; `ask`
+   * replaces an earlier unedited request and asks "Replace the current draft?" over the user's own text.
    */
   startSession(workspaceId?: WorkspaceId, options?: StartSessionOptions): void
   /**
@@ -164,9 +174,13 @@ export class DirectoryBrowseError extends Error {
 
 /** Implements Workspace archive and directory UI operations. */
 class UiWorkspaceService extends Service implements UiWorkspace {
-  /** The latest in-flight connection per Workspace; a request joins it only when both name the same preset. */
+  /**
+   * The latest in-flight connection per Workspace; a request joins it only when both make the same
+   * preset choice.
+   */
   private readonly connecting = new Map<WorkspaceId, {
     readonly agentPreset: string | undefined
+    readonly keepListedPreset: boolean
     readonly attempt: Promise<SessionId>
   }>()
   private readonly lifetime = new AbortController()
@@ -174,6 +188,11 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     {}, { persist: { name: 'dsh.sessions.current' } },
   )
   private mainReference: SessionReference | undefined
+  /**
+   * The "Replace the current draft?" question a prepared request raised over the user's own text,
+   * until the dialog answers it.
+   */
+  readonly draftReplaceRequest = createSnapshotStore<DraftReplaceRequest | null>(null)
   private readonly recentViews: RecentSessionViews
   private restorationNavigation: AbortSignal | undefined
 
@@ -217,29 +236,35 @@ class UiWorkspaceService extends Service implements UiWorkspace {
   }
 
   /**
-   * @param reuse - preset for the reused or created blank.
+   * @param reuse - preset choice for the reused or created blank.
    */
-  private async connectBlank(
-    workspaceId: WorkspaceId,
-    reuse: Pick<StartSessionOptions, 'agentPreset'>,
-  ): Promise<SessionId> {
+  private async connectBlank(workspaceId: WorkspaceId, reuse: BlankReuse): Promise<SessionId> {
     const workspace = this.workspaces.list.getSnapshot().items
       .find(item => item.workspaceId === workspaceId)
     if (workspace === undefined) {
       throw new Error(`uiWorkspace.connectWorkspace: unknown workspace ${workspaceId}`)
     }
+    const keepListedPreset = reuse.agentPreset === undefined && reuse.keepListedPreset === true
     const inflight = this.connecting.get(workspaceId)
-    if (inflight !== undefined && inflight.agentPreset === reuse.agentPreset) return inflight.attempt
+    if (inflight !== undefined && inflight.agentPreset === reuse.agentPreset
+      && inflight.keepListedPreset === keepListedPreset) return inflight.attempt
 
-    const attempt = this.createInWorkspace(workspace, reuse).finally(() => {
+    const attempt = this.createInWorkspace(workspace, reuse.agentPreset, keepListedPreset).finally(() => {
       if (this.connecting.get(workspaceId)?.attempt === attempt) this.connecting.delete(workspaceId)
     })
-    this.connecting.set(workspaceId, { agentPreset: reuse.agentPreset, attempt })
+    this.connecting.set(workspaceId, { agentPreset: reuse.agentPreset, keepListedPreset, attempt })
     return attempt
   }
 
-  /** Name the first reusable member blank; a requested preset also skips blanks listing another preset. */
-  private createInWorkspace(workspace: WorkspaceView, options: Pick<StartSessionOptions, 'agentPreset'>): Promise<SessionId> {
+  /**
+   * Name the first reusable member blank; a requested preset also skips blanks listing another preset,
+   * and `keepListedPreset` reopens the blank under the preset it recorded.
+   */
+  private createInWorkspace(
+    workspace: WorkspaceView,
+    agentPreset: string | undefined,
+    keepListedPreset: boolean,
+  ): Promise<SessionId> {
     const archived = this.workspaces.list.getSnapshot().archivedSessionIds
     const sessions = this.sessions.list.getSnapshot()
     const blank = sessions.ids.find((id) => {
@@ -247,12 +272,13 @@ class UiWorkspaceService extends Service implements UiWorkspace {
       const listed = summary?.projectionValues?.agentPreset
       return summary !== undefined && summary.blank && summary.cwd === workspace.path
         && workspace.sessionIds.includes(id) && !archived.includes(id)
-        && (options.agentPreset === undefined || typeof listed !== 'string' || listed === options.agentPreset)
+        && (agentPreset === undefined || typeof listed !== 'string' || listed === agentPreset)
     })
+    if (blank !== undefined && keepListedPreset) return this.restoreBlank(workspace.workspaceId, blank)
     return this.createNamed({
       workspaceId: workspace.workspaceId,
       ...(blank === undefined ? {} : { sessionId: blank }),
-      ...(options.agentPreset === undefined ? {} : { agentPreset: options.agentPreset }),
+      ...(agentPreset === undefined ? {} : { agentPreset }),
     })
   }
 
@@ -301,10 +327,11 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     this.replaceMain(target, this.lifetime.signal, 'reveal')
   }
 
+  /** @param options - the blank's preset; `keepListedPreset` serves `startSession` requests that carry a prompt. */
   openWorkspace(
     workspaceId: WorkspaceId,
     beforeOpen?: (sessionId: SessionId) => void,
-    options: Pick<StartSessionOptions, 'agentPreset'> = {},
+    options: BlankReuse = {},
   ): Promise<void> {
     return this.openWorkspaceSession(workspaceId, beforeOpen, options)
   }
@@ -312,7 +339,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
   private async openWorkspaceSession(
     workspaceId: WorkspaceId,
     beforeOpen: ((sessionId: SessionId) => void) | undefined,
-    reuse: Pick<StartSessionOptions, 'agentPreset'>,
+    reuse: BlankReuse,
   ): Promise<void> {
     const navigation = AbortSignal.any([this.ctx.layout.beginNavigation(), this.lifetime.signal])
     let sessionId: SessionId
@@ -362,11 +389,16 @@ class UiWorkspaceService extends Service implements UiWorkspace {
       this.clearMain()
       return
     }
+    // A prompt without a preset keeps the reused blank's preset, so the mode on screen does not
+    // switch under the new text.
+    const reuse: BlankReuse = agentPreset === undefined
+      ? { keepListedPreset: draftOptions?.prompt !== undefined }
+      : { agentPreset }
     const opening = this.openWorkspace(target, initializeDraft ? (id) => {
       const binding = this.sessions.binding(id)
       if (binding === undefined) this.draftPreparationFailed()
       this.prepareDraft(binding, draftOptions)
-    } : undefined, agentPreset === undefined ? {} : { agentPreset })
+    } : undefined, reuse)
     void opening.catch(
       (reason: unknown) => { console.warn('new session failed:', reason) },
     )
@@ -375,7 +407,28 @@ class UiWorkspaceService extends Service implements UiWorkspace {
   private prepareDraft(binding: SessionBinding, options: DraftInitializationOptions): void {
     const conversation = this.ctx.get('conversation')
     if (conversation === undefined) this.draftPreparationFailed()
-    if (conversation.input.requestDraftInitialization(binding, options) === 'blocked') this.draftPreparationFailed()
+    const result = conversation.input.requestDraftInitialization(binding, options)
+    if (result === 'blocked') this.draftPreparationFailed()
+    if (result === 'occupied' && options.prompt !== undefined) {
+      this.draftReplaceRequest.set({ sessionId: binding.sessionId, prompt: options.prompt })
+    }
+  }
+
+  /**
+   * Answer the "Replace the current draft?" question: replacing swaps the Session's text for the
+   * request and keeps its attachments; keeping drops the request. Either way the question closes.
+   * @param replace - whether the user chose the request over their own text.
+   * @throws when the replacement cannot be applied, after the Workspace notice reports it.
+   */
+  async settleDraftReplace(replace: boolean): Promise<void> {
+    const request = this.draftReplaceRequest.getSnapshot()
+    this.draftReplaceRequest.set(null)
+    if (!replace || request === null) return
+    const conversation = this.ctx.get('conversation')
+    if (conversation === undefined) this.draftPreparationFailed()
+    const result = await this.sessions.using(request.sessionId, { source: 'workspaceOperation' }, reference =>
+      conversation.input.requestDraftInitialization(reference.binding, { prompt: request.prompt, whenDraftExists: 'replace' }))
+    if (result === 'blocked') this.draftPreparationFailed()
   }
 
   private draftPreparationFailed(): never {

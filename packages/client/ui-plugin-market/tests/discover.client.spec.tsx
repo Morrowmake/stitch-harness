@@ -7,7 +7,8 @@ import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { LocaleSnapshot } from '@deepseek-ai/dsh-client-locale/client'
 import { DiscoverSection, type DiscoverSectionProps } from '../src/client/DiscoverSection.tsx'
 import type { DetailsState, DiscoverState, ListingState } from '../src/client/market-store.ts'
-import { INITIAL_QUERY, type DiscoverQuery } from '../src/client/presentation.ts'
+import { INITIAL_QUERY, withText, type DiscoverQuery } from '../src/client/presentation.ts'
+import { DEFAULT_PLUGIN_INDEX as STITCH_INDEX } from '@deepseek-ai/dsh-plugin-market/indexes'
 import { en, zh, type PluginMarketLocaleKey } from '../src/client/locales.ts'
 
 afterEach(cleanup)
@@ -86,7 +87,7 @@ function renderTab(state: Partial<DiscoverState> = {}, dictionary: Record<Plugin
   const actions = {
     ensure: vi.fn(), reload: vi.fn(), select: vi.fn(), search: vi.fn(), more: vi.fn(), refresh: vi.fn(), retry: vi.fn(),
     toggleSources: vi.fn(),
-    editDraft: vi.fn(), editSourceOptions: vi.fn(), addSource: vi.fn(), removeSource: vi.fn(),
+    editDraft: vi.fn(), editSourceOptions: vi.fn(), addSource: vi.fn(), addIndex: vi.fn(), removeSource: vi.fn(),
     loadDetail: vi.fn(), retryDetail: vi.fn(), detailImage: vi.fn(() => undefined),
   }
   const install = vi.fn()
@@ -293,8 +294,9 @@ describe('DiscoverSection', () => {
     const button = screen.getByRole('button', { name: `Switch plugin index, currently ${label}` })
     expect(within(button).getByText(label)).toBeTruthy()
     fireEvent.click(button)
-    expect(screen.getByRole('menuitem', { name: label })).toBeTruthy()
-    fireEvent.click(screen.getByRole('menuitem', { name: 'github:acme/internal' }))
+    // Every index besides the Stitch index is marked as a community index in the menu.
+    expect(screen.getByRole('menuitem', { name: `${label} ${en.communityTag}` })).toBeTruthy()
+    fireEvent.click(screen.getByRole('menuitem', { name: `github:acme/internal ${en.communityTag}` }))
     expect(actions.select).toHaveBeenCalledWith(other)
   })
 
@@ -308,8 +310,8 @@ describe('DiscoverSection', () => {
     }
     const { actions, set } = renderTab({ indexes: [{ url }, { url: other }], selected: url, listing })
     openMenu(`Switch plugin index, currently ${label}`)
-    expect(screen.getByRole('menuitem', { name: label })).toBeTruthy()
-    fireEvent.click(screen.getByRole('menuitem', { name: otherLabel }))
+    expect(screen.getByRole('menuitem', { name: `${label} ${en.communityTag}` })).toBeTruthy()
+    fireEvent.click(screen.getByRole('menuitem', { name: `${otherLabel} ${en.communityTag}` }))
     expect(actions.select).toHaveBeenCalledWith(other)
     set({ selected: other, listing: { ...listing, url: other, value: { ...LISTING, url: other } } })
     const button = screen.getByRole('button', { name: `Switch plugin index, currently ${otherLabel}` })
@@ -557,5 +559,123 @@ describe('DiscoverSection', () => {
     expect(card('dsh-a').getByText('甲')).toBeTruthy()
     expect(card('dsh-a').getByText(/^1\.0\.0 · Jane · 2026年9月/)).toBeTruthy()
     expect(card('dsh-b').getByText(zh.statusInstalled)).toBeTruthy()
+  })
+
+  describe('index origin', () => {
+    const LABELS = {
+      'risk-low': { title: 'Low risk' }, 'install-verified': { title: 'Install verified' },
+      'security-audit': { title: 'Audited' }, popular: { title: 'Popular' },
+    }
+    const labelled = (url: string, fields: Partial<MarketSearchResult> = {}): MarketSearchResult => ({
+      ...LISTING, url, metadata: { ...LISTING.metadata, labels: LABELS }, total: 2, entries: [
+        entry('dsh-a', { title: 'Alpha' }, { labels: ['risk-low', 'install-verified', 'security-audit', 'popular'] }),
+        entry('dsh-d', { title: 'Delta' }, {}, { engines: { dsh: '>=0.1.0' } }),
+      ], ...fields,
+    })
+    const show = (url: string, indexes: DiscoverState['indexes'] = [{ url, title: LISTING.title }], fields: Partial<DiscoverState> = {}) =>
+      renderTab({
+        indexes, selected: url,
+        listing: { url, query: INITIAL_QUERY, status: 'ready', value: labelled(url), answered: INITIAL_QUERY, failure: null },
+        ...fields,
+      })
+    const notice = (): string | null | undefined => document.querySelector('[data-community-notice]')?.textContent
+    const compat = (name: string): string | null | undefined =>
+      document.querySelector(`[data-market-entry="${name}"] [data-market-compat]`)?.getAttribute('data-market-compat')
+    const openEntry = (title: string): void => {
+      fireEvent.click(screen.getByRole('button', { name: en.openEntry.replace('{name}', title) }))
+    }
+
+    it('labels a community index, attributes its verdicts to it, and notes undeclared compatibility', () => {
+      show(A)
+      expect(notice()).toContain(en.community)
+      expect(notice()).toContain('Alpha index is a community index')
+      expect(notice()).not.toContain(en.communityHarness)
+      for (const text of ['Rated low risk by Alpha index', 'Install-verified by Alpha index', 'Audited, according to Alpha index', 'Popular']) {
+        expect(card('dsh-a').getByText(text)).toBeTruthy()
+      }
+      expect(card('dsh-a').queryByText('Low risk')).toBeNull()
+      expect(card('dsh-a').getByText(en.compatUndeclared)).toBeTruthy()
+      // A version that declares a range this Stitch satisfies needs no note.
+      expect(compat('dsh-d')).toBeUndefined()
+      openEntry('Alpha')
+      const detail = within(document.querySelector('[data-market-detail="dsh-a"]') as HTMLElement)
+      expect(detail.getByText(en.community)).toBeTruthy()
+      expect(detail.getByText(en.compatUndeclared)).toBeTruthy()
+      expect(detail.getByText('Rated low risk by Alpha index')).toBeTruthy()
+      expect(detail.getByText('Alpha index')).toBeTruthy()
+    })
+
+    it('notes an unmet range on a community card', () => {
+      renderTab()
+      expect(compat('dsh-g')).toBe('range')
+      expect(card('dsh-g').getByText(en.compatRange)).toBeTruthy()
+    })
+
+    it('names a known DeepSeek Harness index itself and marks every listing as made for DeepSeek Harness', () => {
+      const cdn = 'https://cdn.dsh.so/market/index.json'
+      show(cdn, [{ url: cdn, title: { en: 'DSH.SO Install-Verified & Security-Audited Plugin Market' } }])
+      const market = 'DeepSeek Harness plugin market'
+      expect(screen.getByRole('button', { name: `Switch plugin index, currently ${market}` })).toBeTruthy()
+      expect(document.body.textContent).not.toContain('DSH.SO')
+      expect(notice()).toContain(en.communityHarness)
+      expect(card('dsh-a').getByText(`Rated low risk by ${market}`)).toBeTruthy()
+      expect([compat('dsh-a'), compat('dsh-d')]).toEqual(['harness', 'harness'])
+      expect(card('dsh-d').getByText(en.compatHarness)).toBeTruthy()
+      openEntry('Delta')
+      expect(document.querySelector('[data-market-detail="dsh-d"] [data-market-compat]')?.textContent).toBe(en.compatHarness)
+    })
+
+    it('shows the Stitch index without community labels, attribution, or compatibility notes', () => {
+      show(STITCH_INDEX, [{ url: STITCH_INDEX, title: LISTING.title }])
+      expect(screen.getByRole('button', { name: `Switch plugin index, currently ${en.indexNameStitch}` })).toBeTruthy()
+      expect(notice()).toBeUndefined()
+      expect(card('dsh-a').getByText('Low risk')).toBeTruthy()
+      expect(document.querySelector('[data-market-compat]')).toBeNull()
+      openEntry('Alpha')
+      expect(screen.queryByText(en.community)).toBeNull()
+    })
+
+    it('leads from an empty Stitch index to a configured or offered community index', () => {
+      const empty = renderTab({
+        indexes: [{ url: STITCH_INDEX }, { url: B }], selected: STITCH_INDEX,
+        listing: {
+          url: STITCH_INDEX, query: INITIAL_QUERY, status: 'ready', value: labelled(STITCH_INDEX, { total: 0, entries: [] }),
+          answered: INITIAL_QUERY, failure: null,
+        },
+      })
+      expect(screen.getByText(en.emptyStitchTitle)).toBeTruthy()
+      expect(screen.getByText(en.emptyStitchCaution)).toBeTruthy()
+      fireEvent.click(screen.getByRole('button', { name: 'Browse b.example' }))
+      expect(empty.actions.select).toHaveBeenCalledWith(B)
+      fireEvent.click(screen.getByRole('button', { name: 'Add Awesome plugins for DeepSeek Harness' }))
+      expect(empty.actions.addIndex).toHaveBeenCalledWith('https://awesome-dsh-plugin.com/index.json')
+      fireEvent.click(screen.getByRole('button', { name: 'Add DeepSeek Harness plugin market' }))
+      expect(empty.actions.addIndex).toHaveBeenLastCalledWith('https://cdn.dsh.so/market/index.json')
+      // A search without matches is not the empty index.
+      const query = withText(INITIAL_QUERY, 'zzz')
+      empty.answer(query, { url: STITCH_INDEX, total: 0, entries: [] })
+      expect(screen.queryByText(en.emptyStitchTitle)).toBeNull()
+      expect(screen.getByText(en.noMatches)).toBeTruthy()
+    })
+
+    it('offers the community indexes not yet added in the sources dialog, each marked as community', () => {
+      const { actions } = show(STITCH_INDEX, [{ url: STITCH_INDEX }, { url: B }], { editing: true })
+      const dialog = within(screen.getByRole('dialog', { name: en.sourcesTitle }))
+      const rows = within(dialog.getByRole('list', { name: en.sourcesLabel })).getAllByRole('listitem')
+      expect(rows.map(row => within(row).queryByText(en.communityTag) !== null)).toEqual([false, true])
+      expect(within(rows[0]!).getByText(en.indexNameStitch)).toBeTruthy()
+      const offered = within(dialog.getByRole('region', { name: en.suggestedTitle }))
+      expect(offered.getByText(en.suggestedDescription)).toBeTruthy()
+      expect(offered.getAllByText(en.communityTag)).toHaveLength(2)
+      fireEvent.click(offered.getByRole('button', { name: 'Add DeepSeek Harness plugin market' }))
+      expect(actions.addIndex).toHaveBeenCalledWith('https://cdn.dsh.so/market/index.json')
+    })
+
+    it('offers nothing more once both community indexes are added', () => {
+      show(STITCH_INDEX, [{ url: STITCH_INDEX }, { url: 'https://awesome-dsh-plugin.com/index.json' }, { url: 'https://cdn.dsh.so/market/index.json' }], { editing: true })
+      const dialog = within(screen.getByRole('dialog', { name: en.sourcesTitle }))
+      expect(dialog.queryByRole('region', { name: en.suggestedTitle })).toBeNull()
+      expect(dialog.getByText('Awesome plugins for DeepSeek Harness')).toBeTruthy()
+    })
   })
 })

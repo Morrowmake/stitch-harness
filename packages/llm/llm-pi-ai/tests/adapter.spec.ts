@@ -599,10 +599,13 @@ describe('provider profile lifecycle', () => {
     await ctx.plugin(LlmRuntime)
     await ctx.plugin(LlmPiAi, { providers: { openai: {} } })
     const models = await ctx.llm.listModels('openai')
+    // GPT-4.1 is superseded by GPT-5 and GPT-6, so pickers collapse it under "Older models".
     expect(models.find(model => model.id === 'gpt-4.1')).toEqual({
       provider: 'openai', id: 'gpt-4.1', name: 'GPT-4.1',
-      inputModalities: ['text', 'image'],
+      inputModalities: ['text', 'image'], older: true,
     })
+    expect(models[0]).toMatchObject({ id: 'gpt-6.1-sol' })
+    expect(models[0]?.older).toBeUndefined()
     expect(models.every(model => model.provider === 'openai')).toBe(true)
     const info = await ctx.llm.resolveModelInfo('openai', 'gpt-4.1')
     expect(typeof info.context?.contextWindow).toBe('number')

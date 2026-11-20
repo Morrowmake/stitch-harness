@@ -1,6 +1,7 @@
 import { es, fr, de, ru, pt } from '../src/client/locales.ts'
 // @vitest-environment jsdom
 /** Section, setup-card, and hand-written editor behavior over a scripted wire face. */
+import type { ReactNode } from 'react'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import Schema from '@deepseek-ai/schemastery'
@@ -209,7 +210,7 @@ type RenderSlotCall = [name: string, owner: Record<string, unknown>, opts?: { en
 
 /** Child-slot dispatch stub: records every seat occurrence, renders nothing. */
 function stubRenderSlot() {
-  return vi.fn((..._call: RenderSlotCall) => null)
+  return vi.fn((..._call: RenderSlotCall): ReactNode => null)
 }
 
 /** The provider-card seat dispatches a stub recorded, as (route id, configured, keyConfigured, entryKey). */
@@ -443,6 +444,29 @@ describe('ModelsSection', () => {
     renderSlot.mockClear()
     fireEvent.click(screen.getByRole('button', { name: en.add }))
     expect(cardSeatCalls(renderSlot)).toContainEqual(['anthropic', false, false, 'llm-pi-ai'])
+  })
+
+  it('hides the draft\'s key field while the card extension reports accounts of its own', async () => {
+    const { renderSlot } = await mountSection()
+    renderSlot.mockClear()
+    fireEvent.click(screen.getByRole('button', { name: en.add }))
+    expect(screen.getByLabelText(en.keyInput)).toBeTruthy()
+    const owner = renderSlot.mock.calls.find(call => call[0] === 'settings.models.provider-card')![1] as {
+      reportOwnCredentials: (provider: string, held: boolean) => void
+    }
+    act(() => { owner.reportOwnCredentials('anthropic', true) })
+    expect(screen.queryByLabelText(en.keyInput)).toBeNull()
+    act(() => { owner.reportOwnCredentials('anthropic', false) })
+    expect(screen.getByLabelText(en.keyInput)).toBeTruthy()
+  })
+
+  it('leads with the guided setup and keeps the developer form as the secondary action', async () => {
+    const { renderSlot } = await mountSection()
+    renderSlot.mockImplementation(name => name === 'settings.models.footer' ? <button type="button">guided setup</button> : null)
+    fireEvent.click(screen.getByRole('button', { name: openaiCopy(en.editProvider) }))
+    const guided = screen.getByRole('button', { name: 'guided setup' })
+    const advanced = screen.getByRole('button', { name: en.add })
+    expect(guided.compareDocumentPosition(advanced) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it('derives the draft seat\'s key fact from the page\'s conventional reference', async () => {

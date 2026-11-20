@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Background jobs",
-    "description": "Run commands in the background, with the job tools and the jobs panel."
+    "description": "Run long commands in the background and follow them in a jobs panel."
   }
 }

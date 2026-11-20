@@ -63,6 +63,9 @@ export const RETIRED_BUNDLES: ReadonlySet<string> = new Set([
   // ([upgrade guide](../../../../docs/upgrade-guide/v0.2.0-rc.2/schedule-bundle-retired/guide.md)).
   '@deepseek-ai/dsh-experimental-schedule-bundle',
   '@deepseek-ai/dsh-experimental-agent-team-profile',
+  // The Web composition mounts the plugin market (the Discover tab) itself
+  // ([upgrade guide](../../../../docs/upgrade-guide/v0.2.2-rc.5/plugin-market-bundle-retired/guide.md)).
+  '@deepseek-ai/dsh-experimental-plugin-market-bundle',
 ])
 
 /** The bundle list a `stitch plugin` init uses for a name with no shipped template. */
@@ -87,7 +90,6 @@ export const OPTIONAL_BUNDLES: readonly string[] = [
   '@deepseek-ai/dsh-experimental-voice-input-bundle',
   '@deepseek-ai/dsh-experimental-cot-translation-bundle',
   '@deepseek-ai/dsh-experimental-auto-review',
-  '@deepseek-ai/dsh-experimental-plugin-market-bundle',
   '@deepseek-ai/dsh-experimental-tool-worktree',
   '@deepseek-ai/dsh-experimental-forge-bundle',
   '@deepseek-ai/dsh-subagent-claude-code',

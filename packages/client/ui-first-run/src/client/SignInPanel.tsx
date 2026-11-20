@@ -153,7 +153,8 @@ export function SignInPanel({ provider, request, operations, t, onAuthorized, on
             <Button type="button" variant="ghost" size="sm" disabled={answering} onClick={() => { reply({ declined: true }) }}>
               {t('signin.decline')}
             </Button>
-            <Button type="submit" variant="primary" size="sm" disabled={answering || answer === ''}>{t('signin.submit')}</Button>
+            {/* A free-text question may take a blank answer (Copilot: blank means github.com); a code, secret, or choice may not. */}
+            <Button type="submit" variant="primary" size="sm" disabled={answering || (answer === '' && prompt.kind !== 'text')}>{t('signin.submit')}</Button>
           </div>
         </form>
       )}

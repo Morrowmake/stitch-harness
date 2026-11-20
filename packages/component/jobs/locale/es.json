@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Tareas en segundo plano",
-    "description": "Ejecuta comandos en segundo plano, con las herramientas de tareas y su panel."
+    "description": "Ejecuta comandos largos en segundo plano y síguelos en un panel de tareas."
   }
 }

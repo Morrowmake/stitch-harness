@@ -3,13 +3,13 @@
  * model-picker switches, model allowlist, health, and usage bars, plus Sign in / Add API key. Every change is one
  * `llmAccounts` Remote call; the rows re-render from the next pushed snapshot.
  */
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useId, useState, type ReactNode } from 'react'
 import { Button, Input, Modal, Switch, Tag, type TagTone } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsRuntime, Translate } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-settings-models/client'
 import type { AccountKind, AccountView, ProviderAccountsView, SignInRequest } from '@deepseek-ai/dsh-api-remotes/client'
 import { ApiKeyDialog } from './ApiKeyDialog.tsx'
-import { accountName, formatRemaining } from './format.ts'
+import { accountName, formatRemaining, signInTarget } from './format.ts'
 import type { LlmAccountsKey } from './locales.ts'
 import { ModelsDialog } from './ModelsDialog.tsx'
 import type { AccountsOperations, Outcome } from './operations.ts'
@@ -21,7 +21,7 @@ import css from './accounts.module.css'
 type T = Translate<LlmAccountsKey>
 
 /** Props the `settings.models.provider-card` entry receives. */
-export type AccountsSectionProps = Pick<PropsRuntime<'settings.models.provider-card'>, 'provider'>
+export type AccountsSectionProps = Pick<PropsRuntime<'settings.models.provider-card'>, 'provider' | 'reportOwnCredentials'>
   & InjectFace<AccountsSectionInjected> & { t: T }
 
 const KIND_TONE: Record<AccountKind, TagTone> = { oauth: 'success', 'api-key': 'info', 'key-ref': 'neutral', ambient: 'quiet' }
@@ -29,7 +29,7 @@ const KIND_TONE: Record<AccountKind, TagTone> = { oauth: 'success', 'api-key': '
 /** The dialog the section shows, at most one at a time. */
 type Dialog =
   | { kind: 'sign-in'; request: SignInRequest }
-  | { kind: 'api-key' }
+  | { kind: 'api-key'; replaces?: AccountView }
   | { kind: 'models'; account: AccountView }
   | { kind: 'rename'; account: AccountView }
   | { kind: 'remove'; account: AccountView }
@@ -40,7 +40,7 @@ type Dialog =
  * @returns the section, or null when the Host lists no accounts view for this route.
  */
 export function AccountsSection(props: AccountsSectionProps): ReactNode {
-  const { provider, useAccounts, acquire, operations, t } = props
+  const { provider, reportOwnCredentials, useAccounts, acquire, operations, t } = props
   const route = provider.provider
   const view = useAccounts(state => state.snapshot?.providers.find(entry => entry.provider === route))
   const linked = useAccounts(state => state.linked)
@@ -48,6 +48,9 @@ export function AccountsSection(props: AccountsSectionProps): ReactNode {
   const [error, setError] = useState<string>()
   const [busy, setBusy] = useState(false)
   useEffect(() => acquire(), [acquire])
+  // Signed-in accounts and stored keys are credentials of this section's own; the card's key field then steps aside.
+  const ownCredentials = view?.accounts.some(account => account.kind === 'oauth' || account.kind === 'api-key') === true
+  useEffect(() => { reportOwnCredentials(route, ownCredentials) }, [reportOwnCredentials, route, ownCredentials])
 
   if (view === undefined) return linked ? null : <p className={css.muted}>{t('section.unlinked')}</p>
 
@@ -60,8 +63,10 @@ export function AccountsSection(props: AccountsSectionProps): ReactNode {
       .finally(() => { setBusy(false) })
   }
   const close = (): void => { setDialog(undefined) }
-  const addKey = (): void => {
-    setDialog(view.apiKey.interactive ? { kind: 'sign-in', request: { method: 'api-key' } } : { kind: 'api-key' })
+  const addKey = (replaces?: AccountView): void => {
+    setDialog(view.apiKey.interactive
+      ? { kind: 'sign-in', request: { method: 'api-key' } }
+      : replaces === undefined ? { kind: 'api-key' } : { kind: 'api-key', replaces })
   }
 
   return (
@@ -71,10 +76,10 @@ export function AccountsSection(props: AccountsSectionProps): ReactNode {
         <div className={css.actions}>
           {view.oauth === undefined ? null : (
             <Button variant="outline" size="sm" onClick={() => { setDialog({ kind: 'sign-in', request: { method: 'oauth' } }) }}>
-              {t('add.signIn', { label: view.oauth.label })}
+              {t('add.signIn', { label: signInTarget(view.oauth.label) })}
             </Button>
           )}
-          <Button variant="outline" size="sm" onClick={addKey}>{t('add.apiKey')}</Button>
+          <Button variant="outline" size="sm" onClick={() => { addKey() }}>{t('add.apiKey')}</Button>
         </div>
       </div>
       <p className={css.hint}>{t('section.hint')}</p>
@@ -82,7 +87,7 @@ export function AccountsSection(props: AccountsSectionProps): ReactNode {
         <ul className={css.rows}>
           {view.accounts.map(account => (
             <AccountRow key={account.id} view={view} account={account} busy={busy} t={t} operations={operations}
-              run={run} open={setDialog} />
+              run={run} open={setDialog} replaceKey={addKey} />
           ))}
         </ul>
       )}
@@ -100,7 +105,10 @@ export function AccountsSection(props: AccountsSectionProps): ReactNode {
           />
         )
         : dialog?.kind === 'api-key'
-          ? <ApiKeyDialog provider={route} displayName={view.displayName} operations={operations} t={t} onClose={close} />
+          ? (
+            <ApiKeyDialog provider={route} displayName={view.displayName} operations={operations} t={t} onClose={close}
+              {...dialog.replaces === undefined ? {} : { replaces: dialog.replaces }} />
+          )
           : dialog?.kind === 'models'
             ? <ModelsDialog account={dialog.account} operations={operations} t={t} onClose={close} />
             : dialog?.kind === 'rename'
@@ -133,6 +141,7 @@ interface AccountRowProps {
   readonly operations: AccountsOperations
   readonly run: (call: () => Promise<Outcome<unknown>>) => void
   readonly open: (dialog: Dialog) => void
+  readonly replaceKey: (replaces: AccountView) => void
 }
 
 function modelsSummary(account: AccountView, t: T): string {
@@ -141,17 +150,60 @@ function modelsSummary(account: AccountView, t: T): string {
   return t('account.modelsCount', { count: account.models.length })
 }
 
-function AccountRow({ view, account, busy, t, operations, run, open }: AccountRowProps): ReactNode {
+/** What the last "Retry now" showed: still checking, or the Host's answer as text and tone. */
+type RetryState = { readonly kind: 'checking' } | { readonly kind: 'done'; readonly text: string; readonly tone: 'ok' | 'warn' | 'error' }
+
+/** One labelled switch with its one-line help. */
+function LabelledSwitch({ label, help, checked, disabled, onChange }: {
+  readonly label: string
+  readonly help: string
+  readonly checked: boolean
+  readonly disabled: boolean
+  readonly onChange: (next: boolean) => void
+}): ReactNode {
+  const helpId = useId()
+  return (
+    <div className={css.toggle}>
+      <Switch label={label} describedBy={helpId} checked={checked} disabled={disabled} onChange={onChange} />
+      <span className={css.toggleCopy}>
+        <span className={css.toggleLabel} aria-hidden>{label}</span>
+        <span id={helpId} className={css.toggleHelp}>{help}</span>
+      </span>
+    </div>
+  )
+}
+
+function AccountRow({ view, account, busy, t, operations, run, open, replaceKey }: AccountRowProps): ReactNode {
   const [refreshing, setRefreshing] = useState(false)
+  const [retry, setRetry] = useState<RetryState>()
   const { provider, id, health } = account
   const name = accountName(account)
-  const virtual = account.kind === 'key-ref' || account.kind === 'ambient'
+  // Key accounts are never asked to sign in: a refused key reads as rejected.
+  const keyAccount = account.kind === 'api-key' || account.kind === 'key-ref'
   const refresh = account.kind === 'oauth'
     ? () => {
       setRefreshing(true)
       void operations.refreshUsage(provider, id).finally(() => { setRefreshing(false) })
     }
     : undefined
+  const retryNow = (): void => {
+    setRetry({ kind: 'checking' })
+    void operations.retryAccountNow(provider, id)
+      .then((outcome): RetryState => {
+        if (!outcome.ok) return { kind: 'done', text: refusalText(outcome, t), tone: 'error' }
+        switch (outcome.value.status) {
+          case 'verified': return { kind: 'done', text: t('retry.verified'), tone: 'ok' }
+          case 'rejected': return { kind: 'done', text: t('retry.rejected'), tone: 'error' }
+          case 'unverified': return { kind: 'done', text: t('retry.unverified'), tone: 'warn' }
+          case 'cleared': return { kind: 'done', text: t('retry.cleared'), tone: 'ok' }
+        }
+      })
+      .catch((cause: unknown): RetryState => ({
+        kind: 'done', text: t('action.failed', { message: cause instanceof Error ? cause.message : String(cause) }), tone: 'error',
+      }))
+      .then(setRetry)
+  }
+  const checking = retry?.kind === 'checking'
   const identity = [account.identity?.email, account.identity?.plan].filter(part => part !== undefined).join(' · ')
   return (
     <li className={css.row} data-llm-account={id}>
@@ -167,16 +219,20 @@ function AccountRow({ view, account, busy, t, operations, run, open }: AccountRo
           ? <Tag tone="danger">{t('health.refreshFailed')}</Tag>
           : health.state === 'cooling'
             ? <Tag tone="warning">{t('health.cooling', { time: formatRemaining(health.until - Date.now(), t) })}</Tag>
-            : health.state === 'needs-sign-in' ? <Tag tone="danger">{t('health.needsSignIn')}</Tag> : null}
+            : health.state === 'needs-sign-in'
+              ? <Tag tone="danger">{t(keyAccount ? 'health.keyRejected' : 'health.needsSignIn')}</Tag>
+              : null}
       </div>
       {identity === '' || identity === name ? null : <span className={css.muted}>{identity}</span>}
       {account.kind === 'key-ref' ? <span className={css.muted}>{t('account.envHint')}</span> : null}
       {account.kind === 'ambient' ? <span className={css.muted}>{t('account.ambientHint')}</span> : null}
-      <div className={css.controls}>
-        <Switch label={t('account.pooled')} checked={account.pooled} disabled={busy}
+      <div className={css.toggles}>
+        <LabelledSwitch label={t('account.pooled')} help={t('account.pooledHelp')} checked={account.pooled} disabled={busy}
           onChange={(pooled) => { run(() => operations.updateAccount(provider, id, { pooled })) }} />
-        <Switch label={t('account.pinned')} checked={account.pinned} disabled={busy}
+        <LabelledSwitch label={t('account.pinned')} help={t('account.pinnedHelp')} checked={account.pinned} disabled={busy}
           onChange={(pinned) => { run(() => operations.updateAccount(provider, id, { pinned })) }} />
+      </div>
+      <div className={css.controls}>
         <Button variant="outline" size="sm" disabled={busy} title={modelsSummary(account, t)}
           onClick={() => { open({ kind: 'models', account }) }}>
           {`${t('account.models')} ${modelsSummary(account, t)}`}
@@ -193,15 +249,22 @@ function AccountRow({ view, account, busy, t, operations, run, open }: AccountRo
             </Button>
           )
           : null}
-        {health.state === 'ok' || virtual ? null : (
-          <Button variant="ghost" size="sm" disabled={busy} onClick={() => { run(() => operations.retryAccountNow(provider, id)) }}>
-            {t('account.retry')}
-          </Button>
+        {account.kind === 'api-key' && health.state === 'needs-sign-in'
+          ? <Button variant="ghost" size="sm" disabled={busy} onClick={() => { replaceKey(account) }}>{t('account.replaceKey')}</Button>
+          : null}
+        {health.state === 'ok' || account.kind === 'ambient' ? null : (
+          <Button variant="ghost" size="sm" disabled={busy || checking} onClick={retryNow}>{t('account.retry')}</Button>
         )}
         {account.removable
           ? <Button variant="ghost" size="sm" disabled={busy} onClick={() => { open({ kind: 'remove', account }) }}>{t('account.remove')}</Button>
           : null}
       </div>
+      {retry === undefined ? null : (
+        <p className={retry.kind === 'checking' ? css.muted : css[retry.tone === 'ok' ? 'muted' : retry.tone]}
+          role="status" aria-live="polite">
+          {retry.kind === 'checking' ? <><span className={css.spinner} aria-hidden />{t('retry.checking')}</> : retry.text}
+        </p>
+      )}
     </li>
   )
 }

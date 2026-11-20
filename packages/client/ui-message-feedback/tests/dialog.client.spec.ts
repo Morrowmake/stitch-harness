@@ -4,7 +4,8 @@
  * settlement from a superseded open closes nothing, and the toast sequence
  * retires only the toast the view finished showing. The GitHub issue preview
  * is editable, names the Session only on opt-in, records the remark before
- * filing it, and sends nothing until the human confirms.
+ * filing it, sends nothing until the human picks a method, and passes that
+ * method through: the browser page by default, the GitHub account only when chosen.
  */
 import { describe, expect, it, vi } from 'vitest'
 import type { MessageId } from '@deepseek-ai/dsh-api-remotes/client'
@@ -16,7 +17,11 @@ import {
 const MSG = 'm-1' as MessageId
 const MESSAGE_TARGET = { kind: 'message', messageId: MSG, rating: 'positive' } as const
 const SESSION = 'session-1'
-const DRAFT = { title: 'slow', body: 'slow\n\n---\n- Category: none\n- Stitch version: 1.0.0\n- OS: Linux' }
+const DRAFT = {
+  title: 'slow',
+  body: 'slow\n\nDetails:\n\n- Category: none\n- Stitch version: 1.0.0\n- OS: Linux',
+  repository: 'Morrowmake/stitch-harness',
+}
 const ISSUE_URL = 'https://github.com/Morrowmake/stitch-harness/issues/7'
 
 function bench(
@@ -223,7 +228,7 @@ describe('FeedbackDialogController GitHub issue preview', () => {
     expect(issues.draft).toHaveBeenCalledWith({ text: 'slow', category: 'service-stability' })
     expect(controller.state.getSnapshot()).toMatchObject({
       submitting: false,
-      report: { ...DRAFT, includeSessionId: false, recorded: false },
+      report: { ...DRAFT, includeSessionId: false, recorded: false, via: null },
     })
     expect(submit).not.toHaveBeenCalled()
     expect(issues.report).not.toHaveBeenCalled()
@@ -246,31 +251,46 @@ describe('FeedbackDialogController GitHub issue preview', () => {
     expect(controller.state.getSnapshot().report?.body).not.toContain(SESSION)
   })
 
-  it('records, files the confirmed text, opens the issue, and acknowledges', async () => {
-    const { controller, submit, issues } = bench()
+  it('records, opens the prefilled page for the browser method, and acknowledges', async () => {
+    const page = 'https://github.com/Morrowmake/stitch-harness/issues/new?title=Edited+title&body=b'
+    const { controller, submit, issues } = bench(undefined, () => Promise.resolve({ ok: true, value: { kind: 'browser', url: page } }))
     controller.open({ kind: 'session' })
     controller.edit({ text: 'slow' })
     await controller.previewReport()
     controller.editReport({ title: 'Edited title' })
 
-    await controller.confirmReport()
+    await controller.confirmReport('browser')
 
     expect(submit).toHaveBeenCalledWith({ kind: 'session' }, { text: 'slow' })
-    expect(issues.report).toHaveBeenCalledWith({ title: 'Edited title', body: DRAFT.body })
-    expect(issues.open).toHaveBeenCalledWith(ISSUE_URL)
-    expect(controller.state.getSnapshot()).toMatchObject({ target: null, report: null, toast: 1, notice: 'issue-created' })
+    expect(issues.report).toHaveBeenCalledWith({ title: 'Edited title', body: DRAFT.body }, 'browser')
+    expect(issues.open).toHaveBeenCalledWith(page)
+    expect(controller.state.getSnapshot()).toMatchObject({ target: null, report: null, toast: 1, notice: 'issue-opened' })
   })
 
-  it('opens the prefilled page when the Host could not file the issue itself', async () => {
+  it('files with the GitHub account only when that method is chosen, and opens the created issue', async () => {
+    const { controller, issues } = bench()
+    controller.open({ kind: 'session' })
+    await controller.previewReport()
+
+    const pending = controller.confirmReport('github-cli')
+    expect(controller.state.getSnapshot().report).toMatchObject({ via: 'github-cli' })
+    await pending
+
+    expect(issues.report).toHaveBeenCalledWith({ title: DRAFT.title, body: DRAFT.body }, 'github-cli')
+    expect(issues.open).toHaveBeenCalledWith(ISSUE_URL)
+    expect(controller.state.getSnapshot()).toMatchObject({ target: null, notice: 'issue-created' })
+  })
+
+  it('says to finish on GitHub when filing with the account fell back to the prefilled page', async () => {
     const page = 'https://github.com/Morrowmake/stitch-harness/issues/new?title=slow&body=b'
     const { controller, issues } = bench(undefined, () => Promise.resolve({ ok: true, value: { kind: 'browser', url: page } }))
     controller.open({ kind: 'session' })
     await controller.previewReport()
 
-    await controller.confirmReport()
+    await controller.confirmReport('github-cli')
 
     expect(issues.open).toHaveBeenCalledWith(page)
-    expect(controller.state.getSnapshot()).toMatchObject({ target: null, notice: 'issue-opened' })
+    expect(controller.state.getSnapshot()).toMatchObject({ target: null, notice: 'issue-fallback' })
   })
 
   it('keeps the preview on a failed report and does not record twice on retry', async () => {
@@ -281,14 +301,14 @@ describe('FeedbackDialogController GitHub issue preview', () => {
     controller.open({ kind: 'session' })
     await controller.previewReport()
 
-    await controller.confirmReport()
+    await controller.confirmReport('github-cli')
     expect(controller.state.getSnapshot()).toMatchObject({
       failure: 'gateway/internal', submitting: false, report: { recorded: true },
     })
     expect(issues.open).not.toHaveBeenCalled()
 
     fail = false
-    await controller.confirmReport()
+    await controller.confirmReport('github-cli')
     expect(submit).toHaveBeenCalledTimes(1)
     expect(issues.report).toHaveBeenCalledTimes(2)
     expect(controller.state.getSnapshot()).toMatchObject({ target: null, notice: 'issue-created' })
@@ -299,7 +319,7 @@ describe('FeedbackDialogController GitHub issue preview', () => {
     controller.open({ kind: 'session' })
     await controller.previewReport()
 
-    await controller.confirmReport()
+    await controller.confirmReport('browser')
 
     expect(issues.report).not.toHaveBeenCalled()
     expect(controller.state.getSnapshot()).toMatchObject({ failure: 'session-not-found', report: { recorded: false } })
@@ -323,7 +343,7 @@ describe('FeedbackDialogController GitHub issue preview', () => {
     expect(issues.draft).toHaveBeenCalledWith({ text: 'typed remark' })
     expect(controller.state.getSnapshot()).toMatchObject({ target: { kind: 'session' }, report: { recorded: true } })
 
-    await controller.confirmReport()
+    await controller.confirmReport('browser')
     expect(submit).not.toHaveBeenCalled()
     expect(issues.report).toHaveBeenCalledOnce()
   })

@@ -32,9 +32,11 @@ import type {
 import type { ShortcutCommandId } from '@deepseek-ai/dsh-client-shortcuts/client'
 import { createSettingsShellStore } from './shell-store.ts'
 import { SettingsRoot } from './SettingsRoot.tsx'
-import type { DesktopUpdateBridge } from '../types.ts'
+import type { DesktopCommandBridge, DesktopUpdateBridge } from '../types.ts'
 import { DesktopUpdateRow, type DesktopUpdateRowInjected } from './DesktopUpdateRow.tsx'
 import { DesktopUpdateSource } from './desktop-update-source.ts'
+import { DesktopCommandRow, type DesktopCommandRowInjected } from './DesktopCommandRow.tsx'
+import { DesktopCommandSource } from './desktop-command-source.ts'
 import { CloseLabel, HeaderContent, TriggerContent } from './chrome.tsx'
 import { GeneralSection } from './GeneralSection.tsx'
 import { SettingsSectionView } from './SettingsSectionView.tsx'
@@ -93,7 +95,9 @@ export function apply(ctx: ClientContext): void {
   }, CurrentVersionRow))
   ctx.effect(() => ctx.locale.register(NS, { zh, en, ja, es, fr, de, ru, pt }), 'ui-settings-general: dictionaries')
   const connection = ctx.get('connection') as ConnectionHandle
-  const carrier = (globalThis as typeof globalThis & { dshDesktop?: { protocolVersion: number; updates?: DesktopUpdateBridge } }).dshDesktop
+  const carrier = (globalThis as typeof globalThis & {
+    dshDesktop?: { protocolVersion: number; updates?: DesktopUpdateBridge; command?: DesktopCommandBridge }
+  }).dshDesktop
   const updateBridge = carrier?.protocolVersion === 1 ? carrier.updates : undefined
   if (updateBridge !== undefined) {
     const desktopUpdate = new DesktopUpdateSource(updateBridge)
@@ -103,6 +107,16 @@ export function apply(ctx: ClientContext): void {
       inject: (): DesktopUpdateRowInjected => ({ hooks: { desktopUpdate: desktopUpdate.store },
         setEnabled: enabled => desktopUpdate.setEnabled(enabled), check: () => desktopUpdate.check() }),
     }, DesktopUpdateRow))
+  }
+  const commandBridge = carrier?.protocolVersion === 1 ? carrier.command : undefined
+  if (commandBridge !== undefined) {
+    const desktopCommand = new DesktopCommandSource(commandBridge)
+    ctx.effect(() => () => { desktopCommand.dispose() }, 'ui-settings-general: desktop terminal command')
+    ctx.slots.inject('settings.general.item', () => ctx.slots.register({
+      name: 'settings.general.item', id: 'desktop-terminal-command', order: 96, locale: NS,
+      inject: (): DesktopCommandRowInjected => ({ hooks: { desktopCommand: desktopCommand.store },
+        refresh: () => desktopCommand.refresh(), run: action => desktopCommand.run(action) }),
+    }, DesktopCommandRow))
   }
 
   // Copy freshness is framework-owned: components read the standard `t`

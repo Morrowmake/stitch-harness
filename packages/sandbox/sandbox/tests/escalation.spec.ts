@@ -85,6 +85,7 @@ describe('approveEscalation', () => {
     justification: 'the user asked to write in the workspace',
     effectiveMode: 'read-only' as const,
     subject: 'command',
+    grant: undefined,
     ...over,
   })
   /** An approver that records the request and returns a fixed outcome. */
@@ -106,11 +107,28 @@ describe('approveEscalation', () => {
     expect(seen[0]?.reason).toBe('escalate sandbox to workspace-write: the user asked to write in the workspace')
     expect(seen[0]).toMatchObject({
       displayReason: {
-        en: 'Allow this operation with workspace-write permissions: the user asked to write in the workspace',
-        zh: '允许本次操作使用 workspace-write 权限：the user asked to write in the workspace',
-        ja: 'workspace-write 権限でこの操作を許可します：the user asked to write in the workspace',
+        en: 'Allow this with permission to change files in your workspace? Reason given: the user asked to write in the workspace',
+        zh: '是否允许以修改工作区文件的权限执行此操作？给出的理由：the user asked to write in the workspace',
+        ja: 'ワークスペースのファイルを変更する権限でこの操作を許可しますか？理由：the user asked to write in the workspace',
       },
     })
+    expect(seen[0]).not.toHaveProperty('grant')
+  })
+
+  it('names full access plainly in every locale and never shows the raw mode name', async () => {
+    const seen: { displayReason?: Record<string, string> }[] = []
+    await approveEscalation(req({ requestedMode: 'danger-full-access' }), ingredients({ approver: approver('allowed-once', r => seen.push(r as never)) }))
+    const texts = Object.values(seen[0]?.displayReason ?? {})
+    expect(texts).toHaveLength(8)
+    expect(seen[0]?.displayReason?.['en']).toBe('Allow this with full access to your computer? Reason given: the user asked to write in the workspace')
+    for (const text of texts) expect(text).not.toMatch(/danger-full-access|workspace-write/)
+  })
+
+  it('offers the request\'s chat grant and replaces the generic text with a caller description', async () => {
+    const seen: unknown[] = []
+    const display = { en: 'Install the plugin “demo”.', zh: '安装插件“demo”。' }
+    await approveEscalation(req({ grant: 'install', display }), ingredients({ approver: approver('allowed-once', r => seen.push(r)) }))
+    expect(seen[0]).toMatchObject({ grant: 'install', displayReason: display, reason: 'escalate sandbox to workspace-write: the user asked to write in the workspace' })
   })
 
   it.each(ESCALATION_TARGETS)('repeating %s succeeds without asking for approval', async (mode) => {

@@ -157,6 +157,19 @@ describe('DiscoverController', () => {
     expect(snapshot()).toMatchObject({ editing: false, selected: null, listing: null })
   })
 
+  it('adds an offered community index after the configured ones, selects it, and keeps the draft', async () => {
+    const community = 'https://cdn.dsh.so/market/index.json'
+    const { face, market, snapshot } = setup([{ url: A }])
+    face.ensure()
+    await vi.waitFor(() => { expect(snapshot().listing?.status).toBe('ready') })
+    face.editDraft('half-typed')
+    face.addIndex(community)
+    await vi.waitFor(() => { expect(snapshot().selected).toBe(community) })
+    expect(market.setIndexes).toHaveBeenCalledExactlyOnceWith([A, community])
+    expect(market.search).toHaveBeenLastCalledWith(community, expect.objectContaining({ offset: 0 }))
+    expect(snapshot()).toMatchObject({ draft: 'half-typed', saving: false, sourceFailure: null })
+  })
+
   it('saves an ambiguous HTTPS address directly and honors an explicit Git address', async () => {
     const { face, market, snapshot } = setup([{ url: A }])
     face.ensure()

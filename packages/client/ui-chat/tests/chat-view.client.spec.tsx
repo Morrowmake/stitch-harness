@@ -2702,12 +2702,16 @@ describe('ChatView', () => {
     const view = render(<h.ChatView {...h.props} />)
     const statuses = view.getAllByRole('status')
     expect(statuses.map(status => status.textContent)).toEqual([
-      '本轮运行失败API 密钥无效AUTH',
-      '本轮运行失败plugin exploded',
-      '本轮运行失败当前请求的额度已用尽QUOTA',
-      '本轮运行失败当前请求的额度已用尽ACCOUNT_QUOTA',
+      '本轮运行失败API 密钥无效详情错误代码：AUTH',
+      '本轮运行失败运行时出现问题。请重试，或展开“详情”查看技术信息。详情plugin exploded',
+      '本轮运行失败当前请求的额度已用尽详情错误代码：QUOTA',
+      '本轮运行失败当前请求的额度已用尽详情错误代码：ACCOUNT_QUOTA',
       '任务已停止Stitch 进程在本轮完成前退出（例如被强制结束、崩溃或关闭超时），重新启动后本轮已中止。未完成的工具调用结果未知。',
     ])
+    // Technical text stays behind a closed Details disclosure.
+    const details = view.container.querySelectorAll('details')
+    expect(details).toHaveLength(4)
+    expect([...details].every(disclosure => !disclosure.open)).toBe(true)
     // The transient notice is the frame-wide host's job; the failure row keeps
     // neither a recharge affordance nor a toast of its own.
     expect(view.queryByRole('alert')).toBeNull()

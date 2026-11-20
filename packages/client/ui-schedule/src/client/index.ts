@@ -216,9 +216,10 @@ export function apply(ctx: ClientContext): void {
       inject: (): ScheduleTaskCatalogInjected & ScheduleTaskBindingInjected => ({ hooks: detail.hooks, taskBindings }),
     }, ScheduleTaskTabTitle))
     // New and every recommendation open a new conversation with a request in its
-    // composer, appended to the draft of a reused blank conversation.
+    // composer; a reused blank's earlier request is replaced, and text the user
+    // wrote there is replaced only after they confirm.
     const startWithPrompt = (prompt: string): void => {
-      ctx.uiWorkspace.startSession(undefined, { prompt, whenDraftExists: 'append' })
+      ctx.uiWorkspace.startSession(undefined, { prompt, whenDraftExists: 'ask' })
     }
     yield ctx.slots.inject('main', () => ctx.slots.register({
       name: 'main',

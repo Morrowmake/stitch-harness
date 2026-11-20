@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Outil de place de marché de plugins pour l’agent",
+    "description": "Permet à l’agent de chercher dans les index de plugins à votre place. Désactivé par défaut pour que les instructions de l’agent restent courtes."
+  }
+}

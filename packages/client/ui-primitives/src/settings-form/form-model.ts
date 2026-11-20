@@ -47,6 +47,13 @@ export interface SettingsFormScope<T> {
    */
   subscribe(listener: () => void): () => void
   /**
+   * Check a candidate field value against the entry's served schema.
+   * @param path - field path inside the namespace section.
+   * @param value - candidate value a draft parsed to.
+   * @returns false when the served schema rejects the value, which marks the draft invalid.
+   */
+  accepts(path: readonly string[], value: unknown): boolean
+  /**
    * Apply ordered field edits in one revision-fenced write.
    * @param ops - the edits, in staging order.
    * @param expectedRevision - the revision the drafts were staged against, when known.
@@ -259,7 +266,7 @@ export class SettingsFormModel<T> {
     if (staged === undefined) {
       return { text: spec.format(this.sectionValue(field)), overridden: this.stored(field), invalid: false }
     }
-    const write = staged.clear ? { kind: 'clear' as const } : spec.parse(staged.text)
+    const write = staged.clear ? { kind: 'clear' as const } : this.parse(spec, staged.text)
     return {
       text: staged.text,
       overridden: write?.kind === 'set',
@@ -343,7 +350,7 @@ export class SettingsFormModel<T> {
         continue
       }
       if (staged.text === spec.format(this.sectionValue(field))) continue
-      const write = spec.parse(staged.text)
+      const write = this.parse(spec, staged.text)
       if (write === undefined) plan.push({ field })
       else if (write.kind === 'clear') plan.push({ field, op: { op: 'unset', path: [field] } })
       else plan.push({ field, op: { op: 'set', path: [field], value: write.value } })
@@ -364,6 +371,12 @@ export class SettingsFormModel<T> {
     // wiring mistake that must not degrade into a silently inert control.
     if (spec === undefined) throw new Error(`plugin card has no field ${field}`)
     return spec
+  }
+
+  /** A draft's write, refusing a parsed value the entry's served schema rejects (a negative timeout, say). */
+  private parse(spec: SettingsFieldSpec, text: string): SettingsFieldWrite | undefined {
+    const write = spec.parse(text)
+    return write?.kind === 'set' && !this.scope.accepts([spec.field], write.value) ? undefined : write
   }
 
   private snapshotOf(): SettingsFormScopeSnapshot<T> {

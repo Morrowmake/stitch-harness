@@ -286,7 +286,7 @@ describe('model discovery registry', () => {
     )).rejects.toMatchObject({
       code: 'llm/model-discovery-rejected',
       message: 'endpoint offline',
-      details: { settingsNs: 'llm-example', baseURL: 'https://gateway.example/v1' },
+      details: { settingsNs: 'llm-example', baseURL: 'https://gateway.example/v1', reason: 'other' },
     })
     await expect(ctx.llm.remoteDiscoverModels(
       'llm-example',
@@ -295,8 +295,28 @@ describe('model discovery registry', () => {
     )).rejects.toMatchObject({
       code: 'llm/model-discovery-rejected',
       message: 'provider refused',
-      details: { settingsNs: 'llm-example' },
+      details: { settingsNs: 'llm-example', reason: 'other' },
     })
+  })
+
+  it('tells the surface why discovery failed', async () => {
+    const ctx = await setup()
+    const discover = vi.fn()
+    ctx.llm.registerModelDiscovery('llm-example', discover)
+    const reasonOf = async (error: unknown): Promise<unknown> => {
+      discover.mockRejectedValueOnce(error)
+      const rejection = await ctx.llm.remoteDiscoverModels('llm-example', { baseURL: 'https://gateway.example/v1' }, new AbortController().signal)
+        .then(() => undefined, (failure: unknown) => failure)
+      return (rejection as { details?: { reason?: unknown } } | undefined)?.details?.reason
+    }
+
+    expect(await reasonOf(new LlmError('could not reach', 'TRANSPORT'))).toBe('unreachable')
+    expect(await reasonOf(new LlmError('no answer in time', 'TIMEOUT'))).toBe('unreachable')
+    expect(await reasonOf(new LlmError('refused', 'AUTH', { status: 401 }))).toBe('unauthorized')
+    expect(await reasonOf(new LlmError('forbidden', 'DISCOVERY_FAILED', { status: 403 }))).toBe('unauthorized')
+    expect(await reasonOf(new LlmError('not found', 'DISCOVERY_FAILED', { status: 404 }))).toBe('not-compatible')
+    expect(await reasonOf(new LlmError('not a listing', 'INVALID_RESPONSE'))).toBe('not-compatible')
+    expect(await reasonOf(new LlmError('no listing protocol', 'DISCOVERY_UNSUPPORTED'))).toBe('other')
   })
 
   it('refuses a namespace nothing serves and a draft with no endpoint', async () => {

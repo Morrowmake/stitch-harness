@@ -116,9 +116,15 @@ providers:
 
 用量条与输入框徽标读取仅存于内存的用量快照：每次请求的限流响应头；另外——仅对具有用量端点的已登录订阅（ChatGPT/Codex、Claude、Grok），且仅在设置页或徽标打开时（或限流后一次）——调用该提供方自己的用量端点，并使用 pi-ai 为该账号推理时所用的同一客户端身份。不会联系任何其他主机。健康状态、会话粘性与用量从不持久化。
 
+添加 API 密钥（`llmAccounts.addApiKeyAccount`）时，会先询问提供方是否接受它：按发现请求的标头规则发出一次模型列表请求（OpenRouter 的模型列表是公开的，因此改问 `GET /api/v1/key`），时限 10 秒。401/403（或 Gemini 的 `API_KEY_INVALID`）会以 `llm-accounts/key-rejected` 拒绝该密钥且不存储任何内容；被接受的密钥返回 `check: { status: 'verified' }`；检查无法判断的密钥——无法连接、5xx、协议没有模型列表、404 或非 JSON 回答——仍会存储，并返回 `check: { status: 'unverified', reason }`。「立即重试」（`retryAccountNow`）对 API 密钥与密钥引用账号运行同一检查：被拒绝的密钥保持「需要新密钥」标记，其他结果清除账号健康状态；已登录与 ambient 账号只被清除（`{ status: 'cleared' }`）。
+
+展示给用户的失败是一句平实的话，以标签称呼提供方与账号——别名，否则登录邮箱，否则「Account N」，从不使用账号 id——密钥账号说「拒绝了 API 密钥」，只有已登录账号才说「重新登录」。逐账号的开发者细节放在错误的进程内 `cause` 上；错误码不变。
+
 ### 解析模型目录
 
 profile 的 `models` 列表会替换而非扩展路由的已安装目录；每个条目从同 id 已安装模型取未设置字段的默认值，因此把路由收窄到两个模型、修正一个容量或添加比已安装目录更新的模型都是一行编辑。`modelOverrides` 无需该代价即可重塑个别已安装目录模型——修正一个模型，保留其余三十七个——当它与 `models` 列表并存、位于手工声明路由上、或点名目录未描述的模型时会被拒绝，因为静默不变的模型会成为别人日后寻找的拼写错误。
+
+`listModels` 按「当前优先、最新优先」返回每条路由的模型，并把别名（「(latest)」、`-latest`）、带日期快照（`-YYYYMMDD`、「(YYYY-MM-DD)」）与被取代版本（同一系列同一变体存在更高版本，或该系列最新主版本领先两个及以上）标记为 `older`，选择器会把它们折叠到「Older models」下。pi-ai 目录没有发布日期，因此顺序是基于名称的启发式规则（[`src/model-order.ts`](src/model-order.ts)）。固定的 `~acct:` 条目遵循同一顺序，徽标为该账号的显示标签。
 
 ### 带推理（reasoning）与协议兼容运行
 
@@ -135,6 +141,8 @@ profile 的 `models` 列表会替换而非扩展路由的已安装目录；每�
 ### 从端点发现模型
 
 插件会回答「该提供方可以提供哪些模型？」，供配置界面正在编辑或起草的路由使用。已安装目录提供的路由直接由目录回答，不发网络请求，并将其 `input` 数组保留为发现结果的 `inputModalities`；只有目录未描述的路由才会经网络询问。`openai-completions` 与 `openai-responses` 使用带 bearer 鉴权的 `GET {baseURL}/models`，`anthropic-messages` 则以 `x-api-key` 和 `anthropic-version` 使用原生 `GET /v1/models?limit=1000` 语义；其列表 URL 接受带或不带末尾 `/v1` 的 API 根地址，因为网关文档两种写法都会发布，且只有该列表 URL 会归一化这一段，模型请求收到的仍是配置原样的 `baseURL`。`google-generative-ai` 以 `x-goog-api-key` 使用 `GET {baseURL}/models?pageSize=1000`，因为其 `baseURL` 已包含 API 版本，例如 `/v1beta`。已配置且具名的路由会在 Host 内部提供已存凭据与 profile `headers`，因此通过 `cordis.patch.yml` 或 Cordis 配置设置的部署标头可以到达模型发现请求，但不会成为发现请求或 Models 页面的字段；表单中新键入的密钥仍优先于已存凭据。解析器接受标准 `data` 数组或富信息 `models` 对象，并归一化每个候选的 id、显示名、上下文窗口与最大输出 token 数；Anthropic 的 `max_input_tokens` 与 `max_tokens` 会进入相同容量字段，即使对象条目点名了另一个规范 id，对象键仍是请求 id，原始类型的对象属性会被忽略，缺失的显示名则回退到该请求 id。Gemini 的回答则是 `models` 数组：每个 `name` 去掉 `models/` 前缀后成为请求 id，`displayName`、`inputTokenLimit` 与 `outputTokenLimit` 填入相同字段，`supportedGenerationMethods` 不含 `generateContent` 的条目会被跳过。回答是界面可以提供给用户采纳的候选元数据——不存储任何内容，`cordis.patch.yml` 仍然是决定路由服务内容的唯一事实。
+
+询问失败时，`llm/model-discovery-rejected` 的详情 `reason` 说明原因：`unreachable`（无法连接，或 8 秒内未回答）、`unauthorized`（401/403）、`not-compatible`（其他 HTTP 失败、非 JSON 正文或正文中没有模型），或 `other`。
 
 ### 失败与恢复
 
@@ -187,6 +195,7 @@ Config 更新严格验证发生变化的 provider。初始加载将已存储的�
 | [`src/replay.ts`](src/replay.ts) | 带版本的 `ReplayEnvelope` 存储与校验 |
 | [`src/prefix-binding.ts`](src/prefix-binding.ts) | 请求前缀变化后省略 Anthropic thinking |
 | [`src/discovery.ts`](src/discovery.ts) | 面向配置界面的端点询问 |
+| [`src/model-order.ts`](src/model-order.ts) | 路由目录的选择器顺序与「older」标记 |
 
 ### 注册与目录
 

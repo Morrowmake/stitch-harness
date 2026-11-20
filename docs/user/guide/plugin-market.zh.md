@@ -4,7 +4,7 @@
 
 ## 概述
 
-插件索引是一个 JSON 文件，列出可安装的 Stitch 组合包（bundle）及其标题、图标、作者和版本。打开实验性的**自定义插件索引**组合包后，可以在插件页的**发现**标签页中浏览索引，并在确认后安装列出的版本。要发布索引，编写或生成一个索引文件，并把它和图标文件一起放到任意静态主机上。
+插件索引是一个 JSON 文件，列出可安装的 Stitch 组合包（bundle）及其标题、图标、作者和版本。插件页的**发现**标签页用于浏览索引，并在确认后安装列出的版本。要发布索引，编写或生成一个索引文件，并把它和图标文件一起放到任意静态主机上。
 
 ## 目录
 
@@ -20,9 +20,9 @@
 <a id="turn-on"></a>
 ## 打开「发现」
 
-打开**插件**，在**实验性插件**下找到**自定义插件索引**并打开开关。**已安装**旁边会出现**发现**标签页，Creator 模式也会获得只读的 `plugin_market` 工具。关闭该组合包会再次移除这两者。
+打开**插件**，选择**已安装**旁边的**发现**，或在侧栏中选择**更多 → 浏览更多插件**。每个 Web profile 都有该标签页。如果想让 Creator 模式下的智能体用只读的 `plugin_market` 工具替你搜索索引，请在插件页选择**显示高级项**并打开**供智能体使用的插件市场工具**；它默认关闭，以保持智能体的指令简短。
 
-「发现」首先列出 Stitch 插件索引，然后是 DeepSeek Harness 索引 `https://awesome-dsh-plugin.com/index.json` 和 `https://cdn.dsh.so/market/index.json`；在你打开之前不会请求任何索引。要添加其他索引，选择**发现**，点击**添加索引源**，输入一个索引文件的 URL。URL 必须使用 `http:` 或 `https:`，并且不能包含用户名、密码或 `#` 片段。网络路径上的任何人都能修改 `http:` 索引，包括其中列出的安装 spec，因此经由不受你控制的网络访问的索引应使用 `https:`。每个索引源属于当前 profile。
+「发现」一开始只列出 Stitch 插件索引；在你打开之前不会请求它。它没有收录插件时，「发现」会说明这一点并推荐社区索引。**管理索引源…**的**社区索引**下提供两个来自 DeepSeek Harness 社区的索引：**DeepSeek Harness 精选插件**（`https://awesome-dsh-plugin.com/index.json`）和 **DeepSeek Harness 插件市场**（`https://cdn.dsh.so/market/index.json`）。要添加其他索引，点击**添加索引源**，输入一个索引文件的 URL。URL 必须使用 `http:` 或 `https:`，并且不能包含用户名、密码或 `#` 片段。网络路径上的任何人都能修改 `http:` 索引，包括其中列出的安装 spec，因此经由不受你控制的网络访问的索引应使用 `https:`。每个索引源属于当前 profile。
 
 <a id="browse-and-install"></a>
 ## 浏览和安装
@@ -33,7 +33,7 @@
 
 选择卡片会打开插件页面。**版本**列表显示列出的每个版本及其兼容性，并为 Stitch 接受的任何版本提供**安装**，包括旧版本和预发布版本。显示**已安装**、**有新版本**或**随 Stitch 提供**的卡片会改为打开已安装的组合包。
 
-索引是第三方内容。每个插件的标题、描述、图标、作者和来源都由索引决定；Stitch 检查文件格式，但不验证这些声明。只添加你信任的索引源，并在安装前核对确认框中的来源。
+索引是第三方内容。每个插件的标题、描述、图标、作者和来源都由索引决定；Stitch 检查文件格式，但不验证这些声明。Stitch 索引以外的每个索引都标为**社区来源 — 未经 Stitch 审核**，它给出的评判（例如低风险或安装已验证标签）会注明出自该索引（“由……评为低风险”），而不会显示为 Stitch 的结论。社区卡片还会说明插件是否为 DeepSeek Harness 制作、是否需要其他 Stitch 版本，或是否未说明支持哪些 Stitch 版本。只添加你信任的索引源，并在安装前核对确认框中的来源。
 
 <a id="deepseek-harness-plugins"></a>
 ## 运行 DeepSeek Harness 插件
@@ -48,7 +48,7 @@ stitch plugin --profile web add <package>
 
 - **环境变量。** 当 `STITCH_HOME`、`STITCH_AGENTS_HOME` 或 `STITCH_PERMISSION_MODE` 等 `STITCH_` 变量未设置时，Stitch 会改为读取其 `DSH_` 拼写；`STITCH_` 值始终优先。shell 命令和终端会收到与 `STITCH_SESSION_ID`、`STITCH_WEB_URL` 值相同的 `DSH_SESSION_ID` 和 `DSH_WEB_URL`，插件除了 `STITCH_*` 之外也可以注册名为 `DSH_*` 的 shell 变量。
 - **Skill。** 已存在的 `~/.dsh/skills` 或 `<project>/.dsh/skills` 目录中的 skill 可以使用。Stitch 只读取这些目录，从不创建它们；同名时 Stitch 的 skill 胜出。
-- **索引。** 「发现」在 Stitch 索引之后列出 DeepSeek Harness 索引，见[打开「发现」](#turn-on)。
+- **索引。** 「发现」提供 DeepSeek Harness 社区索引，见[打开「发现」](#turn-on)；默认不会添加它们。
 
 有些插件仍然无法工作：
 

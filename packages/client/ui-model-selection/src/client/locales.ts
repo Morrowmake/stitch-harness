@@ -32,6 +32,12 @@ export const zh = {
   'search.empty': '没有匹配的模型。',
   'empty.models': '暂无可用模型',
   'empty.efforts': '当前模型未提供推理等级。',
+  'section.older': '较早的模型',
+  'section.account': '{provider} · {account}',
+  'section.accountFallback': '账户 {number}',
+  'blocked.setUp': '请先设置模型',
+  'blocked.setUpAction': '设置模型',
+  'blocked.choose': '请先选择模型再开始',
 } satisfies Record<string, string>
 
 /** The model namespace key union. */
@@ -61,6 +67,12 @@ export const en = {
   'search.empty': 'No matching models.',
   'empty.models': 'No models available.',
   'empty.efforts': 'This model provides no reasoning effort levels.',
+  'section.older': 'Older models',
+  'section.account': '{provider} · {account}',
+  'section.accountFallback': 'Account {number}',
+  'blocked.setUp': 'Set up a model first',
+  'blocked.setUpAction': 'Set up a model',
+  'blocked.choose': 'Choose a model to start',
 } satisfies Record<ModelKey, string>
 
 /** Japanese copy, checked against the English keys. */
@@ -87,6 +99,12 @@ export const ja = {
   'search.empty': '一致するモデルがありません。',
   'empty.models': '利用可能なモデルがありません。',
   'empty.efforts': 'このモデルには推論強度の設定がありません。',
+  'section.older': '以前のモデル',
+  'section.account': '{provider} · {account}',
+  'section.accountFallback': 'アカウント {number}',
+  'blocked.setUp': '先にモデルを設定してください',
+  'blocked.setUpAction': 'モデルを設定',
+  'blocked.choose': 'モデルを選んで開始してください',
 } satisfies Record<keyof typeof en, string>
 
 /** Spanish dictionary, checked against the English keys. */
@@ -113,6 +131,12 @@ export const es = {
   'search.empty': 'No hay modelos coincidentes.',
   'empty.models': 'No hay modelos disponibles.',
   'empty.efforts': 'Este modelo no proporciona niveles de esfuerzo de razonamiento.',
+  'section.older': 'Modelos anteriores',
+  'section.account': '{provider} · {account}',
+  'section.accountFallback': 'Cuenta {number}',
+  'blocked.setUp': 'Primero configura un modelo',
+  'blocked.setUpAction': 'Configurar un modelo',
+  'blocked.choose': 'Elige un modelo para empezar',
 } satisfies Record<keyof typeof en, string>
 
 /** French dictionary, checked against the English keys. */
@@ -139,6 +163,12 @@ export const fr = {
   'search.empty': 'Aucun modèle correspondant.',
   'empty.models': 'Aucun modèle disponible.',
   'empty.efforts': 'Ce modèle ne fournit aucun niveau d’effort de raisonnement.',
+  'section.older': 'Modèles plus anciens',
+  'section.account': '{provider} · {account}',
+  'section.accountFallback': 'Compte {number}',
+  'blocked.setUp': 'Configurez d’abord un modèle',
+  'blocked.setUpAction': 'Configurer un modèle',
+  'blocked.choose': 'Choisissez un modèle pour commencer',
 } satisfies Record<keyof typeof en, string>
 
 /** German dictionary, checked against the English keys. */
@@ -165,6 +195,12 @@ export const de = {
   'search.empty': 'Keine passenden Modelle.',
   'empty.models': 'Keine Modelle verfügbar.',
   'empty.efforts': 'Dieses Modell liefert keine Argumentationsaufwandsstufen.',
+  'section.older': 'Ältere Modelle',
+  'section.account': '{provider} · {account}',
+  'section.accountFallback': 'Konto {number}',
+  'blocked.setUp': 'Richten Sie zuerst ein Modell ein',
+  'blocked.setUpAction': 'Modell einrichten',
+  'blocked.choose': 'Wählen Sie ein Modell, um zu beginnen',
 } satisfies Record<keyof typeof en, string>
 
 /** Russian dictionary, checked against the English keys. */
@@ -191,6 +227,12 @@ export const ru = {
   'search.empty': 'Нет подходящих моделей.',
   'empty.models': 'Нет доступных моделей.',
   'empty.efforts': 'Эта модель не обеспечивает обоснования уровней усилий.',
+  'section.older': 'Более старые модели',
+  'section.account': '{provider} · {account}',
+  'section.accountFallback': 'Аккаунт {number}',
+  'blocked.setUp': 'Сначала настройте модель',
+  'blocked.setUpAction': 'Настроить модель',
+  'blocked.choose': 'Выберите модель, чтобы начать',
 } satisfies Record<keyof typeof en, string>
 
 /** Portuguese dictionary, checked against the English keys. */
@@ -217,4 +259,10 @@ export const pt = {
   'search.empty': 'Não há modelos correspondentes.',
   'empty.models': 'Nenhum modelo disponível.',
   'empty.efforts': 'Este modelo não fornece níveis de esforço de raciocínio.',
+  'section.older': 'Modelos anteriores',
+  'section.account': '{provider} · {account}',
+  'section.accountFallback': 'Conta {number}',
+  'blocked.setUp': 'Primeiro configure um modelo',
+  'blocked.setUpAction': 'Configurar um modelo',
+  'blocked.choose': 'Escolha um modelo para começar',
 } satisfies Record<keyof typeof en, string>

@@ -340,6 +340,31 @@
   height: 14px;
 }
 
+/* Collapsible "Older models" and per-account rows: a leading chevron with
+   caption-tone text; nested rows indent to the toggle's text. */
+.disclosure {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.disclosureChevron {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  transition: transform 120ms ease;
+}
+
+.disclosureChevronOpen {
+  transform: rotate(90deg);
+}
+
+.option[data-depth="1"] {
+  padding-left: 25px;
+}
+
+.option[data-depth="2"] {
+  padding-left: 43px;
+}
+
 /* Two-level root cells use the same compact rhythm as the model rows. */
 .cell {
   box-sizing: border-box;

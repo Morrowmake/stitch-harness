@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "Predefinições extras",
-    "description": "As predefinições de agente PTC, Minimal e Creator, e o seletor de predefinições."
+    "title": "Estilos de agente extras",
+    "description": "Adiciona estilos de agente: executa código, mínimo e criador, por conversa."
   }
 }

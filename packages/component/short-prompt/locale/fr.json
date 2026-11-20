@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Prompt système court",
-    "description": "Remplace les longues consignes d'outils du préréglage par défaut par un prompt court."
+    "description": "Donne à l'agent des instructions internes plus courtes, pour des réponses plus rapides."
   }
 }

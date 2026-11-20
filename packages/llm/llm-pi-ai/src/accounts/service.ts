@@ -15,21 +15,24 @@ import { normalizeApiKey } from '@deepseek-ai/dsh-credentials'
 import type { CredentialKey } from '@deepseek-ai/dsh-credentials'
 import type { SettingsPathOp } from '@deepseek-ai/dsh-settings'
 import { Remote, RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
-import { catalogProvider } from '../catalog.ts'
+import { catalogModels, catalogProvider } from '../catalog.ts'
 import { PROVIDER_DATA } from '../provider-data.generated.ts'
 import { apiNameOf } from '../provider-presentation.ts'
 import { AMBIENT_ACCOUNT, ENV_ACCOUNT, isAccountRoute, newAccountId, parseRecordKey, recordKeyFor } from './keys.ts'
+import { checkApiKey } from './key-check.ts'
+import type { KeyCheckEndpoint, KeyCheckOutcome } from './key-check.ts'
+import { accountDisplayLabel, identityFromAccessToken } from './label.ts'
+import type { AccountIdentity } from './label.ts'
 import { sessionKeyOf } from './runtime.ts'
 import type { AccountRuntime, AccountsRuntime } from './runtime.ts'
 import { SignInAttempts } from './signin.ts'
 import { probeLocalServers } from './local-probe.ts'
 import type {
-  AccountId, AccountPatch, AccountsSnapshot, AccountUsageView, AccountView, LocalProviderProbeView, ProviderAccountsView,
-  SignInAttemptId, SignInAttemptView, SignInRequest,
+  AccountId, AccountPatch, AccountRetryResult, AccountsSnapshot, AccountUsageView, AccountView, ApiKeyAccountAdded,
+  LocalProviderProbeView, ProviderAccountsView, SignInAttemptId, SignInAttemptView, SignInRequest,
 } from './types.ts'
 import { accountToken, isExhaustedWindow, UsageCache, UsageCredentialError, usageFetcherFor } from './usage/index.ts'
 import type { FetchFn } from './usage/index.ts'
-import { jwtClaims } from './usage/http.ts'
 
 /** Concurrent endpoint lookups while subscribers are watching. */
 const USAGE_CONCURRENCY = 2
@@ -219,17 +222,18 @@ export default class LlmAccountsRemote extends TypertRemoteService {
   }
 
   /**
-   * Store an API key as a new account. The key crosses the wire once and is
-   * never returned.
+   * Check an API key with the provider, then store it as a new account. The
+   * key crosses the wire once and is never returned. A key the provider
+   * refuses is not stored; one the check could not judge is stored unverified.
    * @param provider - the provider route key.
    * @param req - the API key and optional alias.
-   * @returns the new account's view.
-   * @throws {RemoteError} `llm-accounts/invalid-key`, `llm-accounts/unsupported`.
+   * @returns the new account's view and how its key checked out.
+   * @throws {RemoteError} `llm-accounts/invalid-key`, `llm-accounts/key-rejected`, `llm-accounts/unsupported`.
    */
   @Remote
-  async addApiKeyAccount(provider: string, req: { key: string; alias?: string }): Promise<AccountView> {
-    const check = normalizeApiKey(req.key)
-    if (!check.ok) throw new RemoteError('llm-accounts/invalid-key', `llm-accounts: the key is ${check.reason === 'empty' ? 'empty' : 'not a valid API key'}`, {})
+  async addApiKeyAccount(provider: string, req: { key: string; alias?: string }): Promise<ApiKeyAccountAdded> {
+    const normalized = normalizeApiKey(req.key)
+    if (!normalized.ok) throw new RemoteError('llm-accounts/invalid-key', `llm-accounts: the key is ${normalized.reason === 'empty' ? 'empty' : 'not a valid API key'}`, {})
     if (!isAccountRoute(provider) || (catalogProvider(provider) === undefined && !this.runtime.routes().has(provider))) {
       throw new RemoteError('llm-accounts/unsupported', `llm-accounts: "${provider}" cannot hold API-key accounts`, { provider, method: 'api-key' })
     }
@@ -237,15 +241,19 @@ export default class LlmAccountsRemote extends TypertRemoteService {
     if (credentials === undefined) {
       throw new RemoteError('llm-accounts/unsupported', 'llm-accounts: this composition mounts no credentials service', { provider, method: 'api-key' })
     }
+    const outcome = await this.checkKey(provider, normalized.value)
+    if (outcome.status === 'rejected') {
+      throw new RemoteError('llm-accounts/key-rejected', `${this.displayName(provider)} rejected this API key.`, { provider, status: outcome.httpStatus })
+    }
     const id = newAccountId()
-    await credentials.modifyRecord(recordKeyFor(provider, id), () => Promise.resolve({ kind: 'api-key', key: check.value }))
+    await credentials.modifyRecord(recordKeyFor(provider, id), () => Promise.resolve({ kind: 'api-key', key: normalized.value }))
     try {
       await this.recordSignIn(provider, id, true, req.alias)
     } catch (error) {
       await credentials.deleteRecord(recordKeyFor(provider, id))
       throw error
     }
-    return this.requireView(provider, id)
+    return { account: await this.requireView(provider, id), check: outcome }
   }
 
   /**
@@ -344,14 +352,59 @@ export default class LlmAccountsRemote extends TypertRemoteService {
   }
 
   /**
-   * Clear one account's cooldowns and sign-in state so the next request tries it.
+   * Retry one account now. A key account (`api-key`, `key-ref`) has its key
+   * re-checked with the provider: accepted or uncheckable clears its health,
+   * refused keeps it marked as needing a new key. A signed-in or ambient
+   * account has its cooldowns and sign-in state cleared so the next request tries it.
    * @param provider - the provider route key.
    * @param account - the account to retry.
+   * @returns the check result, or `cleared`.
    */
   @Remote
-  async retryAccountNow(provider: string, account: AccountId): Promise<void> {
-    await this.requireAccount(provider, account)
+  async retryAccountNow(provider: string, account: AccountId): Promise<AccountRetryResult> {
+    const runtime = await this.requireAccount(provider, account)
+    if (runtime.kind !== 'api-key' && runtime.kind !== 'key-ref') {
+      this.runtime.health.clear(provider, account)
+      return { status: 'cleared' }
+    }
+    let key: string | undefined
+    try {
+      key = await this.storedKey(runtime)
+    } catch {
+      // An unusable key reference (unset, blank, malformed) is a key to replace.
+      key = undefined
+    }
+    if (key === undefined) {
+      this.runtime.health.markNeedsSignIn(provider, account, 'MISSING_CREDENTIAL')
+      return { status: 'rejected' }
+    }
+    const outcome = await this.checkKey(provider, key)
+    if (outcome.status === 'rejected') {
+      this.runtime.health.markNeedsSignIn(provider, account, 'INVALID_CREDENTIAL')
+      return { status: 'rejected' }
+    }
     this.runtime.health.clear(provider, account)
+    return outcome
+  }
+
+  /** The usable key of a key account: its stored record, or what its `apiKeyEnv` reference resolves. */
+  private async storedKey(account: AccountRuntime): Promise<string | undefined> {
+    if (account.kind === 'key-ref') return this.runtime.resolveKeyRef(account.provider)
+    const record = account.recordKey === undefined ? undefined : await this.ctx.get('credentials')?.readRecord(account.recordKey)
+    if (record?.kind !== 'api-key' || record.key === undefined) return undefined
+    const normalized = normalizeApiKey(record.key)
+    return normalized.ok ? normalized.value : undefined
+  }
+
+  /** Run the key check against the route's endpoint: its configured one, else the catalog's. */
+  private checkKey(route: string, key: string): Promise<KeyCheckOutcome> {
+    return checkApiKey(this.runtime.endpoint(route) ?? catalogEndpoint(route), key, this.fetchFn)
+  }
+
+  /** The provider's name as people know it; the route key only when nothing better exists. */
+  private displayName(route: string): string {
+    const provider = catalogProvider(route)
+    return this.runtime.routes().get(route)?.displayName ?? (provider === undefined ? route : apiNameOf(provider))
   }
 
   /**
@@ -384,7 +437,7 @@ export default class LlmAccountsRemote extends TypertRemoteService {
       const serving = sessionId === undefined ? undefined : this.runtime.sticky.get(sessionKeyOf(sessionId, route))
       providers.push({
         provider: route,
-        displayName: routes.get(route)?.displayName ?? (provider === undefined ? route : apiNameOf(provider)),
+        displayName: this.displayName(route),
         ...oauth === undefined ? {} : { oauth: { label: oauth.loginLabel ?? oauth.name } },
         // A provider whose key is one `*_API_KEY` value takes a plain key box;
         // multi-field credentials (AWS, Vertex, gateways) go through pi-ai's prompts.
@@ -399,13 +452,12 @@ export default class LlmAccountsRemote extends TypertRemoteService {
   private async view(account: AccountRuntime, index: number): Promise<AccountView> {
     const identity = account.kind === 'oauth' && account.recordKey !== undefined ? await this.identity(account.recordKey) : undefined
     const usage = this.usageCache.peek(account.provider, account.id)
-    const fallbackLabel = account.kind === 'key-ref' ? 'Environment key' : account.kind === 'ambient' ? 'Ambient credentials' : `Account ${String(index + 1)}`
     return {
       id: account.id,
       provider: account.provider,
       kind: account.kind,
       ...account.meta.alias === undefined ? {} : { alias: account.meta.alias },
-      label: account.meta.alias ?? identity?.email ?? fallbackLabel,
+      label: accountDisplayLabel(account, index, identity?.email),
       ...identity === undefined ? {} : { identity },
       isDefault: account.isDefault,
       pooled: account.meta.pooled,
@@ -419,22 +471,11 @@ export default class LlmAccountsRemote extends TypertRemoteService {
   }
 
   /** Display identity from the access token's claims; derived per read, never stored. */
-  private async identity(key: CredentialKey): Promise<{ email?: string; plan?: string } | undefined> {
+  private async identity(key: CredentialKey): Promise<AccountIdentity | undefined> {
     const record = await this.ctx.get('credentials')?.readRecord(key)
     const payload = record?.kind === 'grant' ? record.payload : undefined
     const access = typeof payload === 'object' && payload !== null && 'access' in payload ? payload.access : undefined
-    const claims = typeof access === 'string' ? jwtClaims(access) : undefined
-    if (claims === undefined) return undefined
-    const profile = claims['https://api.openai.com/profile']
-    const auth = claims['https://api.openai.com/auth']
-    const email = typeof claims.email === 'string' ? claims.email
-      : typeof profile === 'object' && profile !== null && 'email' in profile && typeof profile.email === 'string' ? profile.email
-        : undefined
-    const plan = typeof auth === 'object' && auth !== null && 'chatgpt_plan_type' in auth && typeof auth.chatgpt_plan_type === 'string'
-      ? auth.chatgpt_plan_type
-      : undefined
-    if (email === undefined && plan === undefined) return undefined
-    return { ...email === undefined ? {} : { email }, ...plan === undefined ? {} : { plan } }
+    return identityFromAccessToken(access)
   }
 
   private async requireAccount(provider: string, account: AccountId): Promise<AccountRuntime> {
@@ -572,4 +613,10 @@ export default class LlmAccountsRemote extends TypertRemoteService {
 
 function rejected(message: string, cause?: unknown): RemoteError<'llm-accounts/settings-rejected'> {
   return new RemoteError('llm-accounts/settings-rejected', `llm-accounts: ${message}`, {}, cause === undefined ? undefined : { cause })
+}
+
+/** The endpoint pi-ai's catalog gives a route that is not configured yet. */
+function catalogEndpoint(route: string): KeyCheckEndpoint | undefined {
+  const [model] = catalogModels(route).values()
+  return model === undefined ? undefined : { baseURL: model.baseUrl, api: model.api }
 }

@@ -2,7 +2,7 @@
 
 English | [中文](approval.zh.md)
 
-The user-approval seam of [dsh-user-approval](../../packages/interaction/user-approval) answers one question: may this specific action proceed? It owns the shared request/outcome vocabulary, the `ctx.approval` dispatch service, the `approval/request` answerer waterfall, the log-only audit pair, and the per-session `ask`/`never` policy. UI channels may provide human answerers; the [ACP automation bridge](../../packages/acp/acp) provides one-shot machine decisions for its own agents. Callers such as [dsh-tools](../../packages/core/tools) and [dsh-tool-bash](../../packages/shell/tool-bash) consume the closed outcome and fail closed unless it is `allowed-once`.
+The user-approval seam of [dsh-user-approval](../../packages/interaction/user-approval) answers one question: may this specific action proceed? It owns the shared request/outcome vocabulary, the `ctx.approval` dispatch service, the `approval/request` answerer waterfall, the log-only audit pair, chat grants, and the per-session `ask`/`never` policy. UI channels may provide human answerers; the [ACP automation bridge](../../packages/acp/acp) provides one-shot machine decisions for its own agents. Callers such as [dsh-tools](../../packages/core/tools) and [dsh-tool-bash](../../packages/shell/tool-bash) consume the closed outcome and fail closed unless it is `allowed-once`.
 
 Source: [`packages/interaction/user-approval/src/index.ts`](../../packages/interaction/user-approval/src/index.ts)
 
@@ -22,11 +22,28 @@ type ApprovalRequestId = Branded<'ApprovalRequestId'>
 
 ```ts type-equiv
 /**
- * Closed approval outcomes: a one-shot grant, explicit rejection, withdrawn
- * request, or unavailable answerer. Callers fail closed on `unavailable`.
+ * Closed approval outcomes returned to askers: a one-shot grant, explicit
+ * rejection, withdrawn request, or unavailable answerer. Callers fail closed
+ * on `unavailable`. A chat grant reaches the asker as `allowed-once` because
+ * it permits exactly the asked action; later asks it covers never reach an
+ * answerer.
  */
 type ApprovalOutcome = 'allowed-once' | 'rejected' | 'cancelled' | 'unavailable'
 ```
+
+Answerers return an `ApprovalAnswer`. Besides the four outcomes, `allowed-for-session` allows the asked action and gives a chat grant for the request's tool name and `grant` action class. The service records it in `approval/decided`, returns `allowed-once` to the asker, and resolves later asks with the same tool name and `grant` in the same Session without dispatching; each still appends its audit pair with `allowed-for-session`. A request without `grant` offers no chat grant, so the service narrows that answer to `allowed-once`. The `never` policy and an aborted signal still take precedence over a grant.
+
+```ts type-equiv
+/**
+ * An answerer's decision: an {@link ApprovalOutcome}, or `allowed-for-session`
+ * to permit this action and every later ask with the same tool name and
+ * {@link ApprovalRequestEvent.grant} in the same Session. The service treats
+ * `allowed-for-session` as `allowed-once` when the request offers no grant.
+ */
+type ApprovalAnswer = ApprovalOutcome | 'allowed-for-session'
+```
+
+Chat grants live in the private `approvalState` projection and are rebuilt from the Session log, so reopening a chat keeps them. Another Session, including a fork after its inherited `session/end-seed` cut, starts without grants; nothing carries a grant across chats or into the profile.
 
 ## Per-session policy
 
@@ -50,7 +67,7 @@ Both policies contribute their complete current meaning to the cache-safe runtim
 
 ## Approval request
 
-`ApprovalRequest` identifies the agent and tool action closely enough to route and audit the question. It deliberately omits tool arguments: an answerer attaches the prompt to the already-streamed tool call through `callId` instead of rendering a second copy that could drift. Optional `displayReason` carries requester-owned locale strings to presentation; `reason` remains the audit text.
+`ApprovalRequest` identifies the agent and tool action closely enough to route and audit the question. It deliberately omits tool arguments: an answerer attaches the prompt to the already-streamed tool call through `callId` instead of rendering a second copy that could drift. Optional `displayReason` carries requester-owned locale strings to presentation; `reason` remains the audit text. Optional `grant`, inherited from `ApprovalRequestEvent`, names the action class the asker lets the user allow for the rest of the chat; askers omit it for decisions that must be confirmed every time.
 
 ```ts type-equiv
 /**
@@ -119,13 +136,17 @@ setPolicy(agent: Agent, policy: ApprovalPolicy): void
  * appending anything. The answerer phase always produces an outcome: an
  * aborted signal yields `'cancelled'`, a missing or throwing answerer yields
  * `'unavailable'` (fail closed), and a rogue non-vocabulary return value is
- * normalized to `'unavailable'`. A failure that prevents either audit append
+ * normalized to `'unavailable'`. A request with a `grant` that an earlier
+ * `allowed-for-session` answer in this Session covers is allowed without
+ * dispatching; the `never` policy and an aborted signal still take
+ * precedence. A failure that prevents either audit append
  * from committing still rejects because returning an unlogged decision would
  * violate the pair. Session contains post-commit observer failures, so an
  * authoritative append cannot reject the request or suppress its matching
  * audit event.
- * @param req - the pending decision (agent, tool identity, reason, signal).
- * @returns the closed outcome; `'allowed-once'` is the only grant.
+ * @param req - the pending decision (agent, tool identity, reason, grant, signal).
+ * @returns the closed outcome; `'allowed-once'` is the only grant, including
+ *   an action a chat grant allows.
  * @throws when no turn is open or either audit event fails before the session
  *   append commit point.
  */
@@ -161,7 +182,7 @@ Ask composed answerers for one decision. Return an outcome to claim the request 
  * @param req - pending approval request.
  * @mode waterfall
  */
-'approval/request'( this: Scoped<Agent>, req: ApprovalRequestEvent, next: () => Promise<ApprovalOutcome>, ): Promise<ApprovalOutcome>
+'approval/request'( this: Scoped<Agent>, req: ApprovalRequestEvent, next: () => Promise<ApprovalAnswer>, ): Promise<ApprovalAnswer>
 ```
 
 Types: [Agent](core.md) · [Scoped](scope.md)

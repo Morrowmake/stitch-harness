@@ -1,9 +1,10 @@
 /**
- * The summary blank bit means "conversation not started" (no turn has run),
- * not "log empty": standalone plugin events — command lifecycle records,
- * plan/mode, permission knob events, session titles — never flip it, so running /plan or /goal on a
- * fresh session keeps it list-hidden and reusable, while the first accepted
- * prompt's turn/start clears it. The host/session-added frame shares the
+ * The summary blank bit means "conversation not started" (no turn has run and
+ * no slash command has run), not "log empty": standalone plugin events —
+ * plan/mode, permission knob events, session titles — never flip it, while a
+ * command's `command/run` does, so its outcome is shown in the chat it was
+ * typed in and New Session never reuses that chat. The first accepted
+ * prompt's turn/start clears it too. The host/session-added frame shares the
  * same predicate function (covered by the workspace spec's frame assertion).
  * A resumed Session computes its own list metadata (blankness and last-prompt
  * recency) when it is published, independent of which other projections were
@@ -56,17 +57,21 @@ async function harness(): Promise<{ ctx: Context; remote: TestSessionRemote; att
 
 /** Append the standalone (non-conversation) event family a fresh session can accumulate. */
 function appendStandalone(session: Session): void {
-  session.append('command/run', {
-    commandId: brandString<CommandId>('blank-cmd-1'), name: 'plan', args: '', source: { kind: 'user' },
-  })
   session.append('plan/mode', { active: true })
-  session.append('command/done', { commandId: brandString<CommandId>('blank-cmd-1'), kind: 'success', text: 'Plan mode on.' })
   session.append('session/title', {
     title: 'standalone title', messageSeqs: [], source: { kind: 'fallback' },
   })
   // Permission configuration events from a /permission switch on a fresh session.
   session.append('permission/preset', { preset: 'danger-full-access' })
   session.append('sandbox/mode', { mode: 'danger-full-access' })
+}
+
+/** Append one slash command's lifecycle, as `/plan` on a fresh session records it. */
+function appendCommand(session: Session): void {
+  session.append('command/run', {
+    commandId: brandString<CommandId>('blank-cmd-1'), name: 'plan', args: '', source: { kind: 'user' },
+  })
+  session.append('command/done', { commandId: brandString<CommandId>('blank-cmd-1'), kind: 'success', text: 'Plan mode on.' })
 }
 
 async function listBlank(remote: TestSessionRemote, id: string): Promise<boolean | undefined> {
@@ -76,13 +81,22 @@ async function listBlank(remote: TestSessionRemote, id: string): Promise<boolean
 }
 
 describe('summary blank = conversation not started', () => {
-  it('standalone events (command lifecycle, plan/mode, title) keep the session blank', async () => {
+  it('standalone events (plan/mode, permission, title) keep the session blank', async () => {
     const { ctx, remote, attach } = await harness()
     const session = ctx.sessions.create()
     await attach(session)
     expect(await listBlank(remote, session.id)).toBe(true)
     appendStandalone(session)
     expect(await listBlank(remote, session.id)).toBe(true)
+  })
+
+  it('a slash command starts the conversation', async () => {
+    const { ctx, remote, attach } = await harness()
+    const session = ctx.sessions.create()
+    await attach(session)
+    appendStandalone(session)
+    appendCommand(session)
+    expect(await listBlank(remote, session.id)).toBe(false)
   })
 
   it('the first turn clears blank', async () => {

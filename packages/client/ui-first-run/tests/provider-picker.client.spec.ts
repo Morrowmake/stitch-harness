@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest'
 import type { HostedProvider } from '../src/client/operations.ts'
-import { httpHost, routeIdFor } from '../src/client/ProviderStep.tsx'
+import { routeIdFor } from '../src/client/ProviderStep.tsx'
 import { hostedSections } from '../src/client/provider-order.ts'
 
 const hosted: HostedProvider[] = [
@@ -50,13 +50,5 @@ describe('custom endpoint route ids', () => {
     expect(routeIdFor('studio.local', new Set(['studio-local', 'studio-local-2']))).toBe('studio-local-3')
     expect(routeIdFor('fd7a::1', new Set())).toBe('fd7a-1')
     expect(routeIdFor('…', new Set())).toBe('custom')
-  })
-
-  it('accept only http(s) URLs and read their host', () => {
-    expect(httpHost('http://192.168.1.20:11434/v1')).toBe('192.168.1.20')
-    expect(httpHost('https://gpu-box.tail1234.ts.net/v1')).toBe('gpu-box.tail1234.ts.net')
-    expect(httpHost('http://[::1]:8000/v1')).toBe('::1')
-    expect(httpHost('ftp://host/v1')).toBeUndefined()
-    expect(httpHost('not a url')).toBeUndefined()
   })
 })

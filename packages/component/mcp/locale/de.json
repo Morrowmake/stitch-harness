@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "MCP-Konnektoren",
-    "description": "MCP-Server mit ihren Werkzeugen und Ressourcen, Konnektor-Konten und MCP-Einstellungen."
+    "title": "Konnektoren",
+    "description": "Externe Apps und Dienste verbinden (MCP-Server), mit Konten und Einstellungen."
   }
 }

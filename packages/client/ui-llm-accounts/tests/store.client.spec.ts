@@ -101,6 +101,7 @@ describe('operations', () => {
 
   it('maps invalid keys and other refusals', () => {
     expect(outcomeOf({ ok: false, error: { code: 'llm-accounts/invalid-key', message: 'bad' } })).toMatchObject({ reason: 'invalid-key' })
+    expect(outcomeOf({ ok: false, error: { code: 'llm-accounts/key-rejected', message: 'no' } })).toMatchObject({ reason: 'key-rejected' })
     expect(outcomeOf({ ok: false, error: { code: 'llm-accounts/settings-rejected', message: 'no' } })).toMatchObject({ reason: 'other', message: 'no' })
   })
 })

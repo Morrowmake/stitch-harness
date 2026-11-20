@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Herramienta del mercado de complementos para el agente",
+    "description": "Permite que el agente busque en los índices de complementos por usted. Desactivada de forma predeterminada para que las instrucciones del agente sigan siendo breves."
+  }
+}

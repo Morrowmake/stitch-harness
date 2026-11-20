@@ -70,7 +70,7 @@ import { PiAiAdapter } from './adapter.ts'
 import { authContextFrom } from './auth.ts'
 import { accountCredentialStore } from './accounts/store.ts'
 import { PoolDirectory } from './accounts/directory.ts'
-import { parseRecordKey } from './accounts/keys.ts'
+import { MAIN_ACCOUNT, parseRecordKey } from './accounts/keys.ts'
 import { AccountPool } from './accounts/router.ts'
 import type { AccountsRuntime } from './accounts/runtime.ts'
 import LlmAccountsRemote from './accounts/service.ts'
@@ -300,6 +300,16 @@ export function apply(ctx: Context, config: Config): void {
     models: (_route, account) => adapter.accountModels(account),
     settingsNs,
     routes: () => new Map([...profiles()].map(([route, profile]) => [route, { displayName: profile.displayName }])),
+    endpoint: (route) => {
+      const profile = profiles().get(route)
+      const [model] = profile === undefined ? [] : adapter.accountModels(MAIN_ACCOUNT).getModels(route)
+      if (model === undefined) return undefined
+      return { baseURL: model.baseUrl, api: model.api, ...profile?.headers === undefined ? {} : { headers: profile.headers } }
+    },
+    resolveKeyRef: (route) => {
+      const profile = profiles().get(route)
+      return profile === undefined ? Promise.resolve(undefined) : resolveApiKey(route, profile)
+    },
     onObservation: cb => pool.onObservation(cb),
     onLimited: cb => pool.onLimited(cb),
     applyResetHint: (route, account, resetsAt) => { pool.health.applyResetHint(route, account, resetsAt) },

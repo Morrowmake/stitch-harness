@@ -24,7 +24,7 @@ export const en: Record<ShellSettingsLocaleKey, string> = {
   save: 'Save',
   saving: 'Saving…',
   saveFailed: 'The deployment did not accept these values; they were left for you to correct.',
-  invalidNumber: 'Enter a number, or leave blank to use the default.',
+  invalidNumber: 'Enter a whole number above 0, or leave blank to use the default.',
 }
 
 /** Simplified Chinese copy. */
@@ -42,7 +42,7 @@ export const zh: Record<ShellSettingsLocaleKey, string> = {
   save: '保存',
   saving: '保存中…',
   saveFailed: '本部署没有接受这些值，已保留供你修改。',
-  invalidNumber: '请填数字；留空表示使用默认值。',
+  invalidNumber: '请填大于 0 的整数；留空表示使用默认值。',
 }
 
 /**
@@ -69,7 +69,7 @@ export const ja = {
   'save': '保存',
   'saving': '保存中…',
   'saveFailed': 'デプロイがこれらの値を受け付けませんでした。修正のため残されています。',
-  'invalidNumber': '数値を入力するか、空欄のままにするとデフォルトが使用されます。',
+  'invalidNumber': '1 以上の整数を入力するか、空欄のままにするとデフォルトが使用されます。',
 } satisfies Record<keyof typeof en, string>
 
 /** Spanish dictionary, checked against the English keys. */
@@ -87,7 +87,7 @@ export const es = {
   save: 'Guardar',
   saving: 'Guardando…',
   saveFailed: 'El despliegue no aceptó estos valores; quedaron para que usted los corrigiera.',
-  invalidNumber: 'Ingrese un número o déjelo en blanco para usar el valor predeterminado.',
+  invalidNumber: 'Ingrese un número entero mayor que 0 o déjelo en blanco para usar el valor predeterminado.',
 } satisfies Record<keyof typeof en, string>
 
 /** French dictionary, checked against the English keys. */
@@ -105,7 +105,7 @@ export const fr = {
   save: 'Enregistrer',
   saving: 'Sauvegarde…',
   saveFailed: "Le déploiement n'a pas accepté ces valeurs ; ils vous ont été laissés à corriger.",
-  invalidNumber: 'Entrez un numéro ou laissez ce champ vide pour utiliser la valeur par défaut.',
+  invalidNumber: 'Entrez un nombre entier supérieur à 0 ou laissez ce champ vide pour utiliser la valeur par défaut.',
 } satisfies Record<keyof typeof en, string>
 
 /** German dictionary, checked against the English keys. */
@@ -123,7 +123,7 @@ export const de = {
   save: 'Speichern',
   saving: 'Speichern…',
   saveFailed: 'Die Bereitstellung hat diese Werte nicht akzeptiert. Sie mussten sie korrigieren.',
-  invalidNumber: 'Geben Sie eine Zahl ein oder lassen Sie das Feld leer, um den Standardwert zu verwenden.',
+  invalidNumber: 'Geben Sie eine ganze Zahl größer als 0 ein oder lassen Sie das Feld leer, um den Standardwert zu verwenden.',
 } satisfies Record<keyof typeof en, string>
 
 /** Russian dictionary, checked against the English keys. */
@@ -141,7 +141,7 @@ export const ru = {
   save: 'Сохранить',
   saving: 'Сохранение…',
   saveFailed: 'Развертывание не приняло эти значения; их оставили вам на исправление.',
-  invalidNumber: 'Введите число или оставьте поле пустым, чтобы использовать значение по умолчанию.',
+  invalidNumber: 'Введите целое число больше 0 или оставьте поле пустым, чтобы использовать значение по умолчанию.',
 } satisfies Record<keyof typeof en, string>
 
 /** Portuguese dictionary, checked against the English keys. */
@@ -159,5 +159,5 @@ export const pt = {
   save: 'Salvar',
   saving: 'Salvando…',
   saveFailed: 'A implantação não aceitou esses valores; eles foram deixados para você corrigir.',
-  invalidNumber: 'Insira um número ou deixe em branco para usar o padrão.',
+  invalidNumber: 'Insira um número inteiro maior que 0 ou deixe em branco para usar o padrão.',
 } satisfies Record<keyof typeof en, string>

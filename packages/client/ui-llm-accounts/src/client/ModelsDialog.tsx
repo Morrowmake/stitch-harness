@@ -76,7 +76,7 @@ export function ModelsDialog({ account, operations, t, onClose }: ModelsDialogPr
             { value: 'explicit', label: t('models.explicit') },
           ]}
         />
-        {follow ? null : catalog.status === 'loading'
+        {follow ? <p className={css.muted}>{t('models.followHint')}</p> : catalog.status === 'loading'
           ? <p className={css.muted}>{t('models.loading')}</p>
           : catalog.status === 'failed'
             ? <p className={css.error} role="alert">{t('models.loadFailed', { message: catalog.message })}</p>

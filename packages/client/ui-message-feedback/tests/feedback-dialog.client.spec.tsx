@@ -1,30 +1,49 @@
 // @vitest-environment jsdom
 /**
  * FeedbackDialog rendering: the modal shows the seven category chips, the
- * detail box, and the hint while a target is open; a chip toggles the
- * category through the injected verb; Submit routes to the controller and
- * stays enabled with an empty draft; a failure code renders a warning toast;
- * and the acknowledgement toast mounts from the toast sequence and retires
- * through dismissToast once its fade completes. The GitHub issue preview
- * shows the editable title and body, the Session id opt-in (off), and files
- * only through the confirm button.
+ * detail box, and the local-only hint while a target is open; a chip toggles
+ * the category through the injected verb; Save note routes to the controller,
+ * stays enabled with an empty draft, and says nothing is sent; a failure code
+ * renders a warning toast; and the acknowledgement toast mounts from the toast
+ * sequence and retires through dismissToast once its fade completes. The
+ * GitHub issue preview names the public repository, renders the body as
+ * formatted text with an explicit Edit text toggle, keeps the Session id
+ * opt-in off, and opens the browser page or files with the GitHub account
+ * only through their own buttons.
  */
 import { useSyncExternalStore } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import { zh as commonZh } from '@deepseek-ai/dsh-client-locale/src/locales/zh.ts'
+import { en as commonEn } from '@deepseek-ai/dsh-client-locale/src/locales/en.ts'
 import { FEEDBACK_CATEGORIES } from '@deepseek-ai/dsh-command-feedback'
 import { FeedbackDialog } from '../src/client/FeedbackDialog.tsx'
-import type { FeedbackDialogState } from '../src/client/dialog.ts'
+import type { FeedbackDialogState, FeedbackIssuePreview } from '../src/client/dialog.ts'
+import * as dictionaries from '../src/client/locales.ts'
 import { en, zh } from '../src/client/locales.ts'
 
 afterEach(cleanup)
 
 const t = makeTranslate(zh, commonZh)
+const tEn = makeTranslate(en, commonEn)
+const REPOSITORY = 'Morrowmake/stitch-harness'
+
+/** One preview as the controller holds it. */
+function preview(overrides: Partial<FeedbackIssuePreview> = {}): FeedbackIssuePreview {
+  return {
+    title: 'slow',
+    body: 'Replies are slow.\n\nDetails:\n\n- Category: none\n- Stitch version: 1.2.3',
+    repository: REPOSITORY,
+    includeSessionId: false,
+    recorded: false,
+    via: null,
+    ...overrides,
+  }
+}
 
 /** Render the entry over a fixed state and recording verbs. */
-function mount(overrides: Partial<FeedbackDialogState> = {}) {
+function mount(overrides: Partial<FeedbackDialogState> = {}, translate = t) {
   const state: FeedbackDialogState = {
     target: { kind: 'session' }, category: null, text: '', report: null, submitting: false, failure: null,
     toast: 0, notice: 'recorded',
@@ -44,14 +63,24 @@ function mount(overrides: Partial<FeedbackDialogState> = {}) {
   }
   const useDialog = (<T,>(select: (v: FeedbackDialogState) => T): T =>
     useSyncExternalStore(() => () => {}, () => select(state))) as never
-  const props = { useDialog, ...verbs, t } as Parameters<typeof FeedbackDialog>[0]
+  const props = { useDialog, ...verbs, t: translate } as Parameters<typeof FeedbackDialog>[0]
   return { ...render(<FeedbackDialog {...props} />), ...verbs }
 }
 
 describe('FeedbackDialog', () => {
-  it('owns the conversation-log disclosure and stability category in both supported locales', () => {
-    expect(zh['dialog.hint']).toBe('填写详情以帮助我们改进体验，提交内容会包括当前对话的日志')
-    expect(en['dialog.hint']).toBe('Add details to help us improve. Your submission will include the current conversation log.')
+  it('says the note stays on this computer and the GitHub issue is public, in every locale', () => {
+    expect(en['dialog.title']).toBe('Leave feedback')
+    expect(en['dialog.hint']).toBe('Describe what happened. This note is saved on this computer with this chat. Nothing is sent.')
+    expect(en['dialog.save']).toBe('Save note')
+    expect(en['toast.recorded']).toBe('Note saved on this computer. Use Report on GitHub to tell the Stitch team.')
+    expect(tEn('report.hint', { repository: REPOSITORY })).toBe(
+      'This creates a public issue on github.com/Morrowmake/stitch-harness that anyone can read. Nothing is sent until you choose an option below.',
+    )
+    for (const [locale, dict] of Object.entries(dictionaries)) {
+      if (typeof dict !== 'object') continue
+      expect(dict['report.hint'], locale).toContain('github.com/{repository}')
+      expect(dict['report.hint'], locale).not.toContain('Morrowmake')
+    }
     expect(zh['category.service-stability']).toBe('稳定性和速度')
     expect(en['category.service-stability']).toBe('Stability and speed')
   })
@@ -63,17 +92,20 @@ describe('FeedbackDialog', () => {
     expect(ui.queryByRole('alert')).toBeNull()
   })
 
-  it('shows every category, the detail box with the hint, and an enabled Submit for an empty draft', () => {
-    const ui = mount()
+  it('shows every category, the detail box with the hint, and an enabled Save note that says nothing is sent', () => {
+    const ui = mount({}, tEn)
 
-    const dialog = ui.getByRole('dialog', { name: zh['dialog.title'] })
+    const dialog = ui.getByRole('dialog', { name: 'Leave feedback' })
     expect(dialog).toBeTruthy()
-    const chips = ui.getByRole('group', { name: zh['dialog.categories'] }).querySelectorAll('button')
+    const chips = ui.getByRole('group', { name: en['dialog.categories'] }).querySelectorAll('button')
     expect([...chips].map(chip => chip.textContent)).toEqual(
-      FEEDBACK_CATEGORIES.map(category => zh[`category.${category}`]),
+      FEEDBACK_CATEGORIES.map(category => en[`category.${category}`]),
     )
-    expect(ui.getByLabelText(zh['dialog.detail']).getAttribute('placeholder')).toBe(zh['dialog.hint'])
-    expect(ui.getByRole('button', { name: commonZh.submit }).hasAttribute('disabled')).toBe(false)
+    expect(ui.getByLabelText(en['dialog.detail']).getAttribute('placeholder')).toBe(en['dialog.hint'])
+    expect(ui.getByRole('button', { name: 'Save note' }).hasAttribute('disabled')).toBe(false)
+    expect(ui.queryByRole('button', { name: commonEn.submit })).toBeNull()
+    expect(ui.getByText('Saved on this computer only. Nothing is sent. To tell the Stitch team, use Report on GitHub.')).toBeTruthy()
+    expect(dialog.textContent).not.toMatch(/conversation log|help us improve/iu)
   })
 
   it('selects a chip, and clears it when the selected chip is clicked again', () => {
@@ -95,17 +127,17 @@ describe('FeedbackDialog', () => {
     fireEvent.change(ui.getByLabelText(zh['dialog.detail']), { target: { value: 'draft more' } })
     expect(ui.edit).toHaveBeenCalledWith({ text: 'draft more' })
 
-    fireEvent.click(ui.getByRole('button', { name: commonZh.submit }))
+    fireEvent.click(ui.getByRole('button', { name: zh['dialog.save'] }))
     expect(ui.submit).toHaveBeenCalledTimes(1)
 
     fireEvent.click(ui.getByRole('button', { name: commonZh.close }))
     expect(ui.dismiss).toHaveBeenCalledTimes(1)
   })
 
-  it('disables Submit and the chips while a submission is in flight', () => {
+  it('disables Save note and the chips while a save is in flight', () => {
     const ui = mount({ submitting: true })
 
-    expect(ui.getByRole('button', { name: commonZh.submitting }).hasAttribute('disabled')).toBe(true)
+    expect(ui.getByRole('button', { name: zh['dialog.saving'] }).hasAttribute('disabled')).toBe(true)
     const chips = ui.getByRole('group', { name: zh['dialog.categories'] }).querySelectorAll('button')
     expect([...chips].every(chip => chip.hasAttribute('disabled'))).toBe(true)
   })
@@ -168,37 +200,66 @@ describe('FeedbackDialog', () => {
     expect(ui.submit).not.toHaveBeenCalled()
   })
 
-  it('renders the editable preview with the Session id opt-in off and files only on confirm', () => {
-    const report = { title: 'slow', body: 'slow\n\n---\n- Category: none', includeSessionId: false, recorded: false }
-    const ui = mount({ text: 'slow', report })
+  it('names the public repository and renders the body as formatted text until Edit text', () => {
+    const report = preview()
+    const ui = mount({ text: 'slow', report }, tEn)
 
-    expect(ui.getByRole('dialog', { name: zh['report.title'] })).toBeTruthy()
-    expect(ui.getByText(zh['report.hint'])).toBeTruthy()
-    const title = ui.getByLabelText(zh['report.issueTitle']) as HTMLInputElement
-    const body = ui.getByLabelText(zh['report.issueBody']) as HTMLTextAreaElement
-    expect(title.value).toBe(report.title)
+    expect(ui.getByRole('dialog', { name: en['report.title'] })).toBeTruthy()
+    expect(ui.getByText(/public issue on github\.com\/Morrowmake\/stitch-harness that anyone can read/u)).toBeTruthy()
+    const formatted = ui.getByRole('region', { name: en['report.preview'] })
+    expect(formatted.querySelector('p')?.textContent).toBe('Replies are slow.')
+    expect([...formatted.querySelectorAll('li')].map(item => item.textContent)).toEqual([
+      'Category: none', 'Stitch version: 1.2.3',
+    ])
+    expect(formatted.textContent).not.toMatch(/(^|\n)- |---|_/u)
+    expect(ui.queryByLabelText(en['report.issueBody'])).toBeNull()
+
+    fireEvent.click(ui.getByRole('button', { name: en['report.editText'] }))
+
+    const body = ui.getByLabelText(en['report.issueBody']) as HTMLTextAreaElement
     expect(body.value).toBe(report.body)
+    expect(ui.queryByRole('region', { name: en['report.preview'] })).toBeNull()
+    fireEvent.change(body, { target: { value: 'edited' } })
+    expect(ui.editReport).toHaveBeenCalledWith({ body: 'edited' })
+    fireEvent.click(ui.getByRole('button', { name: en['report.showPreview'] }))
+    expect(ui.getByRole('region', { name: en['report.preview'] })).toBeTruthy()
+  })
+
+  it('edits the title, keeps the Session id opt-in off, and sends only through the chosen button', () => {
+    const ui = mount({ text: 'slow', report: preview() })
+
+    const title = ui.getByLabelText(zh['report.issueTitle']) as HTMLInputElement
+    expect(title.value).toBe('slow')
     const optIn = ui.getByLabelText(zh['report.includeSessionId']) as HTMLInputElement
     expect(optIn.checked).toBe(false)
     expect(ui.queryByRole('group', { name: zh['dialog.categories'] })).toBeNull()
+    expect(ui.getByText(zh['report.fileDirectHint'])).toBeTruthy()
 
     fireEvent.change(title, { target: { value: 'Slow replies' } })
     expect(ui.editReport).toHaveBeenCalledWith({ title: 'Slow replies' })
-    fireEvent.change(body, { target: { value: 'edited' } })
-    expect(ui.editReport).toHaveBeenCalledWith({ body: 'edited' })
     fireEvent.click(optIn)
     expect(ui.includeSessionId).toHaveBeenCalledWith(true)
     expect(ui.confirmReport).not.toHaveBeenCalled()
 
     fireEvent.click(ui.getByRole('button', { name: zh['report.back'] }))
     expect(ui.closeReport).toHaveBeenCalledTimes(1)
-    fireEvent.click(ui.getByRole('button', { name: zh['report.confirm'] }))
-    expect(ui.confirmReport).toHaveBeenCalledTimes(1)
+    fireEvent.click(ui.getByRole('button', { name: zh['report.openBrowser'] }))
+    expect(ui.confirmReport).toHaveBeenLastCalledWith('browser')
+    fireEvent.click(ui.getByRole('button', { name: zh['report.fileDirect'] }))
+    expect(ui.confirmReport).toHaveBeenLastCalledWith('github-cli')
+    expect(ui.confirmReport).toHaveBeenCalledTimes(2)
     expect(ui.submit).not.toHaveBeenCalled()
   })
 
+  it('shows the busy label only on the button that is sending', () => {
+    const ui = mount({ report: preview({ via: 'github-cli' }), submitting: true })
+
+    expect(ui.getByRole('button', { name: zh['report.filing'] }).hasAttribute('disabled')).toBe(true)
+    expect(ui.getByRole('button', { name: zh['report.openBrowser'] }).hasAttribute('disabled')).toBe(true)
+  })
+
   it('shows the report failure copy and the filed-issue acknowledgements', () => {
-    const report = { title: 't', body: 'b', includeSessionId: false, recorded: true }
+    const report = preview({ recorded: true })
     const failed = mount({ report, failure: 'gateway/internal' })
     expect(failed.getByRole('alert').textContent).toBe(zh['error.report'])
     // A recorded remark has no form to return to, so the footer closes the dialog too.
@@ -211,5 +272,11 @@ describe('FeedbackDialog', () => {
 
     const opened = mount({ target: null, toast: 1, notice: 'issue-opened' })
     expect(opened.getByRole('alert').textContent).toBe(zh['toast.issueOpened'])
+    cleanup()
+
+    const fallback = mount({ target: null, toast: 1, notice: 'issue-fallback' }, tEn)
+    expect(fallback.getByRole('alert').textContent).toBe(
+      'Could not file with your GitHub account. Finish your report on the GitHub page.',
+    )
   })
 })

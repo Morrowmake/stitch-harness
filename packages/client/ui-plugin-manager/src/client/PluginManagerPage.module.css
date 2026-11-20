@@ -23,7 +23,7 @@
   box-sizing: border-box;
   height: 100%;
   /* Inline inset only: the 28px top inset belongs to the head row
-     (`.pageHead`, `.detailTop`, `.moreHead`). macOS window dragging is owned by a row's own box,
+     (`.pageHead`, `.detailTop`). macOS window dragging is owned by a row's own box,
      so an inset above that box leaves a top strip no drag region covers. */
   padding: 0 var(--plugin-page-inset);
   color: var(--dsw-alias-label-primary);
@@ -302,37 +302,62 @@
   font-weight: 500;
 }
 
-.groupMore {
+.groupCount {
   flex: none;
-  gap: 4px;
-  /* Like .card, the hover surface reaches 8px past the trailing content edge. */
-  margin-inline-end: -8px;
-  padding: 0 8px;
-  font-size: 14px;
-  line-height: 22px;
-  font-weight: 400;
-  color: color-mix(in srgb, var(--dsw-alias-label-secondary) 60%, var(--dsw-alias-label-tertiary));
-}
-
-.groupMore:focus-visible {
+  font-size: 12px;
+  line-height: 18px;
   color: var(--dsw-alias-label-secondary);
 }
 
-@media (hover: hover) {
-  .groupMore:hover {
-    color: var(--dsw-alias-label-secondary);
-  }
+/* The Installed list's search field and its "Show advanced" switch, on one line that wraps on narrow panes. */
+.listTools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
 }
 
-.moreHead {
+.listSearch {
+  flex: 1 1 200px;
+  max-width: 320px;
+}
+
+.listSearch:focus-visible {
+  outline: var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
+  outline-offset: 1px;
+}
+
+.advancedToggle {
+  display: inline-flex;
   align-items: center;
   gap: 8px;
+  margin-inline-start: auto;
+  font-size: 13px;
+  color: var(--dsw-alias-label-secondary);
 }
 
-.moreBack {
+.hiddenNote {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.settingsButton {
   width: 28px;
   padding: 0;
   color: var(--dsw-alias-label-secondary);
+}
+
+/* Developer details: the package's technical facts, folded below everything a person uses. */
+.developer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 /* Center the status label geometrically: beside larger titles the capsule's line-box offset shows. */
@@ -1424,20 +1449,15 @@ label.registryOption {
    same drag ownership: it marks itself `data-window-drag`, so this row's own box
    is the window's draggable geometry. The detail container below stays
    content: marking it would drag the window over its text and form labels. */
-.detailTop,
-.moreHead {
+.detailTop {
   display: flex;
+  flex-direction: column;
   /* The same top inset `.pageHead` carries, so the row starts at the window's
      top edge and the strip above the detail content drags the window. */
   padding-top: var(--plugin-page-top-inset);
 }
 
-.detailTop {
-  flex-direction: column;
-}
-
-:global([data-platform='darwin']) .detailTop,
-:global([data-platform='darwin']) .moreHead {
+:global([data-platform='darwin']) .detailTop {
   padding-top: calc(var(--plugin-page-top-inset) + var(--dsh-frame-top-clearance, 0px));
 }
 

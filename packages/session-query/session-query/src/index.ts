@@ -72,6 +72,7 @@ export {
   SessionQueryError,
 } from './config.ts'
 export { readColdSessionLog } from './cold-read.ts'
+export { startsConversation } from './list-metadata.ts'
 export type { ColdSessionLog } from './cold-read.ts'
 export { extractSessionEventText } from './extraction.ts'
 export { buildSessionEventRecords, buildSessionEventSearchDocuments } from './documents.ts'

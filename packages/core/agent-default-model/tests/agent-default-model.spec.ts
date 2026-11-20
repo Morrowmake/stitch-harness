@@ -26,7 +26,7 @@ it('reports an unset default model with an actionable error', async () => {
   await ctx.plugin(DefaultModel, {})
   expect(ctx.agentDefaultModel.configuredSelection()).toBeUndefined()
   expect(() => ctx.agentDefaultModel.currentSelection()).toThrow(expect.objectContaining({ code: NO_DEFAULT_MODEL }))
-  expect(() => ctx.agentDefaultModel.currentSelection()).toThrow('Settings → Models')
+  expect(() => ctx.agentDefaultModel.currentSelection()).toThrow('No AI model is set up yet. Add one in Settings → Models.')
 })
 
 it('persists complete selections through its owning profile entry', async () => {

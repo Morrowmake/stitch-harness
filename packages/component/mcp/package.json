@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-component-mcp",
-  "description": "MCP servers with their tools and resources, connector accounts, and MCP settings.",
+  "description": "Connect outside apps and services (MCP servers), with accounts and settings.",
   "version": "0.2.2-rc.5",
   "icon": "./icon.svg",
   "publishConfig": {

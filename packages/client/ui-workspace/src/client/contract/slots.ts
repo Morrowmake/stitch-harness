@@ -443,6 +443,27 @@ export interface SessionArchiveConfirmInjected {
   stopAndArchiveSession: (sessionId: SessionId) => Promise<void>
 }
 
+/** A request a draft-preparing entry point brought to a Session whose draft holds the user's own text. */
+export interface DraftReplaceRequest {
+  /** Session whose draft would be replaced. */
+  readonly sessionId: SessionId
+  /** Request text that replaces the draft when the user agrees. */
+  readonly prompt: string
+}
+
+/** "Replace the current draft?" dialog share: the pending question and its answer. */
+export interface DraftReplaceInjected {
+  hooks: {
+    /** The question asked, until the dialog answers it. */
+    draftReplaceRequest: HostObservable<DraftReplaceRequest | null>
+  }
+  /**
+   * Close the question; `true` replaces the draft text with the request and keeps attachments,
+   * `false` keeps the user's text and drops the request.
+   */
+  settleDraftReplace: (replace: boolean) => void
+}
+
 /** Fork action share. */
 export interface ForkSessionInjected {
   /** Fork a Session at its last completed turn; the child arrives through the Host list. */
@@ -521,6 +542,13 @@ export type RowToastProps =
   & PropsRenderSlots<'workspace.toast'>
   & Pick<RowToastInjected, 'dismissToast'>
   & PropsHooks<RowToastInjected['hooks']>
+
+/** Props of the "Replace the current draft?" dialog entry in `shell.overlay`. */
+export type DraftReplaceProps =
+  PropsRuntime<'shell.overlay'>
+  & PropsLocale<'workspace'>
+  & Omit<DraftReplaceInjected, 'hooks'>
+  & PropsHooks<DraftReplaceInjected['hooks']>
 
 /** Full browser props: shell owner share + viewing store + injected actions + the locale seat. */
 export type WorkspaceBrowserProps =

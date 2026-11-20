@@ -18,9 +18,9 @@
  * post-apply reload.
  */
 
-import { useId, useState } from 'react'
+import { useCallback, useId, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Button, IconPlusOutlineRegular, Modal, SegmentedControl } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, Modal, SegmentedControl } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
 import type { LlmNativeAuth, SettingsNamespaceView } from '@deepseek-ai/dsh-api-remotes/client'
 // Type-only: pulls this package's SlotMap merge (the two Models child slots).
@@ -112,7 +112,7 @@ interface CatalogDraft {
 /** Values that vary around the shared provider-editor rendering. */
 interface ProviderEditorRenderProps extends Pick<
   ProviderEditorProps,
-  'namespace' | 'schema' | 'operations' | 't' | 'readOnly' | 'onClose'
+  'namespace' | 'schema' | 'operations' | 't' | 'readOnly' | 'onClose' | 'ownCredentials'
 > {
   target: EditorTarget
   row: ProviderRow
@@ -247,6 +247,17 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
   const [deleting, setDeleting] = useState(false)
   const [deleteFailure, setDeleteFailure] = useState<string | undefined>(undefined)
   const [savedTarget, setSavedTarget] = useState<ProviderIdentity | undefined>(undefined)
+  /** Routes whose provider-card extension reports credentials of their own (accounts); their key field steps aside. */
+  const [ownCredentials, setOwnCredentials] = useState<ReadonlySet<string>>(() => new Set())
+  const reportOwnCredentials = useCallback((provider: string, held: boolean): void => {
+    setOwnCredentials((current) => {
+      if (current.has(provider) === held) return current
+      const next = new Set(current)
+      if (held) next.add(provider)
+      else next.delete(provider)
+      return next
+    })
+  }, [])
 
   const announceSaved = (target: ProviderIdentity): void => {
     // Announced only once the refreshed directory is in the snapshot the
@@ -474,7 +485,12 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
               {error}
               {renderSlot(
                 'settings.models.provider-card',
-                { provider: row.entry, configured: row.configured, keyConfigured: keyConfiguredOf(row) },
+                {
+                  provider: row.entry,
+                  configured: row.configured,
+                  keyConfigured: keyConfiguredOf(row),
+                  reportOwnCredentials,
+                },
                 { entryKey: row.entry.settingsNs },
               )}
               {open
@@ -486,6 +502,7 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                   operations,
                   t,
                   readOnly: !state.writable,
+                  ownCredentials: ownCredentials.has(row.entry.provider),
                   onClose: (changed) => { closeEditor(changed, target) },
                 })
                 : null}
@@ -494,6 +511,8 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
         })}
       </ul>
       <div className={styles['addBlock']}>
+        {/* The guided setup (sign-ins, local AI, API keys) is the primary way to add a provider; it leads the block. */}
+        {renderSlot('settings.models.footer', {})}
         {addOpen
           ? (
             <div className={styles['addCard']}>
@@ -576,6 +595,7 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                       {...draft.target.baseURLEnv === undefined ? {} : { baseURLEnv: draft.target.baseURLEnv }}
                       {...draft.target.nativeAuth === undefined ? {} : { nativeAuth: draft.target.nativeAuth }}
                       {...addRow?.credentialChecks === undefined ? {} : { credentialChecks: addRow.credentialChecks }}
+                      ownCredentials={ownCredentials.has(draft.target.provider)}
                       t={t}
                       readOnly={!state.writable}
                       onClose={(changed) => { closeEditor(changed, draft.target) }}
@@ -585,7 +605,12 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                       ? null
                       : renderSlot(
                         'settings.models.provider-card',
-                        { provider: addRow.entry, configured: addRow.configured, keyConfigured: keyConfiguredOf(addRow) },
+                        {
+                          provider: addRow.entry,
+                          configured: addRow.configured,
+                          keyConfigured: keyConfiguredOf(addRow),
+                          reportOwnCredentials,
+                        },
                         { entryKey: addRow.entry.settingsNs },
                       )}
                   </div>
@@ -620,12 +645,12 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
           )
           : catalogOffered || customOffered
             ? (
-              // One entry for both ways to gain a provider; the card behind it
-              // splits them. Full width, so it lines up with the rows above.
+              // The developer form for both ways to gain a provider by hand;
+              // secondary to the guided setup above.
               <div className={styles['addActions']}>
                 <button
                   type="button"
-                  className={styles['addButton']}
+                  className={styles['linkButton']}
                   disabled={!state.writable || state.status !== 'ready' || (!catalogEnabled && !customEnabled)}
                   onClick={() => {
                     if (controller.store.getSnapshot().status !== 'ready') return
@@ -638,14 +663,12 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                     setAddOpen(true)
                   }}
                 >
-                  <IconPlusOutlineRegular size={14} />
                   {t('add')}
                 </button>
               </div>
             )
             : null}
       </div>
-      {renderSlot('settings.models.footer', {})}
       <Modal
         open={deleteTarget !== undefined}
         onClose={closeDelete}

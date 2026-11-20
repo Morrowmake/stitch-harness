@@ -29,7 +29,7 @@ import { installDesktopFileDrag } from './file-drag.ts'
 import { installDesktopDirectoryPicker } from './directory-picker.ts'
 import { installMicrophonePermissions } from './microphone-permissions.ts'
 import { DesktopBackendController } from './backend-controller.ts'
-import { DESKTOP_IPC, SCHEME, assertDesktopSender, type DesktopUpdateCheckResult } from './ipc.ts'
+import { DESKTOP_IPC, SCHEME, assertDesktopSender, type DesktopCommandStatus, type DesktopUpdateCheckResult } from './ipc.ts'
 import { readDeviceInfo } from './device-info.ts'
 import { formatDesktopMessage, resolveDesktopLocale, resolveDesktopStartupLocale } from './locale.ts'
 import type { DesktopMessages } from './locale.ts'
@@ -685,6 +685,16 @@ async function main(): Promise<void> {
     if (result.kind !== 'available') return result
     presentRelease(result.release)
     return { kind: 'available', version: result.release.version, name: result.release.name }
+  })
+  ipcMain.handle(DESKTOP_IPC.commandStatus, (event): Promise<DesktopCommandStatus> => {
+    assertProductSender(event)
+    return commandManager.status()
+  })
+  ipcMain.handle(DESKTOP_IPC.commandRun, async (event, action: unknown): Promise<DesktopCommandStatus> => {
+    assertProductSender(event)
+    if (action !== 'install' && action !== 'repair' && action !== 'remove') throw new Error('desktop command: unknown action')
+    await commandManager.show(action)
+    return commandManager.status()
   })
   ipcMain.handle(DESKTOP_IPC.deviceInfo, (event) => {
     assertProductSender(event)

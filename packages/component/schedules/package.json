@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-component-schedules",
-  "description": "Schedule and reminder tools with the schedule page.",
+  "description": "Have the agent run tasks or remind you at set times, on a schedules page.",
   "version": "0.2.2-rc.5",
   "icon": "./icon.svg",
   "publishConfig": {

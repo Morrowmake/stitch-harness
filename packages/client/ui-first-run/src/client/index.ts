@@ -19,11 +19,18 @@ import { FirstRunOverlay } from './FirstRunOverlay.tsx'
 import { createFlowStore, type FlowEntry } from './flow.ts'
 import { de, en, es, fr, ja, NS, pt, ru, zh } from './locales.ts'
 import { createFirstRunOperations } from './operations.ts'
-import { FIRST_RUN_COMPLETED_FIELD, FIRST_RUN_SETTINGS_NAMESPACE, FIRST_RUN_VERSION } from '../settings.ts'
-import type { FirstRunEntryInjected, FirstRunOverlayInjected, FirstRunSection } from './types.ts'
+import { FIRST_RUN_COMPLETED_FIELD, FIRST_RUN_SETTINGS_NAMESPACE, FIRST_RUN_VERSION, WELCOME_SETTINGS_NAMESPACE } from '../settings.ts'
+import type { FirstRunEntryInjected, FirstRunOverlayInjected, FirstRunSection, FirstRunUi } from './types.ts'
 
 export type { FirstRunKey } from './locales.ts'
-export type { FirstRunEntryInjected, FirstRunOverlayInjected } from './types.ts'
+export type { FirstRunEntryInjected, FirstRunOverlayInjected, FirstRunUi } from './types.ts'
+
+declare module '@deepseek-ai/cordis' {
+  interface Context {
+    /** Opens the first-run provider setup on demand (e.g. from a composer notice). */
+    firstRunUi: FirstRunUi
+  }
+}
 
 /** Required services: slots, copy, configuration forms, and the Remotes the steps call. */
 export const inject = [
@@ -39,9 +46,12 @@ export function apply(ctx: Context): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en, ja, es, fr, de, ru, pt }), 'ui-first-run: dictionaries')
   const flow = createFlowStore()
   const firstRun = ctx.configForms.get<FirstRunSection>(FIRST_RUN_SETTINGS_NAMESPACE)
+  const welcome = ctx.configForms.get<FirstRunSection>(WELCOME_SETTINGS_NAMESPACE)
   const open = (entry: FlowEntry): void => { flow.set({ entry, dismissed: flow.getSnapshot().dismissed }) }
   const overlay: FirstRunOverlayInjected = {
-    hooks: { flow, firstRun },
+    hooks: { flow, firstRun, welcome },
+    // The browser shows the preview notice first; the desktop app has none.
+    welcomeGate: !('dshDesktop' in globalThis),
     operations: createFirstRunOperations(ctx),
     components: createComponentOperations(ctx),
     close: (entry) => {
@@ -54,6 +64,8 @@ export function apply(ctx: Context): void {
   }
   const componentsEntry: FirstRunEntryInjected = { open: () => { open('components') } }
   const providerEntry: FirstRunEntryInjected = { open: () => { open('provider') } }
+  const firstRunUi: FirstRunUi = { openProvider: () => { open('provider') } }
+  ctx.provide('firstRunUi', firstRunUi)
 
   ctx.slots.inject('shell.overlay', () => ctx.slots.register({
     name: 'shell.overlay', id: 'first-run', locale: NS, inject: () => overlay,

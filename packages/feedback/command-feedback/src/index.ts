@@ -2,10 +2,11 @@
  * Session feedback: the `feedback/record` event, its command-independent
  * producer, the `sessionFeedback` Host Remote a product surface records
  * through, and the human-facing `/feedback` command. Recording appends one
- * authoritative log-only event and does not start model work. The append is
- * eager but unflushed, so acknowledgement reports that the entry is logged,
- * not that it reached disk. The same Remote previews and files a GitHub issue
- * for a remark once the human confirms it.
+ * authoritative log-only event and does not start model work; the note stays
+ * on this computer. The append is eager but unflushed, so acknowledgement
+ * reports that the entry is logged, not that it reached disk. The same Remote
+ * previews a remark as a public GitHub issue and sends it only the way the
+ * human explicitly chooses.
  * @module @deepseek-ai/dsh-command-feedback
  */
 
@@ -26,10 +27,11 @@ import {
 import type {
   FeedbackCategory,
   FeedbackRecord,
-  SessionFeedbackIssue,
+  SessionFeedbackIssueDraft,
   SessionFeedbackIssueDraftRequest,
   SessionFeedbackRecordRequest,
   SessionFeedbackRecordResult,
+  SessionFeedbackReportIssueRequest,
   SessionFeedbackReportIssueResult,
 } from './types.ts'
 
@@ -55,7 +57,7 @@ export const FEEDBACK_CATEGORIES = [
 export const name = 'command-feedback'
 export const inject = ['commands']
 
-const USAGE = 'Usage: /feedback <text>'
+const USAGE = 'Type your note after the command, for example: /feedback The answer missed my question.'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -82,18 +84,15 @@ export function recordFeedback(session: Session, entry: FeedbackRecord): void {
  * Validate, record, and acknowledge one feedback entry. Returning an error
  * leaves no `feedback/record` event.
  * @param invocation - receiving agent, raw command input, and UI cancellation.
- * @returns an acknowledgement naming the receiving session, or a usage
- * error when no feedback text was supplied.
+ * @returns an acknowledgement that the note stays on this computer, or a
+ * usage error when no feedback text was supplied.
  */
 function executeFeedbackCommand(invocation: CommandInvocation): CommandResult {
   if (invocation.rawInput.trim().length === 0) {
-    return { kind: 'error', text: `Feedback text is required. ${USAGE}` }
+    return { kind: 'error', text: `The note is empty. ${USAGE}` }
   }
   recordFeedback(invocation.agent.session, { text: invocation.rawInput })
-  return {
-    kind: 'success',
-    text: `Feedback recorded for session ${invocation.agent.session.id}.`,
-  }
+  return { kind: 'success', text: 'Note saved on this computer. Nothing was sent.' }
 }
 
 /**
@@ -130,25 +129,26 @@ export class SessionFeedbackService extends TypertRemoteService {
    * Preview a remark as a GitHub issue without sending anything. The body
    * names only the remark, its category, the Stitch version, and the OS.
    * @param request - the remark text and category.
-   * @returns an editable title and Markdown body.
+   * @returns an editable title and Markdown body, and the public repository it would be filed on.
    */
   @Remote('draftIssue')
-  draftIssue(request: SessionFeedbackIssueDraftRequest): Promise<SessionFeedbackIssue> {
+  draftIssue(request: SessionFeedbackIssueDraftRequest): Promise<SessionFeedbackIssueDraft> {
     return Promise.resolve(draftFeedbackIssue(request, feedbackEnvironment()))
   }
 
   /**
-   * File a confirmed issue on the feedback repository: through an installed,
+   * Send a confirmed issue to the feedback repository the way the human
+   * chose: `browser` answers with the prefilled new-issue page the caller
+   * opens and never runs `gh`; `github-cli` files through an installed,
    * authenticated `gh` CLI (run by the Host `subprocess` provider when one is
-   * mounted, else by Node without a shell), or else as a prefilled new-issue
-   * page the caller opens.
-   * @param issue - the title and body the human confirmed.
+   * mounted, else by Node without a shell) and falls back to the prefilled page.
+   * @param request - the title and body the human confirmed, and the chosen method.
    * @returns `created` with the issue URL, or `browser` with the prefilled page URL.
    */
   @Remote('reportIssue')
-  reportIssue(issue: SessionFeedbackIssue): Promise<SessionFeedbackReportIssueResult> {
+  reportIssue(request: SessionFeedbackReportIssueRequest): Promise<SessionFeedbackReportIssueResult> {
     const subprocess = this.ctx.get('subprocess') as FeedbackSubprocessSeam | undefined
-    return reportFeedbackIssue(issue, subprocess === undefined ? execFileRunner : subprocessRunner(subprocess))
+    return reportFeedbackIssue(request, subprocess === undefined ? execFileRunner : subprocessRunner(subprocess))
   }
 }
 
@@ -162,8 +162,8 @@ export function apply(ctx: Context): void {
   ctx.commands.register({
     definitionId: brandString<CommandDefinitionId>('@deepseek-ai/dsh-command-feedback'),
     name: 'feedback',
-    description: 'Record feedback about this session',
-    input: { hint: '<text>' },
+    description: 'Save a note about this chat or report a problem',
+    input: { hint: '<note>' },
     recordInput: false,
     handler: executeFeedbackCommand,
   })

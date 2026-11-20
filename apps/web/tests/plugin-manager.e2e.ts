@@ -9,7 +9,6 @@ import type { Browser, Locator, Page } from 'playwright'
 import { chromium } from 'playwright'
 import { FiberState } from '@deepseek-ai/cordis'
 import { readProfileManifest } from '@deepseek-ai/dsh-app-boot'
-import { HIDDEN_BUNDLES } from '@deepseek-ai/dsh-official-bundles'
 import { afterAll, beforeAll, describe, expect, it, onTestFailed, onTestFinished, vi } from 'vitest'
 import { join } from 'node:path'
 import {
@@ -96,6 +95,12 @@ describe('web e2e: plugin manager', () => {
     return panel
   }
 
+  /** Turn on Show advanced, which the page keeps, so the list includes experimental bundles that are off and plumbing. */
+  async function showAdvanced(panel: Locator): Promise<void> {
+    const toggle = panel.getByRole('switch', { name: '显示高级项', exact: true })
+    if (await toggle.getAttribute('aria-checked') !== 'true') await toggle.click()
+  }
+
   /** One file under the harness home, or the empty string while it does not exist. */
   async function homeFile(...segments: string[]): Promise<string> {
     return readFile(join(scaffold.harnessHome, ...segments), 'utf8').catch(() => '')
@@ -161,6 +166,12 @@ describe('web e2e: plugin manager', () => {
             const headerStyle = getComputedStyle(element)
             const contentWidth = headerRect.width - Number.parseFloat(headerStyle.paddingLeft) - Number.parseFloat(headerStyle.paddingRight)
             const fitsBeside = intrinsicHeadingWidth + actionRect.width + Number.parseFloat(headerStyle.columnGap) <= contentWidth + 1
+            // The shipped Discover tab gives the bar tabs; a bar narrower than 600px gives the heading its own row and
+            // puts the tabs and the actions on the row below it, whatever the intrinsic fit.
+            const bar = element.parentElement!
+            const barStyle = getComputedStyle(bar)
+            const tabsRow = heading.parentElement!.querySelector('[data-plugin-header-part="tabs"]') !== null
+              && bar.clientWidth - Number.parseFloat(barStyle.paddingLeft) - Number.parseFloat(barStyle.paddingRight) < 600
             const subtitle = heading.querySelector('h1 + div > span')!
             const range = document.createRange()
             range.selectNodeContents(subtitle)
@@ -178,7 +189,7 @@ describe('web e2e: plugin manager', () => {
               return tops.length === 0 || Math.max(...tops) - Math.min(...tops) < 1
             })
             return {
-              singleLine, fitsBeside,
+              singleLine, fitsBeside, tabsRow,
               diagnostic: { flexWrap: headerStyle.flexWrap, headingMaxWidth: getComputedStyle(heading).maxWidth,
                 introDisplay: getComputedStyle(heading.querySelector('h1 + div')!).display,
                 intrinsicHeadingWidth, headingWidth: headingRect.width, actionsWidth: actionRect.width,
@@ -196,7 +207,7 @@ describe('web e2e: plugin manager', () => {
           })
           const validLayout = (layout: Awaited<ReturnType<typeof measure>>) =>
             layout.singleLine && layout.contained && layout.infoFollowsText && layout.focused
-            && layout.placement === (layout.fitsBeside ? 'beside' : 'below')
+            && layout.placement === (layout.fitsBeside && !layout.tabsRow ? 'beside' : 'below')
           for (const width of [1680, 768, 520, 440, 390, 430, 1024]) {
             await probe.setViewportSize({ width, height: 1000 })
             await expect.poll(async () => {
@@ -253,9 +264,7 @@ describe('web e2e: plugin manager', () => {
   })
 
   it('uses icon actions before shrinking tabs and wraps only when both still cannot fit', async () => {
-    const compactScaffold = await launchWebScaffold({
-      profile: { packages: [], bundles: ['@deepseek-ai/dsh-experimental-plugin-market-bundle'] },
-    })
+    const compactScaffold = await launchWebScaffold({ profile: { packages: [] } })
     const context = await browser.newContext({ viewport: { width: 1280, height: 480 }, locale: 'en-US', reducedMotion: 'reduce' })
     try {
       const probe = await context.newPage()
@@ -353,8 +362,13 @@ describe('web e2e: plugin manager', () => {
       const restingActions = await Promise.all([refreshButton.boundingBox(), addButton.boundingBox()])
       expect(resting).toBe(await panel.evaluate(element => element.getBoundingClientRect().top))
       const restingBarBottom = await bar.evaluate(element => element.getBoundingClientRect().bottom)
+      // The list's search and Show advanced row leads the list 32px below the bar; the first group follows it at the
+      // panel's 32px gap.
+      const tools = body.locator('[data-plugin-list-tools]')
+      expect(await tools.evaluate(element => element.getBoundingClientRect().top)).toBeCloseTo(restingBarBottom + 32, 1)
+      const toolsBottom = await tools.evaluate(element => element.getBoundingClientRect().bottom)
       expect(await body.locator('[data-plugin-group]').first().evaluate(element => element.getBoundingClientRect().top))
-        .toBeCloseTo(restingBarBottom + 32, 1)
+        .toBeCloseTo(toolsBottom + 32, 1)
       await body.evaluate((element) => { element.scrollTop = element.scrollHeight })
       const bottom = await body.evaluate(element => element.scrollTop)
       expect(bottom).toBeGreaterThan(100)
@@ -363,12 +377,14 @@ describe('web e2e: plugin manager', () => {
       await page.waitForFunction(() => document.querySelector('[data-plugin-bar]')?.hasAttribute('data-compact') === true)
       expect(await barHeight()).toBe(restingHeight)
       expect(await bar.evaluate(element => getComputedStyle(element, '::after').borderBottomWidth)).not.toBe('0px')
-      expect(await bar.evaluate(element => Number.parseFloat(getComputedStyle(element, '::before').height))).toBe(64)
+      // The compact bar holds the shipped Installed and Discover tabs (34px, taller than the 32px actions) between 16px insets.
+      expect(await bar.evaluate(element => Number.parseFloat(getComputedStyle(element, '::before').height))).toBe(66)
       expect(await body.evaluate(element => element.getBoundingClientRect().top)).toBe(resting)
+      // The compact row centres the 32px actions on the 34px tabs, 1px below the bar's 16px inset.
       expect(await Promise.all([refreshButton.boundingBox(), addButton.boundingBox()]))
         .toEqual(restingActions.map((bounds) => {
           if (bounds === null) throw new Error('Plugin toolbar action is not visible')
-          return { ...bounds, y: bounds.y - 12 }
+          return { ...bounds, y: bounds.y - 11 }
         }))
       // Reverse keyboard navigation scrolls each focused control into view below the bar, never under it.
       await panel.locator('[data-plugin-package] [role="switch"]').last().focus()
@@ -441,7 +457,8 @@ describe('web e2e: plugin manager', () => {
         expect(await skeleton.getAttribute('role')).toBe('status')
         expect(await skeleton.getAttribute('aria-label')).toBe('正在读取插件…')
         expect(await panel.getAttribute('aria-busy')).toBe('true')
-        const actions = panel.locator('[data-plugin-bar] > header > div:last-child button')
+        // The header's own actions: Refresh, Add plugin and its menu arrow; the Installed and Discover tabs stay enabled.
+        const actions = panel.locator('[data-plugin-toolbar] button')
         expect(await actions.count()).toBe(3)
         for (const action of await actions.all()) expect(await action.isDisabled()).toBe(true)
         expect(await panel.getByRole('button', { name: '插件说明' }).isEnabled()).toBe(true)
@@ -500,12 +517,13 @@ describe('web e2e: plugin manager', () => {
         await skeleton.waitFor({ state: 'detached' })
         expect(await panel.getAttribute('aria-busy')).toBe('false')
         for (const action of await actions.all()) expect(await action.isDisabled()).toBe(false)
-        const basic = panel.locator('[data-plugin-group="basic"]')
-        await basic.locator('[data-plugin-item]').first().waitFor()
-        // Configuration cards lead the list; their absent switches give the text column more width.
+        const basic = panel.locator('[data-plugin-group]').first()
+        await basic.locator('[data-plugin-package], [data-plugin-item]').first().waitFor()
+        // The first purpose group leads the list in the skeleton's place.
         const loaded = await measure(basic)
-        expect(await basic.locator(':scope > ul > li[data-plugin-item]').count()).toBe(4)
-        expect(loaded.rows).toHaveLength(loading.rows.length)
+        // Purpose groups can hold fewer cards than the four placeholders; every loaded card aligns with its placeholder.
+        expect(loaded.rows.length).toBeGreaterThan(0)
+        expect(loaded.rows.length).toBeLessThanOrEqual(loading.rows.length)
         const compare = (name: string, a: typeof loading.pageHeader, b: typeof loaded.pageHeader, axes: readonly (keyof typeof a)[] = ['x', 'y', 'width', 'height']) => {
           for (const axis of axes) {
             expect(Math.abs(a[axis] - b[axis]), `${width}px ${name}.${axis}: loading=${a[axis]}, loaded=${b[axis]}`).toBeLessThanOrEqual(0.1)
@@ -834,56 +852,50 @@ describe('web e2e: plugin manager', () => {
     expect(focusRing.radius).toBe(focusRing.cardRadius)
     expect(focusRing.outlineStyle).toBe('solid')
     expect(focusRing.outlineWidth).toBeGreaterThan(0)
-    // Profile bundles stay in Installed; configuration pages and offered bundles have their own groups.
-    expect(await panel.locator('[data-plugin-group="bundles"] [data-plugin-package]').count()).toBe(2)
-    expect(await panel.locator('[data-plugin-group="basic"] [data-plugin-item]').count()).toBe(4)
+    // Profile bundles stay in Installed; official bundles and settings sit in purpose groups.
+    const installed = panel.locator('[data-plugin-group="installed"] [data-plugin-package]')
+    expect(await installed.count()).toBe(2)
+    // Everyday mode hides experimental bundles that are off; Show advanced reveals them in their own group.
+    const experimental = panel.locator('[data-plugin-group="experimental"] [data-plugin-package]')
+    expect(await experimental.count()).toBe(0)
+    await panel.getByRole('switch', { name: '显示高级项', exact: true }).click()
+    await experimental.first().waitFor()
     expect(await panel.getByRole('switch', { name: '启用 语音输入', exact: true }).getAttribute('aria-checked')).toBe('false')
-    expect(await panel.getByRole('switch', { name: '启用 自定义插件索引', exact: true }).getAttribute('aria-checked')).toBe('false')
-    await panel.getByRole('button', { name: '更多', exact: true }).click()
-    await panel.getByRole('heading', { name: '实验性插件', exact: true, level: 1 }).waitFor()
     expect(await panel.getByText(experimentalBundleDescription('terminal-bundle', 'zh'), { exact: true }).count()).toBe(1)
     const bundles = await scaffold.ctx.pluginManager.listBundles()
     expect(bundles.some(bundle => bundle.name === '@deepseek-ai/dsh-experimental-terminal-bundle')).toBe(true)
     expect(await panel.getByRole('switch', { name: '启用 持久终端', exact: true }).getAttribute('aria-checked')).toBe('false')
     await compareOrRefreshGolden(TERMINAL_EXPECTED, await captureStableAria(
-      page, '[data-plugin-group="more"] [data-plugin-package="@deepseek-ai/dsh-experimental-terminal-bundle"]', scaffold.workspaceCwd,
+      page, '[data-plugin-group="experimental"] [data-plugin-package="@deepseek-ai/dsh-experimental-terminal-bundle"]', scaffold.workspaceCwd,
     ), MODE)
-    expect(await panel.locator('[data-plugin-group="more"] [data-plugin-package]').count())
-      .toBe(bundles.filter(bundle => !HIDDEN_BUNDLES.has(bundle.name)
-        && bundle.official && (bundle.listedByDefault !== false || bundle.enabled || bundle.installed)).length)
     // Computer Use ships with the installation and is listed only on the macOS Hosts it supports.
     const cuaSupported = process.platform === 'darwin' || process.platform === 'win32'
     expect(bundles.find(bundle => bundle.name === '@deepseek-ai/dsh-cua-bundle'))
       .toMatchObject({ enabled: false, optional: true, availability: 'installation', ...cuaSupported ? {} : { listedByDefault: false } })
-    expect(await panel.locator('[data-plugin-group="more"] [data-plugin-package="@deepseek-ai/dsh-cua-bundle"]').count())
-      .toBe(cuaSupported ? 1 : 0)
     for (const name of ['@deepseek-ai/dsh-experimental-session-search', '@deepseek-ai/dsh-experimental-ralph-bundle']) {
       expect((await scaffold.ctx.pluginManager.listBundles()).find(bundle => bundle.name === name))
         .toMatchObject({ enabled: false, optional: true, availability: 'installation', listedByDefault: false })
       expect(await panel.locator(`[data-plugin-package="${name}"]`).count()).toBe(0)
     }
-    const cards = await panel.locator('[data-plugin-group="more"] [data-plugin-package]').all()
-    expect(await Promise.all(cards.map(async card => [
-      await card.getAttribute('data-plugin-package'),
-      await card.getByText('实验性', { exact: true }).count(),
-    ]))).toEqual([
-      ['@deepseek-ai/dsh-experimental-voice-input-bundle', 1],
-      ['@deepseek-ai/dsh-experimental-plugin-market-bundle', 1],
-      ['@deepseek-ai/dsh-experimental-auto-review', 1],
-      ['@deepseek-ai/dsh-experimental-forge-bundle', 1],
-      ...cuaSupported ? [['@deepseek-ai/dsh-cua-bundle', 1]] : [],
-      ['@deepseek-ai/dsh-timeline', 1],
-      ['@deepseek-ai/dsh-experimental-terminal-bundle', 1],
-      ['@deepseek-ai/dsh-experimental-cot-translation-bundle', 1],
-      ['@deepseek-ai/dsh-experimental-session-titles-bundle', 1],
-      ['@deepseek-ai/dsh-subagent-codex', 0],
-      ['@deepseek-ai/dsh-subagent-claude-code', 0],
-    ])
-    expect(await panel.locator('[data-plugin-group="bundles"]').count()).toBe(0)
-    await panel.getByRole('button', { name: '返回插件', exact: true }).click()
-    expect(await panel.locator('[data-plugin-group="bundles"] [data-plugin-package]').count()).toBe(2)
-    // A bundle that is off still shows the rows its patch declares, without switches.
+    expect((await experimental.evaluateAll(cards => cards.map(card => card.getAttribute('data-plugin-package')))).sort()).toEqual([
+      '@deepseek-ai/dsh-experimental-auto-review',
+      '@deepseek-ai/dsh-experimental-cot-translation-bundle',
+      '@deepseek-ai/dsh-experimental-forge-bundle',
+      '@deepseek-ai/dsh-experimental-session-titles-bundle',
+      '@deepseek-ai/dsh-experimental-terminal-bundle',
+      '@deepseek-ai/dsh-experimental-voice-input-bundle',
+      ...cuaSupported ? ['@deepseek-ai/dsh-cua-bundle'] : [],
+      '@deepseek-ai/dsh-timeline',
+    ].sort())
+    // The subagent bundles are ordinary, not experimental, and stay listed in Everyday mode.
+    for (const name of ['@deepseek-ai/dsh-subagent-codex', '@deepseek-ai/dsh-subagent-claude-code']) {
+      expect(await panel.locator(`[data-plugin-group]:not([data-plugin-group="experimental"]) [data-plugin-package="${name}"]`).count()).toBe(1)
+    }
+    await panel.getByRole('switch', { name: '显示高级项', exact: true }).click()
+    expect(await experimental.count()).toBe(0)
+    // A bundle that is off still shows the rows its patch declares, without switches, under Developer details.
     await panel.getByRole('button', { name: '查看 @fixture/bundle' }).click()
+    await panel.getByRole('button', { name: '开发者信息', exact: true }).click()
     await panel.locator('[data-plugin-row]', { hasText: 'fixture-row' }).waitFor({ timeout: 10_000 })
     expect(await panel.getByRole('switch', { name: '启用组件 @fixture/bundle' }).count()).toBe(0)
     await panel.getByRole('button', { name: '卸载 @fixture/bundle' }).waitFor({ timeout: 5_000 })
@@ -954,7 +966,7 @@ describe('web e2e: plugin manager', () => {
         await probe.goto(timeline.authenticatedUrl)
         await probe.getByRole('button', { name: 'Plugins', exact: true }).click()
         const panel = probe.locator('[data-plugin-panel]')
-        await panel.getByRole('button', { name: 'More', exact: true }).click()
+        // Timeline is on in this profile, so Everyday mode lists it.
         await panel.getByRole('button', { name: 'View Timeline', exact: true }).click()
         const tracking = panel.getByRole('region', { name: 'Task tracking' })
         const toggle = tracking.getByRole('switch', { name: 'Auto-open sidebar' })
@@ -1107,6 +1119,8 @@ describe('web e2e: plugin manager', () => {
       images.push(`${label}: image, ${size.width}×${size.height}, decoded`)
     }
     await checkImage('[data-plugin-package="@fixture/bundle"]', fixtureIcon, 'Third-party bundle card')
+    // Voice input is an experimental bundle that is off, so Everyday mode hides it.
+    await showAdvanced(panel)
     const team = panel.locator('[data-plugin-package="@deepseek-ai/dsh-experimental-voice-input-bundle"]')
     expect(await team.getByRole('switch').getAttribute('aria-checked')).toBe('false')
     await checkImage('[data-plugin-package="@deepseek-ai/dsh-experimental-voice-input-bundle"]', voiceIcon, 'Disabled Voice Input card')
@@ -1128,6 +1142,8 @@ describe('web e2e: plugin manager', () => {
     await panel.getByRole('button', { name: '返回插件' }).click()
     await panel.getByRole('button', { name: '查看 @fixture/bundle', exact: true }).click()
     await checkImage('[data-plugin-detail]', fixtureIcon, 'Third-party bundle detail')
+    // Row artwork sits with the rows behind Developer details.
+    await panel.getByRole('button', { name: '开发者信息', exact: true }).click()
     await checkImage('[data-plugin-row="fixture-search"]', fallbackIcon, 'Independent search row')
     expect(await panel.locator('[data-plugin-row="fixture-review"] img').count()).toBe(0)
     expect(await panel.locator('[data-plugin-row="fixture-review"] svg').count()).toBeGreaterThan(0)
@@ -1140,6 +1156,8 @@ describe('web e2e: plugin manager', () => {
   it('introduces code review and worktrees with localized artwork before activation', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-forge-preview'))
     const panel = await openPluginsPanel()
+    // Code review and worktrees is an experimental bundle that is off, so Everyday mode hides it.
+    await showAdvanced(panel)
     await panel.getByRole('button', { name: '查看 变更请求与工作树', exact: true }).click()
     const detail = panel.locator('[data-plugin-detail]')
     expect(await detail.getByRole('switch').getAttribute('aria-checked')).toBe('false')
@@ -1187,6 +1205,8 @@ describe('web e2e: plugin manager', () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-plugin-manager-exports'))
     const panel = await openPluginsPanel()
     await panel.getByRole('button', { name: '查看 @fixture/bundle' }).click()
+    // The rows, the README, and the package name sit behind Developer details.
+    await panel.getByRole('button', { name: '开发者信息', exact: true }).click()
     const search = panel.locator('[data-plugin-row]', { hasText: '@fixture/bundle/search' })
     const review = panel.locator('[data-plugin-row]', { hasText: '@fixture/bundle/review' })
     await search.getByText('文件搜索', { exact: true }).waitFor()
@@ -1223,7 +1243,11 @@ describe('web e2e: plugin manager', () => {
     onTestFinished(closeSettings)
     onTestFailed(() => saveFailureShot(page, 'web-e2e-plugin-manager-locale'))
     const panel = await openPluginsPanel()
+    // Voice input is an experimental bundle that is off, and the Shell and Agent loop pages sit in Advanced, so Everyday
+    // mode hides them.
+    await showAdvanced(panel)
     await panel.getByRole('button', { name: '查看 语音输入', exact: true }).click()
+    await panel.getByRole('button', { name: '开发者信息', exact: true }).click()
     const packageName = panel.locator('[data-plugin-name]')
     expect(await packageName.textContent()).toBe('@deepseek-ai/dsh-experimental-voice-input-bundle')
     expect(await panel.getByText('在本机使用 SenseVoice 转写录音，首次使用需安装依赖。').count()).toBe(1)
@@ -1237,10 +1261,16 @@ describe('web e2e: plugin manager', () => {
       expect(await panel.getByRole('switch', { name: 'Enable Voice input', exact: true }).count()).toBe(1)
       // Schedule ships in the delivered composition, so no bundle card carries it in either language.
       expect(await panel.getByRole('button', { name: 'View Automation tasks', exact: true }).count()).toBe(0)
-      // The official configuration pages follow the language too, from their own dictionary.
-      for (const title of ['Shell', 'Agent loop', 'Subagent', 'Web search and fetch']) {
+      // The official configuration pages follow the language too, from their own dictionary: Shell and Agent loop are
+      // cards of their own under Advanced, while the Subagent and Web search pages open from the bundles that run them.
+      for (const title of ['Shell', 'Agent loop']) {
         await panel.getByRole('button', { name: `View ${title}`, exact: true }).waitFor()
       }
+      for (const bundle of ['Subagents', 'Web']) {
+        await panel.getByRole('button', { name: `Settings for ${bundle}`, exact: true }).waitFor()
+      }
+      expect(await panel.getByRole('button', { name: 'View Subagent', exact: true }).count()).toBe(0)
+      expect(await panel.getByRole('button', { name: 'View Web search and fetch', exact: true }).count()).toBe(0)
     } finally {
       await setLanguage('zh')
     }
@@ -1519,6 +1549,7 @@ describe('web e2e: plugin manager', () => {
     await compareOrRefreshGolden(LIVE_EXPECTED, snapshot, MODE)
     // The pack's page lists its rows as the Host runs them, each with a switch that writes the profile patch.
     await panel.getByRole('button', { name: '查看 @fixture/bundle' }).click()
+    await panel.getByRole('button', { name: '开发者信息', exact: true }).click()
     const rowSwitch = panel.getByRole('switch', { name: '启用组件 @fixture/bundle' })
     await rowSwitch.waitFor({ timeout: 10_000 })
     expect(await rowSwitch.getAttribute('aria-checked')).toBe('true')
@@ -1579,6 +1610,7 @@ describe('web e2e: startup-applied plugin management', () => {
       expect(mounted()?.fiber?.state).toBeUndefined()
       // The pack's page lists its rows from their declarations, with no live entry to switch.
       await panel.getByRole('button', { name: '查看 @fixture/bundle' }).click()
+      await panel.getByRole('button', { name: '开发者信息', exact: true }).click()
       await panel.locator('[data-plugin-row]', { hasText: 'fixture-row' }).waitFor({ timeout: 10_000 })
       expect(await panel.getByRole('switch', { name: '启用组件 @fixture/bundle' }).isDisabled()).toBe(true)
       await panel.getByRole('button', { name: '返回插件' }).click()

@@ -35,6 +35,7 @@ export function openProviderPage(url: string): boolean {
 export function refusalText(outcome: Extract<Outcome<unknown>, { ok: false }>, t: Translate<LlmAccountsKey>): string {
   if (outcome.reason === 'busy') return t('signin.busy')
   if (outcome.reason === 'invalid-key') return t('apikey.invalid')
+  if (outcome.reason === 'key-rejected') return t('apikey.rejected')
   return t('action.failed', { message: outcome.message })
 }
 

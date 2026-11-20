@@ -163,16 +163,35 @@ export function restartText(key: 'restartNotice' | 'installDoneRestart', reason:
   return t(key, { reason: reason === undefined ? '' : t(RESTART_REASON_KEYS[reason]) }).trimEnd()
 }
 
+/** How the page names packages to a person: one by its display name, several as a list in the active language. */
+export interface PackageNames {
+  readonly of: (packageName: string) => string
+  readonly list: (packageNames: readonly string[]) => string
+}
+
+/**
+ * Name packages by their display names, listing several the way the active language joins a list.
+ * @param nameOf - the display name of one package.
+ * @param language - the active UI language.
+ * @returns the page's naming.
+ */
+export function packageNames(nameOf: (packageName: string) => string, language: string): PackageNames {
+  const format = new Intl.ListFormat(language, { type: 'conjunction' })
+  return { of: nameOf, list: names => format.format(names.map(nameOf)) }
+}
+
 /**
  * The sentence one notice shows.
  * @param notice - the last action's outcome.
  * @param t - the manager's translate seat.
+ * @param names - how the page names the packages a notice is about.
  * @returns the sentence.
  */
-export function noticeText(notice: ManagerNotice, t: Translate): string {
+export function noticeText(notice: ManagerNotice, t: Translate, names: PackageNames): string {
   switch (notice.kind) {
     case 'restart': return restartText('restartNotice', notice.reason, t)
-    case 'overridden': return t('overriddenNotice', { name: notice.packageName })
+    case 'overridden': return t('overriddenNotice', { name: names.of(notice.packageName) })
+    case 'also-enabled': return t('alsoEnabledNotice', { names: names.list(notice.names), name: names.of(notice.packageName) })
     case 'cancelled': return t('installCancelled')
     case 'refresh-failed': return t('refreshError')
     case 'install': return t(({

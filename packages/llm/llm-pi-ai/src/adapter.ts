@@ -67,11 +67,13 @@ import { toStreamChunks } from './stream.ts'
 import { capturingFetch, FETCHABLE_APIS, responseObserver } from './accounts/capture.ts'
 import { REFRESH_FAILURE_CODE } from './accounts/classify.ts'
 import { AMBIENT_ACCOUNT, ENV_ACCOUNT, MAIN_ACCOUNT } from './accounts/keys.ts'
-import { AccountPool, accountLabel, parsePinnedModelId, pinnedModelId } from './accounts/router.ts'
+import { AccountPool, parsePinnedModelId, pinnedModelId } from './accounts/router.ts'
 import type { AttemptObserver } from './accounts/router.ts'
 import type { AccountRuntime } from './accounts/runtime.ts'
+import { accountDisplayLabel, identityFromAccessToken } from './accounts/label.ts'
 import { allows } from './accounts/scheduler.ts'
 import type { AccountId } from './accounts/types.ts'
+import { orderModels } from './model-order.ts'
 import { bindThinkingToPrefix } from './prefix-binding.ts'
 import type { PrefixDigests } from './prefix-binding.ts'
 import type { PiAiRequestHeaderContext } from './types.ts'
@@ -109,15 +111,6 @@ function legacyAccount(provider: string, profile: ResolvedPiAiProviderProfile | 
     meta: { pooled: true, pinned: false },
     isDefault: true,
   }
-}
-
-/** Map a pi-ai auth-resolution failure of a signed-in account to a classifiable `LlmError`. */
-function authFailure(error: unknown, provider: string, account: AccountRuntime): unknown {
-  if (!(error instanceof ModelsError) || error.code !== 'oauth') return error
-  return LlmError.fromFailure({
-    message: `llm-pi-ai: signing in to provider "${provider}" as account "${accountLabel(account)}" could not refresh its token`,
-    code: REFRESH_FAILURE_CODE,
-  }, { cause: error })
 }
 
 /** Constructor options for {@link PiAiAdapter}: the two resolution hooks the plugin owns. */
@@ -428,15 +421,19 @@ export class PiAiAdapter extends LlmAdapter {
   /**
    * Pool entries (catalog models allowed by a pooled account, or by the
    * default account) plus `~acct:<id>:<model>` entries for every pinned
-   * account. A route with no usable account offers nothing: a named key that
-   * does not resolve and no stored account is today's `MISSING_CREDENTIAL → []`.
+   * account, badged with the account's display label. Both run current
+   * models first, newest first, with aliases, snapshots, and superseded
+   * versions flagged `older` (see `model-order.ts`). A route with no usable
+   * account offers nothing: a named key that does not resolve and no stored
+   * account is today's `MISSING_CREDENTIAL → []`.
    */
   override listModels(provider: string): Promise<readonly LlmModelInfo[]> {
     return Promise.resolve().then(async () => {
       const snapshot = this.current()
       const profile = this.profileOf(snapshot, provider)
+      const accounts = await this.pool.directory.forRoute(provider)
       const usable: AccountRuntime[] = []
-      for (const account of await this.pool.directory.forRoute(provider)) {
+      for (const account of accounts) {
         if (account.kind === 'key-ref' || account.kind === 'ambient') {
           try { await this.config.resolveApiKey(provider, profile) }
           catch (error) {
@@ -447,23 +444,59 @@ export class PiAiAdapter extends LlmAdapter {
         }
         usable.push(account)
       }
-      const catalog = snapshot.models.getModels(provider)
-      const entry = (model: Model<Api>): LlmModelInfo => ({
+      const catalog = orderModels(snapshot.models.getModels(provider))
+      const entry = ({ model, older }: { model: Model<Api>; older: boolean }): LlmModelInfo => ({
         provider,
         id: model.id,
         name: model.name,
         inputModalities: [...model.input],
+        ...older ? { older: true } : {},
       })
       const pooled = catalog
-        .filter(model => usable.some(account => (account.meta.pooled || account.isDefault) && allows(account.meta.models, model.id)))
+        .filter(({ model }) => usable.some(account => (account.meta.pooled || account.isDefault) && allows(account.meta.models, model.id)))
         .map(entry)
-      const pinned = usable.filter(account => account.meta.pinned).flatMap(account => catalog.map(model => ({
-        ...entry(model),
-        id: pinnedModelId(account.id, model.id),
-        badge: { text: accountLabel(account), tone: 'info' as const },
+      const pinnedAccounts = usable.filter(account => account.meta.pinned)
+      const labels = pinnedAccounts.length === 0 ? new Map<AccountId, string>() : await this.accountLabels(provider, accounts)
+      const pinned = pinnedAccounts.flatMap(account => catalog.map(listed => ({
+        ...entry(listed),
+        id: pinnedModelId(account.id, listed.model.id),
+        badge: { text: labels.get(account.id) ?? accountDisplayLabel(account, accounts.indexOf(account)), tone: 'info' as const },
       })))
       return [...pooled, ...pinned]
     })
+  }
+
+  /**
+   * Display labels of a route's accounts, as Settings shows them: alias, else
+   * sign-in email, else a kind-based name such as "Account 2". Never an id.
+   * @param provider - the provider route key.
+   * @param accounts - the route's accounts in directory order.
+   * @returns each account's label by id.
+   */
+  private async accountLabels(provider: string, accounts: readonly AccountRuntime[]): Promise<Map<AccountId, string>> {
+    const labels = new Map<AccountId, string>()
+    for (const [index, account] of accounts.entries()) {
+      const stored = account.kind === 'oauth' && account.meta.alias === undefined ? await this.storeFor(account.id).read(provider) : undefined
+      const email = stored?.type === 'oauth' ? identityFromAccessToken(stored.access)?.email : undefined
+      labels.set(account.id, accountDisplayLabel(account, index, email))
+    }
+    return labels
+  }
+
+  /** One account's display label, numbered by its position in the route's directory. */
+  private async accountLabel(provider: string, account: AccountRuntime): Promise<string> {
+    const labels = await this.accountLabels(provider, await this.pool.directory.forRoute(provider))
+    return labels.get(account.id) ?? accountDisplayLabel(account, 0)
+  }
+
+  /** Map a pi-ai auth-resolution failure of a signed-in account to a classifiable `LlmError` with plain text. */
+  private async authFailure(error: unknown, provider: string, account: AccountRuntime): Promise<unknown> {
+    if (!(error instanceof ModelsError) || error.code !== 'oauth') return error
+    const label = await this.accountLabel(provider, account)
+    return LlmError.fromFailure({
+      message: `Couldn't refresh your ${this.providerInfo(provider).name} sign-in for ${label}. If this keeps happening, sign in again in Settings → Models.`,
+      code: REFRESH_FAILURE_CODE,
+    }, { cause: error })
   }
 
   override resolveModel(
@@ -527,6 +560,8 @@ export class PiAiAdapter extends LlmAdapter {
         model: options.model,
         ...options.sessionId === undefined ? {} : { sessionId: String(options.sessionId) },
         ...options.signal === undefined ? {} : { signal: options.signal },
+        providerName: this.providerInfo(options.provider).name,
+        labels: () => this.accountLabels(options.provider, accounts),
       },
       (account, observer) => this.streamAttempt(options, snapshot, account, observer),
       (account, observer) => this.forceRefresh(snapshot, options.provider, account, observer, options.signal),
@@ -551,7 +586,7 @@ export class PiAiAdapter extends LlmAdapter {
     try {
       await this.modelsFor(snapshot, account.id).getAuth(provider, signal === undefined ? {} : { signal })
     } catch (error) {
-      throw authFailure(error, provider, account)
+      throw await this.authFailure(error, provider, account)
     }
   }
 
@@ -603,12 +638,13 @@ export class PiAiAdapter extends LlmAdapter {
       try {
         resolved = await models.getAuth(options.provider, options.signal === undefined ? {} : { signal: options.signal })
       } catch (error) {
-        throw authFailure(error, options.provider, account)
+        throw await this.authFailure(error, options.provider, account)
       }
       if (resolved === undefined) {
         throw new LlmError(
-          `llm-pi-ai: account "${accountLabel(account)}" of provider "${options.provider}" holds no credential; sign in again`,
+          `Your ${this.providerInfo(options.provider).name} sign-in for ${await this.accountLabel(options.provider, account)} is missing. Sign in again in Settings → Models.`,
           'MISSING_CREDENTIAL',
+          { cause: new Error(`llm-pi-ai: account "${account.id}" of provider "${options.provider}" holds no credential`) },
         )
       }
       const stored = await this.storeFor(account.id).read(options.provider)

@@ -303,6 +303,9 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
   // A route the adapter already describes answers without an endpoint; only a
   // draft with neither has nothing to ask about.
   const askable = probe.provider !== undefined || (probe.baseURL !== undefined && probe.baseURL.length > 0)
+  const builtIn = catalog !== undefined && catalog.length > 0
+    ? t('modelsBuiltInCount').replace('{count}', String(catalog.length))
+    : t('modelsInherited')
   return (
     <section className={styles['modelCatalog']} aria-label={t('models')}>
       <div className={styles['modelListHead']}>
@@ -310,11 +313,7 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
           <span className={styles['modelCatalogTitle']}>{t('models')}</span>
           {props.overridden === undefined
             ? null
-            : (
-              <span className={styles['modelCatalogMeta']}>
-                {props.overridden ? t('modelsCustomized') : t('modelsInherited')}
-              </span>
-            )}
+            : <span className={styles['modelCatalogMeta']}>{props.overridden ? t('modelsCustomized') : builtIn}</span>}
         </div>
         {props.overridden === true && props.onReset !== undefined
           ? (
@@ -340,7 +339,12 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
           {busy ? t('fetching') : t('fetchModels')}
         </button>
       </div>
-      {models.length === 0 ? <p className={styles['modelEmpty']}>{t('modelsEmpty')}</p> : null}
+      {models.length === 0
+        // With an installed catalog an empty list serves the whole built-in list; only a hand-declared route has none.
+        ? catalogProvider === undefined
+          ? <p className={styles['modelEmpty']}>{t('modelsEmpty')}</p>
+          : props.overridden === undefined ? <p className={styles['modelEmpty']}>{builtIn}</p> : null
+        : null}
       <AnimatedRows className={styles['modelList'] as string} rowKeys={rowState.rows.map(row => String(row.key))} ready resetKey="">
         {rowState.rows.map(({ model, key, expanded, order }, index) => (
           <ModelRow

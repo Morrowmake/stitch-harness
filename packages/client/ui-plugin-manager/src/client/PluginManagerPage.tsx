@@ -1,11 +1,10 @@
 /**
- * Global plugin management: grouped cards for official configuration and
- * optional bundles, the Installed group's cards for the profile's bundles,
- * their row switches, the install dialog with its guide and folded pnpm
- * output, the uninstall confirmation, and the toasts an action's outcome
- * becomes. A bundle's page lists the rows it contributes as the Host runs
- * them; a plugin's configuration renders on its own page through the slots
- * the page declares.
+ * Global plugin management: the Installed list grouped by purpose, searchable, with plumbing and experiments that are
+ * off behind "Show advanced"; each card with its switch and settings button; the install dialog with its guide and
+ * folded pnpm output; the confirmations an uninstall or a change reaching other bundles waits on; and the toasts an
+ * action's outcome becomes. A bundle's page puts its summary and settings first and folds the package name, README,
+ * the rows it runs, and its source under Developer details; a plugin's configuration renders on its own page through
+ * the slots the page declares.
  */
 
 import { Fragment, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
@@ -14,7 +13,8 @@ import type { PluginInstallFailureKind, Registry } from '@deepseek-ai/dsh-api-re
 import {
   Button, IconCheckCircleFillRegular, IconChevronDownOutlineRegular, IconChevronLeftOutlineMedium,
   IconChevronRightOutlineRegular, IconCloseOutlineMedium,
-  IconDownloadOutlineRegular, IconInfoOutlineRegular, IconPlusOutlineRegular, IconRefreshOutlineRegular, IconTrashOutlineRegular,
+  IconDownloadOutlineRegular, IconInfoOutlineRegular, IconPlusOutlineRegular, IconRefreshOutlineRegular,
+  IconSettingsOutlineRegular, IconTrashOutlineRegular,
   IconWarningOutlineRegular, Input, Menu, MenuItemButton, Modal, pointerModality,
   PluginArtworkDefault, PluginArtworkLoop, PluginArtworkSearch, PluginArtworkSubagent, PluginArtworkTerminal,
   SegmentedTabs, StateDot, Switch, Tag, TerminalBlock, Toast, Tooltip, useDismissOnOutsidePointer,
@@ -23,7 +23,9 @@ import {
 import type { ClientEntryState } from '@deepseek-ai/dsh-client-modules/client'
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type { InjectFace, PropsLocale, PropsRenderFactories, PropsRenderSlots, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
-import { EXTENSION_BUNDLES, HIDDEN_BUNDLES, MORE_BUNDLES } from '@deepseek-ai/dsh-official-bundles'
+import {
+  BUNDLE_SECTIONS, EXPERIMENTAL_BUNDLES, HIDDEN_BUNDLES, PLUGIN_SECTIONS, type PluginSection,
+} from '@deepseek-ai/dsh-official-bundles'
 import { localizedValues, TextSearchIndex } from '@deepseek-ai/dsh-util-text-search'
 import type { createNavigationStore } from './navigation-store.ts'
 import type { PluginHeaderLayoutFace } from './header-scroll.ts'
@@ -31,10 +33,12 @@ import { rowConfigKey, type OfficialItem, type SettingsSectionItem } from './con
 import { INSTALL_GIT_EXAMPLE, INSTALL_PATH_EXAMPLE, type PluginManagerLocaleKey } from './locales.ts'
 import {
   bundleBusy, asksMirror, githubRecoveryRegistry, isInstallPending, offeredRegistries, rowKey, updateCandidate,
-  type InstallInputError, type InstallState, type InstallSubject, type PackageRow, type PackageView,
+  type ConfirmState, type InstallInputError, type InstallState, type InstallSubject, type PackageRow, type PackageView,
   type PluginManagerFace, type PluginManagerState, type RegistryChoice, type VersionCheck,
 } from './manager-store.ts'
-import { managementText, noticeText, packageText, registryText, restartText, rowText, type Translate } from './presentation.ts'
+import {
+  managementText, noticeText, packageNames, packageText, registryText, restartText, rowText, type PackageNames, type Translate,
+} from './presentation.ts'
 import type { PluginPackageRef, PluginRowRef, PluginsSubject } from './slot-contract.ts'
 import type { ConfigPageForm } from './slot-contract.ts'
 import { UpdateDialog, VersionSection } from './versions.tsx'
@@ -126,36 +130,50 @@ function rowsRunning(pkg: PackageView): boolean {
   return pkg.rows.some(row => row.enabled)
 }
 
-/**
- * Whether the main list shows an official optional bundle: any bundle outside `MORE_BUNDLES`, and any held-back one the profile enabled.
- * @param pkg - the official bundle as the Host reports it.
- * @returns whether the main list shows it.
- */
-function pinnedToMainList(pkg: PackageView): boolean {
-  return !MORE_BUNDLES.includes(pkg.name) || pkg.enabled
-}
+/** A group of the Installed list: official plugins by purpose, the profile's own plugins, and the experimental ones. */
+type ListGroup = PluginSection | 'installed' | 'experimental'
+
+/** The Installed list's groups in display order: purposes, the profile's own plugins, experiments, then plumbing. */
+const LIST_GROUPS: readonly ListGroup[] = [...PLUGIN_SECTIONS.filter(section => section !== 'advanced'), 'installed', 'experimental', 'advanced']
+
+/** The heading of each group. */
+const GROUP_TITLE_KEYS = {
+  chat: 'groupChat',
+  files: 'groupFiles',
+  web: 'groupWeb',
+  agents: 'groupAgents',
+  integrations: 'groupIntegrations',
+  interface: 'groupInterface',
+  advanced: 'groupAdvanced',
+  installed: 'bundlesTitle',
+  experimental: 'groupExperimental',
+} satisfies Record<ListGroup, PluginManagerLocaleKey>
 
 /**
- * Where an optional bundle sits on both lists: the `EXTENSION_BUNDLES` in their order, then the bundles neither list
- * ranks, then the held-back ones in theirs, so Codex and Claude Code stay last on the More list.
- * @param name - the bundle's package name.
- * @returns the rank; bundles of equal rank keep the order the Host reported.
+ * The group a listed bundle sits in: a profile's own plugin in `installed`, an experimental official one in
+ * `experimental`, any other official one by its purpose, and plumbing in `advanced`.
+ * @param pkg - the bundle as the Host reports it.
+ * @returns its group.
  */
-function optionalBundleRank(name: string): number {
-  const ranked = EXTENSION_BUNDLES.indexOf(name)
-  if (ranked >= 0) return ranked
-  const heldBack = MORE_BUNDLES.indexOf(name)
-  return heldBack < 0 ? EXTENSION_BUNDLES.length : EXTENSION_BUNDLES.length + 1 + heldBack
+function packageGroup(pkg: PackageView): ListGroup {
+  if (!pkg.official) return 'installed'
+  if (EXPERIMENTAL_BUNDLES.has(pkg.name)) return 'experimental'
+  return BUNDLE_SECTIONS[pkg.name] ?? 'advanced'
 }
 
+/** One line of the Installed list: a bundle, or an official plugin's settings that belong to no listed bundle. */
+type ListEntry =
+  | { readonly kind: 'package'; readonly pkg: PackageView; readonly title: string; readonly description: string | undefined; readonly group: ListGroup }
+  | { readonly kind: 'item'; readonly item: OfficialItem; readonly title: string; readonly description: undefined; readonly group: ListGroup }
+
 /**
- * Order the official optional bundles as both lists show them, so a bundle the profile picks from the More list
- * keeps its place among the neighbours the main list already holds.
- * @param packages - the official bundles the Host offers.
- * @returns the bundles in display order.
+ * Whether the everyday list shows an entry: everything outside the plumbing, except experiments that are off.
+ * @param entry - the list line.
+ * @returns whether it shows without "Show advanced".
  */
-function orderOptionalBundles(packages: readonly PackageView[]): PackageView[] {
-  return [...packages].sort((a, b) => optionalBundleRank(a.name) - optionalBundleRank(b.name))
+function everyday(entry: ListEntry): boolean {
+  if (entry.group === 'advanced') return false
+  return entry.group !== 'experimental' || (entry.kind === 'package' && entry.pkg.enabled)
 }
 
 /** How long a toast holds: long enough to read a failure that names what broke. */
@@ -543,11 +561,21 @@ function updatesNote(packages: readonly PackageView[], versions: PluginManagerSt
   return { text: t('updatesNone') }
 }
 
+/** The button that opens a plugin's settings on its page. */
+function SettingsButton({ title, t, onClick }: { readonly title: string; readonly t: Translate; readonly onClick: () => void }): ReactNode {
+  return (
+    <Tooltip label={t('openSettings', { name: title })} side="bottom" delayMs={500} focusDelayMs={500} portal>
+      <Button variant="ghost" size="sm" className={css.settingsButton} aria-label={t('openSettings', { name: title })}
+        icon={<IconSettingsOutlineRegular size={14} />} onClick={onClick} />
+    </Tooltip>
+  )
+}
+
 /**
- * One package as a card that opens its page: its name, its one-liner, its tags, its bundle switch, and why the Host
- * skipped it or does not support its platform.
+ * One package as a card that opens its page: its name, its one-liner, its tags, what it needs, its settings button,
+ * its bundle switch, and why the Host skipped it or does not support its platform.
  */
-function PackageCard({ pkg, t, resolveText, busy, highlighted, newer, onOpen, onSetEnabled }: {
+function PackageCard({ pkg, t, resolveText, busy, highlighted, newer, needs, onOpen, onSettings, onSetEnabled }: {
   readonly pkg: PackageView
   /** The newer registry version a version check offers. */
   readonly newer: string | undefined
@@ -555,7 +583,11 @@ function PackageCard({ pkg, t, resolveText, busy, highlighted, newer, onOpen, on
   readonly resolveText: ResolveText
   readonly busy: boolean
   readonly highlighted: boolean
+  /** The display names of the plugins this one needs, as a list in the active language; absent when it needs none. */
+  readonly needs: string | undefined
   readonly onOpen: () => void
+  /** Opens the plugin's settings; absent for a plugin without settings. */
+  readonly onSettings: (() => void) | undefined
   readonly onSetEnabled: (enabled: boolean) => void
 }): ReactNode {
   const { title, description, beta } = packageText(pkg, resolveText)
@@ -575,13 +607,19 @@ function PackageCard({ pkg, t, resolveText, busy, highlighted, newer, onOpen, on
         tags={(
           <>
             {beta ? <Tag className={css.statusTag} tone="info">{t('statusBeta')}</Tag> : null}
+            {needs === undefined ? null : <Tag className={css.statusTag} tone="neutral">{t('needsTag', { names: needs })}</Tag>}
             <StatusTag status={status} t={t} />
             {pkg.availability === 'missing' ? <Tag className={css.statusTag}>{t(pkg.installed ? 'statusMissingFiles' : 'statusNotInstalled')}</Tag> : null}
             {newer !== undefined ? <Tag className={css.statusTag} tone="info">{t('statusUpdateAvailable')}</Tag> : null}
           </>
         )}
         description={description}
-        end={<EnableSwitch pkg={pkg} title={title} t={t} busy={busy} onSetEnabled={onSetEnabled} />}
+        end={(
+          <>
+            {onSettings === undefined ? null : <SettingsButton title={title} t={t} onClick={onSettings} />}
+            <EnableSwitch pkg={pkg} title={title} t={t} busy={busy} onSetEnabled={onSetEnabled} />
+          </>
+        )}
       />
       <MetadataError error={pkg.meta?.error} t={t} />
       {/* The card names an incompatibility without its requirement list; the page lists them. */}
@@ -604,7 +642,9 @@ function ItemCard({ item, t, onOpen, renderSlot }: {
 }): ReactNode {
   return (
     <li className={`${css.card} ${css.cardLink}`} data-plugin-item={item.id}>
-      <CardHead title={item.label} t={t} onOpen={onOpen} icon={itemArtwork(item.id)} description={renderSlot('plugins.item', { view: 'summary' }, { only: item.id })} />
+      <CardHead title={item.label} t={t} onOpen={onOpen} icon={itemArtwork(item.id)}
+        description={renderSlot('plugins.item', { view: 'summary' }, { only: item.id })}
+        end={<SettingsButton title={item.label} t={t} onClick={onOpen} />} />
     </li>
   )
 }
@@ -716,23 +756,23 @@ function RowDetail({ pkg, row, t, resolveText, onBack, renderSlot, renderFactory
 }
 
 /**
- * One package's page: the crumb back to the list; its icon with its switch
- * and, for a package the profile installed or a selection the Host can remove, uninstall; its title beside its
- * version tag, its beta tag, and its problem or not-running tag; the package name the title
- * stands for; its one-liner; the Host's problem when it reports one; the
- * configuration the bundle registered for itself; its rows with their switches
- * and configure controls, unless the Host reports an error and no rows; and where it comes from.
+ * One package's page: the crumb back to the list; its icon with its switch and, for a package the profile installed or
+ * a selection the Host can remove, uninstall; its title beside its tags; its one-liner and the user guide its locale
+ * names; the Host's problem when it reports one; its settings; its versions; and, folded under Developer details, the
+ * package name, its README, the rows it runs with their switches and configure controls, and where it comes from.
  */
 function PackageDetail({
-  pkg, t, resolveText, busy, rowBusy, configured, configure, sections, renderSlot, renderFactory, inMore, versions, detail, productCli,
-  onBack, onSetEnabled, onUninstall, onSetRowEnabled, onEnsureVersions, onCheckVersions, onUpdateVersion,
+  pkg, t, resolveText, busy, rowBusy, configured, configure, sections, items, renderSlot, renderFactory, versions, guide, readme,
+  productCli, formFor, onBack, onSetEnabled, onUninstall, onSetRowEnabled, onEnsureVersions, onCheckVersions, onUpdateVersion,
 }: {
   readonly pkg: PackageView
   /** The package's version check, when one started. */
   readonly versions: VersionCheck | undefined
-  /** The bundle's detail document section, shown first among the page's sections after the program section. */
-  readonly detail: ReactNode
-  /** The program section of a bundle that runs a product CLI, shown before the detail document. */
+  /** The user guide the bundle's locale names (`meta.detail`), shown under its one-liner. */
+  readonly guide: ReactNode
+  /** The bundle's README, shown under Developer details. */
+  readonly readme: ReactNode
+  /** The program section of a bundle that runs a product CLI, shown before the settings. */
   readonly productCli: ReactNode
   readonly t: Translate
   readonly resolveText: ResolveText
@@ -747,9 +787,10 @@ function PackageDetail({
    * row's module is that package.
    */
   readonly sections: readonly SettingsSectionItem[]
+  /** The official plugins whose settings belong to this bundle's rows. */
+  readonly items: readonly OfficialItem[]
   readonly renderSlot: RenderConfig
   readonly renderFactory: RenderFactory
-  readonly inMore: boolean
   readonly onBack: () => void
   readonly onSetEnabled: (enabled: boolean) => void
   readonly onUninstall: () => void
@@ -759,16 +800,20 @@ function PackageDetail({
   readonly onCheckVersions: () => void
   /** Ask before installing one listed newer version. */
   readonly onUpdateVersion: (version: string) => void
+  /** The settings form of an official plugin. */
+  readonly formFor: (id: string) => ConfigPageForm | undefined
 }): ReactNode {
   const { title, description, beta } = packageText(pkg, resolveText)
   const newer = versionUpdate(versions)
   const status = packageStatus(pkg)
   const subject: PluginsSubject = { kind: 'bundle', pkg: packageRef(pkg) }
+  const [developerOpen, setDeveloperOpen] = useState(false)
+  const developerId = useId()
   return (
     <div className={css.detail} data-plugin-detail={pkg.name}>
       <DetailTop
-        crumbLabel={inMore ? t('backToPackage', { name: t('moreTitle') }) : t('backToList')}
-        crumbText={t(inMore ? 'moreTitle' : 'crumbRoot')}
+        crumbLabel={t('backToList')}
+        crumbText={t('crumbRoot')}
         onBack={onBack}
         icon={<PackageArtwork key={pkg.meta?.icon} src={pkg.meta?.icon} />}
         actions={(
@@ -802,22 +847,27 @@ function PackageDetail({
       <div className={css.detailMain}>
         <div className={css.titleRow}>
           <h3 className={css.detailTitle}>{title}</h3>
-          {pkg.version === undefined ? null : <Tag className={css.versionTag} tone="neutral">{t('versionTag', { version: pkg.version })}</Tag>}
+          {/* Official plugins ship with Stitch, so their version says nothing a person acts on. */}
+          {pkg.version === undefined || pkg.official ? null : <Tag className={css.versionTag} tone="neutral">{t('versionTag', { version: pkg.version })}</Tag>}
           {beta ? <Tag className={css.statusTag} tone="info">{t('statusBeta')}</Tag> : null}
           <StatusTag status={status} t={t} />
           {pkg.availability === 'missing' ? <Tag className={css.statusTag}>{t(pkg.installed ? 'statusMissingFiles' : 'statusNotInstalled')}</Tag> : null}
           {newer !== undefined ? <Tag className={css.statusTag} tone="info">{t('statusUpdateAvailable')}</Tag> : null}
           {renderSlot('plugins.detail.badge', { subject })}
         </div>
-        <p className={css.detailName}><code data-plugin-name>{pkg.name}</code></p>
         {description === undefined ? null : <p className={css.detailDesc}>{description}</p>}
       </div>
       <MetadataError error={pkg.meta?.error} t={t} />
       {pkg.error === undefined ? null : <p className={css.reason} role="status">{t('reasonLabel')}: {managementText(pkg.error, t)}</p>}
       {pkg.readOnlyReason === undefined ? null : <p className={css.reason} role="status">{managementText({ code: pkg.readOnlyReason }, t)}</p>}
       <div className={css.detailSections}>
+        {guide}
         {productCli}
-        {detail}
+        {items.map(item => (
+          <section key={item.id} className={css.detailSection} data-plugin-config data-plugin-item-config={item.id}>
+            {renderSlot('plugins.item', { view: 'page', form: formFor(item.id) }, { only: item.id })}
+          </section>
+        ))}
         {configured
           ? (
             <section className={css.detailSection} data-plugin-config>
@@ -830,19 +880,34 @@ function PackageDetail({
             {renderFactory('settings.section.view', { id: section.id, close: onBack })}
           </section>
         ))}
-        {/* A Host error with no rows can mean the Host never read the patch, so the page does not claim the bundle has no components. */}
-        {pkg.availability === 'missing' || (pkg.error !== undefined && pkg.rows.length === 0) ? null : (<RowsSection
-          rows={pkg.rows}
-          t={t}
-          resolveText={resolveText}
-          toggle={pkg.enabled ? { busy: row => busy || rowBusy(row), onSetEnabled: onSetRowEnabled } : undefined}
-          configure={configure}
-        />)}
         <VersionSection
           pkg={pkg} check={versions} t={t} busy={busy} onEnsure={onEnsureVersions} onCheck={onCheckVersions} onUpdate={onUpdateVersion}
         />
-        <SourceSection pkg={pkg} t={t} />
         {renderSlot('plugins.detail.section', { subject })}
+        <section className={css.developer} data-plugin-developer>
+          <button type="button" className={css.detailsToggle} aria-expanded={developerOpen} aria-controls={developerId}
+            onClick={() => { setDeveloperOpen(open => !open) }}>
+            <span>{t('developerDetails')}</span>
+            <IconChevronDownOutlineRegular className={css.detailsChevron} aria-hidden="true" />
+          </button>
+          {developerOpen
+            ? (
+              <div id={developerId} className={css.detailSections}>
+                <p className={css.detailName}><code data-plugin-name>{pkg.name}</code></p>
+                {readme}
+                {/* A Host error with no rows can mean the Host never read the patch, so the page does not claim it has no parts. */}
+                {pkg.availability === 'missing' || (pkg.error !== undefined && pkg.rows.length === 0) ? null : (<RowsSection
+                  rows={pkg.rows}
+                  t={t}
+                  resolveText={resolveText}
+                  toggle={pkg.enabled ? { busy: row => busy || rowBusy(row), onSetEnabled: onSetRowEnabled } : undefined}
+                  configure={configure}
+                />)}
+                <SourceSection pkg={pkg} t={t} />
+              </div>
+            )
+            : null}
+        </section>
       </div>
     </div>
   )
@@ -1539,26 +1604,68 @@ function InstallDialog({
   )
 }
 
-/** The confirmation an uninstall waits on. */
-function ConfirmDialog({ name, t, onConfirm, onCancel }: {
-  readonly name: string
+/**
+ * The confirmation a change waits on: an uninstall; switching off a plugin others need, naming them; or switching one
+ * back on, offering to restore the plugins switched off with it.
+ */
+function ConfirmDialog({ confirm, names: naming, t, onConfirm, onAlternative, onCancel }: {
+  readonly confirm: ConfirmState
+  readonly names: PackageNames
   readonly t: Translate
   readonly onConfirm: () => void
+  readonly onAlternative: () => void
   readonly onCancel: () => void
 }): ReactNode {
+  const name = naming.of(confirm.packageName)
+  if (confirm.action === 'uninstall') {
+    return (
+      <Modal
+        open
+        onClose={onCancel}
+        title={t('confirmUninstallTitle', { name })}
+        closeLabel={t('close')}
+        description={t('confirmUninstallDescription')}
+        footer={(
+          <>
+            <Button variant="outline" onClick={onCancel}>{t('cancel')}</Button>
+            <Button variant="primary" className={css.dangerButton} onClick={onConfirm}>
+              {t('confirmUninstall')}
+            </Button>
+          </>
+        )}
+      />
+    )
+  }
+  const names = naming.list(confirm.dependents)
+  const count = String(confirm.dependents.length + 1)
+  if (confirm.action === 'disable-dependents') {
+    return (
+      <Modal
+        open
+        onClose={onCancel}
+        title={t('confirmCascadeOffTitle', { name })}
+        closeLabel={t('close')}
+        description={t('confirmCascadeOffDescription', { name, names })}
+        footer={(
+          <>
+            <Button variant="outline" onClick={onCancel}>{t('cancel')}</Button>
+            <Button variant="primary" onClick={onConfirm}>{t('confirmCascadeOff', { count })}</Button>
+          </>
+        )}
+      />
+    )
+  }
   return (
     <Modal
       open
       onClose={onCancel}
-      title={t('confirmUninstallTitle', { name })}
+      title={t('confirmRestoreTitle', { names })}
       closeLabel={t('close')}
-      description={t('confirmUninstallDescription')}
+      description={t('confirmRestoreDescription', { name, names })}
       footer={(
         <>
-          <Button variant="outline" onClick={onCancel}>{t('cancel')}</Button>
-          <Button variant="primary" className={css.dangerButton} onClick={onConfirm}>
-            {t('confirmUninstall')}
-          </Button>
+          <Button variant="outline" onClick={onAlternative}>{t('confirmRestoreOnly', { name })}</Button>
+          <Button variant="primary" onClick={onConfirm}>{t('confirmRestoreAll', { count })}</Button>
         </>
       )}
     />
@@ -1589,6 +1696,8 @@ export function PluginManagerPage(props: PluginManagerPageProps): ReactNode {
   const tabsId = useId()
   const [activation, setActivation] = useState<string | null>(null)
   const [headerRef] = useState(props.createHeaderRef)
+  const [search, setSearch] = useState('')
+  const advanced = props.useStore(state => state.advanced), { setAdvanced } = props.actions
   useEffect(() => { ensure() }, [ensure])
   // Installation highlights visible cards without changing the user's current page.
   const { highlight, clearHighlight } = { highlight: state.highlight, clearHighlight: props.clearHighlight }
@@ -1599,20 +1708,16 @@ export function PluginManagerPage(props: PluginManagerPageProps): ReactNode {
     const timer = setTimeout(clearHighlight, HIGHLIGHT_MS)
     return () => { clearTimeout(timer) }
   }, [highlight, clearHighlight])
-  const noticeLine = state.notice === null || state.notice.kind === 'refresh-failed' ? null : noticeText(state.notice, t)
-
   const listed = state.packages.filter(pkg => !HIDDEN_BUNDLES.has(pkg.name)
     && (pkg.listedByDefault !== false || pkg.enabled || pkg.installed || rowsRunning(pkg))
     && (pkg.installed || pkg.official || pkg.error !== undefined))
+  const nameOf = (name: string): string => {
+    const pkg = state.packages.find(item => item.name === name)
+    return pkg === undefined ? name : packageText(pkg, resolveText).title
+  }
+  const names = packageNames(nameOf, language)
+  const noticeLine = state.notice === null || state.notice.kind === 'refresh-failed' ? null : noticeText(state.notice, t, names)
   const mine = listed.filter(pkg => !pkg.official)
-  const official = listed.filter(pkg => pkg.official)
-  // Both lists read one order over the eligible bundles: the main list holds the always-held ones plus the held-back
-  // ones the profile enabled, and the More list holds the eligible ones, so enabling a bundle from the More list pins it
-  // to the main list without moving it among its neighbours there.
-  const ordered = orderOptionalBundles(official)
-  const pinned = new Set(official.filter(pinnedToMainList).map(pkg => pkg.name))
-  const extensions = ordered.filter(pkg => pinned.has(pkg.name))
-  const more = ordered
   const loaded = state.status === 'ready' || state.status === 'error'
   const refreshing = state.refreshStatus === 'refreshing'
   const openPkg = view.kind === 'package' || view.kind === 'row'
@@ -1620,27 +1725,26 @@ export function PluginManagerPage(props: PluginManagerPageProps): ReactNode {
     : undefined
   const openItem = view.kind === 'item' ? ledger.items.find(item => item.id === view.id) : undefined
   // A plugin's settings page also shows on the listed row whose module registered it, or else on the bundle whose
-  // package registered it, when that row or bundle registers no configuration of its own; Settings shows it either way.
+  // package registered it or whose patch switches on the row that runs it, when that row or bundle registers no
+  // configuration of its own; Settings shows it either way.
   const rowModules = new Set(listed.flatMap(pkg => pkg.rows.map(row => row.moduleName)))
   const sectionsOf = (pkg: PackageView, row: PackageRow): readonly SettingsSectionItem[] =>
     ledger.rows.has(rowConfigKey(pkg.name, row.rowId)) ? [] : ledger.sections.filter(section => section.module === row.moduleName)
-  const bundleSections = (pkg: PackageView): readonly SettingsSectionItem[] => ledger.bundles.has(pkg.name) || rowModules.has(pkg.name)
+  const bundleSections = (pkg: PackageView): readonly SettingsSectionItem[] => ledger.bundles.has(pkg.name)
     ? []
-    : ledger.sections.filter(section => section.module === pkg.name)
+    : ledger.sections.filter(section => section.module !== undefined && ((section.module === pkg.name && !rowModules.has(pkg.name))
+      || (pkg.configures?.includes(section.module) === true && !rowModules.has(section.module))))
+  // An official plugin's settings belong to the listed bundle that runs, or switches on, the package that registered them.
+  const itemsOf = (pkg: PackageView): readonly OfficialItem[] => ledger.items.filter(item => item.module !== undefined
+    && (pkg.rows.some(row => row.moduleName === item.module) || pkg.configures?.includes(item.module) === true))
   const openRow = view.kind === 'row' && openPkg !== undefined ? openPkg.rows.find(row => row.rowId === view.rowId) : undefined
   const onInstalled = tab === INSTALLED_TAB
   const showsCards = !onInstalled || (openPkg === undefined && openItem === undefined)
-  const detailFromMore = (view.kind === 'package' || view.kind === 'row')
-    && (view.from === 'more' || (openPkg !== undefined && MORE_BUNDLES.includes(view.name) && !pinned.has(view.name)))
-  const showsMoreList = onInstalled && showsCards && (view.kind === 'more' || detailFromMore)
-  const showsMainList = showsCards && !showsMoreList
   const installedCards = onInstalled && showsCards
-  const openPkgInMore = openPkg !== undefined && openPkg.official && detailFromMore
   const returnTab = view.kind === 'package' || view.kind === 'row' ? view.returnTab : undefined
-  const backToMore = openPkgInMore && returnTab === undefined
-  const pkgOrigin = returnTab !== undefined ? { returnTab } : backToMore ? { from: 'more' as const } : {}
-  // The Installed tab's panel, whatever it currently shows; the More list is not a tab panel.
-  const installedPanel = tabs.length === 0 || showsMoreList
+  const pkgOrigin = returnTab !== undefined ? { returnTab } : {}
+  // The Installed tab's panel, whatever it currently shows.
+  const installedPanel = tabs.length === 0
     ? {}
     : { role: 'tabpanel', id: `${tabsId}-${INSTALLED_TAB}-panel`, 'aria-labelledby': `${tabsId}-${INSTALLED_TAB}` }
   const activated = listed.find(pkg => pkg.name === activation && pkg.enabled && !state.busy.includes(pkg.name))
@@ -1659,52 +1763,71 @@ export function PluginManagerPage(props: PluginManagerPageProps): ReactNode {
   const updates = updatesNote(mine, state.versions, t)
   const updatePkg = state.update === null ? undefined : state.packages.find(pkg => pkg.name === state.update?.packageName)
   const packageBusy = (pkg: PackageView): boolean => bundleBusy(state, pkg.name)
-  const packageCard = (pkg: PackageView): ReactNode => (
-    <PackageCard
-      key={pkg.name}
-      pkg={pkg}
-      t={t}
-      resolveText={resolveText}
-      busy={packageBusy(pkg)}
-      highlighted={state.highlight === pkg.name}
-      newer={versionUpdate(state.versions[pkg.name])}
-      onOpen={() => { setActivation(null); setView({ kind: 'package', name: pkg.name, ...showsMoreList ? { from: 'more' } : {} }) }}
-      onSetEnabled={(enabled) => { setBundleEnabled(pkg.name, enabled) }}
-    />
-  )
-  const basicCards = ledger.items.map(item => (
-    <ItemCard key={`item:${item.id}`} item={item} t={t} renderSlot={renderSlot} onOpen={() => { setView({ kind: 'item', id: item.id }) }} />
-  ))
-  const renderGroup = (id: 'basic' | 'extensions' | 'bundles', heading: string, cards: readonly ReactNode[]): ReactNode => {
-    const offersMore = id === 'extensions' && more.length > 0
-    if (cards.length === 0 && !offersMore) return null
+  const openPackage = (name: string): void => { setActivation(null); setView({ kind: 'package', name }) }
+  // Every line of the Installed list with its group; official settings that belong to a listed bundle show on its page.
+  const attached = new Set(listed.flatMap(pkg => itemsOf(pkg).map(item => item.id)))
+  const entries: ListEntry[] = [
+    ...listed.map((pkg): ListEntry => ({ kind: 'package', pkg, ...packageText(pkg, resolveText), group: packageGroup(pkg) })),
+    ...ledger.items.filter(item => !attached.has(item.id))
+      .map((item): ListEntry => ({ kind: 'item', item, title: item.label, description: undefined, group: 'advanced' })),
+  ]
+  const query = search.trim()
+  // Entries display one language; matching covers every language a value carries, and reaches hidden entries too.
+  const entryIndex = new TextSearchIndex(entries, entry => entry.kind === 'package'
+    ? { fuzzy: [entry.title, ...localizedValues(entry.pkg.meta?.title)], substring: [entry.description ?? '', ...localizedValues(entry.pkg.meta?.description)] }
+    : { fuzzy: [entry.title], substring: [] })
+  const shown = query === '' ? entries.filter(entry => advanced || everyday(entry)) : entryIndex.search(query)
+  const hiddenCount = query === '' ? entries.length - shown.length : 0
+  const entryCard = (entry: ListEntry): ReactNode => {
+    if (entry.kind === 'item') {
+      return <ItemCard key={`item:${entry.item.id}`} item={entry.item} t={t} renderSlot={renderSlot} onOpen={() => { setView({ kind: 'item', id: entry.item.id }) }} />
+    }
+    const { pkg } = entry
+    const hasSettings = itemsOf(pkg).length > 0 || ledger.bundles.has(pkg.name) || bundleSections(pkg).length > 0
     return (
-      <section className={css.group} data-plugin-scope="global" data-plugin-group={id}>
-        <div className={css.groupHead}>
-          <h3 className={css.groupTitle}>{heading}</h3>
-          {offersMore ? (
-            <Button size="sm" className={css.groupMore} onClick={() => { setView({ kind: 'more' }) }}>
-              {t('moreAction')}<IconChevronRightOutlineRegular size={14} aria-hidden="true" />
-            </Button>
-          ) : null}
-        </div>
-        {cards.length > 0 ? <ul className={css.cards}>{cards}</ul> : null}
-      </section>
+      <PackageCard
+        key={pkg.name}
+        pkg={pkg}
+        t={t}
+        resolveText={resolveText}
+        busy={packageBusy(pkg)}
+        highlighted={state.highlight === pkg.name}
+        newer={versionUpdate(state.versions[pkg.name])}
+        needs={pkg.requires === undefined ? undefined : names.list(pkg.requires)}
+        onOpen={() => { openPackage(pkg.name) }}
+        onSettings={hasSettings ? () => { openPackage(pkg.name) } : undefined}
+        onSetEnabled={(enabled) => { setBundleEnabled(pkg.name, enabled) }}
+      />
     )
   }
+  const groups = LIST_GROUPS.flatMap((group) => {
+    const members = shown.filter(entry => entry.group === group)
+      .sort((a, b) => a.title.localeCompare(b.title, language))
+    return members.length === 0 ? [] : [{ group, members }]
+  })
+  // The search field and the Show advanced switch head the list from the first read on, so loaded cards replace the
+  // skeleton in place.
+  const listTools = (
+    <div className={css.listTools} data-plugin-list-tools>
+      <Input
+        type="search"
+        className={css.listSearch as string}
+        placeholder={t('searchPlaceholder')}
+        aria-label={t('searchPlaceholder')}
+        value={search}
+        onChange={(event) => { setSearch(event.target.value) }}
+      />
+      <span className={css.advancedToggle}>
+        <span aria-hidden="true">{t('showAdvanced')}</span>
+        <Switch checked={advanced} label={t('showAdvanced')} onChange={setAdvanced} />
+      </span>
+    </div>
+  )
 
   return (
     <section className={css.page} data-plugin-panel aria-busy={state.status === 'loading' || refreshing}>
-      {showsMoreList ? (
-        <header className={css.moreHead} data-window-drag>
-          <Button size="sm" className={css.moreBack} aria-label={t('backToList')} onClick={() => { setView({ kind: 'list' }) }}>
-            <IconChevronLeftOutlineMedium size={20} aria-hidden="true" />
-          </Button>
-          <h1 className={css.pageTitle}>{t('moreTitle')}</h1>
-        </header>
-      ) : null}
       <div className={css.pageBody} data-plugin-body>
-        {showsMainList
+        {showsCards
           ? (
             <div
               className={`${css.pageBar}${tabs.length > 0 ? ` ${css.pageBarWithTabs}` : ''}`}
@@ -1778,7 +1901,7 @@ export function PluginManagerPage(props: PluginManagerPageProps): ReactNode {
           : null}
         {installedCards && !loaded ? (
           <div className={css.installedPanel} {...installedPanel}>
-            {state.status === 'loading' ? <ListSkeleton label={t('loading')} /> : null}
+            {state.status === 'loading' ? <>{listTools}<ListSkeleton label={t('loading')} /></> : null}
             {state.status === 'unavailable' ? (
               <p className={`${css.status} ${css.statusWithDot}`} role="status">
                 <StateDot state="idle" />{t('unavailable')}
@@ -1835,20 +1958,26 @@ export function PluginManagerPage(props: PluginManagerPageProps): ReactNode {
               sections={bundleSections(openPkg)}
               renderFactory={props.renderFactorySlot}
               renderSlot={renderSlot}
-              inMore={backToMore}
+              items={itemsOf(openPkg)}
+              formFor={formFor}
               productCli={(
                 <ProductCliSection bundle={openPkg.name} state={productClis} t={t} ensure={props.ensureProductClis}
                   retryRead={props.retryProductClis} download={props.downloadProductCli}
                   cancel={props.cancelProductCliDownload} remove={props.removeProductCli} />
               )}
-              detail={(
-                <BundleDetailSection name={openPkg.name} version={openPkg.version}
+              guide={(
+                <BundleDetailSection name={openPkg.name} version={openPkg.version} origin="locale"
+                  language={language} details={bundleDetails} t={t}
+                  load={props.loadDetail} retry={props.retryDetail} image={props.detailImage} />
+              )}
+              readme={(
+                <BundleDetailSection name={openPkg.name} version={openPkg.version} origin="readme"
                   language={language} details={bundleDetails} t={t}
                   load={props.loadDetail} retry={props.retryDetail} image={props.detailImage} />
               )}
               onBack={() => {
                 if (returnTab !== undefined) setTab(returnTab)
-                setView({ kind: backToMore ? 'more' : 'list' })
+                setView({ kind: 'list' })
               }}
               onSetEnabled={(enabled) => { setBundleEnabled(openPkg.name, enabled) }}
               onUninstall={() => { props.uninstall(openPkg.name) }}
@@ -1864,21 +1993,32 @@ export function PluginManagerPage(props: PluginManagerPageProps): ReactNode {
           ? <ItemDetail form={formFor(openItem.id)} item={openItem} t={t} renderSlot={renderSlot} onBack={() => { setView({ kind: 'list' }) }} />
           : null}
         {loaded && installedCards
-          ? basicCards.length === 0 && official.length === 0 && mine.length === 0 && state.status !== 'error'
+          ? entries.length === 0 && state.status !== 'error'
             ? <div className={css.installedPanel} {...installedPanel}><p className={css.empty}>{t('empty')}</p></div>
             : (
               <div className={css.installedPanel} {...installedPanel}>
-                {showsMoreList ? (
-                  <section className={css.group} data-plugin-scope="global" data-plugin-group="more">
-                    <ul className={css.cards}>{more.map(packageCard)}</ul>
-                  </section>
-                ) : (
-                  <>
-                    {renderGroup('basic', t('basicTitle'), basicCards)}
-                    {renderGroup('extensions', t('extensionsTitle'), extensions.map(packageCard))}
-                    {renderGroup('bundles', t('bundlesTitle'), mine.map(packageCard))}
-                  </>
-                )}
+                {listTools}
+                {groups.map(({ group, members }) => {
+                  const on = members.filter(entry => entry.kind === 'package' && entry.pkg.enabled).length
+                  return (
+                    <section key={group} className={css.group} data-plugin-scope="global" data-plugin-group={group}>
+                      <div className={css.groupHead}>
+                        <h3 className={css.groupTitle}>{t(GROUP_TITLE_KEYS[group])}</h3>
+                        {on === 0 ? null : <span className={css.groupCount}>{t('groupOnCount', { count: String(on) })}</span>}
+                      </div>
+                      <ul className={css.cards}>{members.map(entryCard)}</ul>
+                    </section>
+                  )
+                })}
+                {query !== '' && shown.length === 0 ? <p className={css.status} role="status">{t('searchEmpty')}</p> : null}
+                {hiddenCount > 0
+                  ? (
+                    <p className={css.hiddenNote} data-plugin-hidden-note>
+                      <span>{t('advancedHiddenNote', { count: String(hiddenCount) })}</span>
+                      <Button variant="ghost" size="sm" onClick={() => { setAdvanced(true) }}>{t('showAdvanced')}</Button>
+                    </p>
+                  )
+                  : null}
                 {/* A failed package read trails the groups it left incomplete: right under the groups on a
                     first-load failure, and after the kept cards when a refresh fails over stale data. */}
                 {state.status === 'error' && !refreshing
@@ -1900,7 +2040,7 @@ export function PluginManagerPage(props: PluginManagerPageProps): ReactNode {
             onDismiss: () => { setActivation(null) },
             onOpenDetails: () => {
               setActivation(null)
-              setView({ kind: 'package', name: activated.name, ...showsMoreList ? { from: 'more' } : {} })
+              setView({ kind: 'package', name: activated.name })
             },
           }, { entryKey: activated.name }) : null}
       </div>
@@ -1934,12 +2074,11 @@ export function PluginManagerPage(props: PluginManagerPageProps): ReactNode {
         ? null
         : (
           <ConfirmDialog
-            name={packageText(
-              state.packages.find(pkg => pkg.name === state.confirm?.packageName) ?? { name: state.confirm.packageName },
-              resolveText,
-            ).title}
+            confirm={state.confirm}
+            names={names}
             t={t}
             onConfirm={props.confirm}
+            onAlternative={props.confirmAlternative}
             onCancel={props.cancelConfirm}
           />
         )}

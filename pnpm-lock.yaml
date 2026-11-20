@@ -379,6 +379,9 @@ importers:
       '@deepseek-ai/dsh-component-planning':
         specifier: workspace:*
         version: link:../../packages/component/planning
+      '@deepseek-ai/dsh-component-plugin-market-tool':
+        specifier: workspace:*
+        version: link:../../packages/component/plugin-market-tool
       '@deepseek-ai/dsh-component-presets':
         specifier: workspace:*
         version: link:../../packages/component/presets
@@ -424,9 +427,6 @@ importers:
       '@deepseek-ai/dsh-experimental-forge-bundle':
         specifier: workspace:*
         version: link:../../packages/experimental/forge-bundle
-      '@deepseek-ai/dsh-experimental-plugin-market-bundle':
-        specifier: workspace:*
-        version: link:../../packages/experimental/plugin-market-bundle
       '@deepseek-ai/dsh-experimental-ralph-bundle':
         specifier: workspace:*
         version: link:../../packages/experimental/ralph-bundle
@@ -1062,9 +1062,6 @@ importers:
       '@deepseek-ai/dsh-experimental-forge-bundle':
         specifier: workspace:*
         version: link:../../packages/experimental/forge-bundle
-      '@deepseek-ai/dsh-experimental-plugin-market-bundle':
-        specifier: workspace:*
-        version: link:../../packages/experimental/plugin-market-bundle
       '@deepseek-ai/dsh-experimental-speech-to-text':
         specifier: workspace:*
         version: link:../../packages/experimental/speech-to-text
@@ -2990,6 +2987,9 @@ importers:
       '@deepseek-ai/dsh-client-ui-plugin-manager':
         specifier: workspace:*
         version: link:../../client/ui-plugin-manager
+      '@deepseek-ai/dsh-client-ui-plugin-market':
+        specifier: workspace:*
+        version: link:../../client/ui-plugin-market
       '@deepseek-ai/dsh-client-ui-reference':
         specifier: workspace:*
         version: link:../../client/ui-reference
@@ -5091,6 +5091,9 @@ importers:
       '@deepseek-ai/dsh-client-ui-conversation':
         specifier: workspace:*
         version: link:../ui-conversation
+      '@deepseek-ai/dsh-client-ui-first-run':
+        specifier: workspace:*
+        version: link:../ui-first-run
       '@deepseek-ai/dsh-client-ui-input-trigger':
         specifier: workspace:*
         version: link:../ui-input-trigger
@@ -7796,6 +7799,16 @@ importers:
       '@deepseek-ai/dsh-tool-todo':
         specifier: workspace:*
         version: link:../../todo/tool-todo
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+
+  packages/component/plugin-market-tool:
+    dependencies:
+      '@deepseek-ai/dsh-agent-preset-registry':
+        specifier: workspace:*
+        version: link:../../preset/agent-preset-registry
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: workspace:~
@@ -11012,19 +11025,6 @@ importers:
       '@deepseek-ai/dsh-working-directory':
         specifier: workspace:*
         version: link:../../session/working-directory
-
-  packages/experimental/plugin-market-bundle:
-    dependencies:
-      '@deepseek-ai/dsh-client-ui-plugin-market':
-        specifier: workspace:*
-        version: link:../../client/ui-plugin-market
-      '@deepseek-ai/dsh-plugin-market':
-        specifier: workspace:*
-        version: link:../../boot/plugin-market
-    devDependencies:
-      '@deepseek-ai/cordis':
-        specifier: workspace:~
-        version: link:../../../vendor/cordis
 
   packages/experimental/ralph-bundle:
     dependencies:

@@ -162,8 +162,10 @@ describe('account router', () => {
     expect(error.code).toBe('RATE_LIMIT')
     expect(error.failure.providerRetryAfterMs).toBeGreaterThan(25_000)
     expect(error.failure.providerRetryAfterMs).toBeLessThanOrEqual(32_000)
-    expect(error.message).toMatch(/Personal: RATE_LIMIT, recovers in 1m; Work: RATE_LIMIT, recovers in 2m/)
+    expect(error.message).toBe('acme is rate-limiting Personal and Work; try again in 1m.')
     expect(error.message).not.toContain('key-')
+    // The per-account developer detail stays on the cause, off the wire.
+    expect((error.cause as Error).message).toMatch(/main: RATE_LIMIT, recovers in 1m; bbbbbbbbbb: RATE_LIMIT, recovers in 2m/)
     // The next request does not touch the network: nothing is available.
     await expect(run(adapter)).rejects.toMatchObject({ code: 'RATE_LIMIT' })
     expect(server.headers).toHaveLength(2)
@@ -184,10 +186,27 @@ describe('account router', () => {
     expect(limited.finish).toMatchObject({ kind: 'error', failure: { code: 'RATE_LIMIT', status: 429, providerRetryAfterMs: expect.any(Number) as number } })
     expect(server.headers).toHaveLength(2)
 
-    // Unpinned (or removed) ⇒ a failure naming the account, never a fallback.
+    // Unpinned (or removed) ⇒ a plain failure, never a fallback; the id stays in the developer cause.
     setProfile({})
     await expect(run(adapter, `~acct:${B}:m`)).rejects.toMatchObject({ code: 'NO_ADAPTER' })
-    await expect(run(adapter, '~acct:zzzzzzzzzz:m')).rejects.toThrow(/zzzzzzzzzz/)
+    const removed = await run(adapter, '~acct:zzzzzzzzzz:m').then(() => undefined, (error: unknown) => error as LlmError)
+    expect(removed).toMatchObject({ code: 'NO_ADAPTER' })
+    expect(removed?.message).not.toContain('zzzzzzzzzz')
+    expect((removed?.cause as Error).message).toContain('zzzzzzzzzz')
+  })
+
+  it('tells API-key accounts their keys were rejected, never to sign in, naming accounts by label', async () => {
+    const unauthorized = { status: 401, body: '{"error":{"message":"Incorrect API key provided"}}' }
+    const server = await mockServer([unauthorized, unauthorized])
+    const { ctx, adapter } = await rig(server.url, { accounts: { [B]: { alias: 'Work key' } } })
+    await store(ctx, 'main', { type: 'api_key', key: 'key-a' })
+    await store(ctx, B, { type: 'api_key', key: 'key-b' })
+
+    const failure = await run(adapter).then(() => undefined, (error: unknown) => error as LlmError)
+
+    expect(failure?.code).toBe('AUTH')
+    expect(failure?.message).toBe('acme rejected the API keys for Account 1 and Work key. Check or replace them in Settings → Models.')
+    expect(failure?.message).not.toMatch(/sign in|llm-pi-ai|bbbbbbbbbb/i)
   })
 
   it('carries status and retry-after on a single-account error finish', async () => {
@@ -217,6 +236,28 @@ describe('account router', () => {
       [`~acct:${B}:m`, 'Work'],
       [`~acct:${B}:n`, 'Work'],
     ])
+  })
+
+  it('labels pinned entries by position, never by id, and orders them current-first like the pool', async () => {
+    const server = await mockServer([])
+    const { ctx, adapter } = await rig(server.url, {
+      models: [{ id: 'acme-1', name: 'Acme 1' }, { id: 'acme-latest', name: 'Acme (latest)' }, { id: 'acme-2', name: 'Acme 2' }],
+      accounts: { [C]: { pinned: true } },
+    })
+    await store(ctx, 'main', { type: 'api_key', key: 'key-a' })
+    await store(ctx, C, { type: 'api_key', key: 'key-c' })
+
+    const listed = await adapter.listModels('acme')
+
+    expect(listed.map(model => [model.id, model.older === true, model.badge?.text])).toEqual([
+      ['acme-2', false, undefined],
+      ['acme-1', true, undefined],
+      ['acme-latest', true, undefined],
+      [`~acct:${C}:acme-2`, false, 'Account 2'],
+      [`~acct:${C}:acme-1`, true, 'Account 2'],
+      [`~acct:${C}:acme-latest`, true, 'Account 2'],
+    ])
+    expect(JSON.stringify(listed.map(model => model.badge))).not.toContain(C)
   })
 
   it('lists an ambient-only route, and nothing for a missing named key without records', async () => {

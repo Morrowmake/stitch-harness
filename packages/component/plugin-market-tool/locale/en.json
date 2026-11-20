@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Plugin market tool for the agent",
+    "description": "Lets the agent search plugin indexes for you. Off by default so the agent’s instructions stay short."
+  }
+}

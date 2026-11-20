@@ -20,6 +20,7 @@ import type { ModelSelectionProjection } from '@deepseek-ai/dsh-agent/types'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import type { ReasoningEffortId } from '@deepseek-ai/dsh-llm/types'
 import type { CommandContribution, PopupSelectSpec, SelectOption } from '@deepseek-ai/dsh-client-ui-commands/client'
+import type { ComposerBlock } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { ModelSelectInjected } from '../src/client/slots.ts'
 import { apply, inject } from '../src/client/index.ts'
 import { zh } from '../src/client/locales.ts'
@@ -70,7 +71,7 @@ const GROUPS = [{
 /** Boot the plugin over fake faces + a stateful fake host (current moves on selectModel). */
 async function bench(locale: 'zh' | 'en' = 'zh') {
   const ctx = new Context()
-  let defaultSelection: ModelSelection = { provider: 'deepseek-official', model: 'deepseek-v4-flash' }
+  let defaultSelection: ModelSelection | undefined = { provider: 'deepseek-official', model: 'deepseek-v4-flash' }
   let selected = defaultSelection
   const calls = { models: 0, select: 0 }
   const projections = new Map<SessionId, SnapshotStore<ModelSelectionProjection | undefined>>()
@@ -109,10 +110,10 @@ async function bench(locale: 'zh' | 'en' = 'zh') {
   }
   const remote = Object.assign(new TestRemote(ctx), { session: sessionRemote })
   ctx.reflect.provide('remote.session', sessionRemote)
-  const blocks = new Map<SessionId, { reason: string } | undefined>()
+  const blocks = new Map<SessionId, ComposerBlock | undefined>()
   ctx.provide('conversation', {
     blocks: {
-      set: (id: SessionId, block: { reason: string } | undefined) => { blocks.set(id, block) },
+      set: (id: SessionId, block: ComposerBlock | undefined) => { blocks.set(id, block) },
     },
   })
   let contribution: CommandContribution | undefined
@@ -191,7 +192,7 @@ async function bench(locale: 'zh' | 'en' = 'zh') {
     rejectSelection: () => {
       selectionFailure = new RemoteError('session/writer-held', 'writer held', { sessionId: sid('owned') })
     },
-    setHostCurrent: (selection: ModelSelection) => { defaultSelection = selection },
+    setHostCurrent: (selection: ModelSelection | undefined) => { defaultSelection = selection },
     setProjected: (id: SessionId, value: ModelSelectionProjection) => { projections.get(id)?.set(value) },
     address: (id: SessionId) => { addressed.add(id) },
     setGroups: (next: typeof GROUPS) => { groups = next },
@@ -260,6 +261,28 @@ describe('ui-model-selection dual entry', () => {
       const options = await b.popup().options(projection('s1'), new AbortController().signal)
       expect([...new Set(options.map(option => option.group?.name))])
         .toEqual(['external', 'deepseek-official', 'last-provider'])
+    } finally {
+      await b.ctx.fiber.dispose()
+    }
+  })
+
+  it('labels older models and pinned account entries with their own popup groups', async () => {
+    const b = await bench('en')
+    try {
+      b.setGroups([{ ...GROUPS[1]!, models: [
+        GROUPS[1]!.models[0]!,
+        { id: 'external-old', name: 'External Old', description: 'Superseded.', older: true },
+        { id: '~acct:b8741dd314:deepseek-v4-flash', name: 'External Flash', description: '', badge: { text: 'Work', tone: 'info' } },
+      ] }] as typeof GROUPS)
+      b.remote.emit('llm/adapters-updated', [])
+      b.mint('s1')
+      const options = await b.popup().options(projection('s1'), new AbortController().signal)
+      expect(options.map(option => [option.label, option.group?.label])).toEqual([
+        ['External Flash', 'External Provider'],
+        ['External Old', 'External Provider · Older models'],
+        ['External Flash', 'External Provider · Work'],
+      ])
+      expect(JSON.stringify(options.map(option => option.group?.label))).not.toContain('b8741dd314')
     } finally {
       await b.ctx.fiber.dispose()
     }
@@ -518,6 +541,33 @@ describe('ui-model-selection dual entry', () => {
     expect(face.directory.getSnapshot().current).toEqual(intended)
     expect(b.blockOf('s1')).toBeUndefined()
     expect(b.calls.select).toBe(0)
+  })
+
+  it('blocks the composer with a setup step while no model is set up, and clears it once one is', async () => {
+    const b = await bench('en')
+    try {
+      const openProvider = vi.fn()
+      b.ctx.provide('firstRunUi', { openProvider })
+      b.setHostCurrent(undefined)
+      b.setGroups([])
+      b.remote.emit('llm/adapters-updated', [])
+      b.mint('s1')
+      b.seat().inject!(sid('s1'))
+      await vi.waitFor(() => { expect(b.blockOf('s1')?.reason).toBe('Set up a model first') })
+      expect(b.blockOf('s1')?.action?.label).toBe('Set up a model')
+      b.blockOf('s1')?.action?.run()
+      expect(openProvider).toHaveBeenCalledOnce()
+
+      b.setGroups(GROUPS)
+      b.remote.emit('llm/adapters-updated', [])
+      await vi.waitFor(() => { expect(b.blockOf('s1')).toEqual({ reason: 'Choose a model to start' }) })
+
+      b.setHostCurrent({ provider: 'deepseek-official', model: 'deepseek-v4-flash' })
+      b.remote.emit('llm/adapters-updated', [])
+      await vi.waitFor(() => { expect(b.blockOf('s1')).toBeUndefined() })
+    } finally {
+      await b.ctx.fiber.dispose()
+    }
   })
 
   it('an unknown session fails loud at the seat inject', async () => {

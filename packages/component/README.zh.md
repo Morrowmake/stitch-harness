@@ -41,6 +41,7 @@ kind: "package-group"
 | 上下文辅助 | [`context-helpers`](context-helpers/README.zh.md) | ✓ | ✓ | — |
 | 更多预设 | [`presets`](presets/README.zh.md) | ✓ | ✓ | — |
 | 简短系统提示词 | [`short-prompt`](short-prompt/README.zh.md) | — | ✓ | — |
+| 供智能体使用的插件市场工具 | [`plugin-market-tool`](plugin-market-tool/README.zh.md) | — | — | — |
 
 此表之外的可选组合包在两种组合中都保持关闭。
 

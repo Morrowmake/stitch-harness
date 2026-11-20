@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "Suchwerkzeuge",
-    "description": "Die Werkzeuge glob und grep zum Finden von Dateien und Text."
+    "title": "Dateisuche",
+    "description": "Der Agent findet Dateien nach Namen und durchsucht ihren Inhalt."
   }
 }

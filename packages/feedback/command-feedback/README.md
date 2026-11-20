@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-command-feedback` lets a user tell the harness what they think of a session. `/feedback` plus a remark records it and acknowledges the session id; the Web dialog records a category and optional description through the `sessionFeedback` Host Remote. Recording never starts model work, and the model never sees the remark. Feedback stays in the local Session log until the user confirms a previewed GitHub report, filed on the Stitch repository through the `gh` CLI or a prefilled page. The package owns the shared category taxonomy and ships with the standard `stitch` base; headless, ACP, and JSON-RPC have no slash commands.
+`dsh-command-feedback` lets a user tell the harness what they think of a session. `/feedback` plus a remark saves it as a note on this computer and says that nothing was sent; the Web dialog saves a category and optional description through the `sessionFeedback` Host Remote. Recording never starts model work, and the model never sees the remark. Feedback stays in the local Session log until the user explicitly sends a previewed GitHub report, a public issue on the Stitch repository, either as a prefilled page in the browser or — only on request — through the `gh` CLI. The package owns the shared category taxonomy and ships with the standard `stitch` base; headless, ACP, and JSON-RPC have no slash commands.
 
 ## Table of Contents
 
@@ -29,19 +29,21 @@ Users can record feedback from the Web client out of the box: the `/feedback` co
 
 ### The `/feedback` command
 
-Type `/feedback` followed by your remark and send it. A successful entry is acknowledged with the receiving session id:
+Type `/feedback` followed by your remark and send it. A successful entry is acknowledged in plain words, without the session id:
 
 | Input | Result |
 |---|---|
-| `/feedback the diff view is unreadable` | Record the remark and acknowledge with `Feedback recorded for session {sessionId}.` |
-| `/feedback` | A usage error: `Feedback text is required. Usage: /feedback <text>`. Whitespace-only input counts as empty. |
+| `/feedback the diff view is unreadable` | Record the remark and acknowledge with `Note saved on this computer. Nothing was sent.` |
+| `/feedback` | A usage error: `The note is empty. Type your note after the command, for example: /feedback The answer missed my question.` Whitespace-only input counts as empty. |
+
+The command menu describes it as `Save a note about this chat or report a problem`, with the input hint `<note>`.
 
 Surrounding whitespace is trimmed, but the remark is otherwise kept exactly as typed: no truncation, case folding, or command parsing — `/feedback /plan felt slow` records that literal text. Each command records its own entry; nothing is merged or replaced.
 
 <a id="the-web-feedback-dialog"></a>
 ### The Web feedback dialog
 
-In the Web client a bare `/feedback` — picked from the composer menu or typed and sent without text — opens the feedback dialog instead of the usage error. The dialog offers the seven categories below and a free-text box; every field is optional and an empty submission is accepted, and the conversation log travels with the recorded event as with every feedback event. It records through `sessionFeedback.record`, which appends the same `feedback/record` event without command bookkeeping and without an acknowledgement row; the dialog shows a toast instead.
+In the Web client a bare `/feedback` — picked from the composer menu or typed and sent without text — opens the feedback dialog instead of the usage error. The dialog offers the seven categories below and a free-text box; every field is optional and an empty note is accepted. **Save note** records through `sessionFeedback.record`, which appends the same `feedback/record` event to the local Session log without command bookkeeping and without an acknowledgement row; nothing is sent anywhere, and the dialog says so next to the button and in its toast.
 
 | Category id | Meaning |
 |---|---|
@@ -58,16 +60,17 @@ The ids are durable log vocabulary shared with per-message feedback; each surfac
 <a id="reporting-on-github"></a>
 ### Reporting on GitHub
 
-The Web dialog's **Report on GitHub…** button, and a typed `/feedback <text>` once the Host has recorded it, open an editable preview of a GitHub issue. Nothing leaves the machine until the user clicks the confirm button; closing the preview sends nothing. Confirming records the remark first (unless `/feedback <text>` already did) and then files the issue against the repository named by the `FEEDBACK_REPOSITORY` constant in [`src/github-issue.ts`](src/github-issue.ts), `Morrowmake/stitch-harness`.
+The Web dialog's **Report on GitHub…** button, and a typed `/feedback <text>` once the Host has recorded it, open a preview of a GitHub issue. The preview states that it creates a public issue anyone can read on the repository named by the `FEEDBACK_REPOSITORY` constant in [`src/github-issue.ts`](src/github-issue.ts), `Morrowmake/stitch-harness`; the client reads that name from the `draftIssue` reply rather than repeating it. Nothing leaves the machine until the user picks one of two actions; closing the preview sends nothing. Either action records the remark first (unless `/feedback <text>` already did) and then calls `reportIssue` with the chosen method.
 
 | Remote method | Result |
 |---|---|
-| `sessionFeedback.draftIssue({ text?, category? })` | `{ title, body }`: the title is the remark's first line (at most 80 characters) or `Stitch feedback`; the body holds only the remark, the category, the Stitch version, and the OS. Sends nothing. |
-| `sessionFeedback.reportIssue({ title, body })` | `{ kind: 'created', url }` when `gh` filed the issue, or `{ kind: 'browser', url }` with a prefilled new-issue page the client opens in a new tab. |
+| `sessionFeedback.draftIssue({ text?, category? })` | `{ title, body, repository }`: the title is the remark's first line (at most 80 characters) or `Stitch feedback`; the body holds only the remark (or `No description provided.`) and a `Details:` list of the category, the Stitch version, and the OS. Sends nothing. |
+| `sessionFeedback.reportIssue({ title, body, via: 'browser' })` | `{ kind: 'browser', url }` with a prefilled new-issue page the client opens in a new tab. Never runs `gh`. This is the dialog's primary **Open on GitHub** action. |
+| `sessionFeedback.reportIssue({ title, body, via: 'github-cli' })` | `{ kind: 'created', url }` when `gh` filed the issue, or `{ kind: 'browser', url }` with the prefilled page when it could not. Used only by the explicit **File with my GitHub account** action. |
 
-The body never carries session content, session ids, paths, or model names. The preview's **Include session id** box, off by default, appends a `- Session id: …` line the user can see and edit before confirming.
+The body never carries session content, session ids, paths, or model names. The preview's **Include session id** box, off by default, appends a `- Session id: …` line the user can see and edit before sending.
 
-`reportIssue` runs `gh auth status --hostname github.com` and then `gh issue create --repo Morrowmake/stitch-harness --title <title> --body <body>` as argv arrays without a shell, with 10 s and 30 s deadlines. It uses the Host `subprocess` provider when one is mounted, otherwise Node's `execFile`; `GH_TOKEN`, `GITHUB_TOKEN`, `GH_CONFIG_DIR`, and `GH_HOST` are forwarded and prompts are disabled. When `gh` is missing, unauthenticated, fails, times out, or prints no issue URL, the answer is the prefilled `https://github.com/Morrowmake/stitch-harness/issues/new?title=…&body=…` page instead. That URL stays within 7000 characters: an oversized body is cut and ends with a note saying Stitch shortened it.
+With `via: 'github-cli'`, `reportIssue` runs `gh auth status --hostname github.com` and then `gh issue create --repo Morrowmake/stitch-harness --title <title> --body <body>` as argv arrays without a shell, with 10 s and 30 s deadlines. It uses the Host `subprocess` provider when one is mounted, otherwise Node's `execFile`; `GH_TOKEN`, `GITHUB_TOKEN`, `GH_CONFIG_DIR`, and `GH_HOST` are forwarded and prompts are disabled. When `gh` is missing, unauthenticated, fails, times out, or prints no issue URL, the answer is the prefilled `https://github.com/Morrowmake/stitch-harness/issues/new?title=…&body=…` page instead. Any other `via` value is treated as `browser`. That URL stays within 7000 characters: an oversized body is cut and ends with a note saying Stitch shortened it.
 
 ### Recording feedback from your own UI
 
@@ -153,8 +156,7 @@ These limits define where session feedback is a poor fit or behaves differently 
 - **Live Sessions only through the Remote** — `sessionFeedback.record` answers `session-not-found` for a Session no live owner carries; the Web dialog reports that failure when its Session retires while it is open.
 - **No amend or withdraw** — the session log is append-only and this package adds no tombstone, so a mistaken entry stays recorded and can only be superseded by a later one.
 - **No explicit durability barrier** — the acknowledgement follows the append, not a flush, so an entry recorded immediately before a crash can be lost with any other unflushed tail. A consumer that needs a barrier awaits `ctx.sessions.flush(session)`.
-- **No visible acknowledgement on a fresh session** — the web transcript renders command rows only once a session is active, so a typed `/feedback <text>` on a still-blank session records the event but shows no acknowledgement row; the dialog's toast does not depend on the transcript.
-- **GitHub reports leave the machine** — a confirmed report is public on GitHub under the user's `gh` account or browser session; the remark cannot be withdrawn through Stitch.
+- **GitHub reports leave the machine** — a sent report is a public issue on GitHub under the user's browser session or `gh` account; the remark cannot be withdrawn through Stitch.
 - **A late `gh` success can duplicate** — when `gh issue create` exceeds its deadline after GitHub already accepted the issue, the user is still offered the prefilled page and can file it twice.
 - **Shortened browser reports** — a body too long for the prefilled URL is cut; the user pastes anything missing on the GitHub page.
 - **Web only among the shipped entry points** — headless mode, ACP automation, and JSON-RPC provide no command adapter, so `/feedback` is unavailable there.

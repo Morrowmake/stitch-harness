@@ -76,6 +76,6 @@
     - heading "Approval area" [level=3]
     - list:
       - listitem: Allow Enter
-      - listitem: Reject Esc
+      - listitem: Deny Esc
   - contentinfo:
     - button "Restore all defaults" [disabled]

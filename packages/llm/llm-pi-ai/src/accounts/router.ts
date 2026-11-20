@@ -17,12 +17,13 @@ import { classify, REFRESH_FAILURE_CODE } from './classify.ts'
 import type { Verdict } from './classify.ts'
 import type { ObservationSink } from './capture.ts'
 import { AccountHealthRegistry } from './health.ts'
+import { accountDisplayLabel } from './label.ts'
 import { waitFromReset } from './ratelimit.ts'
 import type { AccountDirectory, AccountRuntime, Observation, UsagePeek } from './runtime.ts'
 import { sessionKeyOf } from './runtime.ts'
 import { select, StickyMap } from './scheduler.ts'
 import { PINNED_MODEL_PREFIX } from './types.ts'
-import type { AccountId } from './types.ts'
+import type { AccountId, CoolingReason } from './types.ts'
 
 /** A same-account forced refresh is not repeated within this window. */
 const REFRESH_DEBOUNCE_MS = 30_000
@@ -48,15 +49,6 @@ export function parsePinnedModelId(model: string): { account: AccountId; model: 
  */
 export function pinnedModelId(account: AccountId, model: string): string {
   return `${PINNED_MODEL_PREFIX}${account}:${model}`
-}
-
-/**
- * Display label of an account in errors: alias, else id. Never identity or secrets.
- * @param account - the account to label.
- * @returns the alias, or the account id when no alias is set.
- */
-export function accountLabel(account: AccountRuntime): string {
-  return account.meta.alias ?? account.id
 }
 
 /** What one attempt's response capture saw; the router reads `last` after a failure. */
@@ -121,6 +113,18 @@ export interface RouteRequest {
   sessionId?: string
   /** Cancels the request and its attempts. */
   signal?: AbortSignal
+  /** The provider's display name for failure text; defaults to the route key. */
+  providerName?: string
+  /** Account display labels for failure text, resolved only when a failure needs them. */
+  labels?: () => Promise<ReadonlyMap<AccountId, string>>
+}
+
+/** Names the exhausted failure uses in its text. */
+export interface FailureNames {
+  /** The provider's display name. */
+  provider?: string
+  /** Account display labels by account id. */
+  labels?: ReadonlyMap<AccountId, string>
 }
 
 /** Pool state shared by every request of one plugin instance. */
@@ -205,8 +209,9 @@ export class AccountPool {
       const account = accounts.find(candidate => candidate.id === pinned)
       if (account === undefined || !account.meta.pinned) {
         throw new LlmError(
-          `llm-pi-ai: account "${pinned}" of provider "${request.route}" is not available for pinned model entries (removed or unpinned)`,
+          'The account this model entry uses was removed or is no longer offered in the model picker. Pick another model.',
           'NO_ADAPTER',
+          { cause: new Error(`llm-pi-ai: account "${pinned}" of provider "${request.route}" is not available for pinned model entries (removed or unpinned)`) },
         )
       }
       return this.health.isAvailable(request.route, account.id, model, this.now()) ? [account] : []
@@ -256,7 +261,7 @@ export class AccountPool {
     const candidates = this.candidates(accounts, request, model, pinned?.account)
     // A pinned request reports on its own account only.
     const scope = pinned === undefined ? accounts : accounts.filter(account => account.id === pinned.account)
-    if (candidates.length === 0) throw this.exhausted(request.route, model, scope, undefined)
+    if (candidates.length === 0) throw this.exhausted(request.route, model, scope, undefined, await failureNames(request, accounts))
     let last: { account: AccountRuntime; error: LlmError; replay?: StreamChunk[] } | undefined
     for (const account of candidates) {
       let refreshed = (this.now() - (this.lastForcedRefresh.get(`${request.route}/${account.id}`) ?? -Infinity)) < REFRESH_DEBOUNCE_MS
@@ -356,15 +361,19 @@ export class AccountPool {
       }
       throw last.error
     }
-    throw this.exhausted(request.route, model, scope, last)
+    throw this.exhausted(request.route, model, scope, last, await failureNames(request, accounts))
   }
 
   /**
    * Every candidate failed or none is available: code = last failure's, retry-after = earliest recovery.
+   * The message is plain guidance naming the provider and the accounts by
+   * label (key accounts are told about their key, signed-in accounts to sign
+   * in again); the per-account developer detail rides on its `cause`.
    * @param route - the provider route key.
    * @param model - the provider model id.
    * @param accounts - the accounts the request could have used.
    * @param last - the last attempted account and its error, if any attempt ran.
+   * @param names - the provider name and account labels for the text.
    * @returns the error naming each unavailable account and when it recovers.
    */
   exhausted(
@@ -372,37 +381,113 @@ export class AccountPool {
     model: string,
     accounts: readonly AccountRuntime[],
     last: { account: AccountRuntime; error: LlmError } | undefined,
+    names: FailureNames = {},
   ): LlmError {
     const now = this.now()
-    const lines: string[] = []
+    const details: string[] = []
     const ids: AccountId[] = []
+    const problems = new Map<Problem, { labels: string[]; until?: number }>()
+    const note = (problem: Problem, label: string, until?: number): void => {
+      const entry = problems.get(problem) ?? { labels: [] }
+      entry.labels.push(label)
+      if (until !== undefined) entry.until = Math.min(entry.until ?? until, until)
+      problems.set(problem, entry)
+    }
     let signInOnly = accounts.length > 0
-    for (const account of accounts) {
+    for (const [index, account] of accounts.entries()) {
+      const label = names.labels?.get(account.id) ?? accountDisplayLabel(account, index)
+      const keyAccount = account.kind !== 'oauth'
       const view = this.health.view(route, account.id, model, now)
-      if (view.state === 'ok') continue
+      if (view.state === 'ok') {
+        // Key references and ambient credentials are never marked; their last failure speaks for them.
+        if (last?.account.id === account.id) {
+          const code = last.error.code
+          if (code === 'AUTH' || code === 'INVALID_CREDENTIAL') note(keyAccount ? 'key-rejected' : 'sign-in', label)
+          else if (code === 'MISSING_CREDENTIAL') note(keyAccount ? 'key-missing' : 'sign-in', label)
+        }
+        continue
+      }
       ids.push(account.id)
       if (view.state === 'needs-sign-in') {
-        lines.push(`${accountLabel(account)}: sign in again (${view.reason})`)
+        details.push(`${account.id}: sign in again (${view.reason})`)
+        note(!keyAccount ? 'sign-in' : view.reason === 'MISSING_CREDENTIAL' ? 'key-missing' : 'key-rejected', label)
       } else {
         signInOnly = false
-        lines.push(`${accountLabel(account)}: ${view.reason}, recovers in ${formatDuration(view.until - now)}`)
+        details.push(`${account.id}: ${view.reason}, recovers in ${formatDuration(view.until - now)}`)
+        note(COOLING_PROBLEM[view.reason], label, view.until)
       }
     }
     if (ids.length === 0) signInOnly = false
     const recovery = this.health.earliestRecovery(route, ids, model, now)
     const lastCode = last?.error.code === REFRESH_FAILURE_CODE ? 'INVALID_CREDENTIAL' : last?.error.code
     const code = signInOnly ? (lastCode === 'AUTH' ? 'AUTH' : 'INVALID_CREDENTIAL') : lastCode ?? coolingCode(this.health, route, accounts, model, now)
-    const message = `llm-pi-ai: every account of provider "${route}" is unavailable for model "${model}"`
-      + (lines.length === 0 ? '' : `: ${lines.join('; ')}`)
-      + (signInOnly ? ' — sign in again from Settings → Models' : '')
+    const provider = names.provider ?? route
+    const sentences = [...problems].map(([problem, { labels, until }]) =>
+      PROBLEM_TEXT[problem]({ provider, model, who: listed(labels), many: labels.length > 1, wait: formatDuration((until ?? now) - now) }))
+    const message = sentences.length > 0
+      ? sentences.join(' ')
+      : `None of your ${provider} accounts can use ${model} right now. Check them in Settings → Models.`
+    const detail = `llm-pi-ai: every account of provider "${route}" is unavailable for model "${model}"`
+      + (details.length === 0 ? '' : `: ${details.join('; ')}`)
     return LlmError.fromFailure({
       message,
       code,
       ...last?.error.failure.status === undefined ? {} : { status: last.error.failure.status },
       ...recovery === undefined || recovery <= now || signInOnly ? {} : { providerRetryAfterMs: Math.max(1, recovery - now) },
       ...last?.error.failure.requestId === undefined ? {} : { requestId: last.error.failure.requestId },
-    })
+    }, { cause: new Error(detail, last === undefined ? undefined : { cause: last.error }) })
   }
+}
+
+/** Why one account cannot serve, grouped so the text names each problem once. */
+type Problem = 'key-rejected' | 'key-missing' | 'sign-in' | 'rate-limited' | 'quota' | 'refresh-failed' | 'model-unavailable'
+
+/** The problem each cooldown reason states. */
+const COOLING_PROBLEM: Readonly<Record<CoolingReason, Problem>> = {
+  RATE_LIMIT: 'rate-limited',
+  QUOTA: 'quota',
+  HTTP_402: 'quota',
+  HTTP_404: 'model-unavailable',
+  REFRESH_FAILED: 'refresh-failed',
+}
+
+/** Inputs of one problem sentence. */
+interface ProblemFacts {
+  provider: string
+  model: string
+  /** The affected accounts' labels, joined for prose. */
+  who: string
+  /** Whether more than one account is affected. */
+  many: boolean
+  /** Time until the earliest affected account recovers. */
+  wait: string
+}
+
+/** One plain sentence of guidance per problem. API-key accounts are never told to sign in. */
+const PROBLEM_TEXT: Readonly<Record<Problem, (facts: ProblemFacts) => string>> = {
+  'key-rejected': ({ provider, who, many }) =>
+    `${provider} rejected the API ${many ? 'keys' : 'key'} for ${who}. Check or replace ${many ? 'them' : 'it'} in Settings → Models.`,
+  'key-missing': ({ provider, who }) => `There is no usable ${provider} API key for ${who}. Add one in Settings → Models.`,
+  'sign-in': ({ provider, who, many }) =>
+    `Your ${provider} ${many ? 'sign-ins' : 'sign-in'} for ${who} ${many ? 'have' : 'has'} expired. Sign in again in Settings → Models.`,
+  'rate-limited': ({ provider, who, wait }) => `${provider} is rate-limiting ${who}; try again in ${wait}.`,
+  'quota': ({ provider, who, many, wait }) =>
+    `${who} ${many ? 'have' : 'has'} used up ${many ? 'their' : 'its'} ${provider} quota; try again in ${wait}.`,
+  'refresh-failed': ({ provider, who, wait }) => `Couldn't refresh your ${provider} sign-in for ${who}; try again in ${wait}.`,
+  'model-unavailable': ({ provider, model, who, wait }) => `${provider} isn't serving ${model} to ${who} right now; try again in ${wait}.`,
+}
+
+/** `A`, `A and B`, `A, B and C`. */
+function listed(labels: readonly string[]): string {
+  return labels.length <= 1 ? labels.join('') : `${labels.slice(0, -1).join(', ')} and ${labels.at(-1) ?? ''}`
+}
+
+/** The request's names for failure text; labels that cannot be read fall back to directory-order defaults. */
+async function failureNames(request: RouteRequest, accounts: readonly AccountRuntime[]): Promise<FailureNames> {
+  const labels = await request.labels?.().catch(() => undefined)
+  // Number accounts by their position in the route's full directory, as Settings does.
+  const resolved = labels ?? new Map(accounts.map((account, index) => [account.id, accountDisplayLabel(account, index)]))
+  return { ...request.providerName === undefined ? {} : { provider: request.providerName }, labels: resolved }
 }
 
 /** The code of the earliest-recovering cooldown, when no attempt ran. */

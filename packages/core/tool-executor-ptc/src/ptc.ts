@@ -327,6 +327,7 @@ export function createRunCodeTransport(
             justification: args.justification,
             effectiveMode: confined.mode,
             subject: 'program',
+            grant: args.sandbox_permissions,
           }, {
             approver: ctx.get('approval'), agent: exec.agent, callId: exec.callId,
             toolName, signal: callSignal,

@@ -48,6 +48,9 @@ interface RetryCountdown {
   seconds: number
 }
 
+/** An uncoded failure is a raw exception with no product guidance: its text moves behind Details. */
+const UNEXPLAINED_CODES: ReadonlySet<unknown> = new Set([undefined])
+
 function failureMessage(
   message: string,
   code: unknown,
@@ -55,7 +58,17 @@ function failureMessage(
 ): string {
   if (code === 'INTERRUPTED') return t('message.failure.interrupted')
   if (code === 'QUOTA' || code === 'ACCOUNT_QUOTA') return t('message.failure.quota')
-  return code === 'AUTH' ? t('message.failure.auth') : message
+  if (code === 'AUTH') return t('message.failure.auth')
+  return UNEXPLAINED_CODES.has(code) ? t('message.failure.unknown') : message
+}
+
+/** The technical lines behind a failure's Details: the raw message when the row replaced it, and the code. */
+function failureDetails(node: TurnErrorNode, t: ChatViewSlotProps['t']): string[] {
+  if (node.code === 'INTERRUPTED') return []
+  const lines: string[] = []
+  if (UNEXPLAINED_CODES.has(node.code) && node.message !== '') lines.push(node.message)
+  if (node.code !== undefined) lines.push(t('message.failure.code', { code: node.code }))
+  return lines
 }
 
 function ModelRetryItem({ node, active, t }: {
@@ -126,19 +139,25 @@ function ModelRetryItem({ node, active, t }: {
   )
 }
 
-/** Persistent, turn-positioned feedback for a terminal failure. */
+/** Persistent, turn-positioned feedback for a terminal failure: plain guidance, technical text behind Details. */
 function TurnErrorItem({ node, t }: {
   node: TurnErrorNode
   t: ChatViewSlotProps['t']
 }) {
+  const details = failureDetails(node, t)
   return (
     <div className={css.turnErrorRow} role="status">
       <StateDot state="error" className={css.turnErrorDot} />
       <div className={css.turnErrorCopy}>
         <span className={css.turnErrorTitle}>{node.code === 'INTERRUPTED' ? t('message.taskStopped') : t('message.turnError')}</span>
         <span className={css.turnErrorMessage}>{failureMessage(node.message, node.code, t)}</span>
+        {details.length > 0 && (
+          <details className={css.turnErrorDetails}>
+            <summary>{t('message.failure.details')}</summary>
+            {details.map(line => <p key={line} className={css.turnErrorCode}>{line}</p>)}
+          </details>
+        )}
       </div>
-      {node.code !== undefined && node.code !== 'INTERRUPTED' && <code className={css.turnErrorCode}>{node.code}</code>}
     </div>
   )
 }

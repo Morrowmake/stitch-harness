@@ -466,15 +466,19 @@ describe.skipIf(!hasPwsh)('PwshLocalExecutor.run', () => {
     expect(result.timeoutMs).toBe(2_000)
   })
 
-  it('rejects unusable numeric config at the next command and invalid timeout overrides at resolve', async () => {
+  it('refuses unusable numeric budgets in the config schema and invalid overrides at resolve', async () => {
     for (const [config, field] of [
+      [{ timeoutMs: -5 }, /timeoutMs expected number >= 1/], [{ timeoutMs: 0 }, /timeoutMs/], [{ timeoutMs: 1.5 }, /timeoutMs/],
       [{ timeoutMs: Number.NaN }, /timeoutMs/], [{ maxTimeoutMs: 0 }, /maxTimeoutMs/], [{ maxOutputBytes: -1 }, /maxOutputBytes/],
       [{ maxSpillBytes: 0 }, /maxSpillBytes/], [{ graceMs: 0 }, /graceMs/],
-      [{ graceMs: MAX_TIMER_DELAY_MS + 1 }, `graceMs must be no greater than ${MAX_TIMER_DELAY_MS}`],
+      [{ graceMs: MAX_TIMER_DELAY_MS + 1 }, /graceMs expected number <= /],
     ] as const) {
-      const { bash: unusable } = await setup(config)
-      expect(() => unusable.resolve({ command: 'Write-Output ok' })).toThrow(field)
+      expect(() => PwshLocalExecutor.Config(config)).toThrow(field)
+      await expect(setup(config)).rejects.toThrow(field)
     }
+    const accepted = PwshLocalExecutor.Config({ timeoutMs: 5_000, maxTimeoutMs: MAX_TIMER_DELAY_MS, maxOutputBytes: 1, graceMs: 200 })
+    expect(accepted.timeoutMs.get()).toBe(5_000)
+    expect(accepted.maxTimeoutMs.get()).toBe(MAX_TIMER_DELAY_MS)
 
     const { bash } = await setup()
     expect(() => bash.resolve({ command: 'Write-Output ok', timeoutMs: Number.NaN })).toThrow(/request\.timeoutMs/)

@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Plugin-Marktplatz-Werkzeug für den Agenten",
+    "description": "Lässt den Agenten Plugin-Indizes für Sie durchsuchen. Standardmäßig aus, damit die Anweisungen des Agenten kurz bleiben."
+  }
+}

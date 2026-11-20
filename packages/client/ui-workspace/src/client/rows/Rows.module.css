@@ -199,10 +199,8 @@
   outline: none;
 }
 
-/* Hovering a session row marquees a title wider than its cell: the shared
-   hover marquee carries it at a constant speed to its far edge while the
-   pointer rests on the row, holds it there, fades the edges that still hide
-   text, and returns it to the start in one step when the pointer leaves. */
+/* A session title fills its cell and always shows its start; a title wider
+   than the cell ends in an ellipsis, and the row's hover card shows it in full. */
 .sessionRow .title {
   flex: 1;
 }
@@ -296,10 +294,8 @@
   margin-left: 0;
 }
 
-/* The unclipped hover state drops the ellipsis, which would otherwise cover
-   the characters the marquee reached. Guarded because a touch tap
-   latches `:hover` on the row after the title has already returned: an
-   unguarded rule would strand that row without its ellipsis. */
+/* Hover affordances need a real pointer: a touch tap latches `:hover` on the
+   row, which would otherwise strand the hover-only actions on it. */
 @media (hover: hover) {
   .sessionRow:hover {
     background-color: var(--dsw-alias-interactive-bg-hover);
@@ -315,11 +311,6 @@
   .sessionRow.menuOpen .rowResting,
   :global(html[data-input-modality='keyboard']) .sessionRow:focus-within .rowResting {
     display: none;
-  }
-
-  .sessionRow:hover .title,
-  .sessionRow.menuOpen .title {
-    text-overflow: clip;
   }
 }
 

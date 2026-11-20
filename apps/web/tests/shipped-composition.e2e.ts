@@ -622,8 +622,8 @@ it('assembles the shipped Web transport, catalog, guidance, and defaults', async
     expect(scaffold.ctx.commands.list(commandHandle.agent)).toContainEqual({
       definitionId: '@deepseek-ai/dsh-command-feedback',
       name: 'feedback',
-      description: 'Record feedback about this session',
-      input: { hint: '<text>' },
+      description: 'Save a note about this chat or report a problem',
+      input: { hint: '<note>' },
     })
   } finally {
     await commandHandle.dispose()

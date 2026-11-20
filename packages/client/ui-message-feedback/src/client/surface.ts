@@ -41,7 +41,7 @@ export class FeedbackSurface {
       : this.recordSession(entry), {
       sessionId,
       draft: entry => carried(ctx.remote.sessionFeedback.draftIssue(entry)),
-      report: issue => carried(ctx.remote.sessionFeedback.reportIssue(issue)),
+      report: (issue, via) => carried(ctx.remote.sessionFeedback.reportIssue({ ...issue, via })),
       // Only the Host's GitHub answers open; anything else stays in the app.
       open: (url) => { if (GITHUB_PAGE.test(url)) window.open(url, '_blank', 'noopener,noreferrer') },
     })

@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Workflows",
-    "description": "Das Workflow-Werkzeug, seine PTC-Laufzeit und die Workflow-Ansicht. Benötigt Subagenten."
+    "description": "Der Agent führt mehrstufige Abläufe mit Helfern aus und zeigt den Fortschritt."
   }
 }

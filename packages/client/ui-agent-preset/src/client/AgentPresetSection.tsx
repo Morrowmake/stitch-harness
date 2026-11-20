@@ -135,7 +135,8 @@ export function AgentPresetSection({
                       {row.isDefault ? t('inUse') : t(builtIn ? 'builtInGroup' : 'customGroup')}
                     </Tag>
                   </span>
-                  <code className={css.cardId} title={row.id}>{row.id}</code>
+                  {/* Built-in ids are internal names (Coding Tools is on by default, so it cannot gate them). */}
+                  {builtIn ? null : <code className={css.cardId} title={row.id}>{row.id}</code>}
                 </span>
                 <CardDescription text={display.description ?? t('noDescription')} />
                 {row.broken === undefined ? null : <span className={css.cardBrokenReason} role="alert">{row.broken}</span>}

@@ -35,14 +35,14 @@ The section lists the route's accounts in Host order (default first). Each row s
 |---|---|
 | Name and kind | The alias, else the Host label, with a kind tag: Signed in, API key, Env key (the card's own API-key field), or Environment (ambient credentials). The email or plan derived from the token appears below when known |
 | Default | A Default tag, or Make default (`setDefaultAccount`) |
-| Health | Cooling down with the time until recovery, or Needs sign-in; Retry now clears the cooldown (`retryAccountNow`) |
-| Use in pool | Whether failover may use the account (`updateAccount` `pooled`) |
-| Show in model picker | Adds per-account model entries to the picker (`updateAccount` `pinned`) |
+| Health | Cooling down with the time until recovery; Needs sign-in for signed-in accounts, or Key rejected for API-key and Env key accounts (an API-key account offers Replace key, which adds the new key and removes the old account, keeping its default role). Retry now (`retryAccountNow`) shows Checking… and then the Host's answer: Key works, Key rejected, Couldn't check right now, or Cleared |
+| Use automatically | Whether Stitch may pick the account on its own — as the default, or when other accounts are busy or limited (`updateAccount` `pooled`); shown with a visible label and one line of help |
+| Own entry in model menu | Adds the account as its own choice in the model menu; models from automatic accounts show either way (`updateAccount` `pinned`) |
 | Models… | The allowlist dialog: all models (no list, future models included) or only the ticked ones (an empty selection means none); saved with `updateAccount` `models` |
 | Usage | One bar per window with the used share, reset time, plan, credits, and a stale or failed marker; signed-in accounts offer Refresh (`usage` with `force`) |
 | Actions | Rename (an empty name clears the alias), Sign in again for OAuth accounts, and Remove with confirmation for removable accounts |
 
-**Sign in with …** appears when the provider offers OAuth. **Add API key** opens a key-and-name dialog (`addApiKeyAccount`) for providers whose key is one value, and an `api-key` sign-in attempt for providers that need more fields. A refused action shows the Host's message under the list.
+**Sign in with …** appears when the provider offers OAuth; a Host label that already reads "Sign in with …" is not repeated. **Add API key** opens a key-and-name dialog (`addApiKeyAccount`) for providers whose key is one value, and an `api-key` sign-in attempt for providers that need more fields. The dialog shows the provider check while it runs, stays open with "<Provider> rejected this key" when the provider refuses it (`llm-accounts/key-rejected`; nothing is stored), and says "Saved — couldn't verify the key right now" when the key was stored without a check. While the provider has signed-in or API-key accounts, the card's own API-key field is hidden unless it already holds a key. A refused action shows the Host's message under the list.
 
 ### Sign-in dialog
 

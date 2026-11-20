@@ -2,7 +2,8 @@
 import { Context, Service } from '@deepseek-ai/cordis'
 import { afterEach, expect, it, onTestFinished, vi } from 'vitest'
 import PluginMarket from '../src/index.ts'
-import { DEFAULT_PLUGIN_INDEX, DEFAULT_PLUGIN_INDEXES } from '../src/index-url.ts'
+import { DEFAULT_PLUGIN_INDEXES } from '../src/index-url.ts'
+import { COMMUNITY_PLUGIN_INDEXES, DEFAULT_PLUGIN_INDEX, isStitchPluginIndex, knownCommunityIndex } from '../src/indexes.ts'
 import { parseIndexBody } from '../src/parse.ts'
 
 // Parse in-process; parse-worker.spec.ts runs the real Worker.
@@ -31,19 +32,15 @@ async function mount(): Promise<PluginMarket> {
   return ctx.get('pluginMarket')!
 }
 
-it('configures the Stitch index, then the DeepSeek Harness indexes, by default without requesting them', async () => {
+it('configures only the Stitch index by default, without requesting it', async () => {
   const fetch = vi.fn(() => Promise.resolve(new Response(JSON.stringify(PUBLISHED))))
   vi.stubGlobal('fetch', fetch)
 
   const market = await mount()
 
   expect(DEFAULT_PLUGIN_INDEX).toBe('https://raw.githubusercontent.com/Morrowmake/stitch-plugins/main/index.json')
-  expect(DEFAULT_PLUGIN_INDEXES).toEqual([
-    DEFAULT_PLUGIN_INDEX,
-    'https://awesome-dsh-plugin.com/index.json',
-    'https://cdn.dsh.so/market/index.json',
-  ])
-  expect(market.listIndexes()).toEqual(DEFAULT_PLUGIN_INDEXES.map(url => ({ url })))
+  expect(DEFAULT_PLUGIN_INDEXES).toEqual([DEFAULT_PLUGIN_INDEX])
+  expect(market.listIndexes()).toEqual([{ url: DEFAULT_PLUGIN_INDEX }])
   expect(fetch).not.toHaveBeenCalled()
 })
 
@@ -58,6 +55,18 @@ it('reads the published empty index when Discover searches it', async () => {
   expect(result).toMatchObject({ url: DEFAULT_PLUGIN_INDEX, title: 'Stitch plugins', total: 0, entries: [], nextOffset: null })
   expect(market.listIndexes()).toEqual([
     { url: DEFAULT_PLUGIN_INDEX, title: 'Stitch plugins', description: 'Community plugin index for Stitch' },
-    ...DEFAULT_PLUGIN_INDEXES.slice(1).map(url => ({ url })),
   ])
+})
+
+it('offers the DeepSeek Harness community indexes by address without configuring them', () => {
+  expect(COMMUNITY_PLUGIN_INDEXES.map(index => index.url)).toEqual([
+    'https://awesome-dsh-plugin.com/index.json',
+    'https://cdn.dsh.so/market/index.json',
+  ])
+  expect(COMMUNITY_PLUGIN_INDEXES.every(index => !DEFAULT_PLUGIN_INDEXES.includes(index.url))).toBe(true)
+  expect(isStitchPluginIndex(DEFAULT_PLUGIN_INDEX)).toBe(true)
+  expect(COMMUNITY_PLUGIN_INDEXES.some(index => isStitchPluginIndex(index.url))).toBe(false)
+  expect(isStitchPluginIndex('https://example.com/index.json')).toBe(false)
+  expect(knownCommunityIndex('https://cdn.dsh.so/market/index.json')).toMatchObject({ id: 'plugin-market-cdn', harness: 'deepseek-harness' })
+  expect(knownCommunityIndex(DEFAULT_PLUGIN_INDEX)).toBeUndefined()
 })

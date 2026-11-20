@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Short system prompt",
-    "description": "Replaces the long tool guidance of the default preset with a short prompt."
+    "description": "Gives the agent shorter built-in instructions, which can make replies faster."
   }
 }

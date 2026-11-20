@@ -269,15 +269,15 @@ describe('workspace browser rows', () => {
     }
     const view = render(<SessionNodeItem node={idle} currentId={undefined} now={0} onOpen={vi.fn()} t={t} />)
     // The cell is the row's first element and holds nothing while the row is
-    // idle without an occupant; the title, whose text sits in an inner span, follows it.
-    const cell = screen.getByText('Flat Session').parentElement?.previousElementSibling
+    // idle without an occupant; the title follows it.
+    const cell = screen.getByText('Flat Session').previousElementSibling
     expect(cell?.className).toMatch(/slot/)
     expect(cell?.children).toHaveLength(0)
 
     view.rerender(<SessionNodeItem node={{ ...idle, running: true }} currentId={undefined} now={0}
       onOpen={vi.fn()} t={t} />)
     // A row that gains a state dot keeps that dot in the same cell.
-    expect(screen.getByText('Flat Session').parentElement?.previousElementSibling?.querySelector('[data-state="ongoing"]')).toBeTruthy()
+    expect(screen.getByText('Flat Session').previousElementSibling?.querySelector('[data-state="ongoing"]')).toBeTruthy()
   })
 
   it('renders a selected content-search row and opens only its session', () => {
@@ -397,73 +397,44 @@ describe('workspace browser rows', () => {
     expect(onOpen).toHaveBeenCalledWith(node.id)
   })
 
-  it('marquees a clipped session title at a constant speed while the row is hovered', () => {
-    const node: SessionNode = {
-      id: sid('clipped'), title: 'A Session Title Long Enough To Be Clipped (1)', blank: false,
-      running: false, runningSubagentCount: 0, completed: false, failed: false, updatedAt: 0,
-      pinned: false, archived: false,
+  it('keeps a clipped session title at its start while hovered, selected, or with its menu open', () => {
+    vi.useFakeTimers()
+    try {
+      const node: SessionNode = {
+        id: sid('clipped'), title: 'Latest Node.js release notes and the upgrade plan for the build', blank: false,
+        running: false, runningSubagentCount: 0, completed: false, failed: false, updatedAt: 0,
+        pinned: false, archived: false,
+      }
+      const props = { node, currentId: node.id, now: 0, onOpen: vi.fn(), t }
+      const view = render(<SessionNodeItem {...props} />)
+      const row = screen.getByRole('treeitem')
+      // The title element holds the text itself, so nothing inside it can shift the start out of view.
+      const title = screen.getByText(node.title)
+      expect(title.parentElement).toBe(row)
+      // jsdom lays out nothing: the title's clipped geometry is stated outright.
+      Object.defineProperty(title, 'scrollWidth', { value: 400, configurable: true })
+      Object.defineProperty(title, 'clientWidth', { value: 160, configurable: true })
+      const atStart = (): void => {
+        expect(title.hasAttribute('data-marquee')).toBe(false)
+        expect(title.getAttribute('style')).toBeNull()
+        expect(title.scrollLeft).toBe(0)
+      }
+      fireEvent.pointerEnter(row.parentElement as HTMLElement)
+      fireEvent.pointerEnter(row)
+      atStart()
+      view.rerender(<SessionNodeItem {...props} useContextMenuTarget={select => select({ kind: 'session',
+        value: { sessionId: node.id, displayTitle: node.title } })} />)
+      atStart()
+      view.rerender(<SessionNodeItem {...props} />)
+      // The hover card shows the whole title.
+      fireEvent.pointerLeave(row.parentElement as HTMLElement)
+      fireEvent.pointerEnter(row.parentElement as HTMLElement)
+      act(() => { vi.advanceTimersByTime(800) })
+      expect(screen.getAllByText(node.title)).toHaveLength(2)
+      atStart()
+    } finally {
+      vi.useRealTimers()
     }
-    render(
-      <SessionNodeItem node={node} currentId={undefined} now={0} onOpen={vi.fn()} t={t} />,
-    )
-    const row = screen.getByRole('treeitem')
-    // The title text sits in the span that travels; its parent clips it.
-    const title = screen.getByText(node.title).parentElement as HTMLElement
-    // jsdom lays out nothing: the title's clipped geometry is stated outright.
-    const geometry = (scrollWidth: number, clientWidth: number): void => {
-      Object.defineProperty(title, 'scrollWidth', { value: scrollWidth, configurable: true })
-      Object.defineProperty(title, 'clientWidth', { value: clientWidth, configurable: true })
-    }
-    const marquee = (): (string | undefined)[] =>
-      [title.dataset.marquee, title.style.getPropertyValue('--dsh-marquee-range'), title.style.getPropertyValue('--dsh-marquee-duration')]
-
-    geometry(320, 180)
-    const touch = new Event('pointerover', { bubbles: true })
-    Object.defineProperty(touch, 'pointerType', { value: 'touch' })
-    fireEvent(row, touch)
-    expect(marquee()).toEqual([undefined, '', ''])
-    // Constant 30px/s: the stylesheet travels the 140px overflow in 4667ms.
-    fireEvent.pointerEnter(row)
-    expect(marquee()).toEqual(['', '140px', '4667ms'])
-    // Leaving returns the title to its start in one step.
-    fireEvent.pointerLeave(row)
-    expect(marquee()).toEqual([undefined, '', ''])
-
-    // A title that fits has nothing to travel: hovering leaves it at rest.
-    geometry(180, 180)
-    fireEvent.pointerEnter(row)
-    expect(marquee()).toEqual([undefined, '', ''])
-    fireEvent.pointerLeave(row)
-
-    // Overflow at the 8px jitter threshold also stays put.
-    geometry(188, 180)
-    fireEvent.pointerEnter(row)
-    expect(marquee()).toEqual([undefined, '', ''])
-    fireEvent.pointerLeave(row)
-
-    // One pixel past the threshold travels its 9px extent.
-    geometry(189, 180)
-    fireEvent.pointerEnter(row)
-    expect(marquee()).toEqual(['', '9px', '300ms'])
-  })
-
-  it('keeps a title marqueed while its context menu owns the hover highlight', () => {
-    const node: SessionNode = { id: sid('context-crawl'), title: 'A long Session title', blank: false,
-      running: false, runningSubagentCount: 0, completed: false, failed: false, updatedAt: 0, pinned: false, archived: false }
-    const props = { node, currentId: undefined, now: 0, onOpen: vi.fn(), t }
-    const view = render(<SessionNodeItem {...props} />)
-    const row = screen.getByRole('treeitem')
-    const title = screen.getByText(node.title).parentElement as HTMLElement
-    Object.defineProperty(title, 'scrollWidth', { value: 400, configurable: true })
-    Object.defineProperty(title, 'clientWidth', { value: 160, configurable: true })
-    fireEvent.pointerEnter(row)
-    expect(title.style.getPropertyValue('--dsh-marquee-range')).toBe('240px')
-    view.rerender(<SessionNodeItem {...props} useContextMenuTarget={select => select({ kind: 'session',
-      value: { sessionId: node.id, displayTitle: node.title } })} />)
-    fireEvent.pointerLeave(row)
-    expect(title.hasAttribute('data-marquee')).toBe(true)
-    view.rerender(<SessionNodeItem {...props} />)
-    expect(title.hasAttribute('data-marquee')).toBe(false)
   })
 
   it('shows the green unread dot only on an unread session (live activity wins the slot)', () => {
@@ -1059,7 +1030,7 @@ describe('workspace browser rows', () => {
       }
       const view = render(<SessionNodeItem node={node} currentId={undefined} now={0} onOpen={vi.fn()} t={t} />)
       const row = screen.getByRole('treeitem')
-      const title = screen.getByText('Needs input').parentElement as HTMLElement
+      const title = screen.getByText('Needs input')
       expect(row.querySelector('[data-state="warning"]')).toBeTruthy()
       expect(row.querySelector('[data-state="ongoing"]')).toBeNull()
       expect(row.textContent).toContain(label)
@@ -1095,7 +1066,7 @@ describe('workspace browser rows', () => {
     }
     render(<SessionNodeItem node={node} currentId={undefined} now={0} onOpen={vi.fn()} t={tEn} />)
     const row = screen.getByRole('treeitem')
-    expect(screen.getByText('Needs input').parentElement?.nextElementSibling?.textContent).toBe(compactLabel)
+    expect(screen.getByText('Needs input').nextElementSibling?.textContent).toBe(compactLabel)
     expect(screen.getByText(compactLabel).getAttribute('aria-hidden')).toBe('true')
     expect(row.textContent).not.toContain('now')
   })

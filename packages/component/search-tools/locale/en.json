@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "Search tools",
-    "description": "The glob and grep tools for finding files and text."
+    "title": "File search",
+    "description": "Lets the agent find files by name and search inside files."
   }
 }

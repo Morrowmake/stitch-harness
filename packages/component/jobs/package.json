@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-component-jobs",
-  "description": "Run commands in the background, with the job tools and the jobs panel.",
+  "description": "Run long commands in the background and follow them in a jobs panel.",
   "version": "0.2.2-rc.5",
   "icon": "./icon.svg",
   "publishConfig": {

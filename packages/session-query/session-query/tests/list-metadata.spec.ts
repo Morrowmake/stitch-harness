@@ -6,6 +6,7 @@ import SessionStore from '@deepseek-ai/dsh-session'
 import type { Session } from '@deepseek-ai/dsh-session'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import { describe, expect, it, onTestFinished } from 'vitest'
+import { startsConversation } from '@deepseek-ai/dsh-session-query'
 import { TestSessionQueryEngine } from './test-service.ts'
 
 async function setup() {
@@ -49,7 +50,14 @@ describe('Session-list metadata', () => {
     const latest = prompt(session)
     expect(read(session)).toEqual({ blank: false, lastPromptAt: latest.time })
     expect(ctx.sessionProjections.snapshot(session).values.sessionListMetadata).toEqual(read(session))
-    expect(ctx.sessionProjections.checkpoint(session).sessionListMetadata?.ver).toBe(1)
+    expect(ctx.sessionProjections.checkpoint(session).sessionListMetadata?.ver).toBe(2)
+  })
+
+  it('treats a slash command run as the start of the conversation', () => {
+    expect(startsConversation({ type: 'command/run' })).toBe(true)
+    expect(startsConversation({ type: 'turn/start' })).toBe(true)
+    expect(startsConversation({ type: 'command/done' })).toBe(false)
+    expect(startsConversation({ type: 'agent-preset/selected' })).toBe(false)
   })
 
   it('releases the projection registration when the query service is disposed', async () => {

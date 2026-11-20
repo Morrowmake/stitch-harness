@@ -1,0 +1,4 @@
+# Exercise the Plugins page without its Discover tab: the page then shows its
+# title header instead of the Installed / Discover tab bar.
+- id: ui-plugin-market
+  disabled: true

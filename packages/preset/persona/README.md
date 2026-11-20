@@ -120,21 +120,15 @@ Read these pages when the package-level contract is not enough; they move from t
 
 #### What the model sees
 
-The `deployment:persona-prefix` section at order `0` carries this row's `prefix`; `deployment:persona-suffix` at order `10200` carries its `suffix`, after first-party guidance. Both replace their deployment defaults and resolve prompt variables. In complete mode, the model sees only the rendered prefix section as its system prompt. Runtime context remains enabled by default. With `includeRuntimeContext: false`, the model still receives required context, such as the current working directory and subagent identity; optional context is omitted.
-
-In short-prompt mode, the `persona:short-prompt` section at order `10` follows the prefix with one `<tools>` line per mounted tool (or group sharing a summary) and the applicable `<rules>`; the long `tool:*` guidance of tools that declare a short contribution is absent, while every other section and the runtime context are unchanged. Tool schemas are unchanged.
+The `deployment:persona-prefix` section at order `0` carries this row's `prefix`; `deployment:persona-suffix` at order `10200` carries its `suffix`, after first-party guidance. Both replace their deployment defaults and resolve prompt variables. In complete mode, the model sees only the rendered prefix section as its system prompt. Runtime context remains enabled by default. With `includeRuntimeContext: false`, the model still receives required context, such as the current working directory and subagent identity; optional context is omitted. In short-prompt mode, the `persona:short-prompt` section at order `10` follows the prefix with one `<tools>` line per mounted tool (or group sharing a summary) and the applicable `<rules>`; the long `tool:*` guidance of tools that declare a short contribution is absent, while every other section and the runtime context are unchanged. Tool schemas are unchanged.
 
 #### Token effect
 
-Fixed for a given preset: the persona prefix and suffix tokens on every request that agent makes, and none for any other agent. Empty text contributes nothing. Complete mode removes every other system-prompt token for that agent. Required runtime context still contributes tokens when optional context is disabled.
-
-In short-prompt mode the generated section replaces the long guidance of the contributing tools; it grows by one line per mounted tool and one per distinct rule.
+Fixed for a given preset: the persona prefix and suffix tokens on every request that agent makes, and none for any other agent. Empty text contributes nothing. Complete mode removes every other system-prompt token for that agent. Required runtime context still contributes tokens when optional context is disabled. In short-prompt mode the generated section replaces the long guidance of the contributing tools; it grows by one line per mounted tool and one per distinct rule.
 
 #### KV Cache effect
 
-Prefix-stable while the rendered template variables and text are unchanged. Suffix changes leave preceding instructions unchanged when the model, prefix, and tools match. Prefix changes affect the early prefix; provider cache sharing is not guaranteed.
-
-The generated section changes when a tool is mounted or removed, and stays byte-stable while the mounted set is unchanged.
+Prefix-stable while the rendered template variables and text are unchanged. Suffix changes leave preceding instructions unchanged when the model, prefix, and tools match. Prefix changes affect the early prefix; provider cache sharing is not guaranteed. The generated section changes when a tool is mounted or removed, and stays byte-stable while the mounted set is unchanged.
 
 ## Known Limitations and Deferred Work
 

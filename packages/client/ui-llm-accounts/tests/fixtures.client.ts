@@ -27,7 +27,8 @@ export function account(id: string, extra: Partial<AccountView> = {}): AccountVi
 
 export function provider(accounts: readonly AccountView[], extra: Partial<ProviderAccountsView> = {}): ProviderAccountsView {
   return {
-    provider: 'openai-codex', displayName: 'ChatGPT', oauth: { label: 'ChatGPT' }, apiKey: { interactive: false },
+    // The Host passes the adapter's login label through as-is, which already reads "Sign in with …".
+    provider: 'openai-codex', displayName: 'ChatGPT', oauth: { label: 'Sign in with ChatGPT' }, apiKey: { interactive: false },
     accounts, ...extra,
   }
 }
@@ -48,11 +49,14 @@ export function operations(): { [K in keyof AccountsOperations]: Mock<AccountsOp
     watchSignIn: vi.fn(() => ({ async *[Symbol.asyncIterator]() {} })),
     answerSignInPrompt: vi.fn(done),
     cancelSignIn: vi.fn(done),
-    addApiKeyAccount: vi.fn(async (provider: string) => ({ ok: true as const, value: account('newkey123', { provider, kind: 'api-key' }) })),
+    addApiKeyAccount: vi.fn(async (provider: string) => ({
+      ok: true as const,
+      value: { account: account('newkey123', { provider, kind: 'api-key' }), check: { status: 'verified' as const } },
+    })),
     updateAccount: vi.fn(async (provider: string, id: string) => ({ ok: true as const, value: account(id, { provider }) })),
     setDefaultAccount: vi.fn(done),
     removeAccount: vi.fn(done),
-    retryAccountNow: vi.fn(done),
+    retryAccountNow: vi.fn(async () => ({ ok: true as const, value: { status: 'cleared' as const } })),
     refreshUsage: vi.fn(async () => ({ ok: true as const, value: usage() })),
     catalogModels: vi.fn(async () => ({ ok: true as const, value: [{ id: 'gpt-5.1', name: 'GPT-5.1' }, { id: 'gpt-5.1-mini', name: 'GPT-5.1 mini' }] })),
   }

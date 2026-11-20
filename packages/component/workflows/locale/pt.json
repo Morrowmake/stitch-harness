@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Fluxos de trabalho",
-    "description": "A ferramenta workflow, seu runtime PTC e a visualização de execução. Requer Subagentes."
+    "description": "O agente executa fluxos de várias etapas com ajudantes e mostra o progresso."
   }
 }

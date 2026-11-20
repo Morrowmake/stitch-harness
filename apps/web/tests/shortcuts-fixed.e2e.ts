@@ -45,7 +45,7 @@ describe('web e2e: fixed approval rejection keys', () => {
       const panel = page.locator('[data-approval-key]')
       await panel.waitFor()
       if (method === 'reject-button-enter') {
-        await panel.getByRole('button', { name: 'Reject', exact: true }).focus()
+        await panel.getByRole('button', { name: 'Deny', exact: true }).focus()
         await page.keyboard.press('Enter')
       } else {
         await panel.locator('[data-approval-scroll]').focus()

@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Planung",
-    "description": "Planmodus mit /plan, das Aufgabenlisten-Werkzeug und die Plansteuerung."
+    "description": "Mit /plan erst planen, dann handeln; Schritte des Agenten als To-do-Liste."
   }
 }

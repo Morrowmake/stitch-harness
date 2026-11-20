@@ -12,8 +12,11 @@ import type {
 /** One Host call's answer: the value, or the refusal a step shows. */
 export type Outcome<T> =
   | { readonly ok: true; readonly value: T }
-  /** `code` is the Host's error code, which `refusalText` localizes; `message` is the Host's own text, or empty. */
-  | { readonly ok: false; readonly code: string; readonly message: string }
+  /**
+   * `code` is the Host's error code, which `refusalText` localizes; `message` is the Host's own text, or empty;
+   * `details` is the code's structured payload when the Host sent one.
+   */
+  | { readonly ok: false; readonly code: string; readonly message: string; readonly details?: object }
 
 /** A provider route that already serves requests. */
 export interface ConfiguredProvider {
@@ -35,6 +38,13 @@ export interface HostedProvider {
 export interface ProviderModel {
   readonly id: string
   readonly name: string
+  /** Superseded, dated, or alias entry the step folds under "Older models". */
+  readonly older?: boolean
+}
+
+/** What saving an API key found: `verified` when the provider accepted it, otherwise saved without a check. */
+export interface SavedKey {
+  readonly verified: boolean
 }
 
 /** A hand-declared OpenAI-compatible route: a local server or a custom URL. */
@@ -60,8 +70,8 @@ export interface FirstRunOperations {
   discoverModels(baseURL: string, apiKey: string | undefined): Promise<Outcome<readonly string[]>>
   /** Declare an OpenAI-compatible route and store its key. */
   addOpenAICompatible(route: OpenAICompatibleRoute): Promise<Outcome<void>>
-  /** Store an API key as a hosted provider's first account. */
-  addApiKeyAccount(provider: string, key: string): Promise<Outcome<void>>
+  /** Check an API key with the provider and store it as a hosted provider's first account; a rejected key is not stored. */
+  addApiKeyAccount(provider: string, key: string): Promise<Outcome<SavedKey>>
   beginSignIn(provider: string, request: SignInRequest): Promise<Outcome<SignInAttemptView>>
   /** Follow one attempt until it settles; the iterable ends when the Host ends the stream or `signal` aborts. */
   watchSignIn(attempt: SignInAttemptId, signal: AbortSignal): AsyncIterable<SignInAttemptView>
@@ -134,10 +144,13 @@ export function createFirstRunOperations(ctx: Context): FirstRunOperations {
     },
     probeLocal: async signal => outcomeOf(await accounts.probeLocalProviders(signal)),
     discoverModels: async (baseURL, apiKey) => {
-      const response = outcomeOf(await ctx.remote.llm.discoverModels(PI_AI_SETTINGS_NS, {
+      const response = await ctx.remote.llm.discoverModels(PI_AI_SETTINGS_NS, {
         api: OPENAI_COMPLETIONS, baseURL, ...apiKey === undefined ? {} : { apiKey },
-      }))
-      return response.ok ? { ok: true, value: response.value.map(model => model.id) } : response
+      })
+      if (response.ok) return { ok: true, value: response.value.map(model => model.id) }
+      // The step tells an unreachable host from a foreign or locked server by the refusal's reason.
+      const { code, message, details } = response.error
+      return { ok: false, code, message, details }
     },
     addOpenAICompatible: async (route) => {
       const keyRef = deriveKeyRef(route.route)
@@ -161,7 +174,7 @@ export function createFirstRunOperations(ctx: Context): FirstRunOperations {
     },
     addApiKeyAccount: async (provider, key) => {
       const response = outcomeOf(await accounts.addApiKeyAccount(provider, { key }))
-      return response.ok ? { ok: true, value: undefined } : response
+      return response.ok ? { ok: true, value: { verified: response.value.check.status === 'verified' } } : response
     },
     beginSignIn: async (provider, request) => outcomeOf(await accounts.beginSignIn(provider, request)),
     watchSignIn: (attempt, signal) => accounts.watchSignIn(attempt, signal),
@@ -173,7 +186,7 @@ export function createFirstRunOperations(ctx: Context): FirstRunOperations {
       const group = response.value.groups.find(entry => entry.id === provider)
       const models = (group?.models ?? [])
         .filter(model => !model.id.startsWith(PINNED_PREFIX))
-        .map(model => ({ id: model.id, name: model.name }))
+        .map(model => ({ id: model.id, name: model.name, ...model.older === true ? { older: true } : {} }))
       return { ok: true, value: models }
     },
     saveDefaultModel: async (provider, model) => {

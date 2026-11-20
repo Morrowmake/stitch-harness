@@ -9,7 +9,7 @@ import SessionStore, { Session, type SessionId } from '@deepseek-ai/dsh-session'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
-import ApprovalService, { ApprovalOutcome, ApprovalRequest, setApprovalPolicy } from '@deepseek-ai/dsh-user-approval'
+import ApprovalService, { type ApprovalAnswer, ApprovalOutcome, ApprovalRequest, setApprovalPolicy } from '@deepseek-ai/dsh-user-approval'
 
 // Keep the Agent structural while exercising committed events on a real managed Session.
 function fakeAgent(ctx: Context, seed: Array<{ type: 'turn/start' | 'turn/end' | 'user/message' }> = [{ type: 'turn/start' }, { type: 'user/message' }]): { agent: Agent; appended: Array<{ type: string; data: Record<string, unknown> }> } {
@@ -349,6 +349,114 @@ describe('ApprovalService.request', () => {
 
     await fiber.dispose()
     await expect(ctx.approval.request(requestOf(agent))).resolves.toBe('unavailable')
+  })
+})
+
+describe('chat grants (allowed-for-session)', () => {
+  /** An answerer that records each dispatched request and returns the queued answers in order. */
+  function answering(ctx: Context, ...answers: ApprovalAnswer[]) {
+    const asked: ApprovalRequest[] = []
+    ctx.on('approval/request', (req) => {
+      asked.push(req)
+      return Promise.resolve(answers.shift() ?? 'unavailable')
+    })
+    return asked
+  }
+
+  it('allows the asked action once to the caller and later asks with the same tool and grant without dispatching', async () => {
+    const ctx = await mounted()
+    const { agent, appended } = fakeAgent(ctx)
+    const asked = answering(ctx, 'allowed-for-session')
+
+    await expect(ctx.approval.request(requestOf(agent, { toolName: 'plugin_manager', grant: 'install' }))).resolves.toBe('allowed-once')
+    await expect(ctx.approval.request(requestOf(agent, { toolName: 'plugin_manager', grant: 'install' }))).resolves.toBe('allowed-once')
+
+    expect(asked).toHaveLength(1)
+    expect(asked[0]?.grant).toBe('install')
+    expect(appended.map(event => [event.type, event.data['grant'] ?? event.data['outcome']])).toEqual([
+      ['approval/asked', 'install'], ['approval/decided', 'allowed-for-session'],
+      ['approval/asked', 'install'], ['approval/decided', 'allowed-for-session'],
+    ])
+  })
+
+  it('keeps asking for another action class, another tool, and requests that offer no grant', async () => {
+    const ctx = await mounted()
+    const { agent } = fakeAgent(ctx)
+    const asked = answering(ctx, 'allowed-for-session', 'rejected', 'rejected', 'allowed-once')
+
+    await ctx.approval.request(requestOf(agent, { toolName: 'plugin_manager', grant: 'enable' }))
+    await expect(ctx.approval.request(requestOf(agent, { toolName: 'plugin_manager', grant: 'install' }))).resolves.toBe('rejected')
+    await expect(ctx.approval.request(requestOf(agent, { toolName: 'bash', grant: 'enable' }))).resolves.toBe('rejected')
+    await expect(ctx.approval.request(requestOf(agent, { toolName: 'plugin_manager' }))).resolves.toBe('allowed-once')
+    expect(asked.map(req => [req.toolName, req.grant])).toEqual([
+      ['plugin_manager', 'enable'], ['plugin_manager', 'install'], ['bash', 'enable'], ['plugin_manager', undefined],
+    ])
+  })
+
+  it('narrows a chat grant the request did not offer to this one action', async () => {
+    const ctx = await mounted()
+    const { agent, appended } = fakeAgent(ctx)
+    const asked = answering(ctx, 'allowed-for-session', 'rejected')
+
+    await expect(ctx.approval.request(requestOf(agent, { toolName: 'bash' }))).resolves.toBe('allowed-once')
+    expect(appended.at(-1)?.data).toMatchObject({ outcome: 'allowed-once' })
+    await expect(ctx.approval.request(requestOf(agent, { toolName: 'bash', grant: 'danger-full-access' }))).resolves.toBe('rejected')
+    expect(asked).toHaveLength(2)
+  })
+
+  it('records no grant for a rejected, cancelled, or unavailable answer', async () => {
+    const ctx = await mounted()
+    const { agent } = fakeAgent(ctx)
+    const asked = answering(ctx, 'rejected', 'cancelled', 'unavailable', 'allowed-once')
+    for (let ask = 0; ask < 4; ask++) await ctx.approval.request(requestOf(agent, { grant: 'write' }))
+    expect(asked).toHaveLength(4)
+  })
+
+  it('ends with the chat: another Session asks again', async () => {
+    const ctx = await mounted()
+    const first = fakeAgent(ctx)
+    const second = fakeAgent(ctx)
+    const asked = answering(ctx, 'allowed-for-session', 'rejected')
+
+    await ctx.approval.request(requestOf(first.agent, { grant: 'write' }))
+    await expect(ctx.approval.request(requestOf(second.agent, { grant: 'write' }))).resolves.toBe('rejected')
+    expect(asked.map(req => req.agent)).toEqual([first.agent, second.agent])
+  })
+
+  it('outlives the turn it was given in', async () => {
+    const ctx = await mounted()
+    const { agent } = fakeAgent(ctx)
+    const asked = answering(ctx, 'allowed-for-session')
+    await ctx.approval.request(requestOf(agent, { grant: 'write' }))
+    agent.session.append('turn/end', { turn: 1, reason: { kind: 'completed' } })
+    agent.session.append('turn/start', { turn: 2 })
+    await expect(ctx.approval.request(requestOf(agent, { grant: 'write' }))).resolves.toBe('allowed-once')
+    expect(asked).toHaveLength(1)
+  })
+
+  it('yields to the never policy and to an aborted request', async () => {
+    const ctx = await mounted()
+    const { agent } = fakeAgent(ctx)
+    answering(ctx, 'allowed-for-session')
+    await ctx.approval.request(requestOf(agent, { grant: 'write' }))
+    const controller = new AbortController()
+    controller.abort()
+    await expect(ctx.approval.request(requestOf(agent, { grant: 'write', signal: controller.signal }))).resolves.toBe('cancelled')
+    setApprovalPolicy(agent.session, 'never')
+    await expect(ctx.approval.request(requestOf(agent, { grant: 'write' }))).resolves.toBe('rejected')
+  })
+
+  it('does not carry grants across a fork cut into the new chat', async () => {
+    const ctx = await mounted()
+    const { agent } = fakeAgent(ctx)
+    const asked = answering(ctx, 'allowed-for-session', 'rejected')
+    await ctx.approval.request(requestOf(agent, { grant: 'write' }))
+    // Untagged lifecycle markers (restore) keep the chat's grants; the tagged fork cut ends them.
+    agent.session.append('session/end-seed', {})
+    await expect(ctx.approval.request(requestOf(agent, { grant: 'write' }))).resolves.toBe('allowed-once')
+    agent.session.append('session/end-seed', { inherited: true })
+    await expect(ctx.approval.request(requestOf(agent, { grant: 'write' }))).resolves.toBe('rejected')
+    expect(asked).toHaveLength(2)
   })
 })
 

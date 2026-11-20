@@ -93,6 +93,7 @@ function bench(overrides: Partial<Record<string, ReturnType<typeof vi.fn>>> = {}
     cancelInstall: vi.fn(() => Promise.resolve(ok({ status: 'cancelled' }))),
     removeBundle: vi.fn(() => Promise.resolve(ok(APPLIED))),
     setBundleEnabled: vi.fn(() => Promise.resolve(ok(APPLIED))),
+    setBundlesEnabled: vi.fn(() => Promise.resolve(ok(APPLIED))),
     setPluginEnabled: vi.fn(() => Promise.resolve(ok(APPLIED))),
     ...overrides,
   }
@@ -124,6 +125,16 @@ describe('packageView', () => {
       ? { ...plugin, fiberPhase: 'failed' as const, diagnostic: 'native preparation unavailable' } : plugin)
     expect(packageView(BUNDLE, plugins).rows[0]?.diagnostic).toBe('native preparation unavailable')
     expect(packageView(BUNDLE, PLUGINS).rows[0]?.diagnostic).toBeUndefined()
+  })
+
+  it('names the modules of the built-in rows a bundle switches on, so their settings show on its page', () => {
+    const component: BundleInfo = { ...BUNDLE, name: 'component-web', rows: [], overrides: ['ui-settings-web-search'] }
+    const settings: PluginInfo = {
+      entryId: 'include:ui-settings-web-search' as PluginEntryId, moduleName: '@acme/ui-settings-web-search',
+      enabled: true, fiberPhase: 'active', patchId: 'ui-settings-web-search',
+    }
+    expect(packageView(component, [...PLUGINS, settings]).configures).toEqual(['@acme/ui-settings-web-search'])
+    expect(packageView(BUNDLE, [...PLUGINS, settings])).not.toHaveProperty('configures')
   })
 
   it('joins a bundle with the entries its rows run as', () => {
@@ -569,6 +580,70 @@ describe('PluginManagerController', () => {
     face.uninstall(BUNDLE.name)
     face.confirm()
     await vi.waitFor(() => { expect(state().notice).toEqual({ kind: 'failed', action: 'uninstall', code: 'not-removable', reason: '', packageName: BUNDLE.name, seq: 1 }) })
+  })
+
+  it('asks before switching off a plugin others need, then offers to switch them back on with it', async () => {
+    const component = (id: string, requires?: string[]): BundleInfo => ({
+      name: id, official: true, availability: 'installation', enabled: true, installed: false, optional: false, removable: false,
+      rows: [], overrides: [], ...requires === undefined ? {} : { requires },
+    })
+    const bundles = [component('agents'), component('teams', ['agents']), component('flows', ['agents']), component('files')]
+    const enabled = new Map(bundles.map(bundle => [bundle.name, true]))
+    const select = (changes: Record<string, boolean>): ChangeResult => {
+      for (const [name, on] of Object.entries(changes)) enabled.set(name, on)
+      return { ...APPLIED, selection: changes }
+    }
+    const { plugins, face, state, controller } = bench({
+      listBundles: vi.fn(() => Promise.resolve(ok(bundles.map(bundle => ({ ...bundle, enabled: enabled.get(bundle.name) === true }))))),
+      // Like the Host: a selection reports the requested bundle and only the bundles whose selection the closure changed.
+      setBundleEnabled: vi.fn((name: string, on: boolean) => Promise.resolve(ok(select(on
+        ? { [name]: true, ...name === 'teams' && enabled.get('agents') !== true ? { agents: true } : {} }
+        : { [name]: false, ...name === 'agents' ? Object.fromEntries(['teams', 'flows'].filter(item => enabled.get(item)).map(item => [item, false])) : {} })))),
+      setBundlesEnabled: vi.fn((changes: Record<string, boolean>) => Promise.resolve(ok(select(changes)))),
+    })
+    await controller.load()
+    // A plugin nothing needs switches at once.
+    face.setEnabled('files', false)
+    expect(state().confirm).toBeNull()
+    await vi.waitFor(() => { expect(plugins.setBundleEnabled).toHaveBeenCalledExactlyOnceWith('files', false) })
+    // Switching off what others need names them first; cancelling changes nothing.
+    face.setEnabled('agents', false)
+    expect(state().confirm).toEqual({ action: 'disable-dependents', packageName: 'agents', dependents: ['flows', 'teams'] })
+    face.cancelConfirm()
+    expect(plugins.setBundleEnabled).toHaveBeenCalledTimes(1)
+    face.setEnabled('agents', false)
+    face.confirm()
+    await vi.waitFor(() => { expect(state().packages.find(pkg => pkg.name === 'teams')?.enabled).toBe(false) })
+    await vi.waitFor(() => { expect(state().busy).toEqual([]) })
+    // Switching it back on offers the plugins that went off with it.
+    face.setEnabled('agents', true)
+    expect(state().confirm).toEqual({ action: 'restore-dependents', packageName: 'agents', dependents: ['teams', 'flows'] })
+    face.confirm()
+    await vi.waitFor(() => {
+      expect(plugins.setBundlesEnabled).toHaveBeenCalledExactlyOnceWith({ agents: true, teams: true, flows: true })
+    })
+    await vi.waitFor(() => { expect(state().packages.every(pkg => pkg.enabled || pkg.name === 'files')).toBe(true) })
+    await vi.waitFor(() => { expect(state().busy).toEqual([]) })
+    // Or switches on only the plugin asked for.
+    face.setEnabled('agents', false)
+    face.confirm()
+    await vi.waitFor(() => { expect(state().packages.find(pkg => pkg.name === 'teams')?.enabled).toBe(false) })
+    await vi.waitFor(() => { expect(state().busy).toEqual([]) })
+    face.setEnabled('agents', true)
+    face.confirmAlternative()
+    await vi.waitFor(() => { expect(plugins.setBundleEnabled).toHaveBeenLastCalledWith('agents', true) })
+    await vi.waitFor(() => { expect(state().packages.find(pkg => pkg.name === 'agents')?.enabled).toBe(true) })
+    await vi.waitFor(() => { expect(state().busy).toEqual([]) })
+    expect(plugins.setBundlesEnabled).toHaveBeenCalledTimes(1)
+    expect(state().packages.find(pkg => pkg.name === 'teams')?.enabled).toBe(false)
+    // With its dependents already off nothing asks, and a dependent switched on alone brings what it needs and says so.
+    face.setEnabled('agents', false)
+    expect(state().confirm).toBeNull()
+    await vi.waitFor(() => { expect(state().packages.find(pkg => pkg.name === 'agents')?.enabled).toBe(false) })
+    await vi.waitFor(() => { expect(state().busy).toEqual([]) })
+    face.setEnabled('teams', true)
+    expect(state().confirm).toBeNull()
+    await vi.waitFor(() => { expect(state().notice).toMatchObject({ kind: 'also-enabled', packageName: 'teams', names: ['agents'] }) })
   })
 
   it('switches rows under their own busy keys and reports what the Host said', async () => {

@@ -1,8 +1,10 @@
 /**
  * GitHub issue reporting: the preview names only the remark, category,
- * version, and OS; a confirmed issue is created through an authenticated `gh`
- * and otherwise falls back to a prefilled new-issue page that stays under the
- * URL bound; the Remote runs `gh` through a mounted subprocess seam.
+ * version, and OS in plain Markdown and the public repository it targets; the
+ * browser method only builds the prefilled page and never runs `gh`; the
+ * explicitly chosen `github-cli` method creates the issue through an
+ * authenticated `gh` and otherwise falls back to the prefilled page that stays
+ * under the URL bound; the Remote runs `gh` through a mounted subprocess seam.
  */
 import { describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
@@ -14,6 +16,7 @@ import {
   FEEDBACK_REPOSITORY,
   ISSUE_TRUNCATION_NOTE,
   MAX_ISSUE_URL_LENGTH,
+  NO_DESCRIPTION,
   draftFeedbackIssue,
   newIssueUrl,
   reportFeedbackIssue,
@@ -23,6 +26,7 @@ import {
 
 const ENV = { version: '1.2.3', platform: 'Darwin 25.6.0 (darwin-arm64)' }
 const ISSUE = { title: 'Diff view unreadable', body: 'The diff view is unreadable.' }
+const VIA_GH = { ...ISSUE, via: 'github-cli' } as const
 const CREATED = `https://github.com/${FEEDBACK_REPOSITORY}/issues/42`
 
 /** Decode the title and body a prefilled page carries. */
@@ -33,7 +37,7 @@ function prefilled(url: string): { title: string | null; body: string | null } {
 }
 
 describe('draftFeedbackIssue', () => {
-  it('titles the issue with the first line and carries only the remark, category, version, and OS', () => {
+  it('titles the issue with the first line, carries only the remark and details, and names the repository', () => {
     const draft = draftFeedbackIssue({ text: '  \nDiff view unreadable\nsecond line ', category: 'product-interaction' }, ENV)
 
     expect(draft).toEqual({
@@ -41,19 +45,23 @@ describe('draftFeedbackIssue', () => {
       body: [
         'Diff view unreadable\nsecond line',
         '',
-        '---',
+        'Details:',
+        '',
         '- Category: product-interaction',
         '- Stitch version: 1.2.3',
         '- OS: Darwin 25.6.0 (darwin-arm64)',
       ].join('\n'),
+      repository: FEEDBACK_REPOSITORY,
     })
+    expect(FEEDBACK_REPOSITORY).toBe('Morrowmake/stitch-harness')
   })
 
-  it('uses a generic title and placeholder for an empty remark', () => {
+  it('uses a generic title and a plain placeholder for an empty remark', () => {
     const draft = draftFeedbackIssue({}, ENV)
 
     expect(draft.title).toBe(DEFAULT_ISSUE_TITLE)
-    expect(draft.body).toContain('_No description provided._')
+    expect(draft.body.split('\n')[0]).toBe(NO_DESCRIPTION)
+    expect(draft.body).not.toMatch(/(^|\n)(_|---)/u)
     expect(draft.body).toContain('- Category: none')
   })
 
@@ -96,10 +104,20 @@ function gh(
 }
 
 describe('reportFeedbackIssue', () => {
-  it('creates the issue through an authenticated gh with an argv array', async () => {
+  it('only builds the prefilled page for the browser method and never runs gh', async () => {
     const run = gh(() => Promise.resolve({ exitCode: 0, stdout: '' }))
 
-    await expect(reportFeedbackIssue(ISSUE, run)).resolves.toEqual({ kind: 'created', url: CREATED })
+    const result = await reportFeedbackIssue({ ...ISSUE, via: 'browser' }, run)
+
+    expect(result.kind).toBe('browser')
+    expect(prefilled(result.url)).toEqual(ISSUE)
+    expect(run).not.toHaveBeenCalled()
+  })
+
+  it('creates the issue through an authenticated gh with an argv array when github-cli is chosen', async () => {
+    const run = gh(() => Promise.resolve({ exitCode: 0, stdout: '' }))
+
+    await expect(reportFeedbackIssue(VIA_GH, run)).resolves.toEqual({ kind: 'created', url: CREATED })
     expect(run.mock.calls.map(([file, args]) => [file, args])).toEqual([
       ['gh', ['auth', 'status', '--hostname', 'github.com']],
       ['gh', ['issue', 'create', '--repo', FEEDBACK_REPOSITORY, '--title', ISSUE.title, '--body', ISSUE.body]],
@@ -110,7 +128,7 @@ describe('reportFeedbackIssue', () => {
   it('falls back to the prefilled page when gh is unauthenticated, without creating anything', async () => {
     const run = gh(() => Promise.resolve({ exitCode: 1, stdout: '' }))
 
-    const result = await reportFeedbackIssue(ISSUE, run)
+    const result = await reportFeedbackIssue(VIA_GH, run)
 
     expect(result.kind).toBe('browser')
     expect(prefilled(result.url)).toEqual(ISSUE)
@@ -120,23 +138,23 @@ describe('reportFeedbackIssue', () => {
   it('falls back to the prefilled page when gh is missing', async () => {
     const run = gh(() => Promise.reject(Object.assign(new Error('spawn gh ENOENT'), { code: 'ENOENT' })))
 
-    await expect(reportFeedbackIssue(ISSUE, run)).resolves.toMatchObject({ kind: 'browser' })
+    await expect(reportFeedbackIssue(VIA_GH, run)).resolves.toMatchObject({ kind: 'browser' })
   })
 
   it('falls back to the prefilled page when gh times out', async () => {
     const authTimeout = gh(() => Promise.resolve({ exitCode: null, stdout: '' }))
     const createTimeout = gh(() => Promise.resolve({ exitCode: 0, stdout: '' }), () => Promise.resolve({ exitCode: null, stdout: '' }))
 
-    await expect(reportFeedbackIssue(ISSUE, authTimeout)).resolves.toMatchObject({ kind: 'browser' })
-    await expect(reportFeedbackIssue(ISSUE, createTimeout)).resolves.toMatchObject({ kind: 'browser' })
+    await expect(reportFeedbackIssue(VIA_GH, authTimeout)).resolves.toMatchObject({ kind: 'browser' })
+    await expect(reportFeedbackIssue(VIA_GH, createTimeout)).resolves.toMatchObject({ kind: 'browser' })
   })
 
   it('falls back when issue creation fails or prints no issue URL', async () => {
     const failed = gh(() => Promise.resolve({ exitCode: 0, stdout: '' }), () => Promise.resolve({ exitCode: 1, stdout: '' }))
     const silent = gh(() => Promise.resolve({ exitCode: 0, stdout: '' }), () => Promise.resolve({ exitCode: 0, stdout: 'done' }))
 
-    await expect(reportFeedbackIssue(ISSUE, failed)).resolves.toMatchObject({ kind: 'browser' })
-    await expect(reportFeedbackIssue(ISSUE, silent)).resolves.toMatchObject({ kind: 'browser' })
+    await expect(reportFeedbackIssue(VIA_GH, failed)).resolves.toMatchObject({ kind: 'browser' })
+    await expect(reportFeedbackIssue(VIA_GH, silent)).resolves.toMatchObject({ kind: 'browser' })
   })
 })
 
@@ -150,23 +168,35 @@ describe('sessionFeedback issue Remote', () => {
     return ctx.get('sessionFeedback')!
   }
 
-  it('drafts from the remark and the installation facts', async () => {
+  it('drafts from the remark and the installation facts, naming the target repository', async () => {
     const remote = await service()
 
     const draft = await remote.draftIssue({ text: 'slow', category: 'service-stability' })
 
     expect(draft.title).toBe('slow')
-    expect(draft.body).toMatch(/^slow\n\n---\n- Category: service-stability\n- Stitch version: \S+\n- OS: .+$/u)
+    expect(draft.repository).toBe(FEEDBACK_REPOSITORY)
+    expect(draft.body).toMatch(/^slow\n\nDetails:\n\n- Category: service-stability\n- Stitch version: \S+\n- OS: .+$/u)
   })
 
-  it('runs gh through the mounted subprocess seam without a shell', async () => {
+  it('never spawns gh for the browser method', async () => {
+    const spawn = vi.fn<FeedbackSubprocessSeam['spawn']>()
+    const remote = await service({ spawn })
+
+    const result = await remote.reportIssue({ ...ISSUE, via: 'browser' })
+
+    expect(result.kind).toBe('browser')
+    expect(prefilled(result.url)).toEqual(ISSUE)
+    expect(spawn).not.toHaveBeenCalled()
+  })
+
+  it('runs gh through the mounted subprocess seam without a shell when github-cli is chosen', async () => {
     const spawn = vi.fn<FeedbackSubprocessSeam['spawn']>(spec => ({
       collected: { stdout: { readFrom: () => ({ text: spec.argv[1] === 'issue' ? CREATED : '' }) } },
       done: Promise.resolve({ exitCode: 0 }),
     }))
     const remote = await service({ spawn })
 
-    await expect(remote.reportIssue(ISSUE)).resolves.toEqual({ kind: 'created', url: CREATED })
+    await expect(remote.reportIssue(VIA_GH)).resolves.toEqual({ kind: 'created', url: CREATED })
     expect(spawn.mock.calls.map(([spec]) => spec.argv[0])).toEqual(['gh', 'gh'])
     expect(spawn.mock.calls[1]?.[0].argv).toContain(ISSUE.body)
     expect(spawn.mock.calls[0]?.[0].signal).toBeInstanceOf(AbortSignal)
@@ -179,6 +209,6 @@ describe('sessionFeedback issue Remote', () => {
     }))
     const remote = await service({ spawn })
 
-    await expect(remote.reportIssue(ISSUE)).resolves.toMatchObject({ kind: 'browser' })
+    await expect(remote.reportIssue(VIA_GH)).resolves.toMatchObject({ kind: 'browser' })
   })
 })

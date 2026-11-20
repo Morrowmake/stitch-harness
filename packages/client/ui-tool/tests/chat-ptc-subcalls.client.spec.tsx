@@ -217,9 +217,11 @@ describe('program sub-calls through the real chat machinery', () => {
 
     // Each run-control verb names its act and shows the package id; without the
     // owned titles all three would read "Tool call · cordis_run · dyn-2".
-    expect(nest.querySelector('[data-tool="cordis_runtime_inspect"]')?.textContent).toContain('Query Cordis environment')
-    expect(nest.querySelector('[data-tool="cordis_run"]')?.textContent).toContain('Run Cordis Plugindyn-2')
-    expect(nest.querySelector('[data-tool="cordis_undefine"]')?.textContent).toContain('Remove Cordis Plugindyn-2')
+    expect(nest.querySelector('[data-tool="cordis_runtime_inspect"]')?.textContent).toContain('Inspect the Stitch environment')
+    expect(nest.querySelector('[data-tool="cordis_run"]')?.textContent).toContain('Run plugindyn-2')
+    expect(nest.querySelector('[data-tool="cordis_undefine"]')?.textContent).toContain('Remove plugindyn-2')
+    // The internal codename never reaches the row text.
+    expect(nest.textContent).not.toMatch(/cordis/i)
     // None of them is a code row: the program belongs to cordis_define, whose
     // own keyed card renders it (the next case covers the code row itself).
     expect(nest.querySelector('[data-variant="code"]')).toBeNull()

@@ -214,6 +214,36 @@ it('imports reference chips on the first Hub shell and preserves them without an
   expect(b.hub.shellFor(b.binding).draftSnapshot).toEqual({ text: '', references: [] })
 })
 
+it('replaces an earlier unedited request under ask, also after the shell was rebuilt, and reports the user\'s own text', async () => {
+  const b = await fixture('')
+  expect(b.hub.requestDraftInitialization(b.binding, { prompt: 'Create a plugin.', whenDraftExists: 'ask' })).toBe('applied')
+  expect(b.hub.requestDraftInitialization(b.binding, { prompt: 'Create a daily brief.', whenDraftExists: 'ask' })).toBe('applied')
+  expect(b.shell.draftSnapshot).toEqual({ text: 'Create a daily brief.', references: [] })
+
+  // Leaving the conversation disposes its shell; the next one restores the saved draft.
+  b.shell.bindDraftPersistence((draft) => {
+    localStorage.setItem(b.key, JSON.stringify({ draft, view: 'trajectory', viewRequest: null }))
+  })
+  b.shell.persistCurrentDraft()
+  b.reference.release()
+  await vi.waitFor(() => { expect(b.sessions.binding(b.id)).toBeUndefined() })
+  const again = b.sessions.retain(b.id)
+  onTestFinished(() => { again.release() })
+  await again.ready
+  const shell = b.hub.shellFor(again.binding)
+  expect(shell).not.toBe(b.shell)
+  expect(shell.draftSnapshot).toEqual({ text: 'Create a daily brief.', references: [] })
+  expect(b.hub.requestDraftInitialization(again.binding, { prompt: 'Create a task.', whenDraftExists: 'ask' })).toBe('applied')
+  expect(shell.draftSnapshot).toEqual({ text: 'Create a task.', references: [] })
+
+  shell.setDraft('Create a task. Also summarize my mail.')
+  expect(b.hub.requestDraftInitialization(again.binding, { prompt: 'Weekly review.', whenDraftExists: 'ask' })).toBe('occupied')
+  expect(shell.draftSnapshot).toEqual({ text: 'Create a task. Also summarize my mail.', references: [] })
+  expect(b.hub.requestDraftInitialization(again.binding, { prompt: 'Weekly review.', whenDraftExists: 'replace' })).toBe('applied')
+  expect(b.hub.requestDraftInitialization(again.binding, { prompt: 'Issue scan.', whenDraftExists: 'ask' })).toBe('applied')
+  expect(shell.draftSnapshot).toEqual({ text: 'Issue scan.', references: [] })
+})
+
 it('subscribes when a provider arrives and disconnects each withdrawn provider', async () => {
   const b = await fixture(saved)
   expect(b.shell.actions.insertText('/current', {

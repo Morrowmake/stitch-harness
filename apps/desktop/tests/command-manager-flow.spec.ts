@@ -160,3 +160,55 @@ it('coalesces repeated menu clicks and keeps update preparation waiting for the 
   expect(idle).toBe(true)
   expect(await f.calls()).toEqual([{ operation: 'inspect' }])
 })
+
+it.each([
+  ['an unregistered command shadowed by another stitch', {}, { kind: 'notInstalled', shadowed: true }],
+  ['its own selected registration', { managed: true }, { kind: 'installed', shadowed: false }],
+  ['a registration another stitch shadows', { managed: true, shadowed: true }, { kind: 'installed', shadowed: true }],
+] as const)('reports %s to Settings without a dialog', async (_label, options, expected) => {
+  const f = await fixture(options)
+  const status = await f.manager.status()
+  if (process.platform !== 'darwin' && process.platform !== 'win32') expect(status).toEqual({ kind: 'unsupported' })
+  else expect(status).toEqual({ ...expected, selectionUnknown: false })
+  expect(f.show).not.toHaveBeenCalled()
+})
+
+it('runs a Settings Repair or Remove directly and keeps the result dialog', async () => {
+  const f = await fixture({ managed: true })
+  f.show.mockResolvedValue({ response: 0, checkboxChecked: false })
+  await f.manager.show('repair')
+  expect(f.show).toHaveBeenCalledOnce()
+  expect(f.show.mock.calls[0]![0].message).toBe(en.cliCommandInstalled)
+  await f.manager.show('remove')
+  expect(f.show.mock.lastCall![0].message).toBe(en.cliCommandRemoved)
+  expect(await f.calls()).toEqual([
+    { operation: 'inspect' }, { operation: 'install', expected: 'a'.repeat(64) }, { operation: 'inspect' },
+    { operation: 'inspect' }, { operation: 'remove', expected: 'a'.repeat(64) }, { operation: 'inspect' },
+  ])
+})
+
+it('still confirms replacing another command when Install comes from Settings', async () => {
+  const f = await fixture()
+  f.show.mockResolvedValue({ response: 1, checkboxChecked: false })
+  await f.manager.show('install')
+  expect(f.show).toHaveBeenCalledOnce()
+  expect(f.show.mock.calls[0]![0].message).toBe(en.cliCommandSwitch)
+  expect(await f.calls()).toEqual([{ operation: 'inspect' }])
+})
+
+it('reviews the observed state when a stale Settings action no longer applies', async () => {
+  const f = await fixture()
+  f.show.mockResolvedValue({ response: 1, checkboxChecked: false })
+  await f.manager.show('remove')
+  expect(f.show.mock.calls[0]![0]).toMatchObject({ message: en.cliCommandNotInstalled, buttons: [en.cliCommandInstall, en.cancel] })
+  expect(await f.calls()).toEqual([{ operation: 'inspect' }])
+})
+
+it('reports a development build as unavailable without inspecting', async () => {
+  const show = vi.fn()
+  const manager = new DesktopCommandManager({
+    resources: '/nonexistent', isPackaged: false, isInstalledLocation: () => true, isQuitting: () => false, messages: () => en, show,
+  })
+  expect(await manager.status()).toEqual(process.platform === 'darwin' || process.platform === 'win32' ? { kind: 'unavailable' } : { kind: 'unsupported' })
+  expect(show).not.toHaveBeenCalled()
+})

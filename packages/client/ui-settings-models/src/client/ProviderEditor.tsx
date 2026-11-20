@@ -81,6 +81,12 @@ export interface ProviderEditorProps {
   credential?: CredentialInfo
   /** Redacted checks for the profile's named reference or the provider's native variables. */
   credentialChecks?: Readonly<Record<string, CredentialInfo>>
+  /**
+   * Whether a provider-card extension holds this provider's own credentials
+   * (signed-in accounts or stored keys). The key field then stays out of the
+   * way unless it already holds a saved key or a typed one.
+   */
+  ownCredentials?: boolean
   /** Section copy. */
   t: (key: keyof typeof en) => string
   /** Disable writes (read-only settings provider). */
@@ -262,8 +268,8 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
   // as "no key supplied" rather than as a key — that is how a card whose
   // provider already has a stored key is edited without re-entering it.
   const keyValue = keyText.trim()
-  // A route whose protocol cannot authenticate without a key needs a key reference or a typed key.
-  const protocolNeedsKeyHere = layout === 'pi-ai' && protocolNeedsKey(probeApi)
+  // A route whose protocol cannot authenticate without a key needs a key reference, a typed key, or accounts of its own.
+  const protocolNeedsKeyHere = layout === 'pi-ai' && protocolNeedsKey(probeApi) && props.ownCredentials !== true
     && stringAt(draft, 'apiKeyEnv') === undefined && stringAt(fallback, 'apiKeyEnv') === undefined
   const protocolKeyMissing = protocolNeedsKeyHere && keyValue.length === 0
   const shownKeyFailure = protocolKeyMissing ? 'keyRequired' as const : keyFailure
@@ -423,8 +429,10 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
         <button type="button" className={styles['helpButton']} aria-label={t('authHelp')}>?</button>
       </Tooltip>
     )
-    // A provider with no native key authentication has no key for this field to store.
-    const keylessNativeAuth = nativeAuth?.env.length === 0 && nativeAuth.oauth
+    // A provider with no native key authentication has no key for this field to store; one whose accounts
+    // already hold credentials manages keys there, so the field only stays while it holds a key of its own.
+    const keylessNativeAuth = (nativeAuth?.env.length === 0 && nativeAuth.oauth)
+      || (props.ownCredentials === true && !savedCredential && keyDraft === undefined)
     const keyPlaceholder = keyHint === undefined
       ? t('keyPlaceholder')
       : t('keyPlaceholderFallback').replace('{hint}', () => keyHint)

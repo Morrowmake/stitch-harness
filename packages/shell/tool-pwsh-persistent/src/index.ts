@@ -12,7 +12,7 @@ import z from '@deepseek-ai/schemastery'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import { truncateWithoutSplittingSurrogatePair } from '@deepseek-ai/dsh-output-retention'
 import type { TerminalReadResult, TerminalSessionId } from '@deepseek-ai/dsh-terminal'
-import { deadline, timeoutOf } from '@deepseek-ai/dsh-timeout'
+import { deadline, MAX_TIMER_DELAY_MS, timeoutOf } from '@deepseek-ai/dsh-timeout'
 import { defineTool, ToolArgsError, ToolContextUnavailableError } from '@deepseek-ai/dsh-tools'
 
 // TODO: Replace the file-search advice; arbitrary command output need not come from a searchable file.
@@ -474,8 +474,8 @@ export interface Config {
 /** Runtime configuration schema for the persistent pwsh tool. */
 export const Config: z<Config> = z.object({
   backendType: z.string().default('shell'),
-  timeoutMs: z.number().default(300_000),
-  maxOutputChars: z.number().default(16_000),
+  timeoutMs: z.natural().min(1).max(MAX_TIMER_DELAY_MS).default(300_000),
+  maxOutputChars: z.natural().min(1).default(16_000),
   description: z.string().default(DEFAULT_DESCRIPTION),
 })
 

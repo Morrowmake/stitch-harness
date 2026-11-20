@@ -1,6 +1,8 @@
 import { chmodSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import Module from 'node:module'
 import { tmpdir } from 'node:os'
 import { join, win32 } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   downloadedProductCliPath,
@@ -163,10 +165,26 @@ posixOnly('resolveProductCli order', () => {
     mkdirSync(musl, { recursive: true })
     writeFileSync(join(musl, 'package.json'), '{"name":"@anthropic-ai/claude-agent-sdk-linux-x64-musl"}')
     const native = fakeCli(join(musl, 'claude'), '2.1.263 (Claude Code)')
-    const resolution = await resolveProductCli('claude-code', {
-      env: { PATH: '' }, homeDir: home, dshHome, bundledFrom: anchor, platform: 'linux', arch: 'x64',
-    })
-    expect(resolution).toMatchObject({ found: true, source: 'bundled', path: native })
+    // A glibc build reachable only through NODE_PATH, as pnpm's bin shims put
+    // the repository's whole store there: it is not beside the anchor.
+    const outside = join(root, 'global', 'node_modules', '@anthropic-ai', 'claude-agent-sdk-linux-x64')
+    mkdirSync(outside, { recursive: true })
+    writeFileSync(join(outside, 'package.json'), '{"name":"@anthropic-ai/claude-agent-sdk-linux-x64"}')
+    fakeCli(join(outside, 'claude'), '2.1.263 (Claude Code)')
+    const nodePath = process.env.NODE_PATH
+    const initPaths = Reflect.get(Module, '_initPaths') as () => void
+    process.env.NODE_PATH = join(root, 'global', 'node_modules')
+    initPaths()
+    try {
+      const resolution = await resolveProductCli('claude-code', {
+        env: { PATH: '' }, homeDir: home, dshHome, bundledFrom: pathToFileURL(anchor).href, platform: 'linux', arch: 'x64',
+      })
+      expect(resolution).toMatchObject({ found: true, source: 'bundled', path: native })
+    } finally {
+      if (nodePath === undefined) delete process.env.NODE_PATH
+      else process.env.NODE_PATH = nodePath
+      initPaths()
+    }
   })
 
   it('reads a version once per executable revision and reports none for a configured file that does not run', async () => {

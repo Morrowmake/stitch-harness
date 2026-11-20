@@ -16,6 +16,7 @@ import type { WorkspaceId } from '@deepseek-ai/dsh-workspace'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createSessionTestRemote, testSessionPersistence } from './test-remote.ts'
 import { brandString } from '@deepseek-ai/dsh-brand'
+import type { CommandId } from '@deepseek-ai/dsh-commands'
 
 /** Booted contexts and their temp roots, torn down after each test. */
 const contexts: Context[] = []
@@ -331,6 +332,20 @@ describe('session.create reuse of a live blank Session', () => {
     expect(created.value.agentPreset).toBe('standard')
     expect(selections).toEqual([])
     expect(presetOf(brandString<SessionId>('talk'))).toBe('minimal')
+  })
+
+  it('creates a new Session instead of reusing one where a slash command ran', async () => {
+    const { ctx, remote } = await harness({ presets: ['standard'] })
+    await remote.create({ sessionId: brandString<SessionId>('commanded') })
+    const commanded = ctx.sessions.get(brandString<SessionId>('commanded'))
+    const commandId = brandString<CommandId>('command-1')
+    commanded?.append('command/run', { commandId, name: 'goal', source: { kind: 'user' } })
+    commanded?.append('command/done', { commandId, kind: 'success', text: 'No goal yet.' })
+
+    const created = await remote.create({ sessionId: brandString<SessionId>('commanded') })
+
+    if (!created.ok) throw new Error(`create failed: ${created.error.message}`)
+    expect(created.value.sessionId).not.toBe('commanded')
   })
 
   it('creates a new Session when a turn starts before the preset switch', async () => {

@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-component-workflows",
-  "description": "The workflow tool, its PTC runtime, and the workflow run view. Needs Subagents.",
+  "description": "Lets the agent run multi-step workflows with helpers and shows each run's progress.",
   "version": "0.2.2-rc.5",
   "icon": "./icon.svg",
   "publishConfig": {

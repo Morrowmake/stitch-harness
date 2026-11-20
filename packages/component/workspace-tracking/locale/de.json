@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Arbeitsbereich-Verfolgung",
-    "description": "Erfasst die pro Runde geänderten Dateien und zeigt Änderungs- und Ergebniskarten."
+    "description": "Zeigt, welche Dateien jede Antwort geändert hat und was der Agent geliefert hat."
   }
 }

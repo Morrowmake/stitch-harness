@@ -58,6 +58,8 @@ const EMPTY: Rect = { x: 0, y: 0, width: 0, height: 0 }
 
 /** A browser-half bundle whose row registers configuration into the plugin page. */
 const FIXTURE_PLUGINS = fileURLToPath(new URL('./fixtures/plugins', import.meta.url))
+/** Disables the Discover tab, so the Plugins page shows its title header without tabs. */
+const NO_DISCOVER = fileURLToPath(new URL('./no-discover.overlay.yml', import.meta.url))
 
 /** Read one hook's viewport rect, or a zero rect while it is not rendered. */
 async function rectOf(page: Page, selector: string): Promise<Rect> {
@@ -601,9 +603,10 @@ describe('web e2e: macOS window drag coverage', () => {
   it.each([
     ['darwin', false], ['darwin', true], ['win32', false], ['win32', true],
   ] as const)('%s scopes compact spacing with tabs=%s to the collapsed macOS header at every width', async (platform, hasTabs) => {
-    const host = hasTabs ? await launchWebScaffold({
-      profile: { packages: [], bundles: ['@deepseek-ai/dsh-experimental-plugin-market-bundle'] },
-    }) : scaffold
+    // The shared scaffold's Plugins page has the Discover tab; a tab-less page needs Discover disabled.
+    const host = hasTabs ? scaffold : await launchWebScaffold({
+      profile: { packages: [{ dir: join(FIXTURE_PLUGINS, 'fixture-live-client') }] }, extraOverlayPath: NO_DISCOVER,
+    })
     try {
       const { page, tripwire } = await desktopPage(platform, host)
       try {

@@ -69,11 +69,13 @@ it('persists the unified review and worktree switch and retains checkouts after 
     await page.getByRole('navigation', { name: 'Global panels' }).getByRole('button', { name: 'Plugins', exact: true }).click()
     const panel = page.locator('[data-plugin-panel]')
     await panel.getByRole('heading', { name: 'Plugins', exact: true }).waitFor()
-    await panel.getByRole('button', { name: 'More', exact: true }).click()
+    // Everyday mode hides experimental bundles that are off; the switch reveals them.
+    const showAdvanced = panel.getByRole('switch', { name: 'Show advanced', exact: true })
+    if (await showAdvanced.getAttribute('aria-checked') !== 'true') await showAdvanced.click()
     return panel
   }
   let panel = await openPlugins()
-  let card = panel.locator(`[data-plugin-group="more"] [data-plugin-package="${BUNDLE}"]`)
+  let card = panel.locator(`[data-plugin-group="experimental"] [data-plugin-package="${BUNDLE}"]`)
   await card.getByRole('button', { name: 'View Change requests & worktrees', exact: true }).waitFor()
   expect(await panel.locator(`[data-plugin-package="${STANDALONE}"]`).count()).toBe(0)
   expect(await card.getByText('Experimental', { exact: true }).count()).toBe(1)
@@ -105,7 +107,7 @@ it('persists the unified review and worktree switch and retains checkouts after 
 
   await page.reload({ waitUntil: 'load' })
   panel = await openPlugins()
-  card = panel.locator(`[data-plugin-group="more"] [data-plugin-package="${BUNDLE}"]`)
+  card = panel.locator(`[data-plugin-group="experimental"] [data-plugin-package="${BUNDLE}"]`)
   toggle = card.getByRole('switch', { name: 'Enable Change requests & worktrees', exact: true })
   await expect.poll(() => toggle.getAttribute('aria-checked')).toBe('true')
   expect(tools()).toContain('enter_worktree')

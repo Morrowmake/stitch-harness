@@ -32,7 +32,7 @@ Use `ctx.sessionQuery` from application code when you need to read or search ses
 | Operation | What you get |
 |---|---|
 | `listSessions()` | Every logical session, newest first, with `live` and `persisted` availability flags and optional `formatStatus` |
-| `getListMetadata(session)` | Whether a live or prepared Session has no turn, and its latest human-authored prompt time |
+| `getListMetadata(session)` | Whether a live or prepared Session has neither a turn nor a slash command run, and its latest human-authored prompt time |
 | `readSession(id)` | The complete replay-validated raw event log, without making the session live |
 | `filterSessions(filters)` | Sessions matching ANDed metadata and availability predicates |
 | `filterEvents(id, filters)` | Semantic event documents matching metadata and literal-text predicates |
@@ -110,7 +110,7 @@ The decision history lives in the [unified service decision](../../../.agents/no
 <a id="session-list-metadata"></a>
 ### Session-list metadata
 
-The service registers the `sessionListMetadata` projection for Session blankness and the latest human-authored prompt time when it starts, and its disposal releases that registration; it therefore requires `sessionProjections`. `getListMetadata(session)` reads the projection synchronously for a live or prepared Session. The Session API and optional [listing tools](../tool-session-list/README.md) read it through `ctx.sessionQuery`.
+The service registers the `sessionListMetadata` projection for Session blankness and the latest human-authored prompt time when it starts, and its disposal releases that registration; it therefore requires `sessionProjections`. A Session stops being blank at its first `turn/start` or `command/run`, because a slash command's outcome belongs to the conversation it was typed in; `startsConversation(event)` exposes that predicate. `getListMetadata(session)` reads the projection synchronously for a live or prepared Session. The Session API and optional [listing tools](../tool-session-list/README.md) read it through `ctx.sessionQuery`.
 
 ### Observation cache
 

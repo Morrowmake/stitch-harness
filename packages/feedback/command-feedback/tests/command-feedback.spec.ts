@@ -90,8 +90,8 @@ describe('@deepseek-ai/dsh-command-feedback registration', () => {
     expect(test.ctx.commands.list(test.agent)).toContainEqual({
       definitionId: '@deepseek-ai/dsh-command-feedback',
       name: 'feedback',
-      description: 'Record feedback about this session',
-      input: { hint: '<text>' },
+      description: 'Save a note about this chat or report a problem',
+      input: { hint: '<note>' },
     })
     expect(test.ctx.commands.find(test.agent, 'feedback')).toMatchObject({ recordInput: false })
 
@@ -144,12 +144,11 @@ describe('sessionFeedback Host Remote', () => {
 })
 
 describe('/feedback human command', () => {
-  it('acknowledges feedback and records its payload exactly once in the domain event', async () => {
+  it('acknowledges that the note stays local, without the raw session id, and records its payload once', async () => {
     const test = await harness()
-    await expect(run(test, ' the diff view is unreadable')).resolves.toEqual({
-      kind: 'success',
-      text: `Feedback recorded for session ${test.session.id}.`,
-    })
+    const result = await run(test, ' the diff view is unreadable')
+    expect(result).toEqual({ kind: 'success', text: 'Note saved on this computer. Nothing was sent.' })
+    expect(JSON.stringify(result)).not.toContain(test.session.id)
     expect(feedbackTexts(test.session)).toEqual(['the diff view is unreadable'])
     const commandRun = test.session.snapshotEvents().find(event => event.type === 'command/run')
     expect(commandRun?.type === 'command/run' && Object.hasOwn(commandRun.data, 'args')).toBe(false)
@@ -208,8 +207,8 @@ describe('/feedback human command', () => {
       test.ctx.commands.execute(test.agent, '/feedback second', [], signal),
     ])
     expect(settled.map(item => item?.result)).toEqual([
-      { kind: 'success', text: `Feedback recorded for session ${test.session.id}.` },
-      { kind: 'success', text: `Feedback recorded for session ${test.session.id}.` },
+      { kind: 'success', text: 'Note saved on this computer. Nothing was sent.' },
+      { kind: 'success', text: 'Note saved on this computer. Nothing was sent.' },
     ])
     expect(feedbackTexts(test.session)).toEqual(['first', 'second'])
   })
@@ -230,7 +229,7 @@ describe('/feedback human command', () => {
     const test = await harness()
     const expected = {
       kind: 'error',
-      text: 'Feedback text is required. Usage: /feedback <text>',
+      text: 'The note is empty. Type your note after the command, for example: /feedback The answer missed my question.',
     }
     await expect(run(test)).resolves.toEqual(expected)
     await expect(run(test, '   \n\t ')).resolves.toEqual(expected)

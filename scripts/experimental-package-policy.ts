@@ -48,7 +48,6 @@ export const LEGACY_PREFIXED_EXPERIMENTAL_PACKAGE_DIRECTORIES: readonly string[]
   'packages/experimental/forge-bundle',
   'packages/experimental/forge-github',
   'packages/experimental/forge-session',
-  'packages/experimental/plugin-market-bundle',
   'packages/experimental/ralph-bundle',
   'packages/experimental/session-search',
   'packages/experimental/session-titles-bundle',

@@ -95,6 +95,8 @@ export interface BundleInfo {
   description?: string
   /** Default GUI visibility after package and Host checks; selected or profile-installed bundles remain manageable. */
   listedByDefault?: boolean
+  /** The bundles this one needs (`dsh.bundle.requires`): enabling it enables them, disabling one of them disables it. */
+  requires?: string[]
   /**
    * Selected in the profile manifest; a selected bundle whose layer was skipped carries the load `error`, and none of
    * its `rows` has an `entryId`.

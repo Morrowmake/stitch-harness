@@ -34,30 +34,51 @@ export const HIDDEN_BUNDLES: ReadonlySet<string> = new Set([
 ])
 
 /**
- * The optional bundles the plugin manager's main and More lists rank first, in this order. {@link MORE_BUNDLES}, not
- * this list, decides whether a bundle appears on the main list.
+ * The purpose groups the plugin manager's Installed list shows official plugins under, in display order. `advanced`
+ * holds plumbing a typical user never changes; the list shows it only on request.
  */
-export const EXTENSION_BUNDLES: readonly string[] = [
-  '@deepseek-ai/dsh-experimental-voice-input-bundle',
-  '@deepseek-ai/dsh-experimental-plugin-market-bundle',
-  '@deepseek-ai/dsh-experimental-auto-review',
-]
+export const PLUGIN_SECTIONS = ['chat', 'files', 'web', 'agents', 'integrations', 'interface', 'advanced'] as const
+
+/** One purpose group of {@link PLUGIN_SECTIONS}. */
+export type PluginSection = typeof PLUGIN_SECTIONS[number]
 
 /**
- * The optional bundles the plugin manager's main list leaves out until the profile enables them; its More list,
- * which includes every eligible bundle, ranks them last in this order.
+ * The purpose group of each official bundle the plugin manager lists. A listed official bundle missing here falls in
+ * `advanced`; profile-installed plugins have a group of their own.
  */
-export const MORE_BUNDLES: readonly string[] = [
-  '@deepseek-ai/dsh-cua-bundle',
-  '@deepseek-ai/dsh-timeline',
-  '@deepseek-ai/dsh-experimental-terminal-bundle',
-  '@deepseek-ai/dsh-experimental-cot-translation-bundle',
-  '@deepseek-ai/dsh-experimental-session-search',
-  '@deepseek-ai/dsh-experimental-session-titles-bundle',
-  '@deepseek-ai/dsh-experimental-ralph-bundle',
-  '@deepseek-ai/dsh-subagent-codex',
-  '@deepseek-ai/dsh-subagent-claude-code',
-]
+export const BUNDLE_SECTIONS: Readonly<Record<string, PluginSection>> = {
+  '@deepseek-ai/dsh-component-terminal': 'chat',
+  '@deepseek-ai/dsh-component-planning': 'chat',
+  '@deepseek-ai/dsh-component-goals': 'chat',
+  '@deepseek-ai/dsh-experimental-voice-input-bundle': 'chat',
+  '@deepseek-ai/dsh-experimental-terminal-bundle': 'chat',
+  '@deepseek-ai/dsh-experimental-session-search': 'chat',
+  '@deepseek-ai/dsh-component-files': 'files',
+  '@deepseek-ai/dsh-component-office': 'files',
+  '@deepseek-ai/dsh-component-web': 'web',
+  '@deepseek-ai/dsh-component-browser': 'web',
+  '@deepseek-ai/dsh-component-subagents': 'agents',
+  '@deepseek-ai/dsh-component-agent-teams': 'agents',
+  '@deepseek-ai/dsh-component-workflows': 'agents',
+  '@deepseek-ai/dsh-component-schedules': 'agents',
+  '@deepseek-ai/dsh-subagent-claude-code': 'agents',
+  '@deepseek-ai/dsh-subagent-codex': 'agents',
+  '@deepseek-ai/dsh-cua-bundle': 'agents',
+  '@deepseek-ai/dsh-experimental-ralph-bundle': 'agents',
+  '@deepseek-ai/dsh-experimental-auto-review': 'agents',
+  '@deepseek-ai/dsh-component-mcp': 'integrations',
+  '@deepseek-ai/dsh-experimental-forge-bundle': 'integrations',
+  '@deepseek-ai/dsh-timeline': 'interface',
+  '@deepseek-ai/dsh-experimental-cot-translation-bundle': 'interface',
+  '@deepseek-ai/dsh-experimental-session-titles-bundle': 'interface',
+  '@deepseek-ai/dsh-component-search-tools': 'advanced',
+  '@deepseek-ai/dsh-component-jobs': 'advanced',
+  '@deepseek-ai/dsh-component-workspace-tracking': 'advanced',
+  '@deepseek-ai/dsh-component-context-helpers': 'advanced',
+  '@deepseek-ai/dsh-component-presets': 'advanced',
+  '@deepseek-ai/dsh-component-short-prompt': 'advanced',
+  '@deepseek-ai/dsh-component-plugin-market-tool': 'advanced',
+}
 
 /** Official bundles the plugin manager marks with the Experimental badge. */
 export const EXPERIMENTAL_BUNDLES: ReadonlySet<string> = new Set([
@@ -73,5 +94,4 @@ export const EXPERIMENTAL_BUNDLES: ReadonlySet<string> = new Set([
   '@deepseek-ai/dsh-experimental-session-search',
   '@deepseek-ai/dsh-experimental-session-titles-bundle',
   '@deepseek-ai/dsh-experimental-ralph-bundle',
-  '@deepseek-ai/dsh-experimental-plugin-market-bundle',
 ])

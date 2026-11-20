@@ -1,10 +1,20 @@
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 
+/** The one step that clears a block, offered beside the composer. */
+export interface ComposerBlockAction {
+  /** Localized button label owned by the plugin that raised the block. */
+  readonly label: string
+  /** Start the step, for example by opening the model setup. */
+  run(): void
+}
+
 /** Why one session's composer is inert. */
 export interface ComposerBlock {
   /** Localized placeholder owned by the plugin that raised the block. */
   readonly reason: string
+  /** Optional step that clears the block; the composer shows it as a button under the reason. */
+  readonly action?: ComposerBlockAction
 }
 
 /** The registry face other plugins reach through `ctx.conversation.blocks`. */

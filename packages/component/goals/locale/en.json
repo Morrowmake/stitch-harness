@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Goals",
-    "description": "/goal, the goal tools, and the goal bar."
+    "description": "Set a goal with /goal and the agent keeps working toward it, shown in a goal bar."
   }
 }

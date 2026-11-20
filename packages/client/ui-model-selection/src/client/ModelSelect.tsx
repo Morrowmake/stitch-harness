@@ -16,7 +16,11 @@
  * drilling; model search takes focus only after explicit user input.
  * Model names match a case-insensitive ordered subsequence
  * within each provider group, ranked by
- * prefix, alignment score, then catalog order. Returning to the root pane
+ * prefix, alignment score, then catalog order. Each provider lists its
+ * current models first; models the Host flags `older` collapse under an
+ * "Older models" row, and pinned per-account entries collapse under one
+ * "<Provider> · <account>" row per account. Sections open by default while
+ * searching or when they hold the selection in use. Returning to the root pane
  * hands focus back to the cell that opened it. Data and submission ride the
  * same per-session ModelDirectory as the /model popup; exact-model reasoning
  * metadata and the selected effort come from the Host rather than a
@@ -34,7 +38,7 @@ import {
 } from 'react'
 import { createPortal } from 'react-dom'
 import clsx from 'clsx'
-import type { ModelReasoningEffort, ModelSelection } from '@deepseek-ai/dsh-api-remotes/client'
+import type { ModelCatalogModel, ModelProviderGroup, ModelReasoningEffort, ModelSelection } from '@deepseek-ai/dsh-api-remotes/client'
 import {
   IconCheckOutlineRegular, IconChevronDownOutlineRegular, IconChevronRightOutlineRegular, IconCloseFillRegular,
   IconDataOutlineRegular, IconWarningOutlineRegular, Input, isMobileDevice, StateDot, Tag, Toast,
@@ -43,6 +47,7 @@ import type { PropsLocale, PropsRenderSlots, PropsRuntime } from '@deepseek-ai/d
 import type { ModelLabelOwner, ModelMenuControls, ModelMenuPaneRef, ModelSelectInjected } from './slots.ts'
 import css from './ModelSelect.module.css'
 import { TextSearchIndex } from '@deepseek-ai/dsh-util-text-search'
+import { sectionsOf, type ModelSection } from './sections.ts'
 
 /** Which pane the dropdown shows: the root menu, one drilled-in list, or a plugin-owned detail pane. */
 type Pane =
@@ -65,6 +70,14 @@ interface EffortChoice {
   label: string
 }
 
+/** One provider group with the label-slot provider identity. */
+type DisplayGroup = ModelProviderGroup & { provider: ModelLabelOwner['provider'] }
+
+/** One row of the model pane: a model, or the toggle of a collapsed section. */
+type MenuRow =
+  | { kind: 'model'; group: DisplayGroup; model: ModelCatalogModel; depth: number }
+  | { kind: 'disclosure'; key: string; label: string; expanded: boolean; depth: number }
+
 /**
  * Render the composer model seat.
  * @param props - owner share (locked) + injected face (shared directory
@@ -83,7 +96,10 @@ export function ModelSelect(
   const [open, setOpen] = useState(false)
   const [pane, setPane] = useState<Pane>(ROOT_PANE)
   const [query, setQuery] = useState('')
-  const [highlightedIndex, setHighlightedIndex] = useState<number | null>(null)
+  // 'top' parks the highlight on the first model row; null on the model in use.
+  const [highlightedIndex, setHighlightedIndex] = useState<number | 'top' | null>(null)
+  // Explicit open/closed choices for collapsible sections; absent keys use the default.
+  const [disclosures, setDisclosures] = useState<ReadonlyMap<string, boolean>>(() => new Map())
   const [selectionFocus, setSelectionFocus] = useState(false)
   // The in-menu error strip serves catalog loads (its Retry re-runs the
   // load); a rejected SELECTION announces through the transient toast
@@ -103,7 +119,7 @@ export function ModelSelect(
     '--dsh-model-anchor': `--dsh-model-${id.replaceAll(':', '')}`,
   }
 
-  const groups = useMemo(() => state.groups.map(group => ({
+  const groups = useMemo(() => state.groups.map((group): DisplayGroup => ({
     ...group,
     provider: {
       id: group.id,
@@ -123,18 +139,67 @@ export function ModelSelect(
       } satisfies ModelSelection,
     }))), [groups])
   const showSearch = choices.length > 4
+  const searching = showSearch && query.trim() !== ''
   const groupIndexes = useMemo(() => groups.map(group => ({
     group, index: new TextSearchIndex(group.models, model => ({ fuzzy: [model.name, model.id], substring: [model.description] })),
   })), [groups])
-  const filteredGroups = useMemo(() => groupIndexes.map(({ group, index }) => ({
-    ...group, models: index.search(showSearch ? query : ''),
-  })).filter(group => group.models.length > 0), [groupIndexes, query, showSearch])
-  const visibleModels = useMemo(() => filteredGroups.flatMap(group => group.models.map(model => ({
-    provider: group.id, model: model.id,
-  }))), [filteredGroups])
-  const currentVisibleIndex = visibleModels.findIndex(model =>
-    model.provider === state.current?.provider && model.model === state.current.model)
-  const activeModelIndex = Math.min(highlightedIndex ?? Math.max(0, currentVisibleIndex), visibleModels.length - 1)
+  const groupSections = useMemo(() => groupIndexes.map(({ group, index }) => ({
+    group,
+    index,
+    sections: sectionsOf(group, resolveText, number => t('section.accountFallback', { number })),
+  })), [groupIndexes, resolveText, t])
+  const filteredGroups = useMemo(() => groupSections.map(({ group, index, sections }) => {
+    if (!searching) return { group, sections }
+    // Matches keep their search rank within each section.
+    const found = index.search(query)
+    const matching = (models: readonly ModelCatalogModel[]): ModelCatalogModel[] => {
+      const members = new Set(models)
+      return found.filter(model => members.has(model))
+    }
+    return {
+      group,
+      sections: sections
+        .map((section): ModelSection => ({ ...section, current: matching(section.current), older: matching(section.older) }))
+        .filter(section => section.current.length + section.older.length > 0),
+    }
+  }).filter(group => group.sections.length > 0), [groupSections, query, searching])
+  const rowGroups = useMemo(() => filteredGroups.map(({ group, sections }) => {
+    const rows: MenuRow[] = []
+    // Searching opens every section; otherwise a section opens while it holds the model in use.
+    const disclose = (key: string, label: string, depth: number, models: readonly ModelCatalogModel[]): boolean => {
+      const expanded = disclosures.get(key)
+        ?? (searching || models.some(model => state.current?.provider === group.id && state.current.model === model.id))
+      rows.push({ kind: 'disclosure', key, label, expanded, depth })
+      return expanded
+    }
+    const list = (models: readonly ModelCatalogModel[], depth: number): void => {
+      for (const model of models) rows.push({ kind: 'model', group, model, depth })
+    }
+    const older = (section: ModelSection, key: string, depth: number): void => {
+      if (section.older.length > 0 && disclose(key, t('section.older'), depth, section.older)) list(section.older, depth + 1)
+    }
+    for (const section of sections) {
+      const { account } = section
+      if (account === undefined) {
+        list(section.current, 0)
+        older(section, JSON.stringify(['older', group.id]), 0)
+        continue
+      }
+      const label = t('section.account', { provider: group.name, account: account.label })
+      if (!disclose(JSON.stringify(['account', group.id, account.id]), label, 0, [...section.current, ...section.older])) continue
+      list(section.current, 1)
+      older(section, JSON.stringify(['older', group.id, account.id]), 1)
+    }
+    return { group, rows }
+  }), [filteredGroups, disclosures, searching, state.current, t])
+  const visibleRows = useMemo(() => rowGroups.flatMap(({ rows }) => rows), [rowGroups])
+  const currentVisibleIndex = visibleRows.findIndex(row => row.kind === 'model'
+    && row.group.id === state.current?.provider && row.model.id === state.current.model)
+  const topIndex = Math.max(0, visibleRows.findIndex(row => row.kind === 'model'))
+  const activeRowIndex = Math.min(
+    highlightedIndex === 'top' ? topIndex : highlightedIndex ?? (currentVisibleIndex < 0 ? topIndex : currentVisibleIndex),
+    visibleRows.length - 1,
+  )
   const selectedIndex = state.current === null
     ? -1
     : choices.findIndex(c => c.selection.provider === state.current?.provider && c.selection.model === state.current.model)
@@ -236,10 +301,10 @@ export function ModelSelect(
   }, [available, open, pane, filteredGroups])
 
   useLayoutEffect(() => {
-    if (open && pane.kind === 'model' && activeModelIndex >= 0) {
-      itemRefs.current[activeModelIndex]?.scrollIntoView({ block: 'nearest' })
+    if (open && pane.kind === 'model' && activeRowIndex >= 0) {
+      itemRefs.current[activeRowIndex]?.scrollIntoView({ block: 'nearest' })
     }
-  }, [open, pane, activeModelIndex, visibleModels])
+  }, [open, pane, activeRowIndex, visibleRows])
 
   if (!available) return null
 
@@ -248,6 +313,7 @@ export function ModelSelect(
     triggerRef.current?.focus()
     setQuery('')
     setHighlightedIndex(null)
+    setDisclosures(new Map())
     if (currentChoice === undefined) paneFocus.current = 'drill'
     setPane(currentChoice === undefined ? MODEL_PANE : ROOT_PANE)
     setOpen(true)
@@ -256,7 +322,8 @@ export function ModelSelect(
 
   const changeQuery = (next: string): void => {
     setQuery(next)
-    setHighlightedIndex(0)
+    setHighlightedIndex('top')
+    setDisclosures(new Map())
   }
 
   const close = (restoreFocus = false): void => {
@@ -273,6 +340,7 @@ export function ModelSelect(
   const drill = (next: DrilledPane): void => {
     setQuery('')
     setHighlightedIndex(null)
+    setDisclosures(new Map())
     paneFocus.current = 'drill'
     setPane(next)
   }
@@ -324,19 +392,20 @@ export function ModelSelect(
     }
     if (pane.kind === 'model' && showSearch && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) {
       event.preventDefault()
-      if (!busy && visibleModels.length > 0) {
+      if (!busy && visibleRows.length > 0) {
         const direction = event.key === 'ArrowDown' ? 1 : -1
-        setHighlightedIndex((activeModelIndex + direction + visibleModels.length) % visibleModels.length)
+        setHighlightedIndex((activeRowIndex + direction + visibleRows.length) % visibleRows.length)
         searchRef.current?.focus()
       }
       return
     }
     if (pane.kind === 'model' && showSearch && event.target instanceof HTMLInputElement
       && (event.key === 'Enter' || (event.key === 'Tab' && !event.shiftKey))) {
-      if (event.key === 'Tab' && visibleModels.length === 0) return
+      if (event.key === 'Tab' && visibleRows.length === 0) return
       event.preventDefault()
-      const highlighted = visibleModels[activeModelIndex]
-      if (!busy && highlighted !== undefined) choose(highlighted)
+      const highlighted = visibleRows[activeRowIndex]
+      if (highlighted?.kind === 'disclosure') toggle(highlighted)
+      else if (!busy && highlighted !== undefined) choose({ provider: highlighted.group.id, model: highlighted.model.id })
       return
     }
     // Tab settles like Enter and Shift+Tab leaves like Escape, so the menu's
@@ -421,6 +490,11 @@ export function ModelSelect(
     submit(selection)
   }
 
+  /** Open or close one collapsible section; the highlight stays on its toggle. */
+  const toggle = (row: Extract<MenuRow, { kind: 'disclosure' }>): void => {
+    setDisclosures(previous => new Map(previous).set(row.key, !row.expanded))
+  }
+
   const chooseEffort = (effort: string | undefined): void => {
     if (state.current === null) return
     if (effectiveEffort === effort) {
@@ -467,7 +541,7 @@ export function ModelSelect(
     </span>
   )
   let itemIndex = 0
-  let modelIndex = 0
+  let rowIndex = 0
   const itemRef = () => {
     const at = itemIndex++
     return (node: HTMLButtonElement | null) => { itemRefs.current[at] = node }
@@ -562,7 +636,7 @@ export function ModelSelect(
                   role="searchbox"
                   aria-label={t('search.placeholder')}
                   aria-controls={`${id}-models`}
-                  aria-activedescendant={activeModelIndex < 0 ? undefined : `${id}-model-${activeModelIndex}`}
+                  aria-activedescendant={activeRowIndex < 0 ? undefined : `${id}-model-${activeRowIndex}`}
                   placeholder={t('search.placeholder')}
                   value={query}
                   readOnly={busy}
@@ -606,48 +680,77 @@ export function ModelSelect(
                 aria-label={t('menu.model')}
                 hidden={filteredGroups.length === 0}
               >
-                {filteredGroups.map((group) => {
-                  return (
-                    <MenuGroup key={group.id} label={group.provider.name}>
-                      {group.models.map((model) => {
-                        const index = modelIndex++
-                        const selected = state.current?.provider === group.id && state.current.model === model.id
+                {rowGroups.map(({ group, rows }) => (
+                  <MenuGroup key={group.id} label={group.provider.name}>
+                    {rows.map((row) => {
+                      const index = rowIndex++
+                      const highlighted = index === activeRowIndex
+                      const highlight = busy || highlighted ? undefined : () => {
+                        if (showSearch) setHighlightedIndex(index)
+                        else itemRefs.current[index]?.focus()
+                      }
+                      if (row.kind === 'disclosure') {
                         return (
                           <button
                             ref={itemRef()}
                             type="button"
-                            role="menuitemradio"
-                            aria-checked={selected}
+                            role="menuitem"
+                            aria-expanded={row.expanded}
                             id={`${id}-model-${index}`}
                             tabIndex={showSearch ? -1 : 0}
                             onFocus={() => { setHighlightedIndex(index) }}
-                            data-highlighted={index === activeModelIndex ? '' : undefined}
-                            className={clsx(
-                              css.option, css.modelOption, selected && css.selected, index === activeModelIndex && css.optionActive,
-                            )}
-                            onMouseMove={busy || index === activeModelIndex ? undefined : () => {
-                              if (showSearch) setHighlightedIndex(index)
-                              else itemRefs.current[index]?.focus()
-                            }}
-                            key={model.id}
-                            title={model.name}
-                            disabled={busy}
-                            onClick={() => { choose({ provider: group.id, model: model.id }) }}
+                            data-highlighted={highlighted ? '' : undefined}
+                            data-depth={row.depth === 0 ? undefined : row.depth}
+                            className={clsx(css.option, css.modelOption, css.disclosure, highlighted && css.optionActive)}
+                            onMouseMove={highlight}
+                            key={row.key}
+                            title={row.label}
+                            onClick={() => { toggle(row) }}
                           >
+                            <IconChevronRightOutlineRegular
+                              className={clsx(css.disclosureChevron, row.expanded && css.disclosureChevronOpen)}
+                            />
                             <span className={css.optionCopy}>
-                              <span className={css.modelName}>{renderModelLabel(group.provider, model, 'option', selected)}</span>
-                            </span>
-                            <span className={css.check}>
-                              {pending?.provider === group.id && pending.model === model.id
-                                ? <StateDot state="ongoing" />
-                                : selected ? <IconCheckOutlineRegular /> : null}
+                              <span className={css.modelName}>{row.label}</span>
                             </span>
                           </button>
                         )
-                      })}
-                    </MenuGroup>
-                  )
-                })}
+                      }
+                      const { model } = row
+                      const selected = state.current?.provider === group.id && state.current.model === model.id
+                      return (
+                        <button
+                          ref={itemRef()}
+                          type="button"
+                          role="menuitemradio"
+                          aria-checked={selected}
+                          id={`${id}-model-${index}`}
+                          tabIndex={showSearch ? -1 : 0}
+                          onFocus={() => { setHighlightedIndex(index) }}
+                          data-highlighted={highlighted ? '' : undefined}
+                          data-depth={row.depth === 0 ? undefined : row.depth}
+                          className={clsx(
+                            css.option, css.modelOption, selected && css.selected, highlighted && css.optionActive,
+                          )}
+                          onMouseMove={highlight}
+                          key={model.id}
+                          title={model.name}
+                          disabled={busy}
+                          onClick={() => { choose({ provider: group.id, model: model.id }) }}
+                        >
+                          <span className={css.optionCopy}>
+                            <span className={css.modelName}>{renderModelLabel(group.provider, model, 'option', selected)}</span>
+                          </span>
+                          <span className={css.check}>
+                            {pending?.provider === group.id && pending.model === model.id
+                              ? <StateDot state="ongoing" />
+                              : selected ? <IconCheckOutlineRegular /> : null}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </MenuGroup>
+                ))}
               </div>
               {state.status === 'ready' && filteredGroups.length === 0 && (
                 <div className={css.empty} role="status">{t(choices.length === 0 ? 'empty.models' : 'search.empty')}</div>

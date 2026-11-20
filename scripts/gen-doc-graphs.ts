@@ -778,7 +778,7 @@ const SERVICE_ROLES: ServiceRole[] = [
     mode: 'seam',
     implementations: [],
     consumers: ['tools', 'tool-bash', 'acp'],
-    note: 'One-shot permission decisions dispatched over the `approval/request` waterfall; answerers are listeners (the ACP bridge for its own agents), absence fails closed to `unavailable`.',
+    note: 'One-shot or chat-scoped permission decisions dispatched over the `approval/request` waterfall; answerers are listeners (the ACP bridge for its own agents), absence fails closed to `unavailable`.',
   },
   {
     key: 'permissionPresets',

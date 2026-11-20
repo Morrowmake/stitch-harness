@@ -70,7 +70,7 @@ describe('web e2e: /feedback command acknowledgement', () => {
     }
   }, 60_000)
 
-  it.skipIf(MODE === 'record')('records feedback and renders the acknowledgement with the session id', async () => {
+  it.skipIf(MODE === 'record')('records feedback and renders the local-only acknowledgement', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-feedback-command'))
     // The drive test settled the recorded turn: the transcript is active (a
     // command row does not render while a fresh session is still blank) and
@@ -79,7 +79,7 @@ describe('web e2e: /feedback command acknowledgement', () => {
     const input = page.locator('[data-composer-input]').first()
     await input.fill('/feedback the diff view is unreadable')
     await input.press('Enter')
-    await page.getByText(/Feedback recorded for session/).waitFor({ timeout: 10_000 })
+    await page.getByText('Note saved on this computer. Nothing was sent.').first().waitFor({ timeout: 10_000 })
     await expect.poll(() => input.textContent(), { timeout: 10_000 }).toBe('')
     await expect.poll(() => page.getByRole('button', { name: 'Add files or run commands' }).isEnabled(), { timeout: 10_000 }).toBe(true)
     const snapshot = await captureStableAria(page, '[class*="centerCol"]', scaffold.workspaceCwd)

@@ -856,4 +856,11 @@ describe('tool-pwsh-persistent', () => {
       ToolPwshPersistent.apply(new Context(), { description: ' ' })
     }).toThrow('description must be non-empty')
   })
+
+  it('refuses non-positive or fractional budgets in the config schema', () => {
+    for (const config of [{ timeoutMs: -5 }, { timeoutMs: 0 }, { timeoutMs: 1.5 }, { maxOutputChars: 0 }, { maxOutputChars: -1 }]) {
+      expect(() => ToolPwshPersistent.Config(config)).toThrow(/expected number/)
+    }
+    expect(ToolPwshPersistent.Config({ timeoutMs: 5_000, maxOutputChars: 1 })).toMatchObject({ timeoutMs: 5_000, maxOutputChars: 1 })
+  })
 })

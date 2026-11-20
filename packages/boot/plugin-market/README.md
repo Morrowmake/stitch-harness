@@ -24,11 +24,13 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-The optional [custom plugin indexes bundle](../../experimental/plugin-market-bundle/README.md) mounts the service as the `plugin-market` row; shipped profiles leave the bundle off. Like `plugin-manager`, the row is disabled without a profile, and it waits for `pluginManager`. The default index source is the Stitch plugin index, `DEFAULT_PLUGIN_INDEX` (`https://raw.githubusercontent.com/Morrowmake/stitch-plugins/main/index.json`, generated from the [`Morrowmake/stitch-plugins`](https://github.com/Morrowmake/stitch-plugins) repository, whose README explains how to submit a plugin). Mounting the service sends no request: the Host reads an index only when Discover or the `plugin_market` tool searches it. Removing the default in Discover writes the remaining list, including an empty one, to the profile entry, so it stays removed.
+The [`dsh-web-app` bundle](../../bundle/web-app/cordis.patch.yml) mounts the service as the `plugin-market` row in every Web profile, beside the `ui-plugin-market` Discover tab. Like `plugin-manager`, the row is disabled without a profile, and it waits for `pluginManager`. The default index source is the Stitch plugin index alone, `DEFAULT_PLUGIN_INDEX` (`https://raw.githubusercontent.com/Morrowmake/stitch-plugins/main/index.json`, generated from the [`Morrowmake/stitch-plugins`](https://github.com/Morrowmake/stitch-plugins) repository, whose README explains how to submit a plugin). Mounting the service sends no request: the Host reads an index only when Discover or the `plugin_market` tool searches it. Removing the default in Discover writes the remaining list, including an empty one, to the profile entry, so it stays removed.
+
+The `./indexes` entry is browser-safe and names the indexes Stitch knows: `DEFAULT_PLUGIN_INDEX`, and `COMMUNITY_PLUGIN_INDEXES`, the DeepSeek Harness community indexes `https://awesome-dsh-plugin.com/index.json` and `https://cdn.dsh.so/market/index.json`. Community indexes are never a default; Discover offers them in its index sources dialog and labels every index except the Stitch index as a community index that Stitch does not review.
 
 | Config | Default | Meaning |
 |---|---|---|
-| `indexes` | `DEFAULT_PLUGIN_INDEXES` | Canonical index source URLs in display order. The default is `DEFAULT_PLUGIN_INDEX`, then the DeepSeek Harness indexes `https://awesome-dsh-plugin.com/index.json` and `https://cdn.dsh.so/market/index.json`, each fetched only when read. Discover, Settings, and `setIndexes` change this field without remounting this service or `plugin-manager`. |
+| `indexes` | `DEFAULT_PLUGIN_INDEXES` | Canonical index source URLs in display order. The default is `[DEFAULT_PLUGIN_INDEX]`, fetched only when read. Discover, Settings, and `setIndexes` change this field without remounting this service or `plugin-manager`; a saved list, community indexes included, stays as written. |
 | `fetchTimeoutMs` | `15000` | Deadline for each HTTP(S) index or detail file request, including the response body. |
 | `maxBytes` | `134217728` | Largest accepted index file. |
 | `cacheTtlMs` | `600000` | Lifetime of a successfully read index document, a detail read result, and a repository's default-branch commit. |
@@ -118,7 +120,7 @@ The [`plugin_market` tool](../../../docs/tool-catalog.md#deepseek-aidsh-plugin-m
 
 #### Token effect
 
-The tool declaration is present when a preset mounts it; each call adds its JSON result, bounded by `limit` (at most 100 plugins or versions).
+The tool declaration is present only when a preset mounts it: in the shipped Web composition, the Creator preset while the [plugin-market-tool component](../../component/plugin-market-tool/README.md) is on, which no component set selects. Each call adds its JSON result, bounded by `limit` (at most 100 plugins or versions).
 
 #### KV Cache effect
 

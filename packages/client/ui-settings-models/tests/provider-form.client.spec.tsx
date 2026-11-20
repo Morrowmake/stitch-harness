@@ -56,7 +56,7 @@ const DISCOVERY_FAILURES: {
 } = {
   'gateway/internal': message => new RemoteError('gateway/internal', message, {}),
   'llm/model-discovery-rejected': message =>
-    new RemoteError('llm/model-discovery-rejected', message, { settingsNs: 'llm-pi-ai' }),
+    new RemoteError('llm/model-discovery-rejected', message, { settingsNs: 'llm-pi-ai', reason: 'other' }),
 }
 function fail(message: string, code: keyof typeof DISCOVERY_FAILURES) {
   return { ok: false as const, error: DISCOVERY_FAILURES[code](message) }

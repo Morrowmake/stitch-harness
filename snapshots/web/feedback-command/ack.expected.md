@@ -17,8 +17,7 @@
 - button "Good response"
 - button "Bad response"
 - button "Branch into a new conversation"
-- text: {{clock}}
-- 'button "feedback Feedback recorded for session session-{{uuid}}."'
+- text: {{clock}} feedback Note saved on this computer. Nothing was sent.
 - textbox "Message or run a task, / commands, @ files or sessions"
 - button "Add files or run commands"
 - 'button "Access mode, current: Workspace Write"': Workspace Write

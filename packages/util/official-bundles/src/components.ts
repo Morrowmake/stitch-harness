@@ -26,6 +26,7 @@ export type ComponentId =
   | 'context-helpers'
   | 'presets'
   | 'short-prompt'
+  | 'plugin-market-tool'
 
 /** Named component sets offered by the picker. */
 export type ComponentPresetName = 'standard'
@@ -80,6 +81,8 @@ export const COMPONENTS: readonly ComponentDefinition[] = [
   component('presets', STANDARD),
   // Replaces the long per-tool prompt guidance of the default preset with a short complete prompt.
   component('short-prompt', OPTIONAL),
+  // Gives the Creator agent the read-only plugin_market tool; off by default so its instructions stay short.
+  component('plugin-market-tool', OPTIONAL),
 ]
 
 /** Component bundle package names in layer order. */

@@ -22,6 +22,10 @@
       "types": "./lib/types/types.d.ts",
       "default": "./lib/types/types.js"
     },
+    "./indexes": {
+      "types": "./lib/types/indexes.d.ts",
+      "default": "./lib/types/indexes.js"
+    },
     "./tools": {
       "types": "./lib/types/tools.d.ts",
       "default": "./lib/types/tools.js"

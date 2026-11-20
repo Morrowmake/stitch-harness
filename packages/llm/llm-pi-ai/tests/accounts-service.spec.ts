@@ -15,7 +15,7 @@ import LocalCredentialProvider from '@deepseek-ai/dsh-credentials-local'
 import type { AuthInteraction, AuthType, Credential, LoginOptions } from '@earendil-works/pi-ai'
 import type { SettingsPathOp } from '@deepseek-ai/dsh-settings'
 import type { AccountRuntime, AccountsRuntime as Runtime } from '../src/accounts/runtime.ts'
-import type { ProviderAccountsView } from '../src/accounts/types.ts'
+import type { ProviderAccountsView, SignInReason } from '../src/accounts/types.ts'
 import type { FetchFn } from '../src/accounts/usage/http.ts'
 
 type CredentialStore = { modify: (id: string, mutate: () => Promise<Credential>) => Promise<unknown> }
@@ -97,10 +97,13 @@ async function harness(fetchFn?: FetchFn): Promise<Harness> {
   const fetches: string[] = []
   const limitedCbs: Array<(route: string, account: string, reason: 'RATE_LIMIT' | 'QUOTA') => void> = []
   const healthCbs: Array<() => void> = []
+  const signIn = new Map<string, SignInReason>()
   const resetHints: Array<[string, string, number]> = []
   const runtime: Runtime = {
     settingsNs: 'llm-pi-ai',
     routes: () => new Map(Object.keys(settings.providers).map(route => [route, { displayName: route.toUpperCase() }])),
+    endpoint: () => undefined,
+    resolveKeyRef: () => Promise.resolve(undefined),
     directory: {
       async forRoute(route) {
         const records = await ctx.credentials.listRecords()
@@ -127,8 +130,12 @@ async function harness(fetchFn?: FetchFn): Promise<Harness> {
       invalidate: () => {},
     },
     health: {
-      view: () => ({ state: 'ok' }),
-      clear: () => {},
+      view: (route, account) => {
+        const reason = signIn.get(`${route}/${account}`)
+        return reason === undefined ? { state: 'ok' } : { state: 'needs-sign-in', reason }
+      },
+      clear: (route, account) => { signIn.delete(`${route}/${account ?? ''}`) },
+      markNeedsSignIn: (route, account, reason) => { signIn.set(`${route}/${account}`, reason) },
       onChange: (cb) => {
         healthCbs.push(cb)
         return () => {}
@@ -259,13 +266,101 @@ describe('llmAccounts metadata writes', () => {
     expect(h.settings.providers.anthropic).toEqual({ accounts: {} })
   })
 
-  it('addApiKeyAccount validates, stores the key once, and makes the first account default', async () => {
+  it('addApiKeyAccount validates, checks, stores the key once, and makes the first account default', async () => {
     const h = await harness()
     await expect(h.remote.addApiKeyAccount('anthropic', { key: '   ' })).rejects.toMatchObject({ code: 'llm-accounts/invalid-key' })
-    const view = await h.remote.addApiKeyAccount('anthropic', { key: ' sk-test ', alias: 'CI' })
+    const { account: view, check } = await h.remote.addApiKeyAccount('anthropic', { key: ' sk-test ', alias: 'CI' })
+    expect(check).toEqual({ status: 'verified' })
     expect(view).toMatchObject({ kind: 'api-key', alias: 'CI', isDefault: true })
     expect(JSON.stringify(view)).not.toContain('sk-test')
     expect(await h.ctx.credentials.readRecord(recordKeyFor('anthropic', view.id))).toEqual({ kind: 'api-key', key: 'sk-test' })
+  })
+})
+
+/** A provider double for the key check: answers every request with `reply`, recording URL and headers. */
+function keyServer(reply: () => Promise<Response>): { fetch: FetchFn; requests: Array<{ url: string; headers: Headers }> } {
+  const requests: Array<{ url: string; headers: Headers }> = []
+  return {
+    requests,
+    fetch: (url, init) => {
+      requests.push({ url, headers: new Headers(init.headers) })
+      return reply()
+    },
+  }
+}
+
+describe('llmAccounts API key check', () => {
+  it('refuses a key the provider rejects (401) and stores nothing', async () => {
+    const server = keyServer(() => Promise.resolve(new Response('{"error":"invalid x-api-key"}', { status: 401 })))
+    const h = await harness(server.fetch)
+
+    const failure = h.remote.addApiKeyAccount('anthropic', { key: 'sk-ant-wrong' })
+
+    await expect(failure).rejects.toMatchObject({
+      code: 'llm-accounts/key-rejected',
+      message: 'ANTHROPIC rejected this API key.',
+      details: { provider: 'anthropic', status: 401 },
+    })
+    expect(server.requests.map(request => request.url)).toEqual(['https://api.anthropic.com/v1/models?limit=1000'])
+    expect(server.requests[0]?.headers.get('x-api-key')).toBe('sk-ant-wrong')
+    expect(await h.ctx.credentials.listRecords()).toEqual([])
+    expect(h.mutations).toEqual([])
+  })
+
+  it('stores a key the check cannot judge, unverified, saying why', async () => {
+    const cases: Array<[() => Promise<Response>, string]> = [
+      [() => Promise.reject(new TypeError('fetch failed')), 'unreachable'],
+      [() => Promise.resolve(new Response('upstream down', { status: 503 })), 'unreachable'],
+      [() => Promise.resolve(new Response('{}', { status: 404 })), 'unexpected'],
+      [() => Promise.resolve(new Response('<html>portal</html>', { status: 200 })), 'unexpected'],
+    ]
+    for (const [reply, reason] of cases) {
+      const h = await harness(keyServer(reply).fetch)
+      const { account, check } = await h.remote.addApiKeyAccount('anthropic', { key: 'sk-ant-maybe' })
+      expect(check).toEqual({ status: 'unverified', reason })
+      expect(await h.ctx.credentials.readRecord(recordKeyFor('anthropic', account.id))).toEqual({ kind: 'api-key', key: 'sk-ant-maybe' })
+    }
+  })
+
+  it('asks OpenRouter its key endpoint, since its model listing is public', async () => {
+    const server = keyServer(() => Promise.resolve(new Response('{"data":{"label":"k"}}', { status: 200 })))
+    const h = await harness(server.fetch)
+
+    expect((await h.remote.addApiKeyAccount('openrouter', { key: 'sk-or-test' })).check).toEqual({ status: 'verified' })
+    expect(server.requests.map(request => request.url)).toEqual(['https://openrouter.ai/api/v1/key'])
+    expect(server.requests[0]?.headers.get('authorization')).toBe('Bearer sk-or-test')
+  })
+
+  it('retry re-tests a key: rejected keeps it marked, accepted clears it, sign-ins are just cleared', async () => {
+    let status = 200
+    const h = await harness(keyServer(() => Promise.resolve(new Response('{"data":[]}', { status }))).fetch)
+    const { account } = await h.remote.addApiKeyAccount('anthropic', { key: 'sk-ant-key' })
+
+    status = 401
+    expect(await h.remote.retryAccountNow('anthropic', account.id)).toEqual({ status: 'rejected' })
+    expect((await h.remote.list('anthropic')).providers[0]?.accounts[0]?.health).toEqual({ state: 'needs-sign-in', reason: 'INVALID_CREDENTIAL' })
+
+    status = 503
+    expect(await h.remote.retryAccountNow('anthropic', account.id)).toEqual({ status: 'unverified', reason: 'unreachable' })
+    expect((await h.remote.list('anthropic')).providers[0]?.accounts[0]?.health).toEqual({ state: 'ok' })
+
+    status = 200
+    expect(await h.remote.retryAccountNow('anthropic', account.id)).toEqual({ status: 'verified' })
+
+    await storeGrant(h.ctx, 'openai-codex', 'main')
+    expect(await h.remote.retryAccountNow('openai-codex', 'main')).toEqual({ status: 'cleared' })
+  })
+
+  it('labels accounts by alias, sign-in email, or position, never by id', async () => {
+    const h = await harness()
+    await storeGrant(h.ctx, 'openai-codex', 'abcdef0123')
+    await h.ctx.credentials.modifyRecord(recordKeyFor('openai-codex', 'b8741dd314'), () => Promise.resolve({ kind: 'api-key', key: 'k' }))
+    await h.ctx.credentials.modifyRecord(recordKeyFor('openai-codex', 'c0ffee1234'), () => Promise.resolve({ kind: 'api-key', key: 'k' }))
+    h.settings.providers['openai-codex'] = { accounts: { c0ffee1234: { alias: 'Work key' } } }
+
+    const labels = (await h.remote.list('openai-codex')).providers[0]?.accounts.map(account => account.label)
+
+    expect(labels).toEqual(['abcdef0123@example.com', 'Account 2', 'Work key'])
   })
 })
 

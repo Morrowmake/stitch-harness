@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Ferramenta da loja de plug-ins para o agente",
+    "description": "Permite que o agente pesquise índices de plug-ins por você. Desativada por padrão para manter as instruções do agente curtas."
+  }
+}

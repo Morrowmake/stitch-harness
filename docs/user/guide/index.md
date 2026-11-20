@@ -20,7 +20,7 @@ Start a session and send:
 
 > Summarize this repository and identify its main packages.
 
-The agent can read and edit workspace files, run commands, delegate work, and maintain a plan. The Web UI asks before operations that require approval under the active permission policy.
+The agent can read and edit workspace files, run commands, delegate work, and maintain a plan. The Web UI asks before operations that require approval under the active permission policy; reading and listing never ask. Each request says in plain words what will happen, with the exact technical request under **Details**. Choose **Allow once**, **Allow for this chat** to stop being asked about the same kind of action until the chat ends, or **Deny**. A new chat always asks again, and installing plugins, turning them on, or running commands outside the workspace limits asks at least once in every chat.
 
 ## Continue
 

@@ -41,6 +41,7 @@ A component is one feature of the Web and Desktop composition — its tools, pan
 | Context helpers | [`context-helpers`](context-helpers/README.md) | ✓ | ✓ | — |
 | Extra presets | [`presets`](presets/README.md) | ✓ | ✓ | — |
 | Short system prompt | [`short-prompt`](short-prompt/README.md) | — | ✓ | — |
+| Plugin market tool for the agent | [`plugin-market-tool`](plugin-market-tool/README.md) | — | — | — |
 
 Optional bundles outside this table stay off in both sets.
 

@@ -1228,12 +1228,13 @@ export function WorkspaceBrowser({
       console.warn('session unarchive rejected:', reason)
     })
   }
+  const sectionLabel = groupBy === 'flat' ? t('section.sessions') : t('section.workspaces')
   return (
     <div className={clsx(css.root, !wide && css.rail)}>
       <div className={clsx(css.sectionHeader, wide && searchSpacingMotionEnabled && css.searchSpacingMotion)} data-sidebar-workspace-header="">
         {wide && (
-          <span className={clsx(css.sectionLabel, css.wide, searchExpanded && css.sectionLabelHidden)}>
-            {groupBy === 'flat' ? t('section.sessions') : t('section.workspaces')}
+          <span className={clsx(css.sectionLabel, css.wide, searchExpanded && css.sectionLabelHidden)} title={sectionLabel}>
+            {sectionLabel}
           </span>
         )}
         {wide && (

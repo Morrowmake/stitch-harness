@@ -245,7 +245,7 @@ export interface SessionInputResolver {
    * Prepare the exact retained Session before navigation publishes it.
    * @param binding - target Session generation, already retained by the caller.
    * @param options - content to adopt and the handling of an existing draft.
-   * @returns applied, preserved, or blocked by a pending submission or disposal.
+   * @returns applied, preserved, occupied by the user's own text, or blocked by a pending submission or disposal.
    * @throws when binding is not the currently retained Session generation.
    */
   requestDraftInitialization(binding: SessionBinding, options: DraftInitializationOptions): DraftInitializationResult
@@ -259,14 +259,19 @@ export interface DraftInitializationOptions {
   /**
    * Handling of a target that already has text or attachments: `replace` swaps the text and
    * inline references for the prompt (or clears them without one), `append` adds the prompt
-   * as new paragraphs after the existing text, and `keep` leaves the draft unchanged. Omitted,
+   * as new paragraphs after the existing text, `keep` leaves the draft unchanged, and `ask`
+   * replaces text that an earlier initialization placed and the user has not edited since,
+   * leaving text the user wrote unchanged so the caller can ask before replacing it. Omitted,
    * it is `replace` when `clearPreviousDraft` is true and `keep` otherwise.
    */
-  readonly whenDraftExists?: 'replace' | 'append' | 'keep'
+  readonly whenDraftExists?: 'replace' | 'append' | 'keep' | 'ask'
 }
 
-/** An initialization request never waits for a React mount or a remote catalog. */
-export type DraftInitializationResult = 'applied' | 'preserved' | 'blocked'
+/**
+ * An initialization request never waits for a React mount or a remote catalog. `occupied`
+ * answers `ask` when the draft holds the user's own text, which stays unchanged.
+ */
+export type DraftInitializationResult = 'applied' | 'preserved' | 'occupied' | 'blocked'
 
 /**
  * The public input action face provided to every session-scope slot

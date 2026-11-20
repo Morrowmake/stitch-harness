@@ -34,6 +34,7 @@ import type {
   ComposerAttachment, ComposerAttachmentsOwnerProps, ComposerFileIntake, DraftFileUploads, InputActivityOwnerProps,
 } from '../src/client/contract/slots.ts'
 import type { DraftAttachmentId } from '../src/client/contract/input.ts'
+import type { ComposerBlock } from '../src/client/contract/composer-blocks.ts'
 import { InputBar } from '../src/client/skeleton/InputBar.tsx'
 import type { InputBarProps } from '../src/client/skeleton/InputBar.tsx'
 import { en, zh } from '../src/client/locales.ts'
@@ -86,7 +87,7 @@ interface BenchOptions {
   subagent?: Exclude<SessionSnapshot['subagent'], null>
   disabled?: boolean
   inert?: boolean
-  blocked?: { readonly reason: string }
+  blocked?: ComposerBlock
   workspacePickerOpen?: boolean
   onRequestWorkspace?: () => void
   promptError?: SessionSnapshot['promptError']
@@ -1356,6 +1357,22 @@ describe('running and lock semantics', () => {
     fireEvent.click(button)
     expect(stop).toHaveBeenCalledTimes(1)
     expect(sink).not.toHaveBeenCalled()
+  })
+
+  it('a block with a setup step disables Send and offers the step under its reason', () => {
+    const run = vi.fn()
+    const { button, sink, textarea, view } = bench({
+      draft: 'hello',
+      blocked: { reason: 'Set up a model first', action: { label: 'Set up a model', run } },
+      placeholder: 'Set up a model first',
+    })
+    expect(button.disabled).toBe(true)
+    fireEvent.keyDown(textarea, { key: 'Enter' })
+    expect(sink).not.toHaveBeenCalled()
+    const hint = view.container.querySelector('[data-composer-block]')
+    expect(hint?.textContent).toContain('Set up a model first')
+    fireEvent.click(view.getByRole('button', { name: 'Set up a model' }))
+    expect(run).toHaveBeenCalledOnce()
   })
 
   it('running plain Enter follows the busy-state Steer preference', () => {

@@ -293,8 +293,9 @@ export class ReactLoopAgent implements Agent {
     const claimed = this.inbox.claim(target, position.turn)
     const selection = this.model.current()
     if (selection === undefined) {
-      throw new Error(`No model provider configured for agent "${this.id}". Add one in Settings → Models, or set provider/model`
-        + ' for agent-default-model in your profile patch; SDK callers set AgentOptions.provider and AgentOptions.model or record a model selection')
+      // The turn shows this text as-is (code UNKNOWN), so it stays one plain sentence: hand-configured
+      // deployments set agent-default-model, and SDK callers pass AgentOptions.provider/model.
+      throw new Error('No AI model is set up yet. Add one in Settings → Models.')
     }
     const toolSet = await this.loopCtx.tools.resolve({ agent: this, modelSelection: selection, signal })
     try {

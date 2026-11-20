@@ -5,51 +5,111 @@
 - group "添加插件":
   - button "添加插件"
   - button "选择添加插件方式"
-- heading "内置插件配置" [level=3]
-- list:
-  - listitem:
-    - button "查看 子智能体": 子智能体
-    - text: 设置子智能体的递归层级、数量和模型。
-  - listitem:
-    - button "查看 网页搜索与获取": 网页搜索与获取
-    - text: 选择网页搜索与网页获取使用的提供方。
-  - listitem:
-    - button "查看 Agent 循环": Agent 循环
-    - text: 控制 Agent 派发工具调用的方式。
-  - listitem:
-    - button "查看 终端": 终端
-    - text: 限制每条命令最多能跑多久、最多输出多少内容。
-- heading "实验性插件" [level=3]
-- button "更多"
-- list:
-  - listitem:
-    - button "查看 语音输入": 语音输入
-    - text: 实验性 在本机使用 SenseVoice 转写录音，首次使用需安装依赖。
-    - status
-    - switch "启用 语音输入"
-  - listitem:
-    - button "查看 自定义插件索引": 自定义插件索引
-    - text: 实验性 在插件页添加“发现”标签页，从你添加的插件索引中浏览和安装插件。
-    - status
-    - switch "启用 自定义插件索引"
-  - listitem:
-    - button "查看 自动授权审查": 自动授权审查
-    - text: 实验性 提供“自动审查”访问模式：每次工具调用前，由模型对照你的要求检查，获准的调用立即运行，被拒绝的调用等你审批。
-    - status
-    - switch "启用 自动授权审查"
-  - listitem:
-    - button "查看 变更请求与工作树": 变更请求与工作树
-    - text: 实验性 在会话侧栏集中跟踪关联的代码变更请求，支持 GitHub PR 以及 GitLab MR：查看检查状态、评审意见与代码差异，并把修改建议交给智能体继续处理。也可查看本地改动，用独立工作树隔离任务。GitHub 功能需要本机安装 gh 并登录。GitLab 合并请求需要本机安装 glab 并登录。
-    - status
-    - switch "启用 变更请求与工作树"
-- heading "已安装插件" [level=3]
-- list:
-  - listitem:
-    - button "查看 @fixture/bundle": "@fixture/bundle"
-    - text: Registry description for the fixture bundle.
-    - status
-    - switch "启用 @fixture/bundle"
-  - listitem:
-    - button "查看 dsh-web-scaffold-defaults": dsh-web-scaffold-defaults
-    - status
-    - switch "启用 dsh-web-scaffold-defaults" [checked]
+- tablist "插件视图":
+  - tab "已安装" [selected]
+  - tab "发现"
+- tabpanel "已安装":
+  - searchbox "搜索插件"
+  - switch "显示高级项"
+  - heading "对话与工具" [level=3]
+  - text: 已开启 3 个
+  - list:
+    - listitem:
+      - button "查看 规划": 规划
+      - text: 用 /plan 先规划再执行，并用待办清单跟踪助手的步骤。
+      - status
+      - switch "启用 规划" [checked]
+    - listitem:
+      - button "查看 目标": 目标
+      - text: 用 /goal 设定目标，助手会持续朝目标努力，并在目标栏中显示。
+      - status
+      - switch "启用 目标" [checked]
+    - listitem:
+      - button "查看 终端": 终端
+      - text: 在右侧边栏打开命令行终端标签页。
+      - status
+      - switch "启用 终端" [checked]
+  - heading "文件与文档" [level=3]
+  - text: 已开启 2 个
+  - list:
+    - listitem:
+      - button "查看 文件与预览": 文件与预览
+      - text: 在右侧边栏浏览项目文件并预览文档。
+      - status
+      - switch "启用 文件与预览" [checked]
+    - listitem:
+      - button "查看 Office 文档": Office 文档
+      - text: 创建和编辑 Word、Excel 和 PowerPoint 文件，并向你展示结果。
+      - status
+      - switch "启用 Office 文档" [checked]
+  - heading "网页与搜索" [level=3]
+  - text: 已开启 2 个
+  - list:
+    - listitem:
+      - button "查看 浏览器面板": 浏览器面板
+      - text: 在右侧边栏的浏览器标签页中打开网页（桌面应用）。
+      - status
+      - switch "启用 浏览器面板" [checked]
+    - listitem:
+      - button "查看 网络": 网络
+      - text: 让助手搜索网络（无需密钥）并读取网页。
+      - button "网络 的设置"
+      - status
+      - switch "启用 网络" [checked]
+  - heading "智能体与自动化" [level=3]
+  - text: 已开启 4 个
+  - list:
+    - listitem:
+      - button "查看 工作流": 工作流
+      - text: 需要子智能体 让助手借助辅助助手运行多步骤工作流，并显示每次运行的进度。
+      - status
+      - switch "启用 工作流" [checked]
+    - listitem:
+      - button "查看 日程": 日程
+      - text: 让助手在指定时间执行任务或提醒你，并在日程页面管理。
+      - status
+      - switch "启用 日程" [checked]
+    - listitem:
+      - button "查看 智能体团队": 智能体团队
+      - text: 需要子智能体 让助手以团队方式协作共享任务，并在团队看板上显示。
+      - status
+      - switch "启用 智能体团队" [checked]
+    - listitem:
+      - button "查看 子智能体": 子智能体
+      - text: 让助手把任务交给辅助助手，并提供相应视图和设置。
+      - button "子智能体 的设置"
+      - status
+      - switch "启用 子智能体" [checked]
+    - listitem:
+      - button "查看 Claude Code 子智能体": Claude Code 子智能体
+      - text: 需要子智能体 使用 Claude Code 原生认证和设置委派单个任务。
+      - status
+      - switch "启用 Claude Code 子智能体"
+    - listitem:
+      - button "查看 Codex 子智能体": Codex 子智能体
+      - text: 需要子智能体 使用 Codex 原生认证和设置委派单个任务。
+      - status
+      - switch "启用 Codex 子智能体"
+  - heading "集成" [level=3]
+  - text: 已开启 1 个
+  - list:
+    - listitem:
+      - button "查看 连接器": 连接器
+      - text: 连接外部应用和服务（MCP 服务器），并管理账号和设置。
+      - status
+      - switch "启用 连接器" [checked]
+  - heading "你添加的插件" [level=3]
+  - text: 已开启 1 个
+  - list:
+    - listitem:
+      - button "查看 @fixture/bundle": "@fixture/bundle"
+      - text: Registry description for the fixture bundle.
+      - status
+      - switch "启用 @fixture/bundle"
+    - listitem:
+      - button "查看 dsh-web-scaffold-defaults": dsh-web-scaffold-defaults
+      - status
+      - switch "启用 dsh-web-scaffold-defaults" [checked]
+  - paragraph:
+    - text: 已隐藏 17 个高级或实验性插件。
+    - button "显示高级项"

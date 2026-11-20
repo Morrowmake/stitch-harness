@@ -22,6 +22,7 @@ type ApprovalListener = (
     callId?: string
     reason?: string
     displayReason?: PendingApproval['displayReason']
+    grant?: string
     signal?: AbortSignal
   },
   next: () => Promise<'unavailable'>,
@@ -316,6 +317,20 @@ describe('approval Remote Event consumer', () => {
     await scope.fiber.dispose()
   })
 
+  it('carries the offered chat grant and returns an allow-for-this-chat answer', async () => {
+    const bench = await setupPlugin()
+    const scope = createScope(bench.ctx, id('s1'))
+    await scope.fiber.await()
+    const result = bench.listener.call(scope.ctx, { toolName: 'plugin_manager', grant: 'install' }, () => Promise.resolve('unavailable'))
+    const pending = bench.pending.getSnapshot()[0]!
+    expect(pending.grant).toBe('install')
+
+    await pending.answer('allowed-for-session')
+
+    await expect(result).resolves.toBe('allowed-for-session')
+    await scope.fiber.dispose()
+  })
+
   it('removes stable registrations with the plugin lifetime', async () => {
     const bench = await setupPlugin()
     await bench.ctx.fiber.dispose()
@@ -334,6 +349,7 @@ function panelProps(
     escalation: `Tool ${pending.toolName} asks`,
     reject: 'Reject',
     allowOnce: 'Allow once',
+    allowForChat: 'Allow for this chat',
     allowAlways: 'Always allow',
   }
   return {
@@ -361,6 +377,18 @@ describe('ApprovalPanel', () => {
     await expect(pending.result).resolves.toBe('rejected')
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Reject' }).disabled).toBe(true)
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Allow once' }).disabled).toBe(true)
+  })
+
+  it('offers Allow for this chat only when the request offers a chat grant', async () => {
+    const offered = new PendingApproval(id('s1'), { toolName: 'plugin_manager', grant: 'install' })
+    const { unmount } = render(<ApprovalPanel {...panelProps(offered)} />)
+    expect(screen.getAllByRole('button').map(button => button.textContent)).toEqual(['Reject', 'Allow once', 'Allow for this chat'])
+    fireEvent.click(screen.getByRole('button', { name: 'Allow for this chat' }))
+    await expect(offered.result).resolves.toBe('allowed-for-session')
+    unmount()
+
+    render(<ApprovalPanel {...panelProps(new PendingApproval(id('s1'), { toolName: 'bash' }))} />)
+    expect(screen.queryByRole('button', { name: 'Allow for this chat' })).toBeNull()
   })
 
   it('renders correlated detail and returns allow-once', async () => {

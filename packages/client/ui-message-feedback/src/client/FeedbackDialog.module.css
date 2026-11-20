@@ -97,7 +97,7 @@
   font-weight: 500;
 }
 
-/* Submit (or confirm) on top, the quieter alternative path below it. */
+/* The primary action on top, its one-line note, then the quieter paths below. */
 .actions {
   display: flex;
   flex-direction: column;
@@ -110,6 +110,15 @@
   height: 36px;
   border-radius: var(--dsw-radius-lg);
   font-size: 13px;
+}
+
+/* One line under an action saying where its result goes. */
+.note {
+  margin: 0;
+  color: var(--dsw-alias-label-caption);
+  font-size: 12px;
+  line-height: 18px;
+  text-align: center;
 }
 
 /* The issue preview: disclosure, title, body, and the Session id opt-in. */
@@ -130,6 +139,25 @@
   margin-top: 0;
   font-family: var(--ds-font-family-code);
   font-size: 13px;
+}
+
+/* The formatted issue body: the same surface as the field it replaces. */
+.preview {
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 12px 14px;
+  border: 0.5px solid var(--dsw-alias-border-l4);
+  border-radius: var(--dsw-radius-lg);
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+/* The Session id opt-in and the edit toggle share one row, wrapping when narrow. */
+.previewControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 @media (prefers-reduced-motion: reduce) {

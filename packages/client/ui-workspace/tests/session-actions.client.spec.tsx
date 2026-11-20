@@ -24,7 +24,7 @@ import type { ArchiveToastEntryProps } from '../src/client/contract/toast.ts'
 import { en as commonEn } from '@deepseek-ai/dsh-client-locale/src/locales/en.ts'
 import { zh as commonZh } from '@deepseek-ai/dsh-client-locale/src/locales/zh.ts'
 import type {
-  RowToast, RowToastState, SessionArchiveConfirmInjected, SessionArchiveConfirmRequest,
+  DraftReplaceRequest, RowToast, RowToastState, SessionArchiveConfirmInjected, SessionArchiveConfirmRequest,
   SessionRenameDialogInjected, SessionRenameTarget,
 } from '../src/client/contract/slots.ts'
 import {
@@ -32,6 +32,7 @@ import {
 } from '../src/client/session-actions/ArchiveSession.tsx'
 import { PinSessionRowButton } from '../src/client/session-actions/PinSession.tsx'
 import { SessionRenameDialog } from '../src/client/session-actions/RenameSession.tsx'
+import { DraftReplaceDialog } from '../src/client/DraftReplaceDialog.tsx'
 import { RowActionToast } from '../src/client/session-actions/RowActionToast.tsx'
 import { createWorkspaceViewStore } from '../src/client/stores.ts'
 import { en, zh } from '../src/client/locales.ts'
@@ -708,5 +709,52 @@ describe('RowActionToast', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+})
+
+describe('DraftReplaceDialog', () => {
+  /** The dialog over a test-owned question source; answering clears it the way the service does. */
+  function replaceDialog(translate = tEn) {
+    const request = createSnapshotStore<DraftReplaceRequest | null>(null)
+    const settleDraftReplace = vi.fn((_replace: boolean) => { request.set(null) })
+    render(
+      <DraftReplaceDialog
+        {...overlay}
+        t={translate}
+        useDraftReplaceRequest={bindSnapshotSelector(request)}
+        settleDraftReplace={settleDraftReplace}
+      />,
+    )
+    const ask = (): void => { act(() => { request.set({ sessionId: sid('one'), prompt: 'Create a daily brief.' }) }) }
+    return { settleDraftReplace, ask }
+  }
+
+  it('asks only while a question is pending and replaces on Replace', () => {
+    const { settleDraftReplace, ask } = replaceDialog()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    ask()
+    const dialog = screen.getByRole('dialog', { name: 'Replace the current draft?' })
+    expect(dialog.textContent).toContain('You already started writing a message here.')
+    fireEvent.click(screen.getByRole('button', { name: 'Replace' }))
+    expect(settleDraftReplace).toHaveBeenCalledExactlyOnceWith(true)
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('keeps the user\'s text on Keep my text and on Escape', () => {
+    const { settleDraftReplace, ask } = replaceDialog()
+    ask()
+    fireEvent.click(screen.getByRole('button', { name: 'Keep my text' }))
+    expect(settleDraftReplace).toHaveBeenLastCalledWith(false)
+    ask()
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
+    expect(settleDraftReplace).toHaveBeenCalledTimes(2)
+    expect(settleDraftReplace).toHaveBeenLastCalledWith(false)
+  })
+
+  it('asks in the reader\'s language', () => {
+    const { ask } = replaceDialog(t)
+    ask()
+    expect(screen.getByRole('dialog', { name: '替换当前草稿？' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '保留我的内容' })).toBeTruthy()
   })
 })

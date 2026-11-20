@@ -35,24 +35,24 @@ Web 组合以 `ui-first-run` 行挂载本包。该行 id 同时是它的设置�
 | 插件页面“添加插件”菜单 → **选择组件…** | 组件 → 完成 |
 | “设置 → 模型”页脚 → **设置提供商…** | 提供商 → 默认模型 → 完成 |
 
-在任一步关闭对话框，或点击最后的按钮，即结束流程。结束自动首次运行时会保存完成状态，之后不再自动打开；两个入口从不修改该状态。
+在任一步关闭对话框，或点击最后的按钮，即结束流程。结束自动首次运行时会保存完成状态，之后不再自动打开；两个入口从不修改该状态。在浏览器中，自动首次运行会等到预览通知（在 `ui-settings-general` 设置段中确认）被确认后再打开，因此两个对话框不会叠在一起；桌面应用没有该通知。**返回**回到上一步。对话框始终在窗口内，内容在内部滚动。其他插件可通过 `firstRunUi` 服务（`openProvider()`）打开提供商步骤。
 
 ### 提供商步骤
 
 本步骤自上而下列出：
 
 1. **已设置**：当前可以处理请求的路由（`llm.listProviders`）；**使用**进入默认模型步骤。
-2. **本地 AI**：用户自己运行的机器上的模型。步骤打开时以及点击**重新检查**时，Host 通过 `llmAccounts.probeLocalProviders` 探测 Ollama（`localhost:11434/api/tags`）和 LM Studio（`localhost:1234/v1/models`）。正在运行且有模型的服务提供**使用**，它声明一条 OpenAI 兼容的 `llm-pi-ai` 路由（`ollama` 或 `lmstudio`，端点 `…/v1`，列出的模型），并在该路由派生的引用（`OLLAMA_API_KEY`、`LMSTUDIO_API_KEY`）下保存占位密钥，因为 OpenAI 协议总会发送密钥。最后一行**网络中的其他服务**接受任意 OpenAI 兼容端点——局域网中的另一台机器、Tailscale tailnet 主机、vLLM、llama.cpp、LiteLLM：基础 URL、可选 API 密钥、可选名称。**查找模型**通过 `llm.discoverModels` 读取端点的 `/models` 列表；用户保留要使用的模型，**添加提供商**以同样方式声明路由，并保存密钥；未填写密钥时保存占位密钥。路由 id 由主机名派生（`gpu-box.tail1234.ts.net` → `gpu-box-tail1234-ts-net`，`192.168.1.20` → `host-192-168-1-20`），已被已配置路由或目录路由占用时追加 `-2`、`-3`……
+2. **本地 AI**：用户自己运行的机器上的模型。步骤打开时以及点击**重新检查**时，Host 通过 `llmAccounts.probeLocalProviders` 探测 Ollama（`localhost:11434/api/tags`）和 LM Studio（`localhost:1234/v1/models`）。正在运行且有模型的服务提供**使用**，它声明一条 OpenAI 兼容的 `llm-pi-ai` 路由（`ollama` 或 `lmstudio`，端点 `…/v1`，列出的模型），并在该路由派生的引用（`OLLAMA_API_KEY`、`LMSTUDIO_API_KEY`）下保存占位密钥，因为 OpenAI 协议总会发送密钥。最后一行**网络中的其他服务**接受任意 OpenAI 兼容端点——局域网中的另一台机器、Tailscale tailnet 主机、vLLM、llama.cpp、LiteLLM：服务器地址、可选 API 密钥、可选名称。以 `host:port` 形式输入的地址按 `http://host:port` 读取，没有路径的地址补上 `/v1`；步骤会显示将使用的地址。**查找模型**通过 `llm.discoverModels` 读取端点的 `/models` 列表；失败时按拒绝的 `reason` 说明原因：无法连接主机、主机有响应但不是 OpenAI 兼容服务，或需要（或拒绝了）密钥。用户保留要使用的模型，**添加提供商**以同样方式声明路由，并保存密钥；未填写密钥时保存占位密钥。路由 id 由主机名派生（`gpu-box.tail1234.ts.net` → `gpu-box-tail1234-ts-net`，`192.168.1.20` → `host-192-168-1-20`），已被已配置路由或目录路由占用时追加 `-2`、`-3`……
 3. **订阅**：可用已有套餐通过浏览器登录认证的目录路由（ChatGPT Plus/Pro、Claude Pro/Max、GitHub Copilot、SuperGrok……），以套餐名称显示。**登录**运行一次 OAuth 尝试（`llmAccounts.beginSignIn` / `watchSignIn`，链接在新标签页打开，设备码和提示内联显示）。
-4. **API 访问**：可用密钥认证的目录路由，可搜索。**API 密钥**保存一个密钥账号（`llmAccounts.addApiKeyAccount`），凭据包含多个字段的提供商则运行 pi-ai 的密钥提示。两种方式都支持的厂商（Anthropic）同时出现在两个分区。
+4. **API 访问**：可用密钥认证的目录路由，可搜索。**API 密钥**保存一个密钥账号（`llmAccounts.addApiKeyAccount`），保存前先向提供商验证密钥：被拒绝的密钥不会保存，表单会说明原因；Host 无法验证的密钥（提供商无法连接、没有可查询的列表）会保存，步骤在继续前说明它未经验证。凭据包含多个字段的提供商则运行 pi-ai 的密钥提示。自由文本的登录问题可以留空提交（GitHub Copilot 将留空视为 github.com）。两种方式都支持的厂商（Anthropic）同时出现在两个分区。
 
 两个云端分区都沿用 `llm.listConfigurableProviders` 的顺序：`llm-pi-ai` 按常用程度列出目录路由（OpenAI、Anthropic、Google，然后是 GitHub Copilot、xAI、OpenRouter、DeepSeek、Mistral、Groq……其余按字母顺序），使用用户熟悉的名称，并以 `nativeAuth.oauthName` 报告每种登录对应的套餐名称。pi-ai 的旧版 `openai-codex` 路由不再列出（其 ChatGPT 登录已由 `openai` 承担），除非已有配置档指定它。“设置 → 模型”使用相同顺序，已配置的路由在各处也使用相同名称。
 
-**暂时跳过**会跳过提供商和默认模型步骤，不做任何更改。
+自动首次运行中，**暂时跳过**会跳过提供商和默认模型步骤，不做任何更改（步骤计数不再包含模型步骤）。如果结束时没有任何提供商可以处理请求，最后一步显示“就差一步”，说明还没有设置 AI 模型，并提供**设置模型**，返回提供商步骤。从“设置 → 模型”打开时，提供商步骤改为提供**关闭**。
 
 ### 默认模型步骤
 
-本步骤列出新提供商的模型——本机和自定义服务使用流程已知的模型，其余读取 `session.modelCatalog` 中该路由的分组（路由仍在注册时可点**重试**）。**设为默认**写入 `agent-default-model` 设置段（`provider`、`model`，并清除 `reasoningEffort`），与 `agentDefaultModel.saveSelection()` 保存的完整选择相同。
+本步骤列出新提供商的模型——本机和自定义服务使用流程已知的模型，其余读取 `session.modelCatalog` 中该路由的分组（路由仍在注册时可点**重试**）。当前模型排在前面；目录标记为 `older` 的模型（被取代的版本、带日期的快照、“(latest)”别名）折叠在**较旧的模型**下。除非提供商只有一个模型，否则不预先选中任何模型。**设为默认**写入 `agent-default-model` 设置段（`provider`、`model`，并清除 `reasoningEffort`），与 `agentDefaultModel.saveSelection()` 保存的完整选择相同。
 
 ### 组件步骤
 

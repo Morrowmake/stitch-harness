@@ -261,7 +261,7 @@ describe('draft-provider model discovery', () => {
     const ctx = await harness()
 
     const failure = ctx.llm.discoverModels('llm-pi-ai', { baseURL: server.url, api: 'google-generative-ai' })
-    await expect(failure).rejects.toMatchObject({ code: 'DISCOVERY_FAILED' })
+    await expect(failure).rejects.toMatchObject({ code: 'INVALID_RESPONSE' })
     await expect(failure).rejects.toThrow(/no "models" array/)
     expect(server.headers[0]?.['x-goog-api-key']).toBeUndefined()
   })
@@ -422,7 +422,26 @@ describe('draft-provider model discovery', () => {
     const ctx = await harness()
     // Port 9 is the discard service: nothing accepts a connection there.
     await expect(ctx.llm.discoverModels('llm-pi-ai', { baseURL: 'http://127.0.0.1:9/v1' }))
-      .rejects.toMatchObject({ code: 'DISCOVERY_FAILED' })
+      .rejects.toMatchObject({ code: 'TRANSPORT' })
+  })
+
+  it('tells the configuration surface why an endpoint failed', async () => {
+    const ctx = await harness()
+    const reasonOf = async (baseURL: string, apiKey?: string): Promise<unknown> => {
+      const failure = await ctx.llm.remoteDiscoverModels('llm-pi-ai', { baseURL, ...apiKey === undefined ? {} : { apiKey } }, new AbortController().signal)
+        .then(() => undefined, (error: unknown) => error as { code?: string; details?: { reason?: unknown } })
+      expect(failure?.code).toBe('llm/model-discovery-rejected')
+      return failure?.details?.reason
+    }
+
+    // Nothing listens on the discard port: the machine is off or the port closed.
+    expect(await reasonOf('http://127.0.0.1:9/v1')).toBe('unreachable')
+    expect(await reasonOf((await listingServer({ status: 401, body: '{}' })).url, 'wrong')).toBe('unauthorized')
+    expect(await reasonOf((await listingServer({ status: 403, body: '{}' })).url, 'wrong')).toBe('unauthorized')
+    // Reached a server, but not an OpenAI-compatible one.
+    expect(await reasonOf((await listingServer({ status: 404, body: 'Not Found' })).url)).toBe('not-compatible')
+    expect(await reasonOf((await listingServer({ body: '<html>router admin</html>' })).url)).toBe('not-compatible')
+    expect(await reasonOf((await listingServer({ body: '{"status":"ok"}' })).url)).toBe('not-compatible')
   })
 
   it.each(['azure-openai-responses', 'openai-codex-responses'])(

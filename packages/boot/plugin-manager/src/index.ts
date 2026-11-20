@@ -106,6 +106,12 @@ const ANSI_SEQUENCE = /\x1b\[[0-9;]*m/g
 /** Preserve the exact observed diagnostic, including non-Error failures. */
 function messageOf(error: unknown): string { return error instanceof Error ? error.message : String(error) }
 
+/** The prerequisite bundle names a bundle manifest declares in `dsh.bundle.requires`; anything else declares none. */
+function declaredRequires(manifest: { dsh?: { bundle?: { requires?: unknown } } } | undefined): string[] {
+  const requires = manifest?.dsh?.bundle?.requires
+  return Array.isArray(requires) ? requires.filter((item): item is string => typeof item === 'string') : []
+}
+
 /** An expected refusal keeps its code; anything else becomes an operation error carrying its exact diagnostic. */
 function managementError(error: unknown): ManagementError {
   if (error instanceof UnsupportedBundlePlatformError) return { code: 'unsupported-platform' }
@@ -576,9 +582,11 @@ export class PluginManager extends TypertRemoteService {
         try { assertBundlePlatform(info.dsh?.bundle?.platforms, process.platform) }
         catch (error) { platformError = managementError(error) }
         if (platformError?.code === 'unsupported-platform') listing = { listedByDefault: false }
+        const requires = declaredRequires(info)
         bundles.push({ name, official, availability, ...listing, ...(version === undefined ? {} : { version }),
           ...(info.description === undefined || info.description === '' ? {} : { description: info.description }),
           ...meta === undefined ? {} : { meta },
+          ...requires.length === 0 ? {} : { requires },
           ...sourceOf(info.name), enabled, installed, optional, removable: removable && readOnlyReason === undefined,
           ...(readOnlyReason === undefined ? {} : { readOnlyReason }),
           ...this.declaredRows(name, info),
@@ -1397,8 +1405,7 @@ export class PluginManager extends TypertRemoteService {
   /** The prerequisite bundles a bundle declares; an unreadable manifest declares none, and selection reports it. */
   private bundleRequires(name: string): string[] {
     try {
-      const requires: unknown = bundleManifest(name, this.profile.dir, this.profile.installAnchor)?.dsh?.bundle?.requires
-      return Array.isArray(requires) ? requires.filter((item): item is string => typeof item === 'string') : []
+      return declaredRequires(bundleManifest(name, this.profile.dir, this.profile.installAnchor))
     } catch (_error) {
       return []
     }

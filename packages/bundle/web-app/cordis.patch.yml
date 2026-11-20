@@ -100,6 +100,14 @@
     - id: plugin-inventory
       name: '@deepseek-ai/dsh-host-plugin-inventory'
 
+    # Plugin indexes behind the Plugins page's Discover tab. Like
+    # `plugin-manager`, the row is disabled without a profile. The
+    # `plugin_market` preset tool rows register their tool only while this
+    # service is mounted.
+    - id: plugin-market
+      name: '@deepseek-ai/dsh-plugin-market'
+      disabled: !!js "!ctx.get('profileContext')"
+
     # Session commands, cold reads, and live control over Typert Remote.
     - id: session-controller
       name: '@deepseek-ai/dsh-api-session-controller'
@@ -358,6 +366,10 @@
     # Without a profile-backed Host it reports itself unavailable.
     - id: ui-plugin-manager
       name: '@deepseek-ai/dsh-client-ui-plugin-manager'
+
+    # Discover: the Plugins page tab that browses the `pluginMarket` indexes.
+    - id: ui-plugin-market
+      name: '@deepseek-ai/dsh-client-ui-plugin-market'
 
     # Connector account sections on the Plugins page; CLI app plugins and MCP
     # connectors register their accounts with `ctx.connectorAccounts`.

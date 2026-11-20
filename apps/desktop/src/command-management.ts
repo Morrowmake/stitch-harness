@@ -5,6 +5,7 @@ import { isAbsolute, join, normalize, win32 } from 'node:path'
 import { userInfo } from 'node:os'
 import { promisify } from 'node:util'
 import type { MessageBoxOptions, MessageBoxReturnValue } from 'electron'
+import type { DesktopCommandAction, DesktopCommandStatus } from '@deepseek-ai/dsh-client-ui-settings-general/types'
 import type { DesktopMessages } from './locale.ts'
 import type { UpdateDialogOptions } from './update-dialog.ts'
 
@@ -119,6 +120,20 @@ async function shellCommand(): Promise<{ activeCommand?: string; selectionUnknow
   return isAbsolute(value) && !/[\r\n]/u.test(value) ? { activeCommand: value } : { selectionUnknown: true }
 }
 
+/**
+ * Classify an observed registration for the Settings row.
+ * @param state - Observed link or PATH selection.
+ * @param platform - Command lookup semantics of the host operating system.
+ * @returns Row status; `shadowed` means another stitch runs first in new terminals.
+ */
+export function commandStatus(state: CommandPresentation, platform: NodeJS.Platform): DesktopCommandStatus {
+  return {
+    kind: state.managed ? (state.available ? 'installed' : 'broken') : 'notInstalled',
+    shadowed: state.activeCommand !== undefined && !sameCommand(state.activeCommand, state.destination, platform),
+    selectionUnknown: state.selectionUnknown === true,
+  }
+}
+
 /** One visible operation; updater preparation waits for its started worker to finish. */
 export class DesktopCommandManager {
   private operation: Promise<void> | undefined
@@ -126,9 +141,23 @@ export class DesktopCommandManager {
   /** @param options - Installed resources and shell-owned UI callbacks. */
   constructor(private readonly options: CommandManagerOptions) {}
 
-  /** Open or join the command-management operation. */
-  show(): Promise<void> {
-    return this.operation ??= this.run().finally(() => { this.operation = undefined })
+  /**
+   * Open or join the command-management operation.
+   * @param action - Settings button the user pressed; skips the overview dialog when it still matches the observed state.
+   */
+  show(action?: DesktopCommandAction): Promise<void> {
+    return this.operation ??= this.run(action).finally(() => { this.operation = undefined })
+  }
+
+  /** @returns Observed registration for the Settings row; never shows a dialog. */
+  async status(): Promise<DesktopCommandStatus> {
+    if (process.platform !== 'darwin' && process.platform !== 'win32') return { kind: 'unsupported' }
+    if (!this.options.isPackaged || !this.options.isInstalledLocation()) return { kind: 'unavailable' }
+    try {
+      return commandStatus(await this.inspect(), process.platform)
+    } catch {
+      return { kind: 'failed' }
+    }
   }
 
   /** Wait for a command operation already started by the user. */
@@ -179,7 +208,7 @@ export class DesktopCommandManager {
     }
   }
 
-  private async run(): Promise<void> {
+  private async run(action?: DesktopCommandAction): Promise<void> {
     const messages = this.options.messages()
     if (!this.options.isPackaged || !this.options.isInstalledLocation()) {
       await this.options.show({ type: 'info', title: messages.cliCommandTitle, message: messages.cliCommandInstallApp, buttons: [messages.cliCommandClose] })
@@ -187,10 +216,16 @@ export class DesktopCommandManager {
     }
     try {
       const state = await this.inspect()
-      const choice = await this.options.show(presentCommandManagement(state, messages, process.platform))
-      if (this.options.isQuitting()) return
-      const operation = state.managed ? (choice.response === 1 ? 'install' : choice.response === 2 ? 'remove' : undefined)
-        : choice.response === 0 ? 'install' : undefined
+      let operation: 'install' | 'remove' | undefined = action === undefined ? undefined
+        : state.managed ? (action === 'repair' ? 'install' : action === 'remove' ? 'remove' : undefined)
+          : action === 'install' ? 'install' : undefined
+      if (operation === undefined) {
+        // A stale Settings row (or the menu) reviews the observed state first.
+        const choice = await this.options.show(presentCommandManagement(state, messages, process.platform))
+        if (this.options.isQuitting()) return
+        operation = state.managed ? (choice.response === 1 ? 'install' : choice.response === 2 ? 'remove' : undefined)
+          : choice.response === 0 ? 'install' : undefined
+      }
       if (operation === undefined) return
       const ownsSelection = state.managed
         && (state.activeCommand === undefined || sameCommand(state.activeCommand, state.destination, process.platform))

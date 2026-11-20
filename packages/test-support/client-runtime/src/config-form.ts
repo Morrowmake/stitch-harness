@@ -48,6 +48,7 @@ export function stubConfigForm<T>(): StubConfigForm<T> {
       mutate,
       set,
       unset,
+      accepts: () => true,
     },
     set,
     mutate,

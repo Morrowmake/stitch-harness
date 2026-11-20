@@ -112,7 +112,7 @@ it('keeps Discover controls reachable when the toolbar wraps and retains search 
     if (address === null || typeof address === 'string') throw new Error('The plugin index fixture has no TCP port')
     const scaffold = await launchWebScaffold({
       extraOverlayPath: fileURLToPath(new URL('./pin-browse-picker.overlay.yml', import.meta.url)),
-      profile: { packages: [], bundles: ['@deepseek-ai/dsh-experimental-plugin-market-bundle'] },
+      profile: { packages: [] },
     })
     try {
       await scaffold.ctx.pluginMarket.setIndexes([`http://127.0.0.1:${address.port}/index.json`])

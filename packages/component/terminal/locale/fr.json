@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Terminal",
-    "description": "Onglets de terminal dans la barre latérale droite."
+    "description": "Ouvre des onglets de terminal en ligne de commande dans la barre latérale droite."
   }
 }

@@ -1,25 +1,13 @@
 /** Index source URL validation shared by `setIndexes` and the per-use check of configured sources. */
 import { parseGitMarketIndexSource } from '@deepseek-ai/dsh-plugin-market-index/source'
 import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
-import { PLUGIN_INDEX_REPOSITORY } from '@deepseek-ai/dsh-product'
+import { DEFAULT_PLUGIN_INDEX } from './indexes.ts'
 
 /**
- * The Stitch plugin index, the `indexes` default: a direct JSON address generated from the
- * `Morrowmake/stitch-plugins` repository. Nothing is fetched until Discover or the tool reads it.
+ * The `indexes` default: the Stitch plugin index alone. Community indexes are added only by the user, from the
+ * Discover index sources dialog or the configuration.
  */
-export const DEFAULT_PLUGIN_INDEX = `https://raw.githubusercontent.com/${PLUGIN_INDEX_REPOSITORY}/main/index.json`
-
-/**
- * DeepSeek Harness (DSH) plugin indexes, whose plugins Stitch runs; listed after
- * {@link DEFAULT_PLUGIN_INDEX} and, like it, fetched only when read.
- */
-export const DEEPSEEK_HARNESS_PLUGIN_INDEXES = [
-  'https://awesome-dsh-plugin.com/index.json',
-  'https://cdn.dsh.so/market/index.json',
-] as const
-
-/** The `indexes` default, in display order: the Stitch index, then the DeepSeek Harness indexes. */
-export const DEFAULT_PLUGIN_INDEXES: readonly string[] = [DEFAULT_PLUGIN_INDEX, ...DEEPSEEK_HARNESS_PLUGIN_INDEXES]
+export const DEFAULT_PLUGIN_INDEXES: readonly string[] = [DEFAULT_PLUGIN_INDEX]
 
 /**
  * Validate and normalize one index source URL.

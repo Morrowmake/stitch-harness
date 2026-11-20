@@ -387,9 +387,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'async request(req: ApprovalRequest): Promise<ApprovalOutcome>',
-        description: 'Ask the composed answerers to decide one readonly same-process request. The service borrows the request, agent, session, and live signal directly. The request requires an open turn because the audit pair must be enclosed by the durable log\'s commit/replay boundary; an idle ask rejects before appending anything. The answerer phase always produces an outcome: an aborted signal yields `\'cancelled\'`, a missing or throwing answerer yields `\'unavailable\'` (fail closed), and a rogue non-vocabulary return value is normalized to `\'unavailable\'`. A failure that prevents either audit append from committing still rejects because returning an unlogged decision would violate the pair. Session contains post-commit observer failures, so an authoritative append cannot reject the request or suppress its matching audit event.',
-        parameters: [{ name: 'req', description: 'the pending decision (agent, tool identity, reason, signal).' }],
-        returns: 'the closed outcome; `\'allowed-once\'` is the only grant.',
+        description: 'Ask the composed answerers to decide one readonly same-process request. The service borrows the request, agent, session, and live signal directly. The request requires an open turn because the audit pair must be enclosed by the durable log\'s commit/replay boundary; an idle ask rejects before appending anything. The answerer phase always produces an outcome: an aborted signal yields `\'cancelled\'`, a missing or throwing answerer yields `\'unavailable\'` (fail closed), and a rogue non-vocabulary return value is normalized to `\'unavailable\'`. A request with a `grant` that an earlier `allowed-for-session` answer in this Session covers is allowed without dispatching; the `never` policy and an aborted signal still take precedence. A failure that prevents either audit append from committing still rejects because returning an unlogged decision would violate the pair. Session contains post-commit observer failures, so an authoritative append cannot reject the request or suppress its matching audit event.',
+        parameters: [{ name: 'req', description: 'the pending decision (agent, tool identity, reason, grant, signal).' }],
+        returns: 'the closed outcome; `\'allowed-once\'` is the only grant, including an action a chat grant allows.',
         throws: ['when no turn is open or either audit event fails before the session append commit point.'],
       },
       {
@@ -2172,7 +2172,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       {
         signature: 'registerModelDiscovery( settingsNs: string, discover: ( request: LlmModelDiscoveryRequest, signal?: AbortSignal, ) => Promise<readonly LlmDiscoveredModel[]>, ): () => void',
         description: 'Offer to interrogate provider endpoints on behalf of the settings namespace this plugin owns. The namespace is the key because that is what a configuration surface already holds from the configurable-provider directory, and because a provider being *added* has no route to name yet. Disposed with the fiber.',
-        parameters: [{ name: 'settingsNs', description: 'the namespace whose profiles this discovery serves.' }, { name: 'discover', description: 'interrogates one endpoint and must honor the supplied signal.' }],
+        parameters: [{ name: 'settingsNs', description: 'the namespace whose profiles this discovery serves.' }, { name: 'discover', description: 'interrogates one endpoint and must honor the supplied signal. Its `LlmError` tells the surface why it failed: `TRANSPORT`/`TIMEOUT` for an unreachable endpoint, the HTTP `status` of a refusal, `INVALID_RESPONSE` for a reply that is not a model listing.' }],
         returns: 'the disposer that withdraws the offer.',
       },
       {
@@ -3148,15 +3148,15 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the recorded postcondition, or `session-not-found` when no live Session carries the id.',
       },
       {
-        signature: '@Remote(\'draftIssue\') draftIssue(request: SessionFeedbackIssueDraftRequest): Promise<SessionFeedbackIssue>',
+        signature: '@Remote(\'draftIssue\') draftIssue(request: SessionFeedbackIssueDraftRequest): Promise<SessionFeedbackIssueDraft>',
         description: 'Preview a remark as a GitHub issue without sending anything. The body names only the remark, its category, the Stitch version, and the OS.',
         parameters: [{ name: 'request', description: 'the remark text and category.' }],
-        returns: 'an editable title and Markdown body.',
+        returns: 'an editable title and Markdown body, and the public repository it would be filed on.',
       },
       {
-        signature: '@Remote(\'reportIssue\') reportIssue(issue: SessionFeedbackIssue): Promise<SessionFeedbackReportIssueResult>',
-        description: 'File a confirmed issue on the feedback repository: through an installed, authenticated `gh` CLI (run by the Host `subprocess` provider when one is mounted, else by Node without a shell), or else as a prefilled new-issue page the caller opens.',
-        parameters: [{ name: 'issue', description: 'the title and body the human confirmed.' }],
+        signature: '@Remote(\'reportIssue\') reportIssue(request: SessionFeedbackReportIssueRequest): Promise<SessionFeedbackReportIssueResult>',
+        description: 'Send a confirmed issue to the feedback repository the way the human chose: `browser` answers with the prefilled new-issue page the caller opens and never runs `gh`; `github-cli` files through an installed, authenticated `gh` CLI (run by the Host `subprocess` provider when one is mounted, else by Node without a shell) and falls back to the prefilled page.',
+        parameters: [{ name: 'request', description: 'the title and body the human confirmed, and the chosen method.' }],
         returns: '`created` with the issue URL, or `browser` with the prefilled page URL.',
       },
     ],
@@ -5241,7 +5241,7 @@ export const EVENT_API: readonly EventApiEntry[] = [
   {
     name: 'approval/request',
     mode: 'waterfall',
-    signature: '\'approval/request\'( this: Scoped<Agent>, req: ApprovalRequestEvent, next: () => Promise<ApprovalOutcome>, ): Promise<ApprovalOutcome>',
+    signature: '\'approval/request\'( this: Scoped<Agent>, req: ApprovalRequestEvent, next: () => Promise<ApprovalAnswer>, ): Promise<ApprovalAnswer>',
     summary: 'Ask composed answerers for one decision.',
     description: 'Ask composed answerers for one decision. Return an outcome to claim the request or call `next()` to delegate. Scope-filtered dispatch (`@deepseek-ai/dsh-scope`): agent-scoped listeners receive only that agent.',
     parameters: [{ name: 'req', description: 'pending approval request.' }],
@@ -5971,6 +5971,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type ApiSessionAgentResult = {\n    readonly agent: Agent;\n} | {\n    readonly error: ApiSessionAgentError;\n};',
   },
   {
+    name: 'ApprovalAnswer',
+    declaration: 'export type ApprovalAnswer = ApprovalOutcome | \'allowed-for-session\';',
+  },
+  {
     name: 'ApprovalOutcome',
     declaration: 'export type ApprovalOutcome = \'allowed-once\' | \'rejected\' | \'cancelled\' | \'unavailable\';',
   },
@@ -5984,7 +5988,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ApprovalRequestEvent',
-    declaration: 'export interface ApprovalRequestEvent {\n    readonly agent: Agent;\n    readonly toolName: string;\n    readonly callId?: ToolCallId;\n    readonly reason?: string;\n    readonly displayReason?: {\n        readonly en: string;\n        readonly [locale: string]: string;\n    };\n    readonly signal?: AbortSignal;\n}',
+    declaration: 'export interface ApprovalRequestEvent {\n    readonly agent: Agent;\n    readonly toolName: string;\n    readonly callId?: ToolCallId;\n    readonly reason?: string;\n    readonly displayReason?: {\n        readonly en: string;\n        readonly [locale: string]: string;\n    };\n    readonly grant?: string;\n    readonly signal?: AbortSignal;\n}',
   },
   {
     name: 'ArchiveSessionOptions',
@@ -6176,7 +6180,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'BundleInfo',
-    declaration: 'export interface BundleInfo {\n    name: string;\n    official: boolean;\n    availability: \'installation\' | \'profile\' | \'missing\';\n    version?: string;\n    meta?: PluginLocalizedMeta;\n    description?: string;\n    listedByDefault?: boolean;\n    enabled: boolean;\n    installed: boolean;\n    source?: string;\n    optional: boolean;\n    removable: boolean;\n    update?: \'registry\' | \'git\';\n    readOnlyReason?: ReadOnlyReason;\n    error?: ManagementError;\n    rows: BundleRowInfo[];\n    overrides: string[];\n}',
+    declaration: 'export interface BundleInfo {\n    name: string;\n    official: boolean;\n    availability: \'installation\' | \'profile\' | \'missing\';\n    version?: string;\n    meta?: PluginLocalizedMeta;\n    description?: string;\n    listedByDefault?: boolean;\n    requires?: string[];\n    enabled: boolean;\n    installed: boolean;\n    source?: string;\n    optional: boolean;\n    removable: boolean;\n    update?: \'registry\' | \'git\';\n    readOnlyReason?: ReadOnlyReason;\n    error?: ManagementError;\n    rows: BundleRowInfo[];\n    overrides: string[];\n}',
   },
   {
     name: 'BundleRowInfo',
@@ -7648,7 +7652,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'LlmModelInfo',
-    declaration: 'export interface LlmModelInfo {\n    provider: string;\n    id: string;\n    name: string;\n    description?: string;\n    inputModalities?: readonly ModelModality[];\n    badge?: LlmModelBadge;\n}',
+    declaration: 'export interface LlmModelInfo {\n    provider: string;\n    id: string;\n    name: string;\n    description?: string;\n    inputModalities?: readonly ModelModality[];\n    badge?: LlmModelBadge;\n    older?: boolean;\n}',
   },
   {
     name: 'LlmModelReasoningInfo',
@@ -8020,7 +8024,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ModelCatalogModel',
-    declaration: 'export interface ModelCatalogModel {\n    readonly id: string;\n    readonly name: string;\n    readonly description?: string;\n    readonly reasoning?: ModelReasoning;\n    readonly badge?: LlmModelBadge;\n}',
+    declaration: 'export interface ModelCatalogModel {\n    readonly id: string;\n    readonly name: string;\n    readonly description?: string;\n    readonly reasoning?: ModelReasoning;\n    readonly badge?: LlmModelBadge;\n    readonly older?: boolean;\n}',
   },
   {
     name: 'ModelMessageSource',
@@ -9143,6 +9147,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SessionFeedbackIssue {\n    readonly title: string;\n    readonly body: string;\n}',
   },
   {
+    name: 'SessionFeedbackIssueDraft',
+    declaration: 'export interface SessionFeedbackIssueDraft extends SessionFeedbackIssue {\n    readonly repository: string;\n}',
+  },
+  {
     name: 'SessionFeedbackIssueDraftRequest',
     declaration: 'export interface SessionFeedbackIssueDraftRequest {\n    readonly text?: string;\n    readonly category?: FeedbackCategory;\n}',
   },
@@ -9157,6 +9165,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SessionFeedbackRecordValue',
     declaration: 'export interface SessionFeedbackRecordValue {\n    readonly recorded: true;\n}',
+  },
+  {
+    name: 'SessionFeedbackReportIssueMethod',
+    declaration: 'export type SessionFeedbackReportIssueMethod = \'browser\' | \'github-cli\';',
+  },
+  {
+    name: 'SessionFeedbackReportIssueRequest',
+    declaration: 'export interface SessionFeedbackReportIssueRequest extends SessionFeedbackIssue {\n    readonly via: SessionFeedbackReportIssueMethod;\n}',
   },
   {
     name: 'SessionFeedbackReportIssueResult',

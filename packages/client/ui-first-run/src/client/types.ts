@@ -29,7 +29,11 @@ export interface FirstRunOverlayInjected {
     flow: HostObservable<FlowState>
     /** The stored first-run completion. */
     firstRun: HostObservable<ConfigFormSnapshot<FirstRunSection>>
+    /** The section that records the preview notice's acknowledgement. */
+    welcome: HostObservable<ConfigFormSnapshot<FirstRunSection>>
   }
+  /** Whether this shell shows the preview notice, which the automatic first run waits for. */
+  welcomeGate: boolean
   operations: FirstRunOperations
   components: ComponentOperations
   /**
@@ -43,4 +47,10 @@ export interface FirstRunOverlayInjected {
 /** Face of the two entry points: open their part of the flow. */
 export interface FirstRunEntryInjected {
   open: () => void
+}
+
+/** The `firstRunUi` service: lets other plugins open the provider setup. */
+export interface FirstRunUi {
+  /** Open the provider step, as Settings → Models "Set up a provider" does. */
+  openProvider: () => void
 }

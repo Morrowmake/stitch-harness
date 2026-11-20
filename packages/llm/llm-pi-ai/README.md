@@ -116,9 +116,15 @@ A request tries the session's last serving account first, then the default (`def
 
 Usage bars and the composer badge read memory-only usage snapshots: rate-limit response headers of every request, plus — only for signed-in subscriptions with a usage endpoint (ChatGPT/Codex, Claude, Grok), only while a settings page or badge is open (or once after a limit) — that provider's own usage endpoint, called with the same client identity pi-ai uses for that account's inference. No other host is ever contacted. Health, stickiness, and usage are never persisted.
 
+Adding an API key (`llmAccounts.addApiKeyAccount`) first asks the provider whether it accepts it: one model-listing request with the discovery header rules (OpenRouter, whose listing is public, answers `GET /api/v1/key`), with a 10 s deadline. A 401/403 (or Gemini's `API_KEY_INVALID`) refuses the key with `llm-accounts/key-rejected` and stores nothing; an accepted key returns `check: { status: 'verified' }`; a key the check cannot judge — unreachable, 5xx, a protocol without a listing, a 404 or non-JSON reply — is stored with `check: { status: 'unverified', reason }`. "Retry now" (`retryAccountNow`) runs the same check for API-key and key-reference accounts: a refused key stays marked as needing a new key, anything else clears the account's health; signed-in and ambient accounts are simply cleared (`{ status: 'cleared' }`).
+
+Failures shown to people are one plain sentence naming the provider and accounts by label — alias, else sign-in email, else "Account N", never the account id — and say "rejected the API key" for key accounts, "sign in again" only for signed-in ones. The per-account developer detail rides on the error's in-process `cause`; codes are unchanged.
+
 ### Resolve the model catalog
 
 A profile's `models` list replaces the route's installed catalog rather than extending it; each entry defaults its unset fields from the installed model of the same id, so narrowing a route to two models, correcting one capacity, or adding a model newer than the installed catalog are one-line edits. `modelOverrides` reshapes individual installed-catalog models without that cost — correct one model, keep the other thirty-seven — and is refused when set beside a `models` list, on a hand-declared route, or naming a model the catalog does not describe, because a silently unchanged model would be a typo someone hunts for later.
+
+`listModels` returns each route's models current first and newest first, flagging aliases ("(latest)", `-latest`), dated snapshots (`-YYYYMMDD`, "(YYYY-MM-DD)"), and superseded versions (a higher version of the same family and variant exists, or the family's newest major is two ahead) as `older`, which pickers collapse under "Older models". pi-ai's catalog has no release dates, so the order is a heuristic over names ([`src/model-order.ts`](src/model-order.ts)). Pinned `~acct:` entries follow the same order and carry the account's display label as their badge.
 
 ### Run with reasoning and wire compatibility
 
@@ -135,6 +141,8 @@ Each operation captures the current `providers` Config reference. New or changed
 ### Discover models from endpoints
 
 The plugin answers "which models can this provider serve?" for a route a configuration surface is editing or drafting. A route the installed catalog ships is answered from that catalog with no network call, preserving its `input` array as discovery `inputModalities`; only a route the catalog does not describe is interrogated over the wire. `openai-completions` and `openai-responses` use `GET {baseURL}/models` with bearer auth, while `anthropic-messages` uses native `GET /v1/models?limit=1000` semantics with `x-api-key` and `anthropic-version`; its listing URL accepts the API root with or without a trailing `/v1` because gateway documentation publishes both spellings, and only that listing URL normalizes the segment, so model requests receive the configured `baseURL` unchanged. `google-generative-ai` uses `GET {baseURL}/models?pageSize=1000` with `x-goog-api-key`, because its `baseURL` already carries the API version, such as `/v1beta`. A named configured route supplies its stored credential and profile `headers` inside the Host, so deployment headers configured through `cordis.patch.yml` or Cordis config reach model discovery without becoming discovery-request or Models-page fields; a key typed into the form still wins over the stored credential. The parser accepts either the standard `data` array or an enriched `models` map, normalizing each candidate's id, display name, context window, and output-token cap; Anthropic's `max_input_tokens` and `max_tokens` feed the same capacity fields, a map key remains the request id even when its entry names a different canonical id, primitive-valued map properties are ignored, and a missing display name falls back to that request id. A Gemini reply is a `models` array instead: each `name` without its `models/` prefix becomes the request id, `displayName`, `inputTokenLimit`, and `outputTokenLimit` fill the same fields, and an entry whose `supportedGenerationMethods` omits `generateContent` is skipped. The reply is candidate metadata a surface may offer for adoption — nothing is stored, and `cordis.patch.yml` remains the only thing that decides what a route serves.
+
+A failed interrogation tells the surface why through the `llm/model-discovery-rejected` detail `reason`: `unreachable` (no connection, or no answer within 8 s), `unauthorized` (401/403), `not-compatible` (another HTTP failure, a non-JSON body, or a body without models), or `other`.
 
 ### Failures and recovery
 
@@ -187,6 +195,7 @@ This event covers inference calls with or without a Session id, including auxili
 | [`src/replay.ts`](src/replay.ts) | Versioned `ReplayEnvelope` storage and validation |
 | [`src/prefix-binding.ts`](src/prefix-binding.ts) | Anthropic thinking omission after a request-prefix change |
 | [`src/discovery.ts`](src/discovery.ts) | Endpoint interrogation for configuration surfaces |
+| [`src/model-order.ts`](src/model-order.ts) | Picker order and the "older" flag of a route's catalog |
 
 ### Registration and directory
 

@@ -82,7 +82,7 @@ it.skipIf(process.platform !== 'darwin')('keeps system requests pending until fr
   await warning.waitFor({ state: 'hidden' })
   await risks.hover()
   await warning.waitFor()
-  await approval.getByRole('button', { name: 'Reject', exact: true }).focus()
+  await approval.getByRole('button', { name: 'Deny', exact: true }).focus()
   await warning.waitFor({ state: 'hidden' })
   await approval.locator('p').hover()
   await risks.hover()

@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "工作流",
-    "description": "workflow 工具、其 PTC 运行时和工作流运行视图。需要子智能体组件。"
+    "description": "让助手借助辅助助手运行多步骤工作流，并显示每次运行的进度。"
   }
 }

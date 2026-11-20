@@ -3,15 +3,18 @@
  * of `conversation.input.overlay` so each Session owns exactly one of each.
  * The Modal and the Toast both portal to `document.body`; the overlay slot
  * only supplies the per-session controller and the composer card the toast
- * centers over.
+ * centers over. The form saves a note on this computer only; the GitHub
+ * preview renders the issue body as formatted text, names the public target
+ * repository, and sends only through one of its two explicit actions.
  * @module @deepseek-ai/dsh-client-ui-message-feedback/client/FeedbackDialog
  */
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
-  Button, Checkbox, IconWarningOutlineRegular, Input, Modal, Toast,
+  Button, Checkbox, IconWarningOutlineRegular, Input, MarkdownText, Modal, Toast,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { FeedbackCategory } from '@deepseek-ai/dsh-command-feedback/types'
+import type { FeedbackNotice } from './dialog.ts'
 import type { FeedbackDialogProps } from './slots.ts'
 import css from './FeedbackDialog.module.css'
 
@@ -42,7 +45,8 @@ const NOTICE_COPY = {
   'recorded': 'toast.recorded',
   'issue-created': 'toast.issueCreated',
   'issue-opened': 'toast.issueOpened',
-} as const
+  'issue-fallback': 'toast.issueFallback',
+} as const satisfies Record<FeedbackNotice, string>
 
 /**
  * Render one Session's feedback dialog and toast.
@@ -71,6 +75,20 @@ export function FeedbackDialog({
     ? null
     : t(FAILURE_COPY[failureCode] ?? (report === null ? 'error.generic' : 'error.report'))
   const onFailureDone = useCallback(() => { dismissFailure() }, [dismissFailure])
+  // The preview shows formatted text until the human asks to edit the raw body;
+  // every new preview starts formatted.
+  const [editingBody, setEditingBody] = useState(false)
+  const previewing = report !== null
+  useEffect(() => { if (!previewing) setEditingBody(false) }, [previewing])
+  // MarkdownText memoizes its vocabulary; keep the labels' identity stable.
+  const markdownLabels = useMemo(() => ({
+    code: {
+      copyLabel: t('copy'),
+      copiedLabel: t('copied'),
+      toolbarLabels: { codeLabel: t('codeBlock.title'), wrapLabel: t('codeBlock.wrap'), unwrapLabel: t('codeBlock.unwrap') },
+    },
+    footnotes: t('markdown.footnotes'),
+  }), [t])
 
   const form = (
     <>
@@ -106,8 +124,9 @@ export function FeedbackDialog({
         disabled={state.submitting}
         onClick={() => { void submit() }}
       >
-        {state.submitting ? t('submitting') : t('submit')}
+        {state.submitting ? t('dialog.saving') : t('dialog.save')}
       </Button>
+      <p className={css.note}>{t('dialog.localOnly')}</p>
       <Button
         variant="ghost"
         className={css.secondary}
@@ -153,10 +172,19 @@ export function FeedbackDialog({
               variant="primary"
               className={css.submit}
               disabled={state.submitting}
-              onClick={() => { void confirmReport() }}
+              onClick={() => { void confirmReport('browser') }}
             >
-              {state.submitting ? t('report.reporting') : t('report.confirm')}
+              {state.submitting && report.via === 'browser' ? t('report.opening') : t('report.openBrowser')}
             </Button>
+            <Button
+              variant="outline"
+              className={css.secondary}
+              disabled={state.submitting}
+              onClick={() => { void confirmReport('github-cli') }}
+            >
+              {state.submitting && report.via === 'github-cli' ? t('report.filing') : t('report.fileDirect')}
+            </Button>
+            <p className={css.note}>{t('report.fileDirectHint')}</p>
             <Button
               variant="ghost"
               className={css.secondary}
@@ -170,26 +198,43 @@ export function FeedbackDialog({
       >
         {report === null ? form : (
           <div className={css.report}>
-            <p className={css.hint}>{t('report.hint')}</p>
+            <p className={css.hint}>{t('report.hint', { repository: report.repository })}</p>
             <Input
               aria-label={t('report.issueTitle')}
               value={report.title}
               readOnly={state.submitting}
               onChange={(event) => { editReport({ title: event.target.value }) }}
             />
-            <textarea
-              className={`${css.detail} ${css.body}`}
-              aria-label={t('report.issueBody')}
-              value={report.body}
-              readOnly={state.submitting}
-              onChange={(event) => { editReport({ body: event.target.value }) }}
-            />
-            <Checkbox
-              checked={report.includeSessionId}
-              disabled={state.submitting}
-              label={t('report.includeSessionId')}
-              onChange={includeSessionId}
-            />
+            {editingBody
+              ? (
+                <textarea
+                  className={`${css.detail} ${css.body}`}
+                  aria-label={t('report.issueBody')}
+                  value={report.body}
+                  readOnly={state.submitting}
+                  onChange={(event) => { editReport({ body: event.target.value }) }}
+                />
+              )
+              : (
+                <section className={css.preview} aria-label={t('report.preview')}>
+                  <MarkdownText text={report.body} labels={markdownLabels} variant="compact" />
+                </section>
+              )}
+            <div className={css.previewControls}>
+              <Checkbox
+                checked={report.includeSessionId}
+                disabled={state.submitting}
+                label={t('report.includeSessionId')}
+                onChange={includeSessionId}
+              />
+              <Button
+                size="sm"
+                disabled={state.submitting}
+                onClick={() => { setEditingBody(editing => !editing) }}
+              >
+                {editingBody ? t('report.showPreview') : t('report.editText')}
+              </Button>
+            </div>
           </div>
         )}
       </Modal>

@@ -71,7 +71,7 @@ describe('plugin page touch rules', () => {
     const unguarded = statesIn(rules, /^:hover$/).filter(state => !state.hoverMedia)
     expect(unguarded.map(state => state.line)).toEqual([])
     for (const selector of [
-      '.groupMore:hover', '.cardLink:hover', '.iconButton:hover', '.deleteButton:hover', '.guideToggle:hover',
+      '.cardLink:hover', '.iconButton:hover', '.deleteButton:hover', '.guideToggle:hover',
       '.registryToggle:hover', '.registryOption:hover', '.wizardClose:hover', '.crumb:hover', '.rowOpen:hover',
     ]) {
       expect(rules).toContain(selector)

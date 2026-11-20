@@ -70,24 +70,6 @@ function assertPositiveFinite(name: string, value: number): void {
 }
 
 /**
- * Reject a resolved section this executor could not run with. The schema
- * expresses neither "positive and finite" nor the timer bound `graceMs` has to
- * fit, so a stored value that cannot be used fails at the next command.
- * @param config - the live configuration, schema-valid by construction.
- * @throws Error naming the field that cannot be used.
- */
-export function assertServiceableBashConfig(config: Config): void {
-  assertPositiveFinite('timeoutMs', config.timeoutMs.get())
-  assertPositiveFinite('maxTimeoutMs', config.maxTimeoutMs.get())
-  assertPositiveFinite('maxOutputBytes', config.maxOutputBytes.get())
-  assertPositiveFinite('maxSpillBytes', config.maxSpillBytes.get())
-  assertPositiveFinite('graceMs', config.graceMs.get())
-  if (config.graceMs.get() > MAX_TIMER_DELAY_MS) {
-    throw new Error(`bash-local: graceMs must be no greater than ${MAX_TIMER_DELAY_MS}`)
-  }
-}
-
-/**
  * Local bash executor over `ctx.subprocess`. Bounded output, spill files,
  * managed-range SIGTERM→SIGKILL escalation, and quiescence are the subprocess
  * service's mechanics; this executor supplies their configured budgets per spawn, so a
@@ -99,11 +81,11 @@ export class LocalBashExecutor extends ShellExecutor {
 
   static Config = z.object({
     cwd: z.string().volatile(),
-    timeoutMs: z.number().default(120_000).volatile(),
-    maxTimeoutMs: z.number().default(600_000).volatile(),
-    maxOutputBytes: z.number().default(64_000).volatile(),
-    maxSpillBytes: z.number().default(DEFAULT_MAX_SPILL_BYTES).volatile(),
-    graceMs: z.number().default(DEFAULT_GRACE_MS).volatile(),
+    timeoutMs: z.natural().min(1).max(MAX_TIMER_DELAY_MS).default(120_000).volatile(),
+    maxTimeoutMs: z.natural().min(1).max(MAX_TIMER_DELAY_MS).default(600_000).volatile(),
+    maxOutputBytes: z.natural().min(1).default(64_000).volatile(),
+    maxSpillBytes: z.natural().min(1).default(DEFAULT_MAX_SPILL_BYTES).volatile(),
+    graceMs: z.natural().min(1).max(MAX_TIMER_DELAY_MS).default(DEFAULT_GRACE_MS).volatile(),
   })
 
   constructor(ctx: Context, readonly config: Config) {
@@ -118,7 +100,6 @@ export class LocalBashExecutor extends ShellExecutor {
    * re-defaults.
    */
   resolve(request: ShellExecRequest): ShellExecSpec {
-    assertServiceableBashConfig(this.config)
     const timeoutMs = clampTimeout(
       request.timeoutMs,
       this.config.timeoutMs.get(),

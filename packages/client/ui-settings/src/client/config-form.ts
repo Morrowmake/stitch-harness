@@ -100,6 +100,25 @@ export class ConfigFormController<T> implements ConfigForm<T> {
   }
 
   /**
+   * Check one candidate field value; see {@link ConfigForm.accepts}.
+   * @param path - field path inside the namespace section.
+   * @param value - candidate JSON-shaped value.
+   * @returns false only when the served schema rejects the value.
+   */
+  accepts(path: readonly string[], value: unknown): boolean {
+    const view = this.mirror.getSnapshot().view?.namespaces.find(candidate => candidate.ns === this.spec.namespace)
+    if (view === undefined) return true
+    let node
+    try {
+      node = this.schema.nodeAtPath(this.schema.rehydrate(view.schema), path)
+    } catch {
+      // An envelope this client cannot rehydrate judges nothing; the Host write still does.
+      return true
+    }
+    return node === undefined || this.schema.validate(node, value) === undefined
+  }
+
+  /**
    * Queue one field write; see {@link ConfigForm.set} for the ordering,
    * revision, and recovery contract.
    * @param field - scalar field inside the namespace section.

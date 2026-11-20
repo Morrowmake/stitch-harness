@@ -5,9 +5,13 @@
 - switch "启用 @fixture/live-client" [checked]
 - heading "@fixture/live-client" [level=3]
 - text: v0.0.1 夹具标签
+- region "夹具区块":
+  - heading "夹具区块" [level=4]
+  - paragraph: 来自夹具的区块内容
+- button "开发者信息" [expanded]
 - paragraph:
   - code: "@fixture/live-client"
-- heading "包含的组件" [level=4]
+- heading "包含的内容" [level=4]
 - text: 共 1 个 · 1 运行中
 - list:
   - listitem:
@@ -21,6 +25,3 @@
   - code: file:{{fixtures}}/fixture-live-client
 - term: 当前版本
 - definition: 0.0.1
-- region "夹具区块":
-  - heading "夹具区块" [level=4]
-  - paragraph: 来自夹具的区块内容

@@ -1,6 +1,8 @@
 - button "返回插件": 插件
+- status
+- switch "启用 子智能体" [checked]
 - heading "子智能体" [level=3]
-- paragraph: 设置子智能体的递归层级、数量和模型。
+- paragraph: 让助手把任务交给辅助助手，并提供相应视图和设置。
 - region "运行限制":
   - heading "运行限制" [level=3]
   - text: 最大递归深度
@@ -23,3 +25,4 @@
   - switch "允许 Agent 为子智能体选择模型"
   - paragraph: 关闭后，子智能体使用配置的默认模型或继承父 Agent 的模型；已选模型会保留。
 - button "保存" [disabled]
+- button "开发者信息"

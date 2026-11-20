@@ -4,11 +4,11 @@ English | [中文](plugin-market.zh.md)
 
 ## Summary
 
-A plugin index is one JSON file that lists installable Stitch bundles with their titles, icons, authors, and versions. Turn on the experimental **Custom plugin indexes** bundle to browse indexes in a **Discover** tab on the Plugins page and install a listed version after a confirmation. To publish an index, write or generate an index file and serve it, together with its icon files, from any static host.
+A plugin index is one JSON file that lists installable Stitch bundles with their titles, icons, authors, and versions. The **Discover** tab on the Plugins page browses indexes and installs a listed version after a confirmation. To publish an index, write or generate an index file and serve it, together with its icon files, from any static host.
 
 ## Table of Contents
 
-- [Turn on Discover](#turn-on)
+- [Open Discover](#turn-on)
 - [Browse and install](#browse-and-install)
 - [Running DeepSeek Harness plugins](#deepseek-harness-plugins)
 - [Claude Code and Codex subagents](#claude-code-and-codex)
@@ -18,11 +18,11 @@ A plugin index is one JSON file that lists installable Stitch bundles with their
 - [Further Exploration](#further-exploration)
 
 <a id="turn-on"></a>
-## Turn on Discover
+## Open Discover
 
-Open **Plugins**, find **Custom plugin indexes** under **Experimental plugins**, and switch it on. A **Discover** tab appears next to **Installed**, and Creator mode gains the read-only `plugin_market` tool. Switching the bundle off removes both again.
+Open **Plugins** and select **Discover** next to **Installed**, or choose **More → Browse other plugins** in the sidebar. Every Web profile has the tab. To let the agent in Creator mode search indexes for you with the read-only `plugin_market` tool, choose **Show advanced** in Plugins and switch on **Plugin market tool for the agent**; it is off by default so the agent's instructions stay short.
 
-Discover lists the Stitch plugin index first, then the DeepSeek Harness indexes `https://awesome-dsh-plugin.com/index.json` and `https://cdn.dsh.so/market/index.json`; none is fetched until you open it. To add another, select **Discover**, choose **Add index source**, and enter the URL of an index file. A URL must use `http:` or `https:` and must not contain a user name, password, or `#` fragment. Anyone on the network path can change an `http:` index, including the install specs it lists, so use `https:` for an index reached over a network you do not control. Each source belongs to the current profile.
+Discover lists only the Stitch plugin index at first; it is not fetched until you open it. While it lists no plugins, Discover says so and offers the community indexes. Two community indexes from DeepSeek Harness are offered in **Manage index sources…** under **Community indexes**: **Awesome plugins for DeepSeek Harness** (`https://awesome-dsh-plugin.com/index.json`) and **DeepSeek Harness plugin market** (`https://cdn.dsh.so/market/index.json`). To add another, choose **Add index source** and enter the URL of an index file. A URL must use `http:` or `https:` and must not contain a user name, password, or `#` fragment. Anyone on the network path can change an `http:` index, including the install specs it lists, so use `https:` for an index reached over a network you do not control. Each source belongs to the current profile.
 
 <a id="browse-and-install"></a>
 ## Browse and install
@@ -33,7 +33,7 @@ Each card shows the plugin's recommended version: the highest version compatible
 
 Select a card to open its page. The **Versions** list shows every listed version with its compatibility and offers **Install** for any version Stitch accepts, including older releases and prereleases. A card that shows **Installed**, **Update available**, or **Provided by Stitch** opens the installed bundle instead.
 
-Indexes are third-party content. An index chooses each plugin's title, description, icon, author, and source; Stitch checks the file format but not those claims. Add only sources you trust, and check the source in the confirmation before installing.
+Indexes are third-party content. An index chooses each plugin's title, description, icon, author, and source; Stitch checks the file format but not those claims. Every index except the Stitch index is marked **Community — not reviewed by Stitch**, and a verdict it gives, such as a low-risk or install-verified label, names that index ("Rated low risk by …") rather than reading as Stitch's. Community cards also say when a plugin is made for DeepSeek Harness, needs another Stitch version, or doesn't say which Stitch versions it supports. Add only sources you trust, and check the source in the confirmation before installing.
 
 <a id="deepseek-harness-plugins"></a>
 ## Running DeepSeek Harness plugins
@@ -48,7 +48,7 @@ A small compatibility layer lets these plugins run unchanged:
 
 - **Environment.** When a `STITCH_` variable such as `STITCH_HOME`, `STITCH_AGENTS_HOME`, or `STITCH_PERMISSION_MODE` is unset, Stitch reads its `DSH_` spelling instead; a `STITCH_` value always wins. Shell commands and terminals receive `DSH_SESSION_ID` and `DSH_WEB_URL` with the same values as `STITCH_SESSION_ID` and `STITCH_WEB_URL`, and a plugin may register shell variables named `DSH_*` as well as `STITCH_*`.
 - **Skills.** Skills in an existing `~/.dsh/skills` or `<project>/.dsh/skills` directory are available. Stitch only reads these directories and never creates them; a Stitch skill with the same name wins.
-- **Indexes.** Discover lists the DeepSeek Harness indexes after the Stitch index, as described under [Turn on Discover](#turn-on).
+- **Indexes.** Discover offers the DeepSeek Harness community indexes, as described under [Open Discover](#turn-on); they are not added by default.
 
 Some plugins still do not work:
 

@@ -1,6 +1,7 @@
 /**
  * GitHub issue reporting for Session feedback: the editable preview a human
- * reviews, the `gh issue create` attempt, and the prefilled browser fallback.
+ * reviews, the prefilled new-issue page, and — only when the human explicitly
+ * chooses it — the `gh issue create` attempt that falls back to that page.
  * The preview carries only the remark, its category, the Stitch version, and
  * the operating system; nothing here reads Session content.
  * @module @deepseek-ai/dsh-command-feedback/github-issue
@@ -11,7 +12,10 @@ import { readFileSync } from 'node:fs'
 import os from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { REPOSITORY } from '@deepseek-ai/dsh-product'
-import type { FeedbackCategory, SessionFeedbackIssue, SessionFeedbackReportIssueResult } from './types.ts'
+import type {
+  FeedbackCategory, SessionFeedbackIssue, SessionFeedbackIssueDraft, SessionFeedbackReportIssueRequest,
+  SessionFeedbackReportIssueResult,
+} from './types.ts'
 
 /** The `owner/name` GitHub repository feedback issues are filed against. */
 export const FEEDBACK_REPOSITORY = REPOSITORY
@@ -22,8 +26,11 @@ export const MAX_ISSUE_URL_LENGTH = 7000
 /** Title used when the human leaves the title blank or the remark has no text. */
 export const DEFAULT_ISSUE_TITLE = 'Stitch feedback'
 
+/** Body line standing in for a remark without text. */
+export const NO_DESCRIPTION = 'No description provided.'
+
 /** Line appended to a body cut down to fit the prefilled URL. */
-export const ISSUE_TRUNCATION_NOTE = '\n\n_(Stitch shortened this report to fit a browser link; add anything missing before submitting.)_'
+export const ISSUE_TRUNCATION_NOTE = '\n\n(Stitch shortened this report to fit a browser link; add anything missing before submitting.)'
 
 const TITLE_LENGTH = 80
 const MAX_TITLE_LENGTH = 256
@@ -165,24 +172,29 @@ function clip(text: string, length: number): string {
  * Build the editable issue preview for one remark.
  * @param entry - the remark text and category the human supplied.
  * @param environment - the version and operating system to name.
- * @returns a title from the remark's first line and a body holding only the remark, category, version, and OS.
+ * @param repository - `owner/name` slug a confirmed issue is filed on.
+ * @returns a title from the remark's first line, a plain Markdown body holding only the remark and a
+ * details list of category, version, and OS, and the target repository.
  */
 export function draftFeedbackIssue(
   entry: { readonly text?: string; readonly category?: FeedbackCategory },
   environment: FeedbackEnvironment,
-): SessionFeedbackIssue {
+  repository = FEEDBACK_REPOSITORY,
+): SessionFeedbackIssueDraft {
   const text = entry.text?.trim() ?? ''
   const firstLine = text.split('\n').find(line => line.trim().length > 0)?.trim()
   return {
     title: firstLine === undefined ? DEFAULT_ISSUE_TITLE : clip(firstLine, TITLE_LENGTH),
     body: [
-      text.length === 0 ? '_No description provided._' : text,
+      text.length === 0 ? NO_DESCRIPTION : text,
       '',
-      '---',
+      'Details:',
+      '',
       `- Category: ${entry.category ?? 'none'}`,
       `- Stitch version: ${environment.version}`,
       `- OS: ${environment.platform}`,
     ].join('\n'),
+    repository,
   }
 }
 
@@ -223,24 +235,26 @@ async function attempt(
 }
 
 /**
- * File a confirmed issue: with an installed and authenticated `gh` CLI it is created directly; otherwise — `gh`
- * missing, unauthenticated, failing, or timing out — the caller receives a prefilled new-issue page to open.
- * @param issue - the title and body the human confirmed.
- * @param run - process runner for `gh`.
+ * Send a confirmed issue the way the human chose. `browser` only builds the prefilled new-issue page and never
+ * runs `gh`. `github-cli` creates the issue with an installed and authenticated `gh` CLI; when `gh` is missing,
+ * unauthenticated, failing, or timing out, the caller receives the prefilled page instead.
+ * @param request - the title and body the human confirmed, and the chosen method.
+ * @param run - process runner for `gh`; used only for `github-cli`.
  * @param repository - `owner/name` slug.
  * @returns the created issue URL, or the prefilled page URL.
  */
 export async function reportFeedbackIssue(
-  issue: SessionFeedbackIssue,
+  request: SessionFeedbackReportIssueRequest,
   run: FeedbackProcessRunner,
   repository = FEEDBACK_REPOSITORY,
 ): Promise<SessionFeedbackReportIssueResult> {
-  const title = clip(issue.title.trim() || DEFAULT_ISSUE_TITLE, MAX_TITLE_LENGTH)
-  const browser = { kind: 'browser', url: newIssueUrl({ title, body: issue.body }, repository) } as const
+  const title = clip(request.title.trim() || DEFAULT_ISSUE_TITLE, MAX_TITLE_LENGTH)
+  const browser = { kind: 'browser', url: newIssueUrl({ title, body: request.body }, repository) } as const
+  if (request.via !== 'github-cli') return browser
   const auth = await attempt(run, ['auth', 'status', '--hostname', 'github.com'], AUTH_TIMEOUT_MS)
   if (auth?.exitCode !== 0) return browser
   const created = await attempt(
-    run, ['issue', 'create', '--repo', repository, '--title', title, '--body', issue.body], CREATE_TIMEOUT_MS,
+    run, ['issue', 'create', '--repo', repository, '--title', title, '--body', request.body], CREATE_TIMEOUT_MS,
   )
   const url = created?.exitCode === 0 ? ISSUE_URL.exec(created.stdout)?.[0] : undefined
   return url === undefined ? browser : { kind: 'created', url }

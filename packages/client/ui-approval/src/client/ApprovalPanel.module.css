@@ -152,16 +152,17 @@
   font-weight: 500;
 }
 
-.command {
+/* The detail renderer owns its own type, such as a monospace command. */
+.detail {
+  min-width: 0;
   color: var(--dsw-alias-label-tertiary);
-  font-family: var(--ds-font-family-code);
   font-size: 13px;
   line-height: 20px;
-  word-break: break-all;
 }
 
 .actionRow {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
   padding: 14px 16px;
@@ -196,4 +197,3 @@
 }
 
 .withSubject .body { text-align: left; }
-.withSubject .actionRow { flex-wrap: wrap; }

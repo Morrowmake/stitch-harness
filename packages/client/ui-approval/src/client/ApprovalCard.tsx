@@ -7,7 +7,7 @@ import css from './ApprovalPanel.module.css'
 import { ApprovalWarning } from './ApprovalWarning.tsx'
 
 /**
- * Render one decision with caller-owned actions and an optional persistent choice.
+ * Render one decision with caller-owned actions, an optional chat-scoped grant, and an optional persistent choice.
  * @param props Request identity, copy, actions and correlated detail.
  * @returns The shared approval card, reset for each request.
  */
@@ -16,7 +16,7 @@ export function ApprovalCard(props: FactoryComponentPropsOf<'conversation.approv
 }
 
 function ApprovalFlow(props: FactoryComponentPropsOf<'conversation.approval.card'>) {
-  const { requestKey, title, description, subject, warning, allowLabel, canAnswer, onAllow, onReject, onAlways, t } = props
+  const { requestKey, title, description, subject, warning, allowLabel, canAnswer, onAllow, onReject, onAllowForChat, onAlways, t } = props
   const detail = props.callId === undefined ? null : props.renderSlot('conversation.approval.detail', { callId: props.callId })
   const [answered, setAnswered] = useState(false)
   const waiting = useRef(false)
@@ -74,7 +74,7 @@ function ApprovalFlow(props: FactoryComponentPropsOf<'conversation.approval.card
             {warning !== undefined && <ApprovalWarning warning={warning} />}
           </div>
           {description !== undefined && <p className={css.description}>{description}</p>}
-          {detail !== null && <div className={css.command}>{detail}</div>}
+          {detail !== null && <div className={css.detail}>{detail}</div>}
         </div>
         <div className={css.actionRow}>
           <Button variant="outline" className={css.reject} disabled={answered} onClick={() => { answer(onReject) }}>
@@ -83,6 +83,9 @@ function ApprovalFlow(props: FactoryComponentPropsOf<'conversation.approval.card
           <Button variant={onAlways === undefined ? 'primary' : 'outline'} disabled={answered} onClick={() => { answer(onAllow) }}>
             {allowLabel ?? t('allowOnce')}
           </Button>
+          {onAllowForChat !== undefined && <Button variant="outline" disabled={answered} onClick={() => { answer(onAllowForChat) }}>
+            {t('allowForChat')}
+          </Button>}
           {onAlways !== undefined && <Button variant="primary" disabled={answered} onClick={() => { answer(onAlways) }}>
             {t('allowAlways')}
           </Button>}

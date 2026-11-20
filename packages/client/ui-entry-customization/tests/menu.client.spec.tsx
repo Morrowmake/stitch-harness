@@ -154,7 +154,7 @@ async function bench(
 ) {
   const runtime = await SlotTestRuntime.create()
   runtimes.add(runtime)
-  const openList = vi.fn(), startSession = vi.fn()
+  const openList = vi.fn(), openTab = vi.fn(), startSession = vi.fn()
   await runtime.mount({
     inject: ['slots'],
     apply(ctx: Context) {
@@ -162,7 +162,7 @@ async function bench(
       locale.setLocale(language)
       ctx.provide('locale', locale)
       ctx.slots.installLocale(locale)
-      if (navigation) ctx.provide('pluginNavigation', { openList } as never)
+      if (navigation) ctx.provide('pluginNavigation', { openList, openTab } as never)
       ctx.provide('uiWorkspace', { startSession } as never)
     },
   })
@@ -173,7 +173,7 @@ async function bench(
   }, Frame)
   const plugin = await runtime.mount({ inject: [...inject], apply })
   const view = runtime.renderRoot()
-  return { runtime, openList, startSession, plugin, view }
+  return { runtime, openList, openTab, startSession, plugin, view }
 }
 
 describe('More menu registrations', () => {
@@ -188,11 +188,12 @@ describe('More menu registrations', () => {
 
     const navigation = await b.runtime.mount({
       inject: [],
-      apply(ctx: Context) { ctx.provide('pluginNavigation', { openList: b.openList } as never) },
+      apply(ctx: Context) { ctx.provide('pluginNavigation', { openList: b.openList, openTab: b.openTab } as never) },
     })
     await act(async () => { await Promise.resolve() })
     fireEvent.click(sidebar().getByRole('menuitem', { name: 'Browse other plugins' }))
-    expect(b.openList).toHaveBeenCalledExactlyOnceWith()
+    expect(b.openTab).toHaveBeenCalledExactlyOnceWith('discover')
+    expect(b.openList).not.toHaveBeenCalled()
 
     await navigation.dispose()
     await act(async () => { await Promise.resolve() })
@@ -208,7 +209,9 @@ describe('More menu registrations', () => {
     }
     const sidebar = within(b.view.getByRole('menu', { name: 'sidebar.panellist.actions' }))
     fireEvent.click(sidebar.getByRole('menuitem', { name: 'Browse other plugins' }))
-    expect(b.openList).toHaveBeenCalledExactlyOnceWith()
+    // Browsing opens the Plugins page at Discover, not the Installed list.
+    expect(b.openTab).toHaveBeenCalledExactlyOnceWith('discover')
+    expect(b.openList).not.toHaveBeenCalled()
     await b.plugin.dispose()
     for (const seat of SEATS) {
       expect(b.runtime.slots.entries(seat)).toEqual([])
@@ -228,7 +231,7 @@ describe('More menu registrations', () => {
     fireEvent.click(within(b.view.getByRole('menu', { name: seat }))
       .getByRole('menuitem', { name: language === 'zh' ? '创建你的插件' : 'Create your plugin' }))
     expect(b.startSession).toHaveBeenCalledExactlyOnceWith(undefined, {
-      agentPreset: 'cordis', prompt, whenDraftExists: 'append',
+      agentPreset: 'cordis', prompt, whenDraftExists: 'ask',
     })
   })
 })

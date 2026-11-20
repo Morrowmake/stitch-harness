@@ -123,8 +123,7 @@
    so without it the outlined variants stand 2px taller than the filled ones
    they sit beside (Cancel next to Apply, Edit next to Delete). */
 .primaryButton,
-.secondaryButton,
-.addButton {
+.secondaryButton {
   box-sizing: border-box;
   display: inline-flex;
   align-items: center;
@@ -151,19 +150,13 @@
   }
 }
 
-.secondaryButton,
-.addButton {
+.secondaryButton {
   border: 0.5px solid var(--dsw-alias-border-l3);
   background: transparent;
   color: var(--dsw-alias-label-primary);
 }
 
 @media (hover: hover) {
-  .secondaryButton:hover:not(:disabled),
-  .addButton:hover:not(:disabled) {
-    background: var(--dsw-alias-interactive-bg-hover);
-  }
-
   .secondaryButton:hover:not(:disabled) {
     background: var(--dsw-alias-interactive-bg-hover-solid);
   }
@@ -205,7 +198,6 @@
 .primaryButton:disabled,
 .secondaryButton:disabled,
 .dangerButton:disabled,
-.addButton:disabled,
 .linkButton:disabled,
 .addModelButton:disabled {
   opacity: 0.4;
@@ -215,7 +207,6 @@
 .primaryButton:focus-visible,
 .secondaryButton:focus-visible,
 .dangerButton:focus-visible,
-.addButton:focus-visible,
 .linkButton:focus-visible,
 .addModelButton:focus-visible,
 .iconButton:focus-visible,
@@ -344,22 +335,9 @@
   gap: 12px;
 }
 
-/* The one entry to the add card, spanning the same width as the rows above. */
+/* The secondary entry to the developer add card, beneath the guided setup. */
 .addActions {
   display: flex;
-}
-
-.addButton {
-  /* Overrides the shared button base above: this is not a pill sitting in a
-     footer but the last slot of the provider list, so it fills the row and
-     repeats the row cards' corner. Dashed, like every other "nothing here yet"
-     affordance on this page, to read as a place rather than a command. */
-  flex: 1 1 0;
-  min-width: 180px;
-  gap: 6px;
-  height: 44px;
-  border: 1px dashed var(--dsw-alias-border-l3);
-  border-radius: var(--dsw-radius-lg);
 }
 
 /* The add card's mode switch with the one-line purpose of the chosen mode

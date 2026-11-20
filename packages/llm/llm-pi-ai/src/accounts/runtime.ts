@@ -8,7 +8,8 @@
 
 import type { Models } from '@earendil-works/pi-ai'
 import type { CredentialKey } from '@deepseek-ai/dsh-credentials'
-import type { AccountHealth, AccountId, AccountKind, AccountProfile, UsageSnapshotView, UsageWindowView } from './types.ts'
+import type { KeyCheckEndpoint } from './key-check.ts'
+import type { AccountHealth, AccountId, AccountKind, AccountProfile, SignInReason, UsageSnapshotView, UsageWindowView } from './types.ts'
 
 /** One account of one route as the Host sees it. */
 export interface AccountRuntime {
@@ -36,6 +37,8 @@ export interface HealthRegistry {
   view(route: string, account: AccountId, model?: string, now?: number): AccountHealth
   /** Forget cooldowns/sign-in state of one account or the whole route. */
   clear(route: string, account?: AccountId): void
+  /** Mark the account as needing a new credential until cleared. */
+  markNeedsSignIn(route: string, account: AccountId, reason: SignInReason): void
   /** Subscribe to any change; returns the disposer. */
   onChange(cb: () => void): () => void
 }
@@ -71,6 +74,10 @@ export interface AccountsRuntime {
   settingsNs: string
   /** Display name of a configured route (`undefined` when not configured). */
   routes: () => ReadonlyMap<string, { displayName: string }>
+  /** Where a configured route sends requests (its first model's endpoint and the profile headers); `undefined` when not configured. */
+  endpoint: (route: string) => KeyCheckEndpoint | undefined
+  /** Resolve the key a route's `apiKeyEnv` names; throws `LlmError` (`MISSING_CREDENTIAL`, `INVALID_CREDENTIAL`) when unusable. */
+  resolveKeyRef: (route: string) => Promise<string | undefined>
   /** Listen to every response observation; returns an unsubscribe function. */
   onObservation(cb: (route: string, account: AccountId, obs: Observation) => void): () => void
   /** Listen to rate-limit and quota refusals; returns an unsubscribe function. */

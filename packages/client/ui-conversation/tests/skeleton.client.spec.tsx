@@ -20,7 +20,7 @@ import { EMPTY_CONVERSATION_SNAPSHOT } from '../src/client/contract/snapshot.ts'
 import type { ConversationSnapshot } from '../src/client/contract/snapshot.ts'
 import { createConversationStore } from '../src/client/stores.ts'
 import { SessionInputShell } from '../src/client/input/facade.ts'
-import { en, zh } from '../src/client/locales.ts'
+import { de, en, es, fr, ja, pt, ru, zh } from '../src/client/locales.ts'
 import { ConversationContent } from '../src/client/skeleton/ConversationContent.tsx'
 import { ConversationHeader } from '../src/client/skeleton/ConversationHeader.tsx'
 import { ConversationMainPanel } from '../src/client/skeleton/ConversationMainPanel.tsx'
@@ -426,10 +426,11 @@ function mount(
 }
 
 describe('Hero chrome', () => {
-  it('renders the English preview badge through the hero locale seat', () => {
+  it('renders the plain headline and the preview badge of a prerelease build through the hero locale seat', () => {
+    vi.stubEnv('STITCH_CLIENT_VERSION', '0.2.2-rc.5')
     const renderSlot = vi.fn<(key: string, owner: object, opts?: { fallback?: ReactNode }) => ReactNode>(() => null)
     const view = render(<HeroShell t={makeTranslate(en, commonEn)} renderSlot={renderSlot as never} />)
-    expect(view.getByText('Into the Unknown')).toBeTruthy()
+    expect(view.getByText('What should we work on?')).toBeTruthy()
     expect(view.getByText('Preview')).toBeTruthy()
     expect(renderSlot).toHaveBeenCalledOnce()
     expect(renderSlot.mock.calls[0]?.[0]).toBe('conversation.hero.brand.mark')
@@ -440,12 +441,37 @@ describe('Hero chrome', () => {
     expect(brandMarkOwner.size).toBe(34)
     expect(brandMarkOwner.className).toBeTypeOf('string')
     expect(renderSlot.mock.calls[0]?.[2]?.fallback).toBeTruthy()
+    vi.unstubAllEnvs()
+  })
+
+  it('drops the preview badge on a stable release and keeps it on development builds', () => {
+    const badge = (version: string | undefined): boolean => {
+      vi.stubEnv('STITCH_CLIENT_VERSION', version)
+      const view = render(<HeroShell t={makeTranslate(en, commonEn)} renderSlot={(() => null) as never} />)
+      const shown = view.queryByText('Preview') !== null
+      view.unmount()
+      return shown
+    }
+    try {
+      expect([badge('1.0.0'), badge('1.0.0+build.7'), badge('1.0.0-beta.1'), badge(undefined)]).toEqual([false, false, true, true])
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
+
+  it('says what to do in every language instead of a tagline', () => {
+    for (const dict of [zh, en, ja, es, fr, de, ru, pt]) {
+      const view = render(<HeroShell t={makeTranslate(dict, commonEn)} renderSlot={(() => null) as never} />)
+      expect(view.container.textContent).toContain(dict['hero.headline'])
+      expect(dict['hero.headline']).toMatch(/[?？]$/)
+      view.unmount()
+    }
   })
 
   it('shows an owner headline instead of the default headline and preview badge', () => {
     const view = render(<HeroShell t={makeTranslate(en, commonEn)} renderSlot={(() => null) as never} headline="Review demo #42" />)
     expect(view.getByText('Review demo #42')).toBeTruthy()
-    expect(view.queryByText('Into the Unknown')).toBeNull()
+    expect(view.queryByText('What should we work on?')).toBeNull()
     expect(view.queryByText('Preview')).toBeNull()
   })
 })
@@ -606,7 +632,7 @@ describe('ConversationRoot resident composer', () => {
     expect(b.slotCalls).not.toContain('conversation.session.header.utilities')
     expect(b.headerFactory).not.toHaveBeenCalled()
     expect(b.slotCalls).not.toContain('conversation.session.header.actions')
-    expect(b.view.getByText('探索未至之境')).toBeTruthy()
+    expect(b.view.getByText('今天想做点什么？')).toBeTruthy()
     expect(b.view.getByText('预览版')).toBeTruthy()
     expect(b.view.queryByTestId('view-chat')).toBeNull()
     // The same machine-backed textarea is live in the hero, and the
@@ -640,7 +666,7 @@ describe('ConversationRoot resident composer', () => {
     expect(conversationPhase(failed, EMPTY_CONVERSATION_SNAPSHOT)).toBe('engaging')
     const b = mount(failed, undefined, undefined, { summaryBlank: true })
     expect(b.view.container.querySelector('[data-phase]')?.getAttribute('data-phase')).toBe('active')
-    expect(b.view.queryByText('探索未至之境')).toBeNull()
+    expect(b.view.queryByText('今天想做点什么？')).toBeNull()
   })
 
   it('settling phase: a summary that does not prove the session blank hides the composer while it opens', () => {
@@ -672,7 +698,7 @@ describe('ConversationRoot resident composer', () => {
     // blank the column for the history round-trip.
     const root = b.view.container.querySelector('[data-phase]')
     expect(root?.getAttribute('data-phase')).toBe('hero')
-    expect(b.view.getByText('探索未至之境')).toBeTruthy()
+    expect(b.view.getByText('今天想做点什么？')).toBeTruthy()
     expect(b.view.getByRole('textbox')).toBeTruthy()
   })
 

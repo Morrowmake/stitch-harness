@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "Herramientas de búsqueda",
-    "description": "Las herramientas glob y grep para encontrar archivos y texto."
+    "title": "Búsqueda de archivos",
+    "description": "El agente puede buscar archivos por nombre y buscar dentro de ellos."
   }
 }

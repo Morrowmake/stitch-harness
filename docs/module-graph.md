@@ -76,6 +76,7 @@ flowchart TD
     pkg_tool_workspace_dependencies["tool-workspace-dependencies"]
   end
   subgraph group_subagent["packages/subagent"]
+    pkg_product_cli["product-cli"]
     pkg_subagent["subagent"]
     pkg_subagent_acp["subagent-acp"]
     pkg_subagent_claude_code["subagent-claude-code"]
@@ -238,6 +239,7 @@ flowchart TD
     pkg_component_mcp["component-mcp"]
     pkg_component_office["component-office"]
     pkg_component_planning["component-planning"]
+    pkg_component_plugin_market_tool["component-plugin-market-tool"]
     pkg_component_presets["component-presets"]
     pkg_component_schedules["component-schedules"]
     pkg_component_search_tools["component-search-tools"]
@@ -304,7 +306,6 @@ flowchart TD
     pkg_experimental_forge_bundle["experimental-forge-bundle"]
     pkg_experimental_forge_github["experimental-forge-github"]
     pkg_experimental_forge_session["experimental-forge-session"]
-    pkg_experimental_plugin_market_bundle["experimental-plugin-market-bundle"]
     pkg_experimental_ralph_bundle["experimental-ralph-bundle"]
     pkg_experimental_session_search["experimental-session-search"]
     pkg_experimental_session_titles_bundle["experimental-session-titles-bundle"]
@@ -1531,6 +1532,7 @@ flowchart TD
 | [`util-workspace-path`](../packages/util/workspace-path) | `util` | — |
 | [`scope`](../packages/core/scope) | `core` | — |
 | [`fs-patch`](../packages/fs/fs-patch) | `fs` | — |
+| [`product-cli`](../packages/subagent/product-cli) | `subagent` | — |
 | [`api-gateway`](../packages/api/gateway) | `api` | — |
 | [`api-job-controller`](../packages/api/job-controller) | `api` | — |
 | [`api-remote-access`](../packages/api/remote-access) | `api` | — |
@@ -1622,6 +1624,7 @@ flowchart TD
 | [`component-mcp`](../packages/component/mcp) | `component` | — |
 | [`component-office`](../packages/component/office) | `component` | — |
 | [`component-planning`](../packages/component/planning) | `component` | — |
+| [`component-plugin-market-tool`](../packages/component/plugin-market-tool) | `component` | — |
 | [`component-presets`](../packages/component/presets) | `component` | — |
 | [`component-schedules`](../packages/component/schedules) | `component` | — |
 | [`component-search-tools`](../packages/component/search-tools) | `component` | — |
@@ -1641,7 +1644,6 @@ flowchart TD
 | [`experimental-cot-translation-bundle`](../packages/experimental/cot-translation-bundle) | `experimental` | — |
 | [`experimental-forge`](../packages/experimental/forge) | `experimental` | — |
 | [`experimental-forge-bundle`](../packages/experimental/forge-bundle) | `experimental` | — |
-| [`experimental-plugin-market-bundle`](../packages/experimental/plugin-market-bundle) | `experimental` | — |
 | [`experimental-ralph-bundle`](../packages/experimental/ralph-bundle) | `experimental` | — |
 | [`experimental-session-search`](../packages/experimental/session-search) | `experimental` | — |
 | [`experimental-session-titles-bundle`](../packages/experimental/session-titles-bundle) | `experimental` | — |

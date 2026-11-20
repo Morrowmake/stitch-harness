@@ -32,7 +32,7 @@ kind: "package-reference"
 | 操作 | 你得到什么 |
 |---|---|
 | `listSessions()` | 每个逻辑会话，最新的在前，带 `live` 与 `persisted` 可用性标志及可选 `formatStatus` |
-| `getListMetadata(session)` | 实时或已准备的 Session 是否还没有 turn，及其最近一条人工提示词的时间 |
+| `getListMetadata(session)` | 实时或已准备的 Session 是否既没有 turn 也没有运行过斜杠命令，及其最近一条人工提示词的时间 |
 | `readSession(id)` | 经过回放校验的完整原始事件日志，且不会让该会话变为实时 |
 | `filterSessions(filters)` | 匹配 AND 连接的元数据与可用性谓词的会话 |
 | `filterEvents(id, filters)` | 匹配元数据与字面文本谓词的语义事件文档 |
@@ -110,7 +110,7 @@ kind: "package-reference"
 <a id="session-list-metadata"></a>
 ### Session 列表元数据
 
-服务启动时注册记录 Session 空白状态与最近人工提示词时间的 `sessionListMetadata` 投影，释放服务时移除该注册；因此服务依赖 `sessionProjections`。`getListMetadata(session)` 同步读取实时或已准备 Session 的该投影。Session API 与可选的[列表工具](../tool-session-list/README.zh.md)通过 `ctx.sessionQuery` 读取。
+服务启动时注册记录 Session 空白状态与最近人工提示词时间的 `sessionListMetadata` 投影，释放服务时移除该注册；因此服务依赖 `sessionProjections`。Session 在第一个 `turn/start` 或 `command/run` 时不再空白，因为斜杠命令的结果属于输入它的那段对话；`startsConversation(event)` 公开该判定。`getListMetadata(session)` 同步读取实时或已准备 Session 的该投影。Session API 与可选的[列表工具](../tool-session-list/README.zh.md)通过 `ctx.sessionQuery` 读取。
 
 ### 观察缓存
 

@@ -1103,3 +1103,100 @@ it('dismisses contributed options with focus on the trigger before opening anoth
   })
   expect(screen.queryByRole('menu')).toBeNull()
 })
+
+describe('ModelSelect older models and pinned accounts', () => {
+  const work = { text: 'Work', tone: 'info' as const }
+  const anthropic = {
+    id: 'anthropic',
+    name: 'Anthropic',
+    models: [
+      { id: 'claude-opus-4-5', name: 'Claude Opus 4.5' },
+      { id: 'claude-sonnet-4-5', name: 'Claude Sonnet 4.5' },
+      { id: 'claude-3-5-sonnet-latest', name: 'Claude Sonnet 3.5 (latest)', older: true },
+      { id: 'claude-3-haiku-20240307', name: 'Claude Haiku 3', older: true },
+      { id: '~acct:b8741dd314:claude-opus-4-5', name: 'Claude Opus 4.5', badge: work },
+      { id: '~acct:b8741dd314:claude-3-haiku-20240307', name: 'Claude Haiku 3', older: true, badge: work },
+    ],
+  }
+
+  function open(current: ModelDirectoryState['current']) {
+    const select = vi.fn().mockResolvedValue({ ok: true, value: undefined })
+    render(<ModelSelect renderSlot={renderLabel} locked={false} available
+      directory={createSnapshotStore(state({ current, groups: [anthropic] }))}
+      load={vi.fn()} resolveText={resolveText} select={select} t={t} />)
+    const trigger = screen.getByRole('button', { name: /选择模型/ })
+    fireEvent.click(trigger)
+    if (current !== null) fireEvent.click(screen.getByRole('menuitem', { name: /^模型/ }))
+    return { select, trigger }
+  }
+
+  const radios = () => screen.getAllByRole('menuitemradio').map(row => row.textContent)
+
+  it('lists current models first in catalog order and collapses older models until expanded', () => {
+    open(null)
+    expect(radios()).toEqual(['Claude Opus 4.5', 'Claude Sonnet 4.5'])
+    const older = screen.getByRole('menuitem', { name: zh['section.older'] })
+    expect(older.getAttribute('aria-expanded')).toBe('false')
+    fireEvent.click(older)
+    expect(older.getAttribute('aria-expanded')).toBe('true')
+    expect(radios()).toEqual(['Claude Opus 4.5', 'Claude Sonnet 4.5', 'Claude Sonnet 3.5 (latest)', 'Claude Haiku 3'])
+    fireEvent.click(older)
+    expect(radios()).toEqual(['Claude Opus 4.5', 'Claude Sonnet 4.5'])
+  })
+
+  it('groups pinned entries under one collapsed account row labelled by the account, never its id', async () => {
+    const { select } = open(null)
+    const menu = screen.getByRole('menu', { name: '模型' })
+    expect(menu.textContent).not.toContain('b8741dd314')
+    const account = screen.getByRole('menuitem', { name: 'Anthropic · Work' })
+    expect(account.getAttribute('aria-expanded')).toBe('false')
+    fireEvent.click(account)
+    expect(radios()).toEqual(['Claude Opus 4.5', 'Claude Sonnet 4.5', 'Claude Opus 4.5 Work'])
+    const olderRows = screen.getAllByRole('menuitem', { name: zh['section.older'] })
+    expect(olderRows.map(row => row.getAttribute('aria-expanded'))).toEqual(['false', 'false'])
+    fireEvent.click(olderRows[1]!)
+    expect(radios()).toEqual(['Claude Opus 4.5', 'Claude Sonnet 4.5', 'Claude Opus 4.5 Work', 'Claude Haiku 3 Work'])
+    expect(menu.textContent).not.toContain('b8741dd314')
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'Claude Opus 4.5 Work' }))
+    await waitFor(() => { expect(select).toHaveBeenCalledWith({ provider: 'anthropic', model: '~acct:b8741dd314:claude-opus-4-5' }) })
+  })
+
+  it('search finds collapsed older and pinned models and Enter selects the first match, not a section row', async () => {
+    const { select } = open(null)
+    const search = screen.getByRole('searchbox')
+    fireEvent.change(search, { target: { value: 'haiku' } })
+    expect(radios()).toEqual(['Claude Haiku 3', 'Claude Haiku 3 Work'])
+    expect(screen.getAllByRole('menuitem').map(row => [row.textContent, row.getAttribute('aria-expanded')])).toEqual([
+      [zh['section.older'], 'true'], ['Anthropic · Work', 'true'], [zh['section.older'], 'true'],
+    ])
+    expect(search.getAttribute('aria-activedescendant')).toBe(screen.getByRole('menuitemradio', { name: 'Claude Haiku 3' }).id)
+    fireEvent.keyDown(search, { key: 'ArrowUp' })
+    const older = screen.getAllByRole('menuitem')[0]!
+    expect(search.getAttribute('aria-activedescendant')).toBe(older.id)
+    fireEvent.keyDown(search, { key: 'Enter' })
+    expect(older.getAttribute('aria-expanded')).toBe('false')
+    expect(radios()).toEqual(['Claude Haiku 3 Work'])
+    expect(select).not.toHaveBeenCalled()
+    fireEvent.change(search, { target: { value: 'haiku 3' } })
+    fireEvent.keyDown(search, { key: 'Enter' })
+    await waitFor(() => { expect(select).toHaveBeenCalledWith({ provider: 'anthropic', model: 'claude-3-haiku-20240307' }) })
+  })
+
+  it('labels a selected older model in the trigger and opens the section holding it', () => {
+    const { trigger } = open({ provider: 'anthropic', model: 'claude-3-haiku-20240307' })
+    expect(trigger.getAttribute('aria-label')).toBe('选择模型，当前 Claude Haiku 3')
+    expect(trigger.textContent).toBe('Claude Haiku 3')
+    expect(screen.getByRole('menuitem', { name: zh['section.older'] }).getAttribute('aria-expanded')).toBe('true')
+    expect(screen.getByRole('menuitem', { name: 'Anthropic · Work' }).getAttribute('aria-expanded')).toBe('false')
+    expect(screen.getByRole('menuitemradio', { checked: true }).textContent).toBe('Claude Haiku 3')
+  })
+
+  it('labels a selected pinned older model with its account in the trigger and opens both of its sections', () => {
+    const { trigger } = open({ provider: 'anthropic', model: '~acct:b8741dd314:claude-3-haiku-20240307' })
+    expect(trigger.textContent).toBe('Work Claude Haiku 3')
+    expect(screen.getByRole('menuitem', { name: 'Anthropic · Work' }).getAttribute('aria-expanded')).toBe('true')
+    expect(screen.getAllByRole('menuitem', { name: zh['section.older'] }).map(row => row.getAttribute('aria-expanded')))
+      .toEqual(['false', 'true'])
+    expect(screen.getByRole('menuitemradio', { checked: true }).textContent).toBe('Claude Haiku 3 Work')
+  })
+})

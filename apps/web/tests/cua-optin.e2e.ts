@@ -51,12 +51,14 @@ it.skipIf(process.platform !== 'darwin').each([
     await connectFreshWorkspaceZh(page, scaffold.workspaceCwd)
     await page.getByRole('navigation', { name: '全局面板' }).getByRole('button', { name: '插件', exact: true }).click()
     const plugins = page.locator('[data-plugin-panel]')
-    await plugins.getByRole('button', { name: '更多', exact: true }).waitFor()
+    const showAdvanced = plugins.getByRole('switch', { name: '显示高级项', exact: true })
+    await showAdvanced.waitFor()
+    // Everyday mode hides experimental bundles that are off.
     expect(await page.locator('[data-plugin-package="@deepseek-ai/dsh-cua-bundle"]').count()).toBe(0)
-    await plugins.getByRole('button', { name: '更多', exact: true }).click()
-    // The installation ships the bundle off; the Experimental plugins list offers it without an installation step.
+    await showAdvanced.click()
+    // The installation ships the bundle off; the Experimental group offers it without an installation step.
     const card = page.locator('[data-plugin-package="@deepseek-ai/dsh-cua-bundle"]')
-    await plugins.locator('[data-plugin-group="more"] [data-plugin-package="@deepseek-ai/dsh-cua-bundle"]').waitFor()
+    await plugins.locator('[data-plugin-group="experimental"] [data-plugin-package="@deepseek-ai/dsh-cua-bundle"]').waitFor()
     const listed = (await scaffold.ctx.pluginManager.listBundles()).find(bundle => bundle.name === '@deepseek-ai/dsh-cua-bundle')
     expect(listed).toMatchObject({ availability: 'installation', optional: true, enabled: false, installed: false })
     expect(listed).not.toHaveProperty('listedByDefault')

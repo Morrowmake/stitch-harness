@@ -50,15 +50,38 @@ export function routeIdFor(host: string, taken: ReadonlySet<string>): string {
   return candidate
 }
 
+/** An OpenAI-compatible server address as the flow stores it, and the host name its route id derives from. */
+export interface ServerAddress {
+  /** The endpoint base, e.g. `http://192.168.1.20:11434/v1`. */
+  readonly baseURL: string
+  /** The host name without brackets, e.g. `192.168.1.20`. */
+  readonly hostname: string
+  /** Host and port as people type them, e.g. `192.168.1.20:11434`. */
+  readonly host: string
+}
+
 /**
- * The host of an http(s) URL, or `undefined` when the text is not one.
- * @param value - the typed URL.
- * @returns the host name.
+ * Read a typed server address. `192.168.1.20:11434` is read as plain HTTP, and
+ * an address without a path gets `/v1`, where Ollama, LM Studio, vLLM,
+ * llama.cpp, and LiteLLM serve their OpenAI-compatible API.
+ * @param value - what the user typed.
+ * @returns the address, or `undefined` when the text is not an http(s) address.
  */
-export function httpHost(value: string): string | undefined {
-  if (!URL.canParse(value)) return undefined
-  const url = new URL(value)
-  return url.protocol === 'http:' || url.protocol === 'https:' ? url.hostname.replace(/^\[|\]$/g, '') : undefined
+export function serverAddress(value: string): ServerAddress | undefined {
+  const text = value.trim()
+  if (text === '') return undefined
+  const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(text) ? text : `http://${text}`
+  if (!URL.canParse(withScheme)) return undefined
+  const url = new URL(withScheme)
+  if ((url.protocol !== 'http:' && url.protocol !== 'https:') || url.hostname === '') return undefined
+  if (url.pathname === '/') url.pathname = '/v1'
+  return { baseURL: url.href.replace(/\/+$/, ''), hostname: url.hostname.replace(/^\[|\]$/g, ''), host: url.host }
+}
+
+/** Why a server did not list its models, as `llm/model-discovery-rejected` reports it. */
+function discoveryReason(outcome: { readonly code: string; readonly details?: object }): string | undefined {
+  if (outcome.code !== 'llm/model-discovery-rejected' || outcome.details === undefined || !('reason' in outcome.details)) return undefined
+  return typeof outcome.details.reason === 'string' ? outcome.details.reason : undefined
 }
 
 /** Load state of one asynchronous list; a failed list shows its step's own localized sentence. */
@@ -244,28 +267,39 @@ function CustomEndpointRow({ operations, t, taken, onReady }: {
   const [ticked, setTicked] = useState<ReadonlySet<string>>(new Set())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
-  const url = baseURL.trim()
-  const host = httpHost(url)
-  const urlInvalid = url.length > 0 && host === undefined
+  const address = serverAddress(baseURL)
+  const urlInvalid = baseURL.trim().length > 0 && address === undefined
 
   const discover = (): void => {
+    if (address === undefined) return
+    const typedKey = key.trim()
     setBusy(true)
     setError(undefined)
-    void operations.discoverModels(url, key.trim() === '' ? undefined : key.trim()).then((outcome) => {
-      if (!outcome.ok) { setError(refusalText(outcome, t)); return }
-      setFound(outcome.value)
-      setTicked(new Set(outcome.value))
+    void operations.discoverModels(address.baseURL, typedKey === '' ? undefined : typedKey).then((outcome) => {
+      if (outcome.ok) {
+        setFound(outcome.value)
+        setTicked(new Set(outcome.value))
+        return
+      }
+      const reason = discoveryReason(outcome)
+      setError(reason === 'unreachable'
+        ? t('custom.unreachable', { host: address.host })
+        : reason === 'not-compatible'
+          ? t('custom.notCompatible', { host: address.host })
+          : reason === 'unauthorized'
+            ? t(typedKey === '' ? 'custom.needsKey' : 'custom.keyRejected', { host: address.host })
+            : refusalText(outcome, t))
     }).finally(() => { setBusy(false) })
   }
   const add = (): void => {
-    if (host === undefined || found === undefined) return
-    const displayName = name.trim() === '' ? host : name.trim()
-    const route = routeIdFor(host, taken)
+    if (address === undefined || found === undefined) return
+    const displayName = name.trim() === '' ? address.host : name.trim()
+    const route = routeIdFor(address.hostname, taken)
     const models = found.filter(id => ticked.has(id))
     setBusy(true)
     setError(undefined)
     void operations.addOpenAICompatible({
-      route, displayName, baseURL: url, apiKey: key.trim() === '' ? KEYLESS_PLACEHOLDER : key.trim(), models,
+      route, displayName, baseURL: address.baseURL, apiKey: key.trim() === '' ? KEYLESS_PLACEHOLDER : key.trim(), models,
     }).then((outcome) => {
       if (outcome.ok) onReady({ id: route, name: displayName, models })
       else setError(refusalText(outcome, t))
@@ -290,10 +324,13 @@ function CustomEndpointRow({ operations, t, taken, onReady }: {
         <form className={css.form} onSubmit={(event) => { event.preventDefault(); if (found === undefined) discover(); else add() }}>
           <label className={css.field}>
             <span>{t('custom.baseURL')}</span>
-            <Input value={baseURL} placeholder="http://192.168.1.20:11434/v1" disabled={busy}
-              onChange={(event) => { setBaseURL(event.target.value); setFound(undefined) }} />
+            <Input value={baseURL} placeholder="192.168.1.20:11434" disabled={busy}
+              onChange={(event) => { setBaseURL(event.target.value); setFound(undefined); setError(undefined) }} />
           </label>
           {urlInvalid ? <p className={css.error}>{t('custom.invalidURL')}</p> : null}
+          {address === undefined || address.baseURL === baseURL.trim() ? null : (
+            <p className={css.muted}>{t('custom.resolvedURL', { url: address.baseURL })}</p>
+          )}
           <label className={css.field}>
             <span>{t('custom.key')}</span>
             <Input type="password" autoComplete="new-password" value={key} disabled={busy}
@@ -301,7 +338,7 @@ function CustomEndpointRow({ operations, t, taken, onReady }: {
           </label>
           <label className={css.field}>
             <span>{t('custom.name')}</span>
-            <Input value={name} placeholder={host ?? t('custom.namePlaceholder')} disabled={busy}
+            <Input value={name} placeholder={address?.host ?? t('custom.namePlaceholder')} disabled={busy}
               onChange={(event) => { setName(event.target.value) }} />
           </label>
           {found === undefined ? null : found.length === 0
@@ -325,11 +362,14 @@ function CustomEndpointRow({ operations, t, taken, onReady }: {
                 </ul>
               </div>
             )}
+          {busy && found === undefined && address !== undefined
+            ? <p className={css.muted} role="status"><StateDot state="ongoing" /> {t('custom.checking', { host: address.host })}</p>
+            : null}
           {error === undefined ? null : <p className={css.error} role="alert">{error}</p>}
           <div className={css.formActions}>
             <Button type="button" variant="ghost" size="sm" disabled={busy} onClick={() => { setOpen(false) }}>{t('cancel')}</Button>
             {found === undefined
-              ? <Button type="submit" variant="primary" size="sm" disabled={busy || host === undefined}>{t('custom.discover')}</Button>
+              ? <Button type="submit" variant="primary" size="sm" disabled={busy || address === undefined}>{t('custom.discover')}</Button>
               : <Button type="submit" variant="primary" size="sm" disabled={busy || ticked.size === 0}>{t('custom.add')}</Button>}
           </div>
         </form>
@@ -428,12 +468,18 @@ function HostedRow({ rowId, section, entry, action, operations, t, setAction, on
   const [key, setKey] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
+  /** The key is stored, but the provider could not confirm it. */
+  const [unverified, setUnverified] = useState(false)
   const save = (): void => {
     setBusy(true)
     setError(undefined)
     void operations.addApiKeyAccount(provider.provider, key.trim()).then((outcome) => {
-      if (outcome.ok) onReady()
-      else setError(refusalText(outcome, t))
+      if (outcome.ok) {
+        if (outcome.value.verified) onReady()
+        else setUnverified(true)
+      } else {
+        setError(outcome.code === 'llm-accounts/key-rejected' ? t('hosted.keyRejected', { provider: entry.name }) : refusalText(outcome, t))
+      }
     }).finally(() => { setBusy(false) })
   }
   return (
@@ -465,13 +511,25 @@ function HostedRow({ rowId, section, entry, action, operations, t, setAction, on
         ? <SignInPanel provider={provider.provider} request={action.request} operations={operations} t={t}
           onAuthorized={onReady} onCancel={() => { setAction(undefined) }} />
         : null}
-      {action?.kind === 'key'
+      {action?.kind === 'key' && unverified
+        ? (
+          <div className={css.form}>
+            <p className={css.notice} role="status">{t('hosted.keyUnverified', { provider: entry.name })}</p>
+            <div className={css.formActions}>
+              <Button variant="primary" size="sm" onClick={onReady}>{t('hosted.continue')}</Button>
+            </div>
+          </div>
+        )
+        : null}
+      {action?.kind === 'key' && !unverified
         ? (
           <form className={css.form} onSubmit={(event) => { event.preventDefault(); save() }}>
             <label className={css.field}>
               <span>{t('hosted.keyLabel', { provider: entry.name })}</span>
-              <Input type="password" autoComplete="new-password" value={key} disabled={busy} onChange={(event) => { setKey(event.target.value) }} />
+              <Input type="password" autoComplete="new-password" value={key} disabled={busy}
+                onChange={(event) => { setKey(event.target.value); setError(undefined) }} />
             </label>
+            {busy ? <p className={css.muted} role="status"><StateDot state="ongoing" /> {t('hosted.checking', { provider: entry.name })}</p> : null}
             {error === undefined ? null : <p className={css.error} role="alert">{error}</p>}
             <div className={css.formActions}>
               <Button type="button" variant="ghost" size="sm" disabled={busy} onClick={() => { setAction(undefined) }}>{t('cancel')}</Button>

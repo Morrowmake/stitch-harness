@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-component-files",
-  "description": "The Files tree and document preview tabs in the right sidebar.",
+  "description": "Browse your project's files and preview documents in the right sidebar.",
   "version": "0.2.2-rc.5",
   "icon": "./icon.svg",
   "publishConfig": {

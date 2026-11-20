@@ -67,6 +67,23 @@ describe('ShellCardController', () => {
     expect(face.hooks.shellCard.getSnapshot().dirty).toBe(false)
   })
 
+  it('marks a timeout the served schema refuses as invalid and never writes it', () => {
+    const host = stubConfigForm<ShellSettings>()
+    // The executor's schema takes only whole numbers of at least 1.
+    const accepts = (_path: readonly string[], value: unknown): boolean => Number.isInteger(value) && (value as number) >= 1
+    const controller = new ShellCardController({ ...host.scope, accepts })
+    host.publish({ status: 'ready', writable: true, value: { timeoutMs: 5_000 }, base: { timeoutMs: 60_000 }, user: {} })
+    const face = controller.inject()
+
+    face.edit('timeoutMs', '-5')
+    expect(face.hooks.shellCard.getSnapshot()).toMatchObject({ dirty: true, invalid: true, timeoutMs: { text: '-5', invalid: true } })
+    face.save()
+    expect(host.mutate).not.toHaveBeenCalled()
+
+    face.edit('timeoutMs', '9000')
+    expect(face.hooks.shellCard.getSnapshot()).toMatchObject({ invalid: false, timeoutMs: { invalid: false } })
+  })
+
   it('stages a reset and applies it on save', async () => {
     const host = stubConfigForm<ShellSettings>()
     acceptWrites(host)

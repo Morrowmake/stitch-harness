@@ -30,19 +30,23 @@ it('routes original-file requests through the trusted application bridge', async
   ])
 })
 
-it('limits product documents to the update preference and an explicit check', async () => {
+it('limits product documents to the update preference, an explicit check, and the terminal command', async () => {
   vi.stubGlobal('location', new URL('dsh-app://app/index.html'))
   await import('../src/preload-app.ts')
   const api = electron.contextBridge.exposeInMainWorld.mock.calls.find(([name]) => name === 'dshDesktop')?.[1] as DshDesktopProductApi
   await api.updates.getPreference()
   await api.updates.setPreference(true)
   await api.updates.check()
+  await api.command.status()
+  await api.command.run('repair')
   expect(electron.ipcRenderer.invoke.mock.calls).toEqual([
     [DESKTOP_IPC.updatesPreferenceGet], [DESKTOP_IPC.updatesPreferenceSet, true], [DESKTOP_IPC.updatesCheck],
+    [DESKTOP_IPC.commandStatus], [DESKTOP_IPC.commandRun, 'repair'],
   ])
   expect(api).not.toHaveProperty('plugins')
   expect(api).not.toHaveProperty('backend')
   expect(Object.keys(api.updates).sort()).toEqual(['check', 'getPreference', 'setPreference', 'subscribe'])
+  expect(Object.keys(api.command).sort()).toEqual(['run', 'status'])
   const listener = vi.fn()
   const dispose = api.updates.subscribe(listener)
   const handler = electron.ipcRenderer.on.mock.calls.find(([channel]) => channel === DESKTOP_IPC.updatesPreferenceChanged)?.[1] as

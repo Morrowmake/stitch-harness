@@ -12,8 +12,8 @@ import { FirstRunOverlay, stepsOf } from '../src/client/FirstRunOverlay.tsx'
 import { createFlowStore, visibleEntry } from '../src/client/flow.ts'
 import { apply, inject } from '../src/client/index.ts'
 import { de, en, es, fr, ja, NS, pt, ru, zh } from '../src/client/locales.ts'
-import type { FirstRunEntryInjected, FirstRunOverlayInjected } from '../src/client/types.ts'
-import { FIRST_RUN_SETTINGS_NAMESPACE, FIRST_RUN_VERSION } from '../src/settings.ts'
+import type { FirstRunEntryInjected, FirstRunOverlayInjected, FirstRunUi } from '../src/client/types.ts'
+import { FIRST_RUN_SETTINGS_NAMESPACE, FIRST_RUN_VERSION, WELCOME_SETTINGS_NAMESPACE } from '../src/settings.ts'
 
 function entry(id: string, sets: { standard: boolean }, enabled: boolean, requires: string[] = []): ComponentEntry {
   return { id, bundle: `pkg-${id}`, title: id, description: '', requires, enabled, ...sets }
@@ -83,7 +83,9 @@ interface Registration {
 function fakeContext() {
   const registrations: Registration[] = []
   const formSet = vi.fn(async () => true)
+  const provide = vi.fn()
   const ctx = {
+    provide,
     effect: (body: () => unknown) => { body() },
     logger: { warn: vi.fn() },
     locale: { register: vi.fn(() => () => {}), resolveText: (text: string) => text },
@@ -94,7 +96,7 @@ function fakeContext() {
       register: (options: Registration['options'], component: unknown) => { registrations.push({ options, component }); return () => {} },
     },
   }
-  return { ctx, registrations, formSet }
+  return { ctx, registrations, formSet, provide }
 }
 
 describe('apply', () => {
@@ -106,10 +108,11 @@ describe('apply', () => {
   })
 
   it('registers the overlay and both entry points over one open state', () => {
-    const { ctx, registrations, formSet } = fakeContext()
+    const { ctx, registrations, formSet, provide } = fakeContext()
     apply(ctx as never)
     expect(ctx.locale.register).toHaveBeenCalledWith(NS, expect.objectContaining({ en, zh }))
     expect(ctx.configForms.get).toHaveBeenCalledWith(FIRST_RUN_SETTINGS_NAMESPACE)
+    expect(ctx.configForms.get).toHaveBeenCalledWith(WELCOME_SETTINGS_NAMESPACE)
     expect(registrations.map(({ options, component }) => [options.name, options.id, options.locale, component])).toEqual([
       ['shell.overlay', 'first-run', NS, FirstRunOverlay],
       ['plugins.add.actions', 'choose-components', NS, ChooseComponentsMenuItem],
@@ -127,6 +130,9 @@ describe('apply', () => {
     overlay.close('first-run')
     expect(formSet).toHaveBeenCalledWith('completedVersion', FIRST_RUN_VERSION)
     expect(overlay.hooks.flow.getSnapshot()).toEqual({ entry: null, dismissed: true })
+    expect(provide).toHaveBeenCalledWith('firstRunUi', expect.anything())
+    ;(provide.mock.calls[0]![1] as FirstRunUi).openProvider()
+    expect(overlay.hooks.flow.getSnapshot()).toEqual({ entry: 'provider', dismissed: true })
   })
 
   it('logs a completion that could not be stored', async () => {

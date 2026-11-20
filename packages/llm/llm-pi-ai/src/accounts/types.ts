@@ -20,7 +20,7 @@ export type SignInAttemptId = Branded<'SignInAttemptId'>
 
 /** Non-secret per-account metadata stored at `providers.<route>.accounts.<id>`. */
 export interface AccountProfile {
-  /** Display name shown in Settings, the model picker, and the usage badge; absent shows the account id. */
+  /** Display name shown in Settings, the model picker, and the usage badge; absent shows the sign-in email or "Account N". */
   alias?: string
   /** Default `true`. */
   pooled?: boolean
@@ -160,6 +160,30 @@ export interface LocalProviderProbeView {
   models: readonly string[]
 }
 
+/**
+ * Outcome of the authenticated check run against the provider with an API
+ * key: `verified` = the provider accepted it; `unverified` = the check could
+ * not run (`unreachable`: network failure, timeout, or a 5xx; `unsupported`:
+ * the provider's protocol has no listing to ask; `unexpected`: any other
+ * reply, such as a 404 or a non-JSON body).
+ */
+export type ApiKeyCheck =
+  | { status: 'verified' }
+  | { status: 'unverified'; reason: 'unreachable' | 'unsupported' | 'unexpected' }
+
+/** The answer of `llmAccounts.addApiKeyAccount`: the stored account and how its key checked out. */
+export interface ApiKeyAccountAdded {
+  account: AccountView
+  check: ApiKeyCheck
+}
+
+/**
+ * The answer of `llmAccounts.retryAccountNow`: a key account's check result
+ * (`rejected` keeps it marked as needing a new key), or `cleared` for a
+ * signed-in or ambient account whose cooldowns and sign-in state were cleared.
+ */
+export type AccountRetryResult = ApiKeyCheck | { status: 'rejected' } | { status: 'cleared' }
+
 /** Prefix of pinned per-account model ids: `~acct:<accountId>:<modelId>`. */
 export const PINNED_MODEL_PREFIX = '~acct:'
 
@@ -171,6 +195,8 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
     'llm-accounts/attempt-unknown': Record<string, never>
     'llm-accounts/unsupported': { readonly provider: string; readonly method: string }
     'llm-accounts/invalid-key': Record<string, never>
+    /** The provider refused the API key (HTTP `status`); nothing was stored. */
+    'llm-accounts/key-rejected': { readonly provider: string; readonly status: number }
     'llm-accounts/settings-rejected': Record<string, never>
   }
 }

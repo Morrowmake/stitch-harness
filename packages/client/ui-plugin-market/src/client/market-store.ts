@@ -134,6 +134,8 @@ export interface DiscoverFace extends DetailFace {
   readonly editDraft: (text: string) => void
   readonly editSourceOptions: (options: Partial<SourceOptions>) => void
   readonly addSource: () => void
+  /** Add an index Stitch offers by address after the configured ones, and select it. */
+  readonly addIndex: (url: string) => void
   readonly removeSource: (url: string) => void
 }
 
@@ -228,6 +230,7 @@ export class DiscoverController {
       editDraft: (text) => { this.patch({ draft: text, sourceFailure: null }) },
       editSourceOptions: (options) => { this.patch({ sourceOptions: { ...this.state().sourceOptions, ...options }, sourceFailure: null }) },
       addSource: () => { this.addSource() },
+      addIndex: (url) => { this.addIndex(url) },
       removeSource: (url) => { void this.saveSources(this.state().indexes.map(index => index.url).filter(item => item !== url)) },
     }
   }
@@ -411,6 +414,13 @@ export class DiscoverController {
       return { url, title, ...description === undefined ? {} : { description } }
     })
     this.patch({ listing, indexes })
+  }
+
+  private addIndex(url: string): void {
+    const { indexes, saving } = this.state()
+    if (saving) return
+    this.selectAdded = true
+    void this.saveSources([...indexes.map(index => index.url), url])
   }
 
   private addSource(): void {

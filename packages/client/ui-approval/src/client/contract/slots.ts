@@ -68,12 +68,14 @@ export interface ApprovalPresentationRequest {
   readonly reason?: string
   /** Localized presentation copy; the audit reason remains unchanged. */
   readonly displayReason?: { readonly en: string; readonly [locale: string]: string }
+  /** Action class the user may allow for the rest of the chat; absent when only a one-shot grant is offered. */
+  readonly grant?: string
   /** Cancellation projected from the Host waterfall. */
   readonly signal?: AbortSignal
 }
 
-/** Decisions this interactive Client presentation can return. */
-export type ApprovalDecision = 'allowed-once' | 'rejected'
+/** Decisions this interactive Client presentation can return; `allowed-for-session` only when the request offers a grant. */
+export type ApprovalDecision = 'allowed-once' | 'allowed-for-session' | 'rejected'
 
 let nextApprovalKey = 0
 
@@ -94,6 +96,8 @@ export class PendingApproval {
   readonly reason: string | undefined
   /** Localized presentation copy, when supplied by the asker. */
   readonly displayReason: ApprovalPresentationRequest['displayReason']
+  /** Action class the user may allow for the rest of the chat, when the asker offers one. */
+  readonly grant: string | undefined
   /** Result returned by the Remote Event listener to the Host waterfall. */
   readonly result: Promise<ApprovalDecision>
 
@@ -116,6 +120,7 @@ export class PendingApproval {
     this.callId = request.callId
     this.reason = request.reason
     this.displayReason = request.displayReason
+    this.grant = request.grant
     const completion = Promise.withResolvers<ApprovalDecision>()
     this.result = completion.promise
     this.#resolve = completion.resolve
@@ -225,6 +230,8 @@ export interface ApprovalCardInput {
   onAllow: () => Promise<void>
   /** Refuse this request. */
   onReject: () => Promise<void>
+  /** Grant this request and later requests of the same kind until the chat ends; absent when the caller offers no chat grant. */
+  onAllowForChat?: () => Promise<void>
   /** Explicit persistent choice; absent when the caller cannot save permission. */
   onAlways?: () => Promise<void>
 }

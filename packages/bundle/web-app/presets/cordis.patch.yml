@@ -156,6 +156,9 @@
           - id: tool-plugin-manager
             name: '@deepseek-ai/dsh-plugin-manager/tools'
             disabled: !!js "!ctx.get('profileContext')"
+          # Off by default: the plugin-market-tool component opens this row, so the
+          # tool joins Creator sessions only when the user switches it on.
           - id: tool-plugin-market
+            component: plugin-market-tool
             name: '@deepseek-ai/dsh-plugin-market/tools'
             disabled: !!js "!ctx.get('profileContext')"

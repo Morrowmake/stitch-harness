@@ -107,6 +107,8 @@ export interface ModelCatalogModel {
   readonly reasoning?: ModelReasoning
   /** Provider-authored label shown beside the name; display data only. */
   readonly badge?: LlmModelBadge
+  /** Collapsed under "Older models": an alias, a dated snapshot, or a superseded version; display data only. */
+  readonly older?: boolean
 }
 
 /** One provider and its successfully loaded model catalog. */

@@ -169,12 +169,14 @@
 }
 
 /* Nav cell (figma .Setting-nav-cell 501:29962): 164x40, r12, pad
-   (12,9,16,9), gap 8; label 14/400 lh22; selected fill #EBEEF2. */
+   (12,9,16,9), gap 8; label 14/400 lh22; selected fill #EBEEF2. A label
+   longer than the rail (long German compounds, for example) wraps and the
+   cell grows instead of cutting the label. */
 .navCell {
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 40px;
+  min-height: 40px;
   padding: 9px 16px 9px 12px;
   box-sizing: border-box;
   border: none;
@@ -207,9 +209,8 @@
 .navLabel {
   flex: 1;
   min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  overflow-wrap: break-word;
+  hyphens: auto;
 }
 
 /* Header (figma .Header 501:29981): h54, pad (10,20,14,8), close right. */
@@ -333,6 +334,7 @@
 
   :global(html:not([data-windows-titlebar]):not([data-platform='darwin'])) .navLabel {
     flex: none;
+    white-space: nowrap;
   }
 
   :global(html:not([data-windows-titlebar]):not([data-platform='darwin'])) .options {

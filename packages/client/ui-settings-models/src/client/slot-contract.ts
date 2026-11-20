@@ -47,6 +47,11 @@ export interface ProviderCardExtrasOwnerProps {
   configured: boolean
   /** Whether the row's referenced api-key credential is confirmed configured (the page's credential join). */
   keyConfigured: boolean
+  /**
+   * Report whether the extension holds this provider's own credentials (signed-in accounts or stored keys);
+   * the card's editor then hides its API key field unless that field already holds a key.
+   */
+  reportOwnCredentials: (provider: string, held: boolean) => void
 }
 
 /** Owner share of the footer area (the section supplies nothing). */

@@ -1,5 +1,5 @@
 ---
-description: "Channel-neutral one-shot approval seam for users and maintainers composing answerers, setting policy, or debugging fail-closed permission decisions."
+description: "Channel-neutral approval seam with one-shot and chat-scoped grants for users and maintainers composing answerers, setting policy, or debugging fail-closed permission decisions."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Use this package to require a one-shot decision before a sensitive tool action proceeds. The `ask` policy sends each request to the deployment's human or machine answerers; `never` rejects it without prompting. Missing or failed answerers return `unavailable`, so the action fails closed, and an approval applies only to that request. Every request and outcome is recorded in the requesting session's audit log. The model sees the resulting tool outcome and current policy, but not the human permission UI or audit events.
+Use this package to require a decision before a sensitive tool action proceeds. The `ask` policy sends each request to the deployment's human or machine answerers; `never` rejects it without prompting. Missing or failed answerers return `unavailable`, so the action fails closed. An approval applies only to that request unless the answerer allows the request's action class for the rest of the chat. Every request and outcome is recorded in the requesting session's audit log. The model sees the resulting tool outcome and current policy, but not the human permission UI or audit events.
 
 ## Table of Contents
 
@@ -50,7 +50,7 @@ The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-a
 
 ### Requesting a decision
 
-`request(req)` names the agent, tool, optional call id and reason, and an abort signal. Optional `displayReason` supplies localized presentation text without changing the logged reason. It requires an open turn: an idle or between-turn caller throws before auditing anything. Aborting withdraws the question — the request settles `cancelled` and a late answer is discarded. A failure that prevents either audit append from committing rejects instead of returning an unlogged decision.
+`request(req)` names the agent, tool, optional call id and reason, and an abort signal. Optional `displayReason` supplies localized presentation text without changing the logged reason. Optional `grant` names an action class the user may allow for the rest of the chat: an answerer that returns `allowed-for-session` lets every later request in the same Session with the same tool name and `grant` proceed without asking, while the asker itself receives `allowed-once`. Requests without `grant` are always asked. The `never` policy and an aborted signal take precedence over a chat grant, and another Session — including a forked chat — starts without grants. It requires an open turn: an idle or between-turn caller throws before auditing anything. Aborting withdraws the question — the request settles `cancelled` and a late answer is discarded. A failure that prevents either audit append from committing rejects instead of returning an unlogged decision.
 
 ### What the model and user see
 
@@ -79,15 +79,15 @@ The observable behavior is covered in [Use this package](#use-this-package); thi
 
 ### Policy and the runtime-context snapshot
 
-The private host-only `approvalState` projection stores the policy override and whether a turn is open. Its size does not grow with the number of events. The registry includes it in persisted checkpoints; the event log remains authoritative. Its pure updates never dispatch questions or grant permission.
+The private host-only `approvalState` projection stores the policy override, whether a turn is open, the chat grants, and the asks that offered a grant and still await their decision. Grants grow only with the distinct tool and action-class pairs a chat allows. The registry includes the state in persisted checkpoints; the event log remains authoritative. Its pure updates never dispatch questions; a grant is folded from an `approval/decided` record of `allowed-for-session` paired with an `approval/asked` that offered it. An inherited `session/end-seed` cut clears grants, so a fork does not inherit them.
 
-Service activation waits for projection registration and fails if registration fails. The service keeps the returned reader private. The host and registry own Session recovery; approval methods do not load history or call hydration from a synchronous read. See the [registration and recovery API](../../session/session-projection/README.md). Pending questions, answerers, and grants remain in the runtime.
+Service activation waits for projection registration and fails if registration fails. The service keeps the returned reader private. The host and registry own Session recovery; approval methods do not load history or call hydration from a synchronous read. See the [registration and recovery API](../../session/session-projection/README.md). Pending questions and answerers remain in the runtime.
 
 The system-prompt contribution `approval:policy` states the complete current meaning of the effective policy — `ask` with its fail-closed consequence, or `never` with its non-escalation consequence — after retained history, so switching policy appends a new full snapshot instead of rewriting the stable request header. `setPolicy()` also injects a sourced user message announcing the change for the next step.
 
 ### Audit
 
-`request()` appends `approval/asked` with the request identity and tool, then `approval/decided` with the closed outcome; the exact appended fields live in [`src/index.ts`](src/index.ts). Both are log-only.
+`request()` appends `approval/asked` with the request identity, tool, and offered `grant`, then `approval/decided` with the answer, which is `allowed-for-session` both for a new chat grant and for a request an existing grant covered; the exact appended fields live in [`src/index.ts`](src/index.ts). Both are log-only.
 
 </details>
 
@@ -162,10 +162,10 @@ Append-only; newly visible content follows the reusable request prefix and does 
 These limits define when the seam is a poor fit or needs special composition care. They are current package constraints, not a general permission comparison.
 
 - **Requests are valid only inside an open turn** — an idle or between-turn caller throws before auditing; a durable out-of-turn approval workflow is deferred.
-- **Only one-shot grants exist** — the outcome vocabulary has `allowed-once` but no `allow-always`, remembered rule, revocation, or grant store; session policy is only `ask` / `never`.
+- **Grants are one-shot or chat-scoped** — there is no `allow-always`, remembered rule across chats, grant revocation inside a chat other than switching the policy to `never`, or grant store outside the Session log; session policy is only `ask` / `never`.
 - **The request carries no tool arguments** — an answerer sees the tool name, reason, and optional call id; the ACP machine channel requires a call id and delegates requests without one.
 - **No built-in answerer** — headless or incompletely composed deployments resolve `unavailable` and fail closed; the service itself never prompts a human.
-- **Pending approvals are process-local** — checkpoints restore policy and turn state, not pending answerer promises or one-shot grants. Recovery does not resubmit questions or repeat runtime effects.
+- **Pending approvals are process-local** — checkpoints restore policy, turn state, and chat grants, not pending answerer promises. Recovery does not resubmit questions or repeat runtime effects.
 
 <a id="dev-note"></a>
 ### Dev Note

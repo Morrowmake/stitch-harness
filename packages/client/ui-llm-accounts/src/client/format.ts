@@ -13,6 +13,16 @@ export type UsageMode = 'used' | 'left'
 const MINUTE = 60_000
 
 /**
+ * What a provider's sign-in signs in with. The Host's method label may already read "Sign in with ChatGPT"; the
+ * localized `add.signIn` template supplies that phrase itself, so only the target is kept.
+ * @param label - the Host's sign-in method label.
+ * @returns the label without a leading English "Sign in with".
+ */
+export function signInTarget(label: string): string {
+  return label.replace(/^sign in with\s+/i, '')
+}
+
+/**
  * Compact remaining time, rounded up to the minute so a pending reset never reads as zero.
  * @param ms - milliseconds until the instant.
  * @param t - the plugin translator.

@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "目标",
-    "description": "/goal、目标工具和目标栏。"
+    "description": "用 /goal 设定目标，助手会持续朝目标努力，并在目标栏中显示。"
   }
 }

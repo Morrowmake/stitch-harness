@@ -3,7 +3,6 @@ import type { ReactNode } from 'react'
 import { IconWarningOutlineRegular, Toast } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
 import type { PluginManagerFace } from './manager-store.ts'
-import { noticeText } from './presentation.ts'
 
 /** The controller's shared notice source and dismissal action. */
 export type PluginRefreshToastFace = Pick<PluginManagerFace, 'dismissNotice'> & {
@@ -24,7 +23,7 @@ export function PluginRefreshToast({ usePluginManager, dismissNotice, t }: Plugi
   return (
     <Toast
       key={notice.seq}
-      text={noticeText(notice, t)}
+      text={t('refreshError')}
       icon={<IconWarningOutlineRegular />}
       onDone={dismissNotice}
     />

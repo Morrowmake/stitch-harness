@@ -468,6 +468,9 @@ describe('client bundle purity gate', () => {
     expect(() => resolveId('@deepseek-ai/dsh-api-session-controller/client')).toThrow(/purity/)
     expect(() => resolveId('@deepseek-ai/dsh-plugin-manager')).toThrow(/purity/)
     expect(() => resolveId('@deepseek-ai/dsh-plugin-manager/registry/internal')).toThrow(/purity/)
+    expect(resolveId('@deepseek-ai/dsh-plugin-market/indexes')).toBeNull()
+    expect(resolveId('@deepseek-ai/dsh-product')).toBeNull()
+    expect(() => resolveId('@deepseek-ai/dsh-plugin-market')).toThrow(/purity/)
   })
 
   it('omits unused RRULE code from a Cron-only browser import', async () => {

@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Subagents",
-    "description": "Delegate work to subagents and forks, with their views and settings."
+    "description": "Lets the agent hand tasks to helper agents, with views and settings for them."
   }
 }

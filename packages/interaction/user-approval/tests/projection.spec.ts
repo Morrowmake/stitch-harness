@@ -48,7 +48,7 @@ describe('approval state', () => {
       session.append('turn/start', { turn: turn + 1 })
       setApprovalPolicy(session, 'ask')
     }
-    expect(ctx.sessionProjections.checkpoint(session)['approvalState']?.val).toEqual({ policy: 'ask', turnOpen: true })
+    expect(ctx.sessionProjections.checkpoint(session)['approvalState']?.val).toEqual({ policy: 'ask', turnOpen: true, grants: [], offered: {} })
     expect(ctx.approval.overrideOf(session)).toBe('ask')
   })
 
@@ -85,9 +85,9 @@ describe('approval state', () => {
     const rows = ctx.sessionProjections.checkpoint(session)
     const cut = session.seq
     expect(rows['approvalState']).toEqual({
-      ver: 1,
+      ver: 2,
       seq: cut - 1,
-      val: { policy: 'never', turnOpen: true },
+      val: { policy: 'never', turnOpen: true, grants: [], offered: {} },
     })
     expect(ctx.sessionProjections.snapshot(session).values).not.toHaveProperty('approvalState')
 
@@ -108,7 +108,25 @@ describe('approval state', () => {
     await expect(ctx.approval.request({ agent: agentFor(session), toolName: 'echo' })).resolves.toBe('allowed-once')
     expect(answerer).toHaveBeenCalledOnce()
     expect(session.snapshotEvents().slice(-2).map(event => event.type)).toEqual(['approval/asked', 'approval/decided'])
-    expect(ctx.sessionProjections.checkpoint(session)['approvalState']?.val).toEqual({ policy: 'ask', turnOpen: true })
+    expect(ctx.sessionProjections.checkpoint(session)['approvalState']?.val).toEqual({ policy: 'ask', turnOpen: true, grants: [], offered: {} })
+  })
+
+  it('rebuilds chat grants from the log for a replacement service', async () => {
+    const { ctx } = await harness()
+    const owner = await ctx.plugin(ApprovalService)
+    const session = ctx.sessions.create()
+    session.append('turn/start', { turn: 1 })
+    const answerer = vi.fn(() => Promise.resolve<'allowed-for-session'>('allowed-for-session'))
+    ctx.on('approval/request', answerer)
+    await ctx.approval.request({ agent: agentFor(session), toolName: 'plugin_manager', grant: 'install' })
+    expect(ctx.sessionProjections.checkpoint(session)['approvalState']?.val).toEqual({
+      policy: null, turnOpen: true, grants: [{ toolName: 'plugin_manager', grant: 'install' }], offered: {},
+    })
+
+    await owner.dispose()
+    await ctx.plugin(ApprovalService)
+    await expect(ctx.approval.request({ agent: agentFor(session), toolName: 'plugin_manager', grant: 'install' })).resolves.toBe('allowed-once')
+    expect(answerer).toHaveBeenCalledOnce()
   })
 
   it('uses the retained reader for current reads and releases the unit with the service', async () => {
@@ -133,7 +151,7 @@ describe('approval state', () => {
     expect(ctx.sessionProjections.checkpoint(ctx.sessions.create())).not.toHaveProperty('approvalState')
     await ctx.plugin(ApprovalService)
     expect(ctx.approval.overrideOf(session)).toBe('never')
-    expect(ctx.sessionProjections.checkpoint(session)['approvalState']?.val).toEqual({ policy: 'never', turnOpen: false })
+    expect(ctx.sessionProjections.checkpoint(session)['approvalState']?.val).toEqual({ policy: 'never', turnOpen: false, grants: [], offered: {} })
   })
 
   it('waits for registration before activating its synchronous readers and prompt', async () => {
@@ -163,7 +181,7 @@ describe('approval state', () => {
   it('fails activation when its projection registration fails', async () => {
     const { ctx } = await harness()
     await ctx.sessionProjections.register({
-      key: 'approvalState', stateVersion: 2, stateSchema: z.string(),
+      key: 'approvalState', stateVersion: 3, stateSchema: z.string(),
       init: () => '', apply: state => state,
     })
     const errorLog = vi.spyOn(ctx.logger, 'error').mockImplementation(() => {})
@@ -206,7 +224,7 @@ describe('approval state', () => {
     const next = ctx.sessions.create()
     setApprovalPolicy(next, 'ask')
     expect(ctx.approval.overrideOf(next)).toBe('ask')
-    expect(ctx.sessionProjections.checkpoint(next)['approvalState']?.val).toEqual({ policy: 'ask', turnOpen: false })
+    expect(ctx.sessionProjections.checkpoint(next)['approvalState']?.val).toEqual({ policy: 'ask', turnOpen: false, grants: [], offered: {} })
   })
 
   it('does not publish a handle delivered after its owning service is disposed', async () => {

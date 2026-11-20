@@ -518,6 +518,21 @@ describe('draft documents in the input shell', () => {
     expect(shell.draftSnapshot).toEqual({ text: 'fresh', references: [] })
   })
 
+  it('lets ask replace only the prepared text and keep text the user wrote', () => {
+    const shell = makeShell()
+    const attachment = 'draft-image' as DraftAttachmentId
+    shell.addAttachments([attachment])
+    expect(shell.requestDraftInitialization({ prompt: 'first', whenDraftExists: 'ask' })).toBe('applied')
+    expect(shell.requestDraftInitialization({ prompt: 'second', whenDraftExists: 'ask' }, 'first')).toBe('applied')
+    expect(shell.draftSnapshot).toEqual({ text: 'second', references: [] })
+    expect(shell.snapshot.attachmentIds).toEqual([attachment])
+    expect(shell.requestDraftInitialization({ prompt: 'third', whenDraftExists: 'ask' }, 'first')).toBe('occupied')
+    expect(shell.requestDraftInitialization({ prompt: 'third', whenDraftExists: 'ask' })).toBe('occupied')
+    expect(shell.draftSnapshot).toEqual({ text: 'second', references: [] })
+    expect(shell.requestDraftInitialization({ whenDraftExists: 'ask' }, 'second')).toBe('preserved')
+    expect(shell.draftSnapshot).toEqual({ text: 'second', references: [] })
+  })
+
   it('appends to an attachment-only draft as its whole text', () => {
     const shell = makeShell()
     const attachment = 'draft-image' as DraftAttachmentId

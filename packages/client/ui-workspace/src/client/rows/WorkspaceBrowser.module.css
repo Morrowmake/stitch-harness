@@ -90,13 +90,17 @@
   padding-right: 1px;
 }
 
+/* The title takes all room the search control and actions leave, so long
+   translations stay whole; a sidebar too narrow for it ends it in an
+   ellipsis and the title attribute carries the full label. */
 .sectionLabel {
   position: relative;
   left: -1px;
-  flex: none;
-  max-width: 45%;
+  flex: 0 1 auto;
+  max-width: 100%;
   min-width: 0;
   overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
   line-height: 20px;
   opacity: 1;
@@ -121,7 +125,7 @@
 .searchSlot {
   flex: 1;
   max-width: 28px;
-  min-width: 0;
+  min-width: 28px;
   display: flex;
   align-items: center;
   margin-left: auto;

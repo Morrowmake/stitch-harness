@@ -88,6 +88,24 @@ export interface SessionFeedbackIssue {
   readonly body: string
 }
 
+/** The editable preview of one remark and the public repository it would be filed on. */
+export interface SessionFeedbackIssueDraft extends SessionFeedbackIssue {
+  /** `owner/name` of the public GitHub repository a confirmed issue is filed on. */
+  readonly repository: string
+}
+
+/**
+ * How the human chose to send a confirmed issue: `browser` only builds the
+ * prefilled new-issue page and never runs `gh`; `github-cli` files through
+ * an installed, signed-in `gh` and falls back to the prefilled page.
+ */
+export type SessionFeedbackReportIssueMethod = 'browser' | 'github-cli'
+
+/** A confirmed issue plus the sending method the human explicitly chose. */
+export interface SessionFeedbackReportIssueRequest extends SessionFeedbackIssue {
+  readonly via: SessionFeedbackReportIssueMethod
+}
+
 /**
  * Where a confirmed issue ended up: `created` when the `gh` CLI filed it,
  * `browser` when the human must finish filing it on a prefilled GitHub page.

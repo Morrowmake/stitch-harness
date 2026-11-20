@@ -14,6 +14,7 @@ import type {
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { MessageId } from '@deepseek-ai/dsh-api-remotes/client'
 import type { MessageFeedbackItem, MessageFeedbackRating } from '@deepseek-ai/dsh-message-feedback/types'
+import type { SessionFeedbackReportIssueMethod } from '@deepseek-ai/dsh-command-feedback/types'
 // Type-only: pulls this package's LocaleNamespaceMap merge (the 'feedback' seat).
 import type {} from './locales.ts'
 import type { MessageFeedbackActionResult, MessageFeedbackView } from './controller.ts'
@@ -65,7 +66,7 @@ export interface FeedbackDialogInjected {
    * @param draft - the members to replace.
    */
   edit: (draft: Partial<Pick<FeedbackDialogState, 'category' | 'text'>>) => void
-  /** Submit the draft to the open target. */
+  /** Save the draft as a note on this computer for the open target; sends nothing. */
   submit: () => Promise<void>
   /** Show the editable GitHub issue preview of the draft; sends nothing. */
   previewReport: () => Promise<void>
@@ -81,8 +82,11 @@ export interface FeedbackDialogInjected {
   includeSessionId: (include: boolean) => void
   /** Leave the preview: back to the form, or closed for an already recorded remark. */
   closeReport: () => void
-  /** File the previewed issue and open its GitHub page. */
-  confirmReport: () => Promise<void>
+  /**
+   * Send the previewed issue and open its GitHub page.
+   * @param via - `browser` for the prefilled page; `github-cli` only when the human chose to file with their account.
+   */
+  confirmReport: (via: SessionFeedbackReportIssueMethod) => Promise<void>
   /** Close the dialog and discard the draft. */
   dismiss: () => void
   /** Retire the current submission-failure toast without closing its draft. */

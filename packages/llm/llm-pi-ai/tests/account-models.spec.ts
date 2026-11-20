@@ -10,7 +10,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { getBuiltinModels } from '@earendil-works/pi-ai/providers/all'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import LlmRuntime from '@deepseek-ai/dsh-llm'
 import { LocalCredentialProvider } from '@deepseek-ai/dsh-credentials-local'
@@ -18,10 +18,12 @@ import type { SettingsPathOp } from '@deepseek-ai/dsh-settings'
 import { liveConfig } from '../../../settings/settings/tests/live-config.ts'
 import * as LlmPiAi from '@deepseek-ai/dsh-llm-pi-ai'
 import { recordKeyFor } from '../src/accounts/keys.ts'
+import { orderModels } from '../src/model-order.ts'
 
 const cleanups: Array<() => Promise<void>> = []
 
 afterEach(async () => {
+  vi.unstubAllGlobals()
   while (cleanups.length > 0) await cleanups.pop()!()
 })
 
@@ -65,7 +67,8 @@ async function boot(initial: Document): Promise<Context> {
   return ctx
 }
 
-const catalogIds = (provider: string): string[] => getBuiltinModels(provider as never).map(model => model.id)
+/** The provider's catalog in picker order (current first, newest first). */
+const catalogIds = (provider: string): string[] => orderModels(getBuiltinModels(provider as never)).map(({ model }) => model.id)
 const listedIds = async (ctx: Context, provider: string): Promise<string[]> =>
   (await ctx.llm.listModels(provider)).map(model => model.id)
 
@@ -98,11 +101,19 @@ describe('stored account metadata through the settings schema', () => {
 
   it('serves the catalog after an API key is added through llmAccounts', async () => {
     const ctx = await boot({})
+    // The key check lists Anthropic's models; this one accepts the key without leaving the process.
+    const checked: string[] = []
+    vi.stubGlobal('fetch', (url: string) => {
+      checked.push(url)
+      return Promise.resolve(new Response('{"data":[]}', { status: 200 }))
+    })
 
-    // The first-run "API access" path: the Remote stores the key and writes the account metadata.
-    const view = await ctx.llmAccounts.addApiKeyAccount('anthropic', { key: 'sk-ant-api03-test' })
+    // The first-run "API access" path: the Remote checks and stores the key and writes the account metadata.
+    const added = await ctx.llmAccounts.addApiKeyAccount('anthropic', { key: 'sk-ant-api03-test' })
 
-    expect(view.isDefault).toBe(true)
+    expect(added.check).toEqual({ status: 'verified' })
+    expect(checked).toEqual(['https://api.anthropic.com/v1/models?limit=1000'])
+    expect(added.account.isDefault).toBe(true)
     expect(ctx.llm.listProviders().map(provider => provider.id)).toContain('anthropic')
     expect(await listedIds(ctx, 'anthropic')).toEqual(catalogIds('anthropic'))
   })

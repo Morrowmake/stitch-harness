@@ -58,6 +58,12 @@ declare module '@deepseek-ai/cordis' {
       openBundle(packageName: string): void
       /** Open the Plugins main list without opening a dialog or changing the current Session. */
       openList(): void
+      /**
+       * Open one of the Plugins page's tabs at its list, such as Discover (`discover`), without opening a dialog or
+       * changing the current Session. A tab no plugin contributes opens Installed.
+       * @param id - the `plugins.tab` registration id, or `installed`.
+       */
+      openTab(id: string): void
     }
   }
 }
@@ -159,13 +165,17 @@ export function apply(ctx: ClientContext): void {
       yield ctx.layout.panelInfo.subscribe(() => {
         if (ctx.layout.panelInfo.getSnapshot().activePanelId !== PANEL_ID) instance.actions.setView({ kind: 'list' })
       })
-      const openList = (): void => {
+      // Clicking the Plugins entry again while a plugin's page is open returns to the list of the current tab.
+      yield ctx.layout.onReselect((panelId) => { if (panelId === PANEL_ID) instance.actions.setView({ kind: 'list' }) })
+      const openTab = (id: string): void => {
         ctx.layout.selectPanel(PANEL_ID)
-        instance.actions.setTab('installed')
+        instance.actions.setTab(id)
         instance.actions.setView({ kind: 'list' })
       }
+      const openList = (): void => { openTab('installed') }
       const disposeNavigation = ctx.reflect.provide('pluginNavigation', {
         openList,
+        openTab,
         openBundle: (packageName: string) => {
           ctx.layout.selectPanel(PANEL_ID)
           instance.actions.setTab('installed')

@@ -4,17 +4,18 @@
 - switch "Enable @fixture/bundle"
 - heading "@fixture/bundle" [level=3]
 - text: v0.0.1
+- paragraph: Registry description for the fixture bundle.
+- button "Developer details" [expanded]
 - paragraph:
   - code: "@fixture/bundle"
-- paragraph: Registry description for the fixture bundle.
-- region "Details":
+- region "README":
   - heading "Fixture bundle" [level=1]
   - paragraph: English | 中文
   - paragraph:
     - text: Registry fixture for the Web plugin-manager tests. It declares no
     - code: meta.detail
     - text: ", so its page shows this README."
-- heading "Components" [level=4]
+- heading "What's inside" [level=4]
 - text: 3 total · 3 off
 - list:
   - listitem:

@@ -1,0 +1,37 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/component/plugin-market-tool/README.md
+/:
+  en: 1592fc09a7901125
+  zh: 86a43c8e2edfcc9c
+/deepseek-ai-dsh-component-plugin-market-tool:
+  en: 2d077025cc5a436c
+  zh: d56afd43981e446d
+/deepseek-ai-dsh-component-plugin-market-tool/summary:
+  en: a7a2577fd2745bfc
+  zh: 34bbe2c2c4d1c232
+/deepseek-ai-dsh-component-plugin-market-tool/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 988e839059414d27
+/deepseek-ai-dsh-component-plugin-market-tool/use-this-package:
+  en: c08def46f4d89fa4
+  zh: 5233a4efa7b9430d
+/deepseek-ai-dsh-component-plugin-market-tool/understand-the-implementation:
+  en: 1c34d4d2d7cb7632
+  zh: e1144627eabbdfe0
+/deepseek-ai-dsh-component-plugin-market-tool/further-exploration:
+  en: 6d3e63b2c15f3736
+  zh: 20683c2750944531
+/deepseek-ai-dsh-component-plugin-market-tool/model-experience:
+  en: 082d4332b3ba2e79
+  zh: 09317c583aa94e70
+/deepseek-ai-dsh-component-plugin-market-tool/model-experience/kv-cache-effect:
+  en: eda83556efa1fd8c
+  zh: fcd7214a665d2a85
+/deepseek-ai-dsh-component-plugin-market-tool/known-limitations-and-deferred-work:
+  en: 161bf728429b295a
+  zh: cbda42b4408745d0
+/deepseek-ai-dsh-component-plugin-market-tool/known-limitations-and-deferred-work/dev-note:
+  en: 279d01435256cd2a
+  zh: 9e8049b1f405e814

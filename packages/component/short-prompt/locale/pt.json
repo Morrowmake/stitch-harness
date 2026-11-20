@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Prompt de sistema curto",
-    "description": "Substitui a longa orientação de ferramentas da predefinição padrão por um prompt curto."
+    "description": "Dá ao agente instruções internas mais curtas, o que pode agilizar respostas."
   }
 }

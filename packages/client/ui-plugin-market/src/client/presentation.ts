@@ -3,6 +3,7 @@ import type { LocalizedText } from '@deepseek-ai/dsh-package-manifest'
 import type { MarketIndexSummary, MarketListingEntry, MarketListingVersion, MarketSort } from '@deepseek-ai/dsh-api-remotes/client'
 import type { MarketIndexMetadata } from '@deepseek-ai/dsh-plugin-market-index'
 import { parseGitMarketIndexSource } from '@deepseek-ai/dsh-plugin-market-index/source'
+import { isStitchPluginIndex, knownCommunityIndex, type CommunityPluginIndexId } from '@deepseek-ai/dsh-plugin-market/indexes'
 
 /** The Discover query: text, filters, and order, without paging. */
 export interface DiscoverQuery {
@@ -104,15 +105,83 @@ export function sourceFacts(name: string, version: MarketListingVersion): Source
   ]
 }
 
+/** The name Stitch gives an index it knows at an address, in the current language; undefined for any other address. */
+export type KnownIndexName = (url: string) => string | undefined
+
+/** Where a configured index comes from: the Stitch index, or a community index Stitch does not review. */
+export type IndexOrigin =
+  | { readonly kind: 'stitch' }
+  | {
+    readonly kind: 'community'
+    /** Set for a community index Stitch knows by address. */
+    readonly known?: CommunityPluginIndexId
+    /** Set when the index lists plugins written for another harness. */
+    readonly harness?: 'deepseek-harness'
+  }
+
 /**
- * Name an index source: its market title once read, otherwise its host.
+ * Classify an index source.
+ * @param url - the configured source URL.
+ * @returns `stitch` for the Stitch plugin index, otherwise `community` with what Stitch knows about it.
+ */
+export function indexOrigin(url: string): IndexOrigin {
+  if (isStitchPluginIndex(url)) return { kind: 'stitch' }
+  const known = knownCommunityIndex(url)
+  return known === undefined ? { kind: 'community' } : { kind: 'community', known: known.id, harness: known.harness }
+}
+
+/**
+ * Name an index source: the name Stitch gives an index it knows, else its market title once read, else its host.
  * @param index - the configured source.
  * @param resolveText - current-language text resolution.
+ * @param known - names of the indexes Stitch knows.
  * @returns the display name; a URL the browser cannot parse is shown as written.
  */
-export function indexLabel(index: MarketIndexSummary, resolveText: (text: LocalizedText) => string): string {
+export function indexLabel(
+  index: MarketIndexSummary, resolveText: (text: LocalizedText) => string, known: KnownIndexName = () => undefined,
+): string {
+  const name = known(index.url)
+  if (name !== undefined) return name
   if (index.title !== undefined) return resolveText(index.title)
   return URL.canParse(index.url) ? new URL(index.url).host : index.url
+}
+
+/**
+ * Why a community listing's version may not work in Stitch: `harness` when the index lists plugins for another harness,
+ * `range` when Stitch does not satisfy the declared range, `undeclared` when the version names no range.
+ */
+export type CompatibilityNote = 'harness' | 'range' | 'undeclared'
+
+/**
+ * The compatibility caution of a listed version.
+ * @param origin - the listing's index.
+ * @param version - the version shown.
+ * @returns the caution, or null for the Stitch index and for a community version that declares a satisfied range.
+ */
+export function compatibilityNote(origin: IndexOrigin, version: MarketListingVersion): CompatibilityNote | null {
+  if (origin.kind === 'stitch') return null
+  if (origin.harness !== undefined) return 'harness'
+  if (!version.compatibility.compatible) return 'range'
+  return version.engines.dsh === undefined ? 'undeclared' : null
+}
+
+/** How a community index's label reads: a verdict the index gives, attributed to it, or the label as written. */
+export type LabelAttribution = 'low-risk' | 'install-verified' | 'verdict' | null
+
+/** Label ids that read as a safety or quality verdict. */
+const VERDICT_LABEL = /risk|verif|audit|secur|safe|trust|review/iu
+
+/**
+ * Decide how a label of an index is attributed, so a community index's verdict never reads as Stitch's.
+ * @param origin - the index declaring the label.
+ * @param id - the label id.
+ * @returns the attribution, or null when the label is shown as written.
+ */
+export function labelAttribution(origin: IndexOrigin, id: string): LabelAttribution {
+  if (origin.kind === 'stitch') return null
+  if (id === 'risk-low' || id === 'low-risk') return 'low-risk'
+  if (id === 'install-verified') return 'install-verified'
+  return VERDICT_LABEL.test(id) ? 'verdict' : null
 }
 
 interface GitHubIndexName {
@@ -154,18 +223,21 @@ function repeatedLabels(items: readonly { readonly label: string }[]): Set<strin
 }
 
 /**
- * Label the Discover selector and its menu in source order. Titled Raw indexes keep their localized title.
- * Duplicate GitHub labels include the file location, then an ordinal if the location still matches.
+ * Label the Discover selector and its menu in source order. An index Stitch knows takes its name; titled Raw indexes
+ * keep their localized title. Duplicate GitHub labels include the file location, then an ordinal if the location still
+ * matches.
  * @param indexes - the configured sources in display order.
  * @param resolveText - current-language text resolution.
+ * @param known - names of the indexes Stitch knows.
  * @returns menu items identified by their configured source URLs.
  */
 export function indexMenuItems(
-  indexes: readonly MarketIndexSummary[], resolveText: (text: LocalizedText) => string,
+  indexes: readonly MarketIndexSummary[], resolveText: (text: LocalizedText) => string, known: KnownIndexName = () => undefined,
 ): { readonly id: string; readonly label: string }[] {
   const items = indexes.map((index) => {
-    const github = githubIndexName(index, resolveText)
-    return { id: index.url, label: github?.label ?? indexLabel(index, resolveText), location: github?.location }
+    const name = known(index.url)
+    const github = name === undefined ? githubIndexName(index, resolveText) : undefined
+    return { id: index.url, label: name ?? github?.label ?? indexLabel(index, resolveText), location: github?.location }
   })
   const duplicates = repeatedLabels(items)
   const named = items.map(item => item.location !== undefined && duplicates.has(item.label)

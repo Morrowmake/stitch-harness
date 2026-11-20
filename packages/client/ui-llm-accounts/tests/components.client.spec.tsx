@@ -6,9 +6,11 @@
  */
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
-import type { AccountsSnapshot, SignInAttemptView } from '@deepseek-ai/dsh-api-remotes/client'
+import type { AccountRetryResult, AccountsSnapshot, SignInAttemptView } from '@deepseek-ai/dsh-api-remotes/client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AccountsSection } from '../src/client/AccountsSection.tsx'
+import { ApiKeyDialog } from '../src/client/ApiKeyDialog.tsx'
+import type { Outcome } from '../src/client/operations.ts'
 import { en } from '../src/client/locales.ts'
 import { ModelsDialog } from '../src/client/ModelsDialog.tsx'
 import { SignInDialog } from '../src/client/SignInDialog.tsx'
@@ -31,11 +33,13 @@ function useStore<S>(value: S) {
 function section(state: AccountsState, ops = operations()) {
   const release = vi.fn()
   const acquire = vi.fn(() => release)
+  const reportOwnCredentials = vi.fn()
   const props = {
     provider: { provider: 'openai-codex' } as never,
+    reportOwnCredentials,
     useAccounts: useStore(state), acquire, operations: ops, t,
   }
-  return { props, ops, acquire, release }
+  return { props, ops, acquire, release, reportOwnCredentials }
 }
 
 describe('AccountsSection', () => {
@@ -68,9 +72,9 @@ describe('AccountsSection', () => {
 
     await click(within(key).getByRole('button', { name: 'Make default' }))
     expect(ops.setDefaultAccount).toHaveBeenCalledWith('openai-codex', 'k3j9x0a1bc')
-    await click(within(key).getByRole('switch', { name: 'Use in pool' }))
+    await click(within(key).getByRole('switch', { name: en['account.pooled'] }))
     expect(ops.updateAccount).toHaveBeenLastCalledWith('openai-codex', 'k3j9x0a1bc', { pooled: false })
-    await click(within(main).getByRole('switch', { name: 'Show in model picker' }))
+    await click(within(main).getByRole('switch', { name: en['account.pinned'] }))
     expect(ops.updateAccount).toHaveBeenLastCalledWith('openai-codex', 'main', { pinned: true })
     await click(within(key).getByRole('button', { name: 'Retry now' }))
     expect(ops.retryAccountNow).toHaveBeenCalledWith('openai-codex', 'k3j9x0a1bc')
@@ -134,6 +138,105 @@ describe('AccountsSection', () => {
     expect(ops.cancelSignIn).toHaveBeenCalledWith(ATTEMPT)
     await click(within(screen.getByText('Personal').closest('li')!).getByRole('button', { name: 'Sign in again' }))
     expect(ops.beginSignIn).toHaveBeenLastCalledWith('openai-codex', { method: 'oauth', accountId: 'main' })
+  })
+
+  it('labels each switch visibly with help text that describes it', () => {
+    const { props } = section({ snapshot: rows, linked: true })
+    render(<AccountsSection {...props} />)
+    const main = screen.getByText('Personal').closest('li')!
+    const pooled = within(main).getByRole('switch', { name: en['account.pooled'] })
+    expect(within(main).getByText(en['account.pooled'])).toBeTruthy()
+    expect(document.getElementById(pooled.getAttribute('aria-describedby')!)!.textContent).toBe(en['account.pooledHelp'])
+    const pinned = within(main).getByRole('switch', { name: en['account.pinned'] })
+    expect(document.getElementById(pinned.getAttribute('aria-describedby')!)!.textContent).toBe(en['account.pinnedHelp'])
+  })
+
+  it('shows a refused key as rejected with Replace key, and keeps Needs sign-in for sign-ins', async () => {
+    const failing = snapshot(provider([
+      account('main', { alias: 'Personal', isDefault: true, health: { state: 'needs-sign-in', reason: 'INVALID_CREDENTIAL' } as never }),
+      account('k3j9x0a1bc', { kind: 'api-key', label: 'Key 2', health: { state: 'needs-sign-in', reason: 'INVALID_CREDENTIAL' } as never }),
+    ]))
+    const { props, ops } = section({ snapshot: failing, linked: true })
+    render(<AccountsSection {...props} />)
+    const main = screen.getByText('Personal').closest('li')!
+    const key = screen.getByText('Key 2').closest('li')!
+    expect(within(main).getByText(en['health.needsSignIn'])).toBeTruthy()
+    expect(within(key).getByText(en['health.keyRejected'])).toBeTruthy()
+    expect(within(key).queryByText(en['health.needsSignIn'])).toBeNull()
+
+    await click(within(key).getByRole('button', { name: en['account.replaceKey'] }))
+    const dialog = screen.getByRole('dialog')
+    fireEvent.change(dialog.querySelector('input[type="password"]')!, { target: { value: 'sk-new' } })
+    await click(within(dialog).getByRole('button', { name: 'Add' }))
+    await waitFor(() => { expect(ops.removeAccount).toHaveBeenCalledWith('openai-codex', 'k3j9x0a1bc') })
+    expect(ops.addApiKeyAccount).toHaveBeenCalledWith('openai-codex', { key: 'sk-new' })
+  })
+
+  it.each([
+    ['verified', en['retry.verified']],
+    ['rejected', en['retry.rejected']],
+    ['unverified', en['retry.unverified']],
+    ['cleared', en['retry.cleared']],
+  ] as const)('shows the %s result of Retry now', async (status, text) => {
+    const ops = operations()
+    const pending = Promise.withResolvers<Outcome<AccountRetryResult>>()
+    ops.retryAccountNow.mockReturnValue(pending.promise)
+    const { props } = section({ snapshot: rows, linked: true }, ops)
+    render(<AccountsSection {...props} />)
+    const key = screen.getByText('Key 2').closest('li')!
+    await click(within(key).getByRole('button', { name: 'Retry now' }))
+    expect(within(key).getByRole('status').textContent).toBe(en['retry.checking'])
+    await act(async () => { pending.resolve({ ok: true, value: status === 'unverified' ? { status, reason: 'unreachable' } : { status } }) })
+    expect(within(key).getByRole('status').textContent).toBe(text)
+  })
+
+  it('reports whether the provider holds credentials of its own', () => {
+    const { props, reportOwnCredentials } = section({ snapshot: rows, linked: true })
+    render(<AccountsSection {...props} />)
+    expect(reportOwnCredentials).toHaveBeenLastCalledWith('openai-codex', true)
+    const envOnly = snapshot(provider([account('env', { kind: 'key-ref', label: 'OPENAI_API_KEY', removable: false })]))
+    const other = section({ snapshot: envOnly, linked: true })
+    render(<AccountsSection {...other.props} />)
+    expect(other.reportOwnCredentials).toHaveBeenLastCalledWith('openai-codex', false)
+  })
+})
+
+describe('ApiKeyDialog', () => {
+  function addKey(ops = operations()) {
+    const onClose = vi.fn()
+    render(<ApiKeyDialog provider="openai" displayName="OpenAI" operations={ops} t={t} onClose={onClose} />)
+    fireEvent.change(screen.getByRole('dialog').querySelector('input[type="password"]')!, { target: { value: 'sk-test' } })
+    return { ops, onClose, add: () => click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Add' })) }
+  }
+
+  it('shows the check while it runs', async () => {
+    const ops = operations()
+    ops.addApiKeyAccount.mockReturnValue(Promise.withResolvers<never>().promise)
+    const { add } = addKey(ops)
+    await add()
+    expect(screen.getByRole('button', { name: en['apikey.checking'] })).toHaveProperty('disabled', true)
+    expect(screen.getByRole('status').textContent).toBe(en['apikey.checkingHint'])
+  })
+
+  it('stays open with an inline error when the provider rejects the key', async () => {
+    const ops = operations()
+    ops.addApiKeyAccount.mockResolvedValue({ ok: false, reason: 'key-rejected', message: 'OpenAI rejected this API key.' })
+    const { add, onClose } = addKey(ops)
+    await add()
+    expect(screen.getByRole('alert').textContent).toBe('OpenAI rejected this key. Check it and try again.')
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('says the key was saved unchecked when the provider could not be reached', async () => {
+    const ops = operations()
+    ops.addApiKeyAccount.mockResolvedValue({
+      ok: true, value: { account: account('k1', { kind: 'api-key' }), check: { status: 'unverified', reason: 'unreachable' } },
+    })
+    const { add, onClose } = addKey(ops)
+    await add()
+    expect(screen.getByRole('status').textContent).toBe(en['apikey.unverified'])
+    await click(screen.getByRole('button', { name: en.done }))
+    expect(onClose).toHaveBeenCalledOnce()
   })
 })
 

@@ -89,6 +89,11 @@ function takeUnloadMark(sessionId: SessionId): boolean {
 /** Session-addressed input facade registry (SessionInputResolver face + composer-layer extras). */
 export class InputHub implements SessionInputResolver {
   private readonly shells = new WeakMap<SessionBinding, SessionInputShell>()
+  /**
+   * Per Session, the whole draft text the latest initialization placed; it outlives the Session's
+   * shell so a later `ask` still tells that text from the user's own after the view was left.
+   */
+  private readonly preparedDrafts = new Map<SessionId, string>()
 
   /**
    * @param ctx - client root context (services resolved lazily per call — boot order stays free).
@@ -134,7 +139,13 @@ export class InputHub implements SessionInputResolver {
     if (this.sessions().binding(binding.sessionId) !== binding) {
       throw new Error('conversation.input.requestDraftInitialization requires a retained Session binding')
     }
-    return this.shellFor(binding).requestDraftInitialization(options)
+    const shell = this.shellFor(binding)
+    const result = shell.requestDraftInitialization(options, this.preparedDrafts.get(binding.sessionId))
+    // Appended text joins the user's own, so only a whole-draft adoption counts as prepared.
+    if (result === 'applied' && options.whenDraftExists !== 'append') {
+      this.preparedDrafts.set(binding.sessionId, shell.snapshot.draft)
+    }
+    return result
   }
 
   /**

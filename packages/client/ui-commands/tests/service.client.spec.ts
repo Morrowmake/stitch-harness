@@ -361,7 +361,7 @@ describe('candidates', () => {
     const SHIPPED: CommandDescriptor[] = [
       { definitionId: brandString<CommandDefinitionId>('@deepseek-ai/dsh-command-compact'), name: 'compact', description: 'Compact older conversation history' },
       { definitionId: brandString<CommandDefinitionId>('@deepseek-ai/dsh-session-log-export'), name: 'export', description: 'Download this Session log as a ZIP archive' },
-      { definitionId: brandString<CommandDefinitionId>('@deepseek-ai/dsh-command-feedback'), name: 'feedback', description: 'Record feedback about this session', input: { hint: '<text>' } },
+      { definitionId: brandString<CommandDefinitionId>('@deepseek-ai/dsh-command-feedback'), name: 'feedback', description: 'Save a note about this chat or report a problem', input: { hint: '<note>' } },
       { definitionId: brandString<CommandDefinitionId>('@deepseek-ai/dsh-command-goal'), name: 'goal', description: 'Set or view the goal for a long-running task', input: { hint: '<objective>', attachments: true } },
       { definitionId: brandString<CommandDefinitionId>('@deepseek-ai/dsh-permission-presets'), name: 'permission', description: 'Switch the permission preset (sandbox mode + approval policy)', input: { hint: '<preset>' } },
       { definitionId: brandString<CommandDefinitionId>('@deepseek-ai/dsh-plan-mode'), name: 'plan', description: 'Enter or leave plan mode', input: { hint: '[off|message]', attachments: true } },

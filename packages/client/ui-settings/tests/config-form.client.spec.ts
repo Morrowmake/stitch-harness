@@ -124,6 +124,20 @@ describe('ConfigFormController', () => {
     expect(scope.getSnapshot()).toMatchObject({ status: 'loading', value: undefined, revision: 2 })
   })
 
+  it('judges a candidate field value by the served schema and leaves undescribed paths to the Host', async () => {
+    const bounded = {
+      ...view({}, 1),
+      schema: JSON.parse(JSON.stringify(z.object({ timeoutMs: z.natural().min(1).max(10_000) }).toJSON())) as JsonValue,
+    }
+    const describeCall = vi.fn().mockResolvedValueOnce(ok({ writable: true, hasDocument: true, namespaces: [bounded] }))
+    const { mirror, scope } = derivedScope({ describe: describeCall })
+    expect(scope.accepts(['timeoutMs'], -5)).toBe(true)
+    await mirror.load()
+    for (const refused of [-5, 0, 1.5, 10_001]) expect(scope.accepts(['timeoutMs'], refused)).toBe(false)
+    expect(scope.accepts(['timeoutMs'], 5_000)).toBe(true)
+    expect(scope.accepts(['undeclared'], -5)).toBe(true)
+  })
+
   it('reports an unexposed namespace as unavailable and recovers when it reappears', async () => {
     const describeCall = vi.fn()
       .mockResolvedValueOnce(described({ preference: 'light' }, 1))

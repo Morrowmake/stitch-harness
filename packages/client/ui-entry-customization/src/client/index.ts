@@ -40,11 +40,11 @@ export function apply(ctx: Context): void {
     region,
     hooks: { pluginNavigation },
     browsePlugins: () => {
-      ctx.get('pluginNavigation')?.openList()
+      ctx.get('pluginNavigation')?.openTab('discover')
     },
     createPlugin: () => {
       ctx.uiWorkspace.startSession(undefined, {
-        agentPreset: 'cordis', prompt: t(`createPrompt.${region}`), whenDraftExists: 'append',
+        agentPreset: 'cordis', prompt: t(`createPrompt.${region}`), whenDraftExists: 'ask',
       })
     },
   })

@@ -45,7 +45,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session-status/client'
 import {
   type ArchiveSessionInjected, type DirectoryFlowSlotName, type ForkSessionInjected, menuOpenStateFactory, type PinSessionInjected,
-  type SessionArchiveConfirmInjected, type SessionArchiveConfirmRequest,
+  type DraftReplaceInjected, type SessionArchiveConfirmInjected, type SessionArchiveConfirmRequest,
   type RenameSessionInjected, type RowToast, type RowToastInjected, type RowToastState, type SessionRenameDialogInjected,
   type WorkspaceActionRequest, type SessionIdInjected, type WorkspaceBrowserInjected, type WorkspacePickerInjected,
 } from './contract/slots.ts'
@@ -61,6 +61,7 @@ import { SessionRenameDialog } from './session-actions/RenameSession.tsx'
 import { RowActionToast } from './session-actions/RowActionToast.tsx'
 import { registerToasts } from './toast/register.ts'
 import { WorkspacePicker, WorkspacePickerFactory } from './WorkspacePicker.tsx'
+import { DraftReplaceDialog } from './DraftReplaceDialog.tsx'
 import { en, ja, es, fr, de, ru, pt, zh, type WorkspaceKey } from './locales.ts'
 
 export type { StartSessionOptions, UiWorkspace } from './navigation.ts'
@@ -280,6 +281,15 @@ export function apply(ctx: Context, config: SyncedConfig<WorkspaceNavigationConf
       await archiveNotice(sessionId, 'stoppedAndArchived')
     },
   })
+  const draftReplaceInjected = (): DraftReplaceInjected => ({
+    hooks: { draftReplaceRequest: uiWorkspace.draftReplaceRequest },
+    // A blocked replacement raises the Workspace notice in the service; the warning keeps the cause.
+    settleDraftReplace: (replace) => {
+      uiWorkspace.settleDraftReplace(replace).catch((reason: unknown) => {
+        console.warn('draft replacement failed:', reason)
+      })
+    },
+  })
   const forkInjected = (): ForkSessionInjected => ({
     forkSession: (sessionId) => {
       uiWorkspace.forkSession(sessionId, { allowMigration: false }).catch((error: unknown) => {
@@ -413,6 +423,9 @@ export function apply(ctx: Context, config: SyncedConfig<WorkspaceNavigationConf
     yield ctx.slots.register({
       name: 'shell.overlay', id: 'workspace.session-archive', locale: NS, inject: archiveConfirmInjected,
     }, SessionArchiveConfirmDialog)
+    yield ctx.slots.register({
+      name: 'shell.overlay', id: 'workspace.draft-replace', locale: NS, inject: draftReplaceInjected,
+    }, DraftReplaceDialog)
     yield ctx.slots.register({
       name: 'shell.overlay', id: 'workspace.row-toast', inject: rowToastInjected,
       children: { 'workspace.toast': { kind: 'keyed', scope: 'root' } },

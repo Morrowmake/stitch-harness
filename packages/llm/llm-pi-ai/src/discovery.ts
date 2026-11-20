@@ -66,6 +66,9 @@ const GEMINI_MODEL_LIMIT = 1000
  */
 const MAX_RESPONSE_BYTES = 4 * 1024 * 1024
 
+/** How long one endpoint interrogation may take, connection and body together. */
+export const DISCOVERY_DEADLINE_MS = 8_000
+
 /** Capacity fields nested by enriched model-directory replies. */
 interface ListingLimit {
   context?: unknown
@@ -138,7 +141,7 @@ function listingUrl(baseURL: string, api: string): string {
  * anything; the accumulated total is what actually enforces the bound, because
  * a server that under-declares (or streams) tells us nothing up front.
  */
-async function readBounded(response: Response, url: string): Promise<string> {
+export async function readBounded(response: Response, url: string): Promise<string> {
   const oversized = (): LlmError =>
     new LlmError(`${url} answered with more than ${MAX_RESPONSE_BYTES} bytes`, 'DISCOVERY_FAILED')
   const declared = Number(response.headers.get('content-length') ?? Number.NaN)
@@ -202,7 +205,7 @@ function readListing(body: unknown): LlmDiscoveredModel[] {
       throw new LlmError(
         'the endpoint\'s model listing has neither a "data" array nor a "models" object; '
         + 'enter this provider\'s models by hand',
-        'DISCOVERY_FAILED',
+        'INVALID_RESPONSE',
       )
     }
     listed = Object.entries(models as Record<string, unknown>)
@@ -261,7 +264,7 @@ function readGeminiListing(body: unknown): LlmDiscoveredModel[] {
   if (!Array.isArray(listed)) {
     throw new LlmError(
       'the endpoint\'s model listing has no "models" array; enter this provider\'s models by hand',
-      'DISCOVERY_FAILED',
+      'INVALID_RESPONSE',
     )
   }
   const models: LlmDiscoveredModel[] = []
@@ -302,6 +305,44 @@ function usableProbeKey(raw: string): string {
   )
 }
 
+/** One authenticated model-listing request: its URL and headers. */
+export interface ListingRequest {
+  readonly url: string
+  readonly headers: Headers
+}
+
+/**
+ * Build the model-listing request a protocol answers, with that protocol's
+ * auth header rules: bearer for OpenAI protocols, `x-api-key` plus
+ * `anthropic-version` for Anthropic Messages, `x-goog-api-key` for Gemini.
+ * Deployment headers are applied first and attribution last.
+ * @param baseURL - the endpoint base the route sends model requests to.
+ * @param api - the route's pi-ai protocol.
+ * @param apiKey - the already-normalized key, or `undefined` for an unauthenticated probe.
+ * @param deploymentHeaders - headers configured on the route.
+ * @returns the request, or `undefined` when the protocol has no listing this build can read.
+ */
+export function listingRequest(
+  baseURL: string,
+  api: string,
+  apiKey: string | undefined,
+  deploymentHeaders?: Readonly<Record<string, string>>,
+): ListingRequest | undefined {
+  if (!LISTABLE_PROTOCOLS.has(api)) return undefined
+  const headers = new Headers(deploymentHeaders === undefined ? undefined : Object.entries(deploymentHeaders))
+  headers.set('accept', 'application/json')
+  if (api === 'anthropic-messages') {
+    headers.set('anthropic-version', ANTHROPIC_VERSION)
+    if (apiKey !== undefined) headers.set('x-api-key', apiKey)
+  } else if (api === 'google-generative-ai') {
+    if (apiKey !== undefined) headers.set('x-goog-api-key', apiKey)
+  } else if (apiKey !== undefined) {
+    headers.set('authorization', `Bearer ${apiKey}`)
+  }
+  for (const [name, value] of Object.entries(attributionHeaders())) headers.set(name, value)
+  return { url: listingUrl(baseURL, api), headers }
+}
+
 /** Host-owned profile inputs that a configuration draft deliberately omits. */
 export interface StoredModelDiscoveryProfile {
   /** Deployment headers configured on the named route. */
@@ -317,8 +358,10 @@ export interface StoredModelDiscoveryProfile {
  *   the named route. It is read only on the path that reaches the network; the
  *   credential is resolved only when the draft carries none.
  * @returns the advertised models in endpoint order.
- * @throws LlmError when the protocol has no readable listing, the endpoint
- *   refuses or fails the request, or the reply is not a model listing.
+ * @throws LlmError when the protocol has no readable listing (`DISCOVERY_UNSUPPORTED`),
+ *   the endpoint cannot be reached (`TRANSPORT`) or does not answer within
+ *   {@link DISCOVERY_DEADLINE_MS} (`TIMEOUT`), refuses the request (with its HTTP
+ *   `status`), or answers with something other than a model listing (`INVALID_RESPONSE`).
  */
 export async function discoverModels(
   request: LlmModelDiscoveryOperation,
@@ -358,7 +401,6 @@ export async function discoverModels(
       'DISCOVERY_UNSUPPORTED',
     )
   }
-  const url = listingUrl(request.baseURL, api)
   // A key typed into the form wins: it may replace the stored key that is
   // failing. The stored profile is asked past the catalog and protocol checks,
   // and its credential resolver remains lazy so a typed key cannot fail over a
@@ -367,34 +409,30 @@ export async function discoverModels(
   const stored = storedProfile?.()
   const supplied = request.apiKey ?? await stored?.resolveApiKey()
   const apiKey = supplied === undefined ? undefined : usableProbeKey(supplied)
+  // Listability was checked above, so the request exists.
+  const { url, headers } = listingRequest(request.baseURL, api, apiKey, stored?.headers) as ListingRequest
+  const deadline = AbortSignal.timeout(DISCOVERY_DEADLINE_MS)
+  const signal = request.signal === undefined ? deadline : AbortSignal.any([request.signal, deadline])
+  /** The coded failure for a fetch or body read that did not complete. */
+  const interrupted = (error: unknown): LlmError | undefined => {
+    if (request.signal?.aborted) return new LlmError('model discovery aborted by caller', 'ABORTED', { cause: error })
+    if (deadline.aborted) {
+      return new LlmError(`${url} did not answer within ${String(DISCOVERY_DEADLINE_MS / 1000)} s`, 'TIMEOUT', { cause: error })
+    }
+    return undefined
+  }
   let response: Response
   try {
-    const headers = new Headers(stored?.headers === undefined ? undefined : Object.entries(stored.headers))
-    headers.set('accept', 'application/json')
-    if (api === 'anthropic-messages') {
-      headers.set('anthropic-version', ANTHROPIC_VERSION)
-      if (apiKey !== undefined) headers.set('x-api-key', apiKey)
-    } else if (api === 'google-generative-ai') {
-      if (apiKey !== undefined) headers.set('x-goog-api-key', apiKey)
-    } else if (apiKey !== undefined) {
-      headers.set('authorization', `Bearer ${apiKey}`)
-    }
-    for (const [name, value] of Object.entries(attributionHeaders())) headers.set(name, value)
-    response = await fetch(url, {
-      method: 'GET',
-      headers,
-      ...request.signal === undefined ? {} : { signal: request.signal },
-    })
+    response = await fetch(url, { method: 'GET', headers, signal })
   } catch (error: unknown) {
-    if (request.signal?.aborted) {
-      throw new LlmError('model discovery aborted by caller', 'ABORTED', { cause: error })
-    }
-    throw new LlmError(`could not reach ${url}`, 'DISCOVERY_FAILED', { cause: error })
+    throw interrupted(error) ?? new LlmError(`could not reach ${url}`, 'TRANSPORT', { cause: error })
   }
   if (!response.ok) {
+    await response.body?.cancel()
     throw new LlmError(
       `${url} answered ${response.status}${response.status === 401 || response.status === 403 ? '; check the API key' : ''}`,
       'DISCOVERY_FAILED',
+      { status: response.status },
     )
   }
   let text: string
@@ -404,16 +442,13 @@ export async function discoverModels(
     // Cancellation during the body read rejects with the abort reason, which
     // may be any value; the caller gets the same coded failure it would have
     // for a cancellation before the request went out.
-    if (request.signal?.aborted) {
-      throw new LlmError('model discovery aborted by caller', 'ABORTED', { cause: error })
-    }
-    throw error
+    throw interrupted(error) ?? error
   }
   let body: unknown
   try {
     body = JSON.parse(text)
   } catch (error: unknown) {
-    throw new LlmError(`${url} did not answer with JSON`, 'DISCOVERY_FAILED', { cause: error })
+    throw new LlmError(`${url} did not answer with JSON`, 'INVALID_RESPONSE', { cause: error })
   }
   return api === 'google-generative-ai' ? readGeminiListing(body) : readListing(body)
 }

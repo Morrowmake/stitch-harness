@@ -486,8 +486,11 @@ html[data-platform='darwin'] body[data-ds-dark-theme] {
 
 /* macOS vibrancy sidebar: glass control fills (the collapsed rail drops the
  * light fill but keeps the dark one), the column's top and bottom
- * washes with their fully transparent ends, and its translucent tint. Dark drops the tint's blue cast (it reads
- * purple over dark fills) and thins it so more wallpaper shows. */
+ * washes with their fully transparent ends, and its translucent tint. Dark
+ * paints the opaque sidebar fill instead: the native material can resolve to
+ * the light appearance under a dark app palette, which reads as a light grey
+ * column beside the dark conversation, so the dark sidebar keeps the app's own
+ * surface rather than the wallpaper. */
 html[data-platform='darwin'] body {
   --dsw-specific-sidebar-glass-collapsed-fill: transparent;
   --dsw-specific-sidebar-glass-collapsed-hover: var(--dsw-alias-interactive-bg-hover);
@@ -505,7 +508,7 @@ html[data-platform='darwin'] body[data-ds-dark-theme] {
   --dsw-specific-sidebar-glass-collapsed-hover: var(--dsw-specific-sidebar-glass-hover);
   --dsw-specific-sidebar-glass-fill: rgb(255 255 255 / 0.15);
   --dsw-specific-sidebar-glass-hover: rgb(255 255 255 / 0.2);
-  --dsw-specific-sidebar-tint: color-mix(in srgb, var(--dsw-specific-sidebar-fill) 50%, transparent);
+  --dsw-specific-sidebar-tint: var(--dsw-specific-sidebar-fill);
   --dsw-specific-sidebar-wash-bottom: rgb(143 137 184 / 0.07);
   --dsw-specific-sidebar-wash-top: rgb(122 155 240 / 0.08);
 }

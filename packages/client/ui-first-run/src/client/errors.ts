@@ -10,6 +10,7 @@ import type { Outcome } from './operations.ts'
 const CODE_KEYS: Readonly<Record<string, FirstRunKey>> = {
   'llm-accounts/attempt-busy': 'signin.busy',
   'llm-accounts/invalid-key': 'hosted.keyInvalid',
+  'llm-accounts/key-rejected': 'hosted.keyInvalid',
   'llm-accounts/unsupported': 'error.unsupported',
   'llm-accounts/settings-rejected': 'error.settingsRejected',
   'llm-accounts/unknown-account': 'error.signinGone',

@@ -12,6 +12,7 @@ import {
 interface StubScope<T> {
   scope: SettingsFormScope<T>
   mutate: ReturnType<typeof vi.fn<SettingsFormScope<T>['mutate']>>
+  accepts: ReturnType<typeof vi.fn<SettingsFormScope<T>['accepts']>>
   publish: (next: Partial<SettingsFormScopeSnapshot<T>>) => void
 }
 
@@ -20,12 +21,18 @@ function stubScope<T>(): StubScope<T> {
   let snapshot: SettingsFormScopeSnapshot<T> = { status: 'loading', value: undefined, base: undefined, user: undefined, writable: false, revision: undefined }
   const listeners = new Set<() => void>()
   const mutate = vi.fn<SettingsFormScope<T>['mutate']>(() => Promise.resolve(true))
+  const accepts = vi.fn<SettingsFormScope<T>['accepts']>(() => true)
   const scope: SettingsFormScope<T> = {
     getSnapshot: () => snapshot,
     subscribe: (listener) => { listeners.add(listener); return () => { listeners.delete(listener) } },
+    accepts,
     mutate,
   }
-  return { scope, mutate, publish: (next) => { snapshot = { ...snapshot, ...next }; for (const listener of listeners) listener() } }
+  const publish = (next: Partial<SettingsFormScopeSnapshot<T>>): void => {
+    snapshot = { ...snapshot, ...next }
+    for (const listener of listeners) listener()
+  }
+  return { scope, mutate, accepts, publish }
 }
 
 /** Make the stub behave like a Host that accepts every write. */
@@ -145,6 +152,25 @@ describe('SettingsFormModel', () => {
 
     expect(host.mutate).not.toHaveBeenCalled()
     expect(subject.field('timeoutMs').text).toBe('soon')
+  })
+
+  it('refuses to save a parsed value the served schema rejects', async () => {
+    const { host, subject } = form()
+    // As the Host's `z.natural().min(1)` timeout would.
+    host.accepts.mockImplementation((_path, value) => typeof value === 'number' && value >= 1)
+
+    subject.actions().edit('timeoutMs', '-5')
+
+    expect(subject.field('timeoutMs')).toEqual({ text: '-5', overridden: false, invalid: true })
+    expect(host.accepts).toHaveBeenCalledWith(['timeoutMs'], -5)
+    expect(subject.shell()).toMatchObject({ dirty: true, invalid: true })
+    await subject.save()
+    expect(host.mutate).not.toHaveBeenCalled()
+
+    subject.actions().edit('timeoutMs', '9000')
+    expect(subject.field('timeoutMs')).toEqual({ text: '9000', overridden: true, invalid: false })
+    await subject.save()
+    expect(host.mutate).toHaveBeenCalledWith([{ op: 'set', path: ['timeoutMs'], value: 9_000 }], undefined)
   })
 
   it('stages a reset that clears the field only once saved', async () => {

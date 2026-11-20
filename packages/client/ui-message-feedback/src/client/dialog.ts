@@ -1,17 +1,19 @@
 /**
  * Headless state of one Session's feedback dialog and its acknowledgement and
  * failure toasts. One form serves two targets: the Session itself (a bare `/feedback`)
- * and one assistant message (Like or Dislike). From the form, or after a typed
- * `/feedback <text>`, the dialog switches to an editable GitHub issue preview
- * that is filed only when the human confirms it. The overlay view renders from
- * the store and raises the acknowledgement after a successful submission.
+ * and one assistant message (Like or Dislike); saving it keeps a note on this
+ * computer and sends nothing. From the form, or after a typed
+ * `/feedback <text>`, the dialog switches to a GitHub issue preview that is
+ * sent only when the human picks a method: the prefilled page in the browser,
+ * or, only on that explicit choice, filing with their GitHub account.
  * @module @deepseek-ai/dsh-client-ui-message-feedback/client/dialog
  */
 
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { MessageId } from '@deepseek-ai/dsh-api-remotes/client'
 import type {
-  FeedbackCategory, FeedbackRecord, SessionFeedbackIssue, SessionFeedbackReportIssueResult,
+  FeedbackCategory, FeedbackRecord, SessionFeedbackIssue, SessionFeedbackIssueDraft,
+  SessionFeedbackReportIssueMethod, SessionFeedbackReportIssueResult,
 } from '@deepseek-ai/dsh-command-feedback/types'
 import type { MessageFeedbackRating } from '@deepseek-ai/dsh-message-feedback/types'
 import type { MessageFeedbackActionFailure, MessageFeedbackActionResult } from './controller.ts'
@@ -21,18 +23,25 @@ export type FeedbackDialogTarget =
   | { readonly kind: 'session' }
   | { readonly kind: 'message'; readonly messageId: MessageId; readonly rating: MessageFeedbackRating }
 
-/** The editable GitHub issue preview; nothing leaves the Host until the human confirms it. */
+/** The editable GitHub issue preview; nothing leaves the Host until the human picks a method. */
 export interface FeedbackIssuePreview {
   readonly title: string
   readonly body: string
+  /** `owner/name` of the public repository the Host files on. */
+  readonly repository: string
   /** The body carries the Session id line; off unless the human ticks it. */
   readonly includeSessionId: boolean
   /** The remark is already in the Session log, so confirming files the issue only. */
   readonly recorded: boolean
+  /** The method of the report in flight or last tried; null before the first choice. */
+  readonly via: SessionFeedbackReportIssueMethod | null
 }
 
-/** Which acknowledgement the success toast shows. */
-export type FeedbackNotice = 'recorded' | 'issue-created' | 'issue-opened'
+/**
+ * Which acknowledgement the success toast shows; `issue-fallback` is a
+ * prefilled page opened because filing with the GitHub account did not work.
+ */
+export type FeedbackNotice = 'recorded' | 'issue-created' | 'issue-opened' | 'issue-fallback'
 
 /** Dialog and toast state the overlay view renders from. */
 export interface FeedbackDialogState {
@@ -70,12 +79,13 @@ export interface FeedbackIssueChannel {
    * Build the preview for one remark; sends nothing.
    * @param entry - the trimmed text and the category.
    */
-  draft(entry: FeedbackRecord): Promise<FeedbackIssueCall<SessionFeedbackIssue>>
+  draft(entry: FeedbackRecord): Promise<FeedbackIssueCall<SessionFeedbackIssueDraft>>
   /**
-   * File the confirmed issue.
+   * Send the confirmed issue the way the human chose.
    * @param issue - the title and body as the human left them.
+   * @param via - `browser` opens the prefilled page only; `github-cli` files with the signed-in `gh`.
    */
-  report(issue: SessionFeedbackIssue): Promise<FeedbackIssueCall<SessionFeedbackReportIssueResult>>
+  report(issue: SessionFeedbackIssue, via: SessionFeedbackReportIssueMethod): Promise<FeedbackIssueCall<SessionFeedbackReportIssueResult>>
   /**
    * Show a GitHub page in a new browser tab.
    * @param url - the created issue or the prefilled new-issue page.
@@ -214,16 +224,17 @@ export class FeedbackDialogController {
   }
 
   /**
-   * File the previewed issue: record the remark first unless it already is,
-   * then report it and open the resulting GitHub page. Success closes the
-   * dialog; a failure keeps the preview open with its code.
+   * Send the previewed issue the chosen way: record the remark first unless
+   * it already is, then report it and open the resulting GitHub page. Success
+   * closes the dialog; a failure keeps the preview open with its code.
+   * @param via - `browser` (the prefilled page; never runs `gh`) or `github-cli` (only on explicit choice).
    * @returns after the report settles.
    */
-  async confirmReport(): Promise<void> {
+  async confirmReport(via: SessionFeedbackReportIssueMethod): Promise<void> {
     const s = this.state.getSnapshot()
     if (s.target === null || s.report === null || s.submitting) return
     const generation = this.generation
-    this.state.set({ ...s, submitting: true, failure: null })
+    this.state.set({ ...s, submitting: true, failure: null, report: { ...s.report, via } })
     if (!s.report.recorded) {
       const recorded = await this.submit(s.target, this.entry(s))
       if (!recorded.ok) {
@@ -236,14 +247,17 @@ export class FeedbackDialogController {
         if (current.report !== null) this.state.set({ ...current, report: { ...current.report, recorded: true } })
       }
     }
-    const filed = await this.issues.report({ title: s.report.title, body: s.report.body })
+    const filed = await this.issues.report({ title: s.report.title, body: s.report.body }, via)
     if (!filed.ok) {
       this.fail(generation, filed.error.code)
       return
     }
     this.issues.open(filed.value.url)
     if (generation === this.generation) this.dismiss()
-    this.acknowledge(filed.value.kind === 'created' ? 'issue-created' : 'issue-opened')
+    const notice: FeedbackNotice = filed.value.kind === 'created'
+      ? 'issue-created'
+      : via === 'github-cli' ? 'issue-fallback' : 'issue-opened'
+    this.acknowledge(notice)
   }
 
   /** Clear the current failure toast without closing its draft. */
@@ -297,7 +311,7 @@ export class FeedbackDialogController {
     this.state.set({
       ...this.state.getSnapshot(),
       submitting: false,
-      report: { ...drafted.value, includeSessionId: false, recorded },
+      report: { ...drafted.value, includeSessionId: false, recorded, via: null },
     })
   }
 

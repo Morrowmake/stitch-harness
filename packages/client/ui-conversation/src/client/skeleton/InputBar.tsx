@@ -17,7 +17,8 @@ import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useStat
 import type { ChangeEvent, KeyboardEvent, MouseEvent } from 'react'
 import clsx from 'clsx'
 import {
-  focusWithoutRing, IconPlusOutlineMedium, IconTriangleRightFillRegular, IconWarningOutlineRegular, isMobileDevice, Toast, Tooltip,
+  Button, focusWithoutRing, IconPlusOutlineMedium, IconTriangleRightFillRegular, IconWarningOutlineRegular, isMobileDevice, Toast,
+  Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 // Type-only: the `plan` projection key merge (the TodoDock posture — the
 // composer reads a host-computed value; the domain owns the key).
@@ -154,6 +155,7 @@ export const InputBar = memo(function InputBar({
   const continuable = subagent?.address.mode === 'continuable'
   const disabled = removed || inert || !live || blocked !== undefined
   const locked = disabled
+  const blockAction = blocked?.action
   // The model seat is the ONE control a block leaves live: every block this
   // contract has is cleared by choosing a model, so locking it too would leave
   // the composer asking for the only thing it prevents. The other reasons to
@@ -448,6 +450,12 @@ export const InputBar = memo(function InputBar({
       {notice?.level === 'info' && (
         <div className={css.notice} role="status">
           {notice.text}
+        </div>
+      )}
+      {blockAction !== undefined && (
+        <div className={clsx(css.notice, css.blockNotice)} role="status" data-composer-block>
+          <span>{blocked?.reason}</span>
+          <Button variant="outline" size="sm" onClick={() => { blockAction.run() }}>{blockAction.label}</Button>
         </div>
       )}
       {/* Trigger clicks land on the card, not the editor: the toolbar row's

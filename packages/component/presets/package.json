@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-component-presets",
-  "description": "The PTC, Minimal, and Creator agent presets and the preset picker.",
+  "description": "Adds code-running, minimal, and creator agent styles you can pick per chat.",
   "version": "0.2.2-rc.5",
   "icon": "./icon.svg",
   "publishConfig": {

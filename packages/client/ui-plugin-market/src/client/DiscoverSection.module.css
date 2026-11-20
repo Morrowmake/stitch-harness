@@ -219,6 +219,21 @@
   align-self: center;
 }
 
+/* A community listing's compatibility caution under its card meta. */
+.compat {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.compat > svg {
+  flex: none;
+  color: var(--dsw-alias-state-warn-primary);
+}
+
 .empty {
   display: flex;
   flex-direction: column;
@@ -237,6 +252,25 @@
 
 .empty > button {
   margin-top: 8px;
+}
+
+.empty > .notice {
+  max-width: 480px;
+  text-align: left;
+}
+
+.emptyActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.suggested {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .detail {

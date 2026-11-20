@@ -569,8 +569,8 @@ export interface ComposerBarOwnerProps {
   variant: 'hero' | 'composer'
   /** Conversation content occurrence rendering this composer; an unaddressed document paste reaches the main one. */
   occurrence: ConversationContentInputProps['variant']
-  /** A feature-owned reason that makes message input inert while leaving model selection live. */
-  blocked?: { readonly reason: string }
+  /** A feature-owned reason that makes message input inert while leaving model selection live, and the optional step that clears it. */
+  blocked?: ComposerBlock
   /** Lock all message actions while preserving the resident composer surface. */
   disabled?: boolean
   /** Whether the shared Workspace picker is expanded. */

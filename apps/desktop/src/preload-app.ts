@@ -1,7 +1,7 @@
 import type { FileSaveResult } from '@deepseek-ai/dsh-client-ui-file-actions/types'
-/** Origin-scoped boot, native directory selection, host paths of picked files, and the update-check preference. */
+/** Origin-scoped boot, native directory selection, host paths of picked files, the update-check preference, and the terminal command. */
 
-import type { DesktopUpdateCheckResult } from '@deepseek-ai/dsh-client-ui-settings-general/types'
+import type { DesktopCommandStatus, DesktopUpdateCheckResult } from '@deepseek-ai/dsh-client-ui-settings-general/types'
 import type { DesktopShortcutInput, ShortcutConfigSnapshot, ShortcutSaveResult } from '@deepseek-ai/dsh-client-shortcuts/protocol'
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { DESKTOP_IPC, SCHEME, type DshDesktopProductApi } from './ipc.ts'
@@ -72,6 +72,10 @@ function createProductApi(): DshDesktopProductApi {
         return () => { ipcRenderer.off(DESKTOP_IPC.updatesPreferenceChanged, handle) }
       },
       check: () => ipcRenderer.invoke(DESKTOP_IPC.updatesCheck) as Promise<DesktopUpdateCheckResult>,
+    },
+    command: {
+      status: () => ipcRenderer.invoke(DESKTOP_IPC.commandStatus) as Promise<DesktopCommandStatus>,
+      run: action => ipcRenderer.invoke(DESKTOP_IPC.commandRun, action) as Promise<DesktopCommandStatus>,
     },
   }
 }

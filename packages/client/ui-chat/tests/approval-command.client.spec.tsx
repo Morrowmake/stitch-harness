@@ -1,21 +1,47 @@
 // @vitest-environment jsdom
 import type { ChatSnapshot, UseChat } from '@deepseek-ai/dsh-client-ui-chat/client'
-import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import type {} from '@deepseek-ai/dsh-client-ui-approval/client'
 import { PartialArguments } from '@deepseek-ai/dsh-util-values'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { ApprovalCommand, commandOf } from '../src/client/chat/ApprovalCommand.tsx'
+import { ApprovalCommand, argumentsOf, commandOf } from '../src/client/chat/ApprovalCommand.tsx'
 
 function props(
   nodes: readonly unknown[],
   callId = 'call-1',
-): PropsRuntime<'conversation.approval.detail'> {
+): PropsRuntime<'conversation.approval.detail'> & PropsLocale<'approval'> {
   const snapshot = {
     nodes: { values: () => nodes },
   } as unknown as ChatSnapshot
   const useChat = ((selector: (value: ChatSnapshot) => unknown) => selector(snapshot)) as UseChat
-  return { callId, useChat } as PropsRuntime<'conversation.approval.detail'>
+  const messages: Record<string, string> = { details: 'Details' }
+  const t = ((key: string) => messages[key] ?? key) as PropsLocale<'approval'>['t']
+  return { callId, useChat, t } as PropsRuntime<'conversation.approval.detail'> & PropsLocale<'approval'>
 }
+
+describe('argumentsOf', () => {
+  it('indents JSON arguments, keeps non-JSON text, and omits empty arguments', () => {
+    expect(argumentsOf('{"action":"install_bundle","target":"/tmp/hello"}')).toBe('{\n  "action": "install_bundle",\n  "target": "/tmp/hello"\n}')
+    expect(argumentsOf('not json')).toBe('not json')
+    expect(argumentsOf('{}')).toBeUndefined()
+    expect(argumentsOf('  ')).toBeUndefined()
+  })
+})
+
+describe('ApprovalCommand details', () => {
+  it('keeps the raw arguments of a call without a command behind a collapsed Details disclosure', () => {
+    const argsRaw = '{"action":"install_bundle","target":"/tmp/hello-command"}'
+    const { container } = render(<ApprovalCommand {...props([
+      { kind: 'tool-call', data: { root: { phase: 'start', args: PartialArguments.fromText(argsRaw), callId: 'call-1', name: 'plugin_manager', argsRaw } } },
+    ] as never)} />)
+
+    const details = container.querySelector('details')
+    expect(details?.open).toBe(false)
+    expect(screen.getByText('Details').tagName).toBe('SUMMARY')
+    expect(details?.querySelector('pre')?.textContent).toBe('{\n  "action": "install_bundle",\n  "target": "/tmp/hello-command"\n}')
+  })
+})
 
 describe('commandOf', () => {
   it('accepts only a non-empty string command from valid JSON arguments', () => {

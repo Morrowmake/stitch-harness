@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-command-feedback` 让用户告诉 harness 他们对会话的看法。`/feedback` 加一条评价即被记录，并以会话 id 确认；Web 弹窗通过 `sessionFeedback` Host Remote 记录分类与可选描述。记录绝不会启动模型工作，模型也看不到这条评价。反馈保存在本地会话日志中，直到用户确认预览过的 GitHub 报告，才会通过 `gh` CLI 或预填好的页面在 Stitch 仓库提交议题。本包拥有共用的分类表，并随标准 `stitch` 基础组合交付；无头模式、ACP 与 JSON-RPC 不提供斜杠命令。
+`dsh-command-feedback` 让用户告诉 harness 他们对会话的看法。`/feedback` 加一条评价会作为备注保存在本机，并说明没有发送任何内容；Web 弹窗通过 `sessionFeedback` Host Remote 保存分类与可选描述。记录绝不会启动模型工作，模型也看不到这条评价。反馈保存在本地会话日志中，直到用户明确发送预览过的 GitHub 报告——在 Stitch 仓库创建一个公开议题，方式是在浏览器中打开预填页面，或仅在用户要求时通过 `gh` CLI 提交。本包拥有共用的分类表，并随标准 `stitch` 基础组合交付；无头模式、ACP 与 JSON-RPC 不提供斜杠命令。
 
 ## 目录
 
@@ -29,19 +29,21 @@ kind: "package-reference"
 
 ### `/feedback` 命令
 
-输入 `/feedback` 加你的评价并发送。成功时会以接收会话 id 确认：
+输入 `/feedback` 加你的评价并发送。成功时以平实的文字确认，不显示会话 id：
 
 | 输入 | 结果 |
 |---|---|
-| `/feedback the diff view is unreadable` | 记录评价并确认：`Feedback recorded for session {sessionId}.` |
-| `/feedback` | 用法错误：`Feedback text is required. Usage: /feedback <text>`。仅含空白的输入视为空输入。 |
+| `/feedback the diff view is unreadable` | 记录评价并确认：`Note saved on this computer. Nothing was sent.` |
+| `/feedback` | 用法错误：`The note is empty. Type your note after the command, for example: /feedback The answer missed my question.` 仅含空白的输入视为空输入。 |
+
+命令菜单中的描述为 `Save a note about this chat or report a problem`，输入提示为 `<note>`。
 
 前后空白会被去除，但除此之外，评价会按输入原样保留：不进行截断、大小写折叠或命令解析——`/feedback /plan felt slow` 记录的就是这段字面文本。每次执行命令都会记录自己的条目；不会发生合并或替换。
 
 <a id="the-web-feedback-dialog"></a>
 ### Web 反馈弹窗
 
-在 Web 客户端中，不带文本的 `/feedback`（从输入框菜单选中，或直接输入后发送）会打开反馈弹窗，而不是返回用法错误。弹窗提供下表的七个分类和一个自由文本框；每一项都可不填，空提交也会被接受，对话日志和其他反馈事件一样随记录的事件一起投递。弹窗通过 `sessionFeedback.record` 记录，追加的是同一个 `feedback/record` 事件，但没有命令簿记，也没有确认行；弹窗改用 toast 提示。
+在 Web 客户端中，不带文本的 `/feedback`（从输入框菜单选中，或直接输入后发送）会打开反馈弹窗，而不是返回用法错误。弹窗提供下表的七个分类和一个自由文本框；每一项都可不填，空备注也会被接受。**保存备注**通过 `sessionFeedback.record` 记录，向本地会话日志追加同一个 `feedback/record` 事件，但没有命令簿记，也没有确认行；不会向任何地方发送内容，弹窗会在按钮旁和 toast 中说明这一点。
 
 | 分类 id | 含义 |
 |---|---|
@@ -58,16 +60,17 @@ kind: "package-reference"
 <a id="reporting-on-github"></a>
 ### 在 GitHub 上报告
 
-Web 弹窗中的**在 GitHub 上报告…**按钮，以及 Host 已记录的 `/feedback <text>`，都会打开一个可编辑的 GitHub 议题预览。在用户点击确认按钮之前不会有任何内容离开本机；关闭预览不发送任何内容。确认时先记录评价（`/feedback <text>` 已记录的除外），再向 [`src/github-issue.ts`](src/github-issue.ts) 中常量 `FEEDBACK_REPOSITORY`（`Morrowmake/stitch-harness`）指定的仓库提交议题。
+Web 弹窗中的**在 GitHub 上报告…**按钮，以及 Host 已记录的 `/feedback <text>`，都会打开一个 GitHub 议题预览。预览会说明它将在 [`src/github-issue.ts`](src/github-issue.ts) 中常量 `FEEDBACK_REPOSITORY`（`Morrowmake/stitch-harness`）指定的仓库创建一个任何人都能看到的公开议题；客户端从 `draftIssue` 的回复读取该仓库名，而不是自行重复。在用户选择两个操作之一前不会有任何内容离开本机；关闭预览不发送任何内容。两个操作都会先记录评价（`/feedback <text>` 已记录的除外），再以所选方式调用 `reportIssue`。
 
 | Remote 方法 | 结果 |
 |---|---|
-| `sessionFeedback.draftIssue({ text?, category? })` | `{ title, body }`：标题取评价首行（至多 80 个字符），否则为 `Stitch feedback`；正文只包含评价、分类、Stitch 版本与操作系统。不发送任何内容。 |
-| `sessionFeedback.reportIssue({ title, body })` | `gh` 创建了议题时返回 `{ kind: 'created', url }`，否则返回 `{ kind: 'browser', url }`，即客户端在新标签页中打开的预填新议题页面。 |
+| `sessionFeedback.draftIssue({ text?, category? })` | `{ title, body, repository }`：标题取评价首行（至多 80 个字符），否则为 `Stitch feedback`；正文只包含评价（或 `No description provided.`）以及列出分类、Stitch 版本与操作系统的 `Details:` 列表。不发送任何内容。 |
+| `sessionFeedback.reportIssue({ title, body, via: 'browser' })` | 返回 `{ kind: 'browser', url }`，即客户端在新标签页中打开的预填新议题页面。绝不运行 `gh`。这是弹窗的主操作**在 GitHub 上打开**。 |
+| `sessionFeedback.reportIssue({ title, body, via: 'github-cli' })` | `gh` 创建了议题时返回 `{ kind: 'created', url }`，无法创建时返回带预填页面的 `{ kind: 'browser', url }`。只由明确的**用我的 GitHub 账号提交**操作使用。 |
 
-正文绝不携带会话内容、会话 id、路径或模型名称。预览中的**附带会话 ID**复选框默认关闭，勾选后会追加一行 `- Session id: …`，用户确认前可以看到并编辑它。
+正文绝不携带会话内容、会话 id、路径或模型名称。预览中的**附带会话 ID**复选框默认关闭，勾选后会追加一行 `- Session id: …`，用户发送前可以看到并编辑它。
 
-`reportIssue` 依次运行 `gh auth status --hostname github.com` 与 `gh issue create --repo Morrowmake/stitch-harness --title <title> --body <body>`，均以 argv 数组执行、不经过 shell，时限分别为 10 秒与 30 秒。挂载了 Host `subprocess` 提供方时使用它，否则使用 Node 的 `execFile`；会转发 `GH_TOKEN`、`GITHUB_TOKEN`、`GH_CONFIG_DIR` 与 `GH_HOST` 并禁用交互提示。`gh` 缺失、未登录、失败、超时或未输出议题 URL 时，改为返回预填的 `https://github.com/Morrowmake/stitch-harness/issues/new?title=…&body=…` 页面。该 URL 不超过 7000 个字符：过长的正文会被截断，并以一行说明 Stitch 已截短的提示结尾。
+使用 `via: 'github-cli'` 时，`reportIssue` 依次运行 `gh auth status --hostname github.com` 与 `gh issue create --repo Morrowmake/stitch-harness --title <title> --body <body>`，均以 argv 数组执行、不经过 shell，时限分别为 10 秒与 30 秒。挂载了 Host `subprocess` 提供方时使用它，否则使用 Node 的 `execFile`；会转发 `GH_TOKEN`、`GITHUB_TOKEN`、`GH_CONFIG_DIR` 与 `GH_HOST` 并禁用交互提示。`gh` 缺失、未登录、失败、超时或未输出议题 URL 时，改为返回预填的 `https://github.com/Morrowmake/stitch-harness/issues/new?title=…&body=…` 页面。其他任何 `via` 值都按 `browser` 处理。该 URL 不超过 7000 个字符：过长的正文会被截断，并以一行说明 Stitch 已截短的提示结尾。
 
 ### 从自己的 UI 记录反馈
 
@@ -153,8 +156,7 @@ Web 客户端随附该命令。无头模式、ACP 自动化和 JSON-RPC 不提�
 - **Remote 只服务 live Session**——没有 live 持有者的 Session，`sessionFeedback.record` 回答 `session-not-found`；弹窗打开期间 Session 退役时，Web 弹窗会报告该失败。
 - **不支持修改或撤回**——会话日志是仅追加的，本包也不新增 tombstone，因此错误的条目会一直保留在记录中，只能由后续条目取代。
 - **没有显式持久化屏障**——确认文本紧随追加而非 flush，因此紧临崩溃前记录的条目可能与其他未 flush 的尾部一同丢失。需要该保证的消费方可自行等待 `ctx.sessions.flush(session)`。
-- **新会话上没有可见的确认**——Web transcript（文本记录）只在会话激活后渲染命令行，因此在仍为空白的新会话上输入 `/feedback <text>` 会记录事件但不会显示确认行；弹窗的 toast 不依赖文本记录。
-- **GitHub 报告会离开本机**——确认后的报告以用户的 `gh` 账号或浏览器会话公开在 GitHub 上；无法通过 Stitch 撤回。
+- **GitHub 报告会离开本机**——发送后的报告以用户的浏览器会话或 `gh` 账号作为公开议题出现在 GitHub 上；无法通过 Stitch 撤回。
 - **`gh` 迟到的成功可能导致重复**——`gh issue create` 超过时限而 GitHub 实际已接受议题时，用户仍会看到预填页面，可能重复提交。
 - **浏览器报告可能被截短**——对预填 URL 来说过长的正文会被截断；用户需在 GitHub 页面上补充缺失内容。
 - **随附的产品入口中只有 Web 使用此命令**——无头模式、ACP 自动化和 JSON-RPC 不提供命令适配器，因此 `/feedback` 在那里不可用。

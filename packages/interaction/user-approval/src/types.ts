@@ -26,10 +26,21 @@ export function ApprovalRequestId(id: string): ApprovalRequestId {
 }
 
 /**
- * Closed approval outcomes: a one-shot grant, explicit rejection, withdrawn
- * request, or unavailable answerer. Callers fail closed on `unavailable`.
+ * Closed approval outcomes returned to askers: a one-shot grant, explicit
+ * rejection, withdrawn request, or unavailable answerer. Callers fail closed
+ * on `unavailable`. A chat grant reaches the asker as `allowed-once` because
+ * it permits exactly the asked action; later asks it covers never reach an
+ * answerer.
  */
 export type ApprovalOutcome = 'allowed-once' | 'rejected' | 'cancelled' | 'unavailable'
+
+/**
+ * An answerer's decision: an {@link ApprovalOutcome}, or `allowed-for-session`
+ * to permit this action and every later ask with the same tool name and
+ * {@link ApprovalRequestEvent.grant} in the same Session. The service treats
+ * `allowed-for-session` as `allowed-once` when the request offers no grant.
+ */
+export type ApprovalAnswer = ApprovalOutcome | 'allowed-for-session'
 
 declare module '@deepseek-ai/dsh-session/types' {
   interface SessionEventMap {
@@ -46,15 +57,20 @@ declare module '@deepseek-ai/dsh-session/types' {
       toolName: string
       callId?: ToolCallId
       reason?: string
+      /** Action class the request offered for a chat grant; absent when only a one-shot grant was offered. */
+      grant?: string
     }
     /**
      * The outcome of a prior `approval/asked` (same `id`) — log-only audit.
      * Exactly one per ask, appended when the outcome is known: a decision, a
-     * cancellation, or the fail-closed `'unavailable'`.
+     * cancellation, or the fail-closed `'unavailable'`. `allowed-for-session`
+     * records a chat grant for the asked tool name and `grant`; a later ask
+     * that grant covers records the same outcome without dispatching an
+     * answerer.
      */
     'approval/decided': {
       id: ApprovalRequestId
-      outcome: ApprovalOutcome
+      outcome: ApprovalAnswer
     }
   }
 }
@@ -71,6 +87,12 @@ export interface ApprovalRequestEvent {
   readonly reason?: string
   /** Localized presentation only; never persisted in approval audit events. */
   readonly displayReason?: { readonly en: string; readonly [locale: string]: string }
+  /**
+   * Action class an answerer may allow for the rest of the Session with
+   * `allowed-for-session`, keyed together with {@link toolName}. Absent when
+   * the asker permits only one-shot grants.
+   */
+  readonly grant?: string
   /** Cancellation lifetime of the pending request. */
   readonly signal?: AbortSignal
 }
@@ -87,7 +109,7 @@ declare module '@deepseek-ai/cordis' {
     'approval/request'(
       this: Scoped<Agent>,
       req: ApprovalRequestEvent,
-      next: () => Promise<ApprovalOutcome>,
-    ): Promise<ApprovalOutcome>
+      next: () => Promise<ApprovalAnswer>,
+    ): Promise<ApprovalAnswer>
   }
 }

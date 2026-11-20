@@ -36,6 +36,9 @@
       "path": "../ui-conversation/tsconfig.client.json"
     },
     {
+      "path": "../ui-first-run/tsconfig.client.json"
+    },
+    {
       "path": "../ui-primitives"
     },
     {

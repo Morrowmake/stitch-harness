@@ -384,6 +384,7 @@ describe('Web session model selection', () => {
     ctx.llm.registerAdapter(['plain'], new CatalogAdapter('Plain', [
       { provider: 'plain', id: 'plain-model', name: 'Plain Model' },
       { provider: 'plain', id: 'badged-model', name: 'Badged Model', badge: { text: { en: 'New', zh: '新' }, tone: 'info' } },
+      { provider: 'plain', id: 'plain-model-latest', name: 'Plain Model (latest)', older: true },
     ]))
     ctx.llm.registerAdapter(['described-reasoning'], new CatalogAdapter('Described Reasoning', [
       { provider: 'described-reasoning', id: 'reasoning-model', name: 'Reasoning Model' },
@@ -406,6 +407,7 @@ describe('Web session model selection', () => {
       { id: 'plain', name: 'Plain', models: [
         { id: 'plain-model', name: 'Plain Model' },
         { id: 'badged-model', name: 'Badged Model', badge: { text: { en: 'New', zh: '新' }, tone: 'info' } },
+        { id: 'plain-model-latest', name: 'Plain Model (latest)', older: true },
       ] },
       {
         id: 'described-reasoning',

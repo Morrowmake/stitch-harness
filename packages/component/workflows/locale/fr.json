@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Workflows",
-    "description": "L'outil workflow, son environnement PTC et la vue d'exécution. Nécessite Sous-agents."
+    "description": "L'agent exécute des flux en plusieurs étapes avec des assistants et montre l'avancée."
   }
 }

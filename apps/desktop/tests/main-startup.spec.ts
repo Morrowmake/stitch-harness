@@ -658,7 +658,7 @@ describe('desktop main startup', () => {
   it('accepts product IPC only from the current application top frame in the owned main window', async () => {
     await readyForUpdate()
     const sender = harness.windows[0]!.webContents
-    for (const channel of [DESKTOP_IPC.updatesPreferenceGet, DESKTOP_IPC.deviceInfo]) {
+    for (const channel of [DESKTOP_IPC.updatesPreferenceGet, DESKTOP_IPC.deviceInfo, DESKTOP_IPC.commandStatus]) {
       const handler = harness.handlers.get(channel)!
       expect(() => handler({ sender, senderFrame: sender.mainFrame })).not.toThrow()
       for (const event of [
@@ -671,6 +671,15 @@ describe('desktop main startup', () => {
       expect(() => handler({ sender, senderFrame: sender.mainFrame })).toThrow('unowned renderer')
       sender.mainFrame.url = original
     }
+  })
+
+  it('answers the Settings terminal-command row without dialogs and validates its action', async () => {
+    harness.app.isPackaged = false
+    await readyForUpdate()
+    await expect(invoke(DESKTOP_IPC.commandStatus, 'app')).resolves.toEqual({ kind: 'unavailable' })
+    await expect(invoke(DESKTOP_IPC.commandRun, 'app', 'uninstall')).rejects.toThrow('unknown action')
+    await expect(invoke(DESKTOP_IPC.commandRun, 'shell', 'install')).rejects.toThrow('unowned renderer')
+    expect(harness.dialog.showMessageBox).not.toHaveBeenCalled()
   })
 
   it.each(['darwin', 'win32', 'linux'] as const)('limits native titlebar styling to macOS on %s', async (platform) => {

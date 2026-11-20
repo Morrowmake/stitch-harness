@@ -15,10 +15,11 @@
 import { Service } from '@deepseek-ai/cordis'
 import type { Context } from '@deepseek-ai/cordis'
 import type { SessionBinding } from '@deepseek-ai/dsh-api-session-controller/client'
+import type { ComposerBlock } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { WeakMapWithValues } from '@deepseek-ai/dsh-util-values'
 import { ModelCatalogDirectory } from './catalog.ts'
-import { ModelDirectory } from './directory.ts'
+import { ModelDirectory, type ModelDirectoryState } from './directory.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -32,6 +33,26 @@ interface LiveState {
   readonly directories: WeakMapWithValues<SessionBinding, ModelDirectory>
 }
 
+/** Resolver configuration supplied by the plugin body. */
+export interface ModelDirectoryResolverConfig {
+  /**
+   * The composer block for a Session without a selected model.
+   * @param state - the Session's loaded directory, whose `current` is null.
+   * @returns the localized reason and, when no model is set up at all, the step that sets one up.
+   */
+  block(state: ModelDirectoryState): ComposerBlock
+}
+
+/**
+ * Whether a directory proves that its Session has no model to send to. A
+ * selection the catalog does not list never blocks: the Host may still route it.
+ * @param state - one Session's directory snapshot.
+ * @returns true once the catalog is loaded and no model is selected or configured.
+ */
+export function lacksModel(state: ModelDirectoryState): boolean {
+  return state.routable === false && state.current === null
+}
+
 /** The `ctx.modelDirectories` session model-selection service. */
 export class ModelDirectoryResolver extends Service {
   static inject = ['sessions', 'remote', 'remote.session']
@@ -41,8 +62,9 @@ export class ModelDirectoryResolver extends Service {
 
   /**
    * @param ctx - owning root context (the service registers itself as `models`).
+   * @param config - the composer block raised for a Session without a model.
    */
-  constructor(ctx: Context) {
+  constructor(ctx: Context, private readonly config: ModelDirectoryResolverConfig) {
     super(ctx, 'modelDirectories')
     this.catalog = new ModelCatalogDirectory(ctx)
     void this.catalog.load().catch(() => { /* selectors expose the shared error */ })
@@ -59,7 +81,8 @@ export class ModelDirectoryResolver extends Service {
 
   /**
    * Resolve the per-session shared directory (lazy; the scope disposer
-   * removes and disposes it). Unknown sessions fail loud.
+   * removes and disposes it). While the Session has no model, its composer
+   * is blocked with the configured reason. Unknown sessions fail loud.
    * @param sessionId - the owning session.
    * @returns the resident directory both entries share.
    */
@@ -80,6 +103,22 @@ export class ModelDirectoryResolver extends Service {
       binding.session.projections.faceOf('modelSelection'),
     )
     live.directories.set(binding, directory)
+    const conversation = this.ctx.get('conversation')
+    if (conversation !== undefined) {
+      const publish = (): void => {
+        if (sessions.binding(sessionId) !== binding) return
+        const state = directory.store.getSnapshot()
+        conversation.blocks.set(sessionId, lacksModel(state) ? this.config.block(state) : undefined)
+      }
+      publish()
+      actx.effect(() => {
+        const stop = directory.store.subscribe(publish)
+        return () => {
+          stop()
+          if (sessions.binding(sessionId) === binding) conversation.blocks.set(sessionId, undefined)
+        }
+      }, 'ui-model-selection: composer block')
+    }
     actx.effect(() => () => {
       directory.dispose()
       live.directories.delete(binding)

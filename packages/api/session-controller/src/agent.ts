@@ -10,7 +10,7 @@ import { installModelSelection } from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-agent-preset-registry'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import type { Session, SessionId } from '@deepseek-ai/dsh-session'
-import { SessionQueryError, type SessionObservation } from '@deepseek-ai/dsh-session-query'
+import { SessionQueryError, startsConversation, type SessionObservation } from '@deepseek-ai/dsh-session-query'
 import { RemoteError, remoteErrorOf } from '@deepseek-ai/dsh-typert-protocol'
 import type {} from '@deepseek-ai/dsh-typert-registry'
 
@@ -359,7 +359,7 @@ export class ApiSessionAgentController {
       if (!await this.namesDirectory(observed.header.cwd, request.cwd)) {
         throw new ApiSessionCwdConflict(sessionId, request.cwd, observed.header.cwd)
       }
-      reusable = request.reusable(sessionId) && !observed.events.some(event => event.type === 'turn/start')
+      reusable = request.reusable(sessionId) && !observed.events.some(startsConversation)
     }
     const composition = await this.composeAgent(request.agentPreset)
     if (!reusable) return this.createMinted(request.cwd, composition)
@@ -414,10 +414,14 @@ export class ApiSessionAgentController {
     }
   }
 
-  /** Whether no turn has started, by the predicate the preset registry's `select` enforces. */
+  /**
+   * Whether no turn has started, by the predicate the preset registry's `select` enforces, and no slash
+   * command has run: a command's outcome belongs to the conversation it was typed in.
+   */
   private isBlank(session: Session): boolean {
     const boundary = this.ctx.agents.turnBoundaryOf(session)
     return boundary.openTurnStartSeq === null && boundary.lastTurn === 0
+      && this.ctx.sessionQuery.getListMetadata(session).blank
   }
 
   /** Without a roster, reuse cannot apply a named preset. */

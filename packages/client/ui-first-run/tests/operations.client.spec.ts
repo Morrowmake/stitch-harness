@@ -68,8 +68,10 @@ describe('provider operations', () => {
       ['llm-pi-ai', { api: 'openai-completions', baseURL: 'http://gpu:8000/v1', apiKey: 'sk-1' }],
       ['llm-pi-ai', { api: 'openai-completions', baseURL: 'http://gpu:8000/v1' }],
     ])
-    mock.remote.llm.discoverModels.mockResolvedValue(refused('llm/model-discovery-rejected', 'unreachable', { settingsNs: 'llm-pi-ai' }))
-    expect(await ops.discoverModels('http://gpu:8000/v1', undefined)).toEqual({ ok: false, code: 'llm/model-discovery-rejected', message: 'unreachable' })
+    mock.remote.llm.discoverModels.mockResolvedValue(refused('llm/model-discovery-rejected', 'unreachable', { settingsNs: 'llm-pi-ai', reason: 'unreachable' } as never))
+    expect(await ops.discoverModels('http://gpu:8000/v1', undefined)).toMatchObject({
+      ok: false, code: 'llm/model-discovery-rejected', message: 'unreachable', details: { reason: 'unreachable' },
+    })
   })
 
   it('declare an OpenAI-compatible route after storing its key, and stop when the key is refused', async () => {
@@ -97,11 +99,13 @@ describe('provider operations', () => {
   it('add key accounts and run sign-in attempts through llmAccounts', async () => {
     mock = RemoteMock.create()
     const ops = createFirstRunOperations(contextFor(mock.remote))
-    mock.remote.llmAccounts.addApiKeyAccount.mockResolvedValue(ok({} as never))
-    expect(await ops.addApiKeyAccount('anthropic', 'sk-ant')).toEqual({ ok: true, value: undefined })
+    mock.remote.llmAccounts.addApiKeyAccount.mockResolvedValue(ok({ account: {}, check: { status: 'verified' } } as never))
+    expect(await ops.addApiKeyAccount('anthropic', 'sk-ant')).toEqual({ ok: true, value: { verified: true } })
     expect(mock.remote.llmAccounts.addApiKeyAccount).toHaveBeenCalledWith('anthropic', { key: 'sk-ant' })
+    mock.remote.llmAccounts.addApiKeyAccount.mockResolvedValue(ok({ account: {}, check: { status: 'unverified', reason: 'unreachable' } } as never))
+    expect(await ops.addApiKeyAccount('anthropic', 'sk-ant')).toEqual({ ok: true, value: { verified: false } })
     mock.remote.llmAccounts.addApiKeyAccount.mockResolvedValue(refused('llm-accounts/invalid-key', 'bad', {}))
-    expect(await ops.addApiKeyAccount('anthropic', 'x')).toEqual({ ok: false, code: 'llm-accounts/invalid-key', message: 'bad' })
+    expect(await ops.addApiKeyAccount('anthropic', 'x')).toMatchObject({ ok: false, code: 'llm-accounts/invalid-key', message: 'bad' })
     mock.remote.llmAccounts.beginSignIn.mockResolvedValue(refused('llm-accounts/attempt-busy', 'busy', { provider: 'anthropic' }))
     expect(await ops.beginSignIn('anthropic', { method: 'oauth' })).toEqual({ ok: false, code: 'llm-accounts/attempt-busy', message: 'busy' })
     mock.remote.llmAccounts.answerSignInPrompt.mockResolvedValue(ok(undefined))

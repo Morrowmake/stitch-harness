@@ -161,7 +161,14 @@ class FakeSessions implements ISessions {
   readonly binding = vi.fn<ISessions['binding']>(sessionId =>
     this.retained.findLast(item => item.reference.sessionId === sessionId
       && item.release.mock.calls.length === 0)?.reference.binding)
-  declare readonly using: ISessions['using']
+  readonly using: ISessions['using'] = async (target, options, operation) => {
+    const reference = this.retain(target, options)
+    try {
+      return await operation(reference)
+    } finally {
+      reference.release()
+    }
+  }
   declare readonly retainInfo: ISessions['retainInfo']
   declare readonly searchResultLimit: ISessions['searchResultLimit']
   declare readonly refresh: ISessions['refresh']
@@ -970,6 +977,61 @@ describe('UiWorkspaceService', () => {
       expect(b.sessions.retained[1]!.release).not.toHaveBeenCalled()
       expect(JSON.parse(backing.get('dsh.sessions.current')!)).toEqual({ sessionId: sid('created-a') })
       expect(b.notify).not.toHaveBeenCalled()
+    })
+
+    it('asks before replacing the user\'s own text and replaces it only after Replace', async () => {
+      const b = bench({ workspaces: workspaceState([workspace('a')]) })
+      const opening = vi.spyOn(b.uiWorkspace, 'openWorkspace')
+      b.requestDraftInitialization.mockReturnValueOnce('occupied')
+
+      b.uiWorkspace.startSession(wid('a'), { prompt: 'Daily brief', whenDraftExists: 'ask' })
+      await lastOpening(opening)
+
+      expect(b.uiWorkspace.draftReplaceRequest.getSnapshot()).toEqual({ sessionId: sid('created-a'), prompt: 'Daily brief' })
+      expect(b.notify).not.toHaveBeenCalled()
+      await b.uiWorkspace.settleDraftReplace(true)
+      expect(b.uiWorkspace.draftReplaceRequest.getSnapshot()).toBeNull()
+      expect(b.sessions.retain).toHaveBeenLastCalledWith(sid('created-a'), { source: 'workspaceOperation' })
+      const operation = b.sessions.retained.at(-1)!
+      expect(b.requestDraftInitialization).toHaveBeenLastCalledWith(
+        operation.reference.binding, { prompt: 'Daily brief', whenDraftExists: 'replace' },
+      )
+      expect(operation.release).toHaveBeenCalledOnce()
+      expect(b.notify).not.toHaveBeenCalled()
+    })
+
+    it('keeps the user\'s own text and drops the request when they choose Keep', async () => {
+      const b = bench({ workspaces: workspaceState([workspace('a')]) })
+      const opening = vi.spyOn(b.uiWorkspace, 'openWorkspace')
+      b.requestDraftInitialization.mockReturnValueOnce('occupied')
+
+      b.uiWorkspace.startSession(wid('a'), { prompt: 'Daily brief', whenDraftExists: 'ask' })
+      await lastOpening(opening)
+      await b.uiWorkspace.settleDraftReplace(false)
+
+      expect(b.uiWorkspace.draftReplaceRequest.getSnapshot()).toBeNull()
+      expect(b.requestDraftInitialization).toHaveBeenCalledOnce()
+      expect(b.sessions.retain).toHaveBeenCalledOnce()
+    })
+
+    it('keeps the reused blank\'s preset for a prompt that names none, while plain New Session takes the default', async () => {
+      const b = bench({
+        sessions: sessionState([summary('creator', { blank: true, cwd: '/w/a', projectionValues: { agentPreset: 'cordis' } })], 'pending'),
+        workspaces: workspaceState([workspace('a', [sid('creator')])]),
+      })
+      const opening = vi.spyOn(b.uiWorkspace, 'openWorkspace')
+
+      b.uiWorkspace.startSession(wid('a'), { prompt: 'Daily brief', whenDraftExists: 'ask' })
+      await lastOpening(opening)
+      expect(b.sessions.refreshProjections).toHaveBeenCalledExactlyOnceWith(sid('creator'))
+      expect(b.sessions.create).toHaveBeenLastCalledWith({ workspaceId: wid('a'), sessionId: sid('creator'), agentPreset: 'cordis' })
+      expect(b.requestDraftInitialization).toHaveBeenCalledExactlyOnceWith(
+        b.sessions.retained[0]!.reference.binding, { prompt: 'Daily brief', whenDraftExists: 'ask' },
+      )
+
+      b.uiWorkspace.startSession(wid('a'))
+      await vi.waitFor(() => { expect(b.sessions.create).toHaveBeenCalledTimes(2) })
+      expect(b.sessions.create).toHaveBeenLastCalledWith({ workspaceId: wid('a'), sessionId: sid('creator') })
     })
 
     it('captures prompt text and clear intent before asynchronous Session creation', async () => {

@@ -29,7 +29,7 @@ declare module '@deepseek-ai/dsh-session-projection/types' {
 
 /** Persisted hints used to summarize a cold Session. */
 export interface SessionListMetadata {
-  /** Whether the folded prefix contains no turn. */
+  /** Whether the folded prefix contains no turn and no slash command run. */
   readonly blank: boolean
   /** Latest human-authored prompt time in the folded prefix. */
   readonly lastPromptAt: number | null

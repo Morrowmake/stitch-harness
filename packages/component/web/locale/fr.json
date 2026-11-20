@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Web",
-    "description": "Outils de recherche web (sans clé) et de récupération de pages, avec leur page de réglages."
+    "description": "L'agent peut chercher sur le web (sans clé) et lire des pages web."
   }
 }

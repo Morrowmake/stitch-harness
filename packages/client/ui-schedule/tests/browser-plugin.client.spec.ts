@@ -432,7 +432,7 @@ describe('ui-schedule browser half', () => {
         ctx.locale.setLocale(language)
         panel.onNewTask()
         expect(startSession).toHaveBeenLastCalledWith(undefined, {
-          prompt: dictionary['host.createPrompt'], whenDraftExists: 'append',
+          prompt: dictionary['host.createPrompt'], whenDraftExists: 'ask',
         })
       }
       expect(startSession).toHaveBeenCalledTimes(8)
@@ -465,7 +465,7 @@ describe('ui-schedule browser half', () => {
         for (const [, prompt] of prompts) {
           expect(prompt).not.toContain('\n')
           panel.onUseRecommendation(prompt)
-          expect(startSession).toHaveBeenLastCalledWith(undefined, { prompt, whenDraftExists: 'append' })
+          expect(startSession).toHaveBeenLastCalledWith(undefined, { prompt, whenDraftExists: 'ask' })
         }
       }
       expect(startSession).toHaveBeenCalledTimes(64)

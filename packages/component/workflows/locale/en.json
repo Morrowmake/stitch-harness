@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Workflows",
-    "description": "The workflow tool, its PTC runtime, and the workflow run view. Needs Subagents."
+    "description": "Lets the agent run multi-step workflows with helpers and shows each run's progress."
   }
 }

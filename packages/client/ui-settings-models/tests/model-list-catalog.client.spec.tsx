@@ -104,3 +104,22 @@ it('restores inherited image input after a failed catalog read is retried manual
   expect(discover).toHaveBeenCalledTimes(2)
   expect(onChange).not.toHaveBeenCalled()
 })
+
+it('names the built-in list and its size instead of warning that no models will show', async () => {
+  const props = {
+    models: [], onChange: vi.fn(), catalogProvider: 'openai',
+    probe: { settingsNs: 'llm-pi-ai', provider: 'openai' },
+    disabled: false, t: (key: keyof typeof en) => en[key], onBusyChange: () => {},
+    operations: operations(() => Promise.resolve({ kind: 'found', models: [{ id: 'a' }, { id: 'b' }] })),
+  }
+  const { rerender } = render(<ModelListEditor {...props} overridden={false} />)
+  const counted = en.modelsBuiltInCount.replace('{count}', '2')
+  await waitFor(() => { expect(screen.getByText(counted)).toBeTruthy() })
+  expect(screen.queryByText(en.modelsEmpty)).toBeNull()
+  // A new provider's draft has no layer to name, so the list itself says where its models come from.
+  rerender(<ModelListEditor {...props} />)
+  expect(screen.getByText(counted)).toBeTruthy()
+  // A hand-declared route has no built-in list: an empty one really shows nothing.
+  rerender(<ModelListEditor {...props} catalogProvider={undefined} />)
+  expect(screen.getByText(en.modelsEmpty)).toBeTruthy()
+})

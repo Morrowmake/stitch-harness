@@ -11,11 +11,13 @@ import type { Agent } from '@deepseek-ai/dsh-agent'
 import SandboxPolicy from '@deepseek-ai/dsh-sandbox-policy'
 import { Session, type SessionId, SESSION_FORMAT_VERSION } from '@deepseek-ai/dsh-session'
 import SessionProjections from '@deepseek-ai/dsh-session-projection'
-import ApprovalService, { type ApprovalOutcome } from '@deepseek-ai/dsh-user-approval'
+import ApprovalService, { type ApprovalAnswer, type ApprovalOutcome } from '@deepseek-ai/dsh-user-approval'
+import type { ApprovalRequestEvent } from '@deepseek-ai/dsh-user-approval/types'
 import { expect, it, onTestFinished, vi } from 'vitest'
 import type PluginManager from '../src/index.ts'
 import type { BundleInfo } from '../src/types.ts'
 import * as tool from '../src/tools.ts'
+import { installSubject } from '../src/approval-text.ts'
 import { PluginManagerError } from '../src/error.ts'
 import { FileLockError } from '@deepseek-ai/dsh-atomic-write'
 
@@ -51,14 +53,20 @@ async function fixture(mode: 'read-only' | 'workspace-write' | 'danger-full-acce
   return { ctx, manager, call, fiber }
 }
 
-it.each(['read-only', 'workspace-write'] as const)('denies every management action in %s before accessing the manager', async (mode) => {
+const CHANGES = ['set_plugin', 'set_bundle', 'install_bundle', 'remove_bundle', 'set_version_exemption'] as const
+const MUTATIONS = ['setPluginEnabled', 'setBundleEnabled', 'installBundle', 'removeBundle', 'setVersionExemption'] as const
+
+it.each(['read-only', 'workspace-write'] as const)('lists without approval but denies every change in %s before it reaches the manager', async (mode) => {
   const { call, manager } = await fixture(mode)
-  for (const action of ['list_plugins', 'list_bundles', 'set_plugin', 'set_bundle', 'install_bundle', 'remove_bundle', 'list_version_exemptions', 'set_version_exemption']) {
-    const result = await call({ action, target: 'bundle', enabled: true })
+  for (const action of ['list_plugins', 'list_bundles', 'list_version_exemptions']) {
+    expect((await call({ action })).isError).toBe(false)
+  }
+  for (const action of CHANGES) {
+    const result = await call({ action, target: 'bundle', enabled: true, runtimeVersion: '0.1.7-alpha.1' })
     expect(result.isError).toBe(true)
     expect(JSON.stringify(result.content)).toContain('requires approval, but no approval service is composed')
   }
-  for (const method of Object.values(manager)) expect(method).not.toHaveBeenCalled()
+  for (const method of MUTATIONS) expect(manager[method]).not.toHaveBeenCalled()
 })
 
 it('preserves selected bundle load errors in the agent list result', async () => {
@@ -117,51 +125,113 @@ it('lists an absent Official bundle without display metadata', async () => {
   `)
 })
 
-it('checks the calling session on each execution, including after permission is revoked', async () => {
+it('checks the calling session on each change, including after permission is revoked', async () => {
   const { call, manager } = await fixture()
   const id = brandString<SessionId>('manager-permissions')
   const session = Session.create(id, undefined, { version: SESSION_FORMAT_VERSION, id, createdAt: 0, isSeeded: false })
   const agent = { session } as unknown as Agent
+  const change = { action: 'set_plugin', target: 'include:1', enabled: false }
   setSandboxMode(session, 'workspace-write')
-  expect((await call({ action: 'list_plugins' }, agent)).isError).toBe(true)
-  expect(manager.listPlugins).not.toHaveBeenCalled()
+  expect((await call(change, agent)).isError).toBe(true)
+  expect(manager.setPluginEnabled).not.toHaveBeenCalled()
   setSandboxMode(session, 'danger-full-access')
-  expect((await call({ action: 'list_plugins' }, agent)).isError).toBe(false)
+  expect((await call(change, agent)).isError).toBe(false)
   setSandboxMode(session, 'read-only')
-  expect((await call({ action: 'list_plugins' }, agent)).isError).toBe(true)
-  expect(manager.listPlugins).toHaveBeenCalledTimes(1)
+  expect((await call(change, agent)).isError).toBe(true)
+  expect(manager.setPluginEnabled).toHaveBeenCalledTimes(1)
 })
 
-function activeAgent(): Agent {
-  const id = brandString<SessionId>('manager-approval')
+function activeAgent(sessionId = 'manager-approval'): Agent {
+  const id = brandString<SessionId>(sessionId)
   const session = Session.create(id, undefined, { version: SESSION_FORMAT_VERSION, id, createdAt: 0, isSeeded: false })
   session.append('turn/start', { turn: 1 })
   return { session } as unknown as Agent
 }
 
-it.each(['read-only', 'workspace-write'] as const)('approves each action once in %s without changing session permissions', async (mode) => {
+it.each(['read-only', 'workspace-write'] as const)('asks once per change in %s without changing session permissions, never for listing', async (mode) => {
   const { ctx, call, manager } = await fixture(mode, 'ask')
   const agent = activeAgent()
   const prompted = vi.fn(async () => 'allowed-once' as const)
   const dispose = ctx.on('approval/request', prompted)
-  for (const action of ['list_plugins', 'list_bundles', 'set_plugin', 'set_bundle', 'install_bundle', 'remove_bundle', 'list_version_exemptions', 'set_version_exemption']) {
+  for (const action of ['list_plugins', 'list_bundles', 'list_version_exemptions', ...CHANGES]) {
     expect((await call({ action, target: 'bundle@1.0.0', enabled: true, runtimeVersion: '0.1.7-alpha.1', acceptRisk: true }, agent)).isError).toBe(false)
   }
-  expect(prompted).toHaveBeenCalledTimes(8)
-  for (const method of Object.values(manager)) expect(method).toHaveBeenCalledTimes(1)
+  expect(prompted).toHaveBeenCalledTimes(CHANGES.length)
+  for (const method of MUTATIONS) expect(manager[method]).toHaveBeenCalledTimes(1)
   expect(ctx.sandboxPolicy.resolve({ session: agent.session }).mode).toBe(mode)
   const audit = agent.session.snapshotEvents().filter(event => event.type.startsWith('approval/'))
-  expect(audit).toHaveLength(16)
+  expect(audit).toHaveLength(CHANGES.length * 2)
   expect(audit[0]).toMatchObject({ type: 'approval/asked', data: {
-    toolName: 'plugin_manager', callId: 'manager-call',
+    toolName: 'plugin_manager', callId: 'manager-call', grant: 'enable',
   } })
   const request = audit[0]
   if (request?.type !== 'approval/asked') throw new Error('Expected an approval request')
-  expect(request.data.reason).toContain('"action":"list_plugins"')
+  expect(request.data.reason).toContain('"action":"set_plugin"')
   expect(audit[1]).toMatchObject({ type: 'approval/decided', data: { outcome: 'allowed-once' } })
   dispose()
-  expect((await call({ action: 'list_plugins' }, agent)).isError).toBe(true)
-  expect(manager.listPlugins).toHaveBeenCalledTimes(1)
+  expect((await call({ action: 'remove_bundle', target: 'bundle' }, agent)).isError).toBe(true)
+  expect(manager.removeBundle).toHaveBeenCalledTimes(1)
+})
+
+it('describes each change in plain language with the raw arguments kept for the audit', async () => {
+  const { ctx, call, manager } = await fixture('workspace-write', 'ask')
+  const requests: ApprovalRequestEvent[] = []
+  ctx.on('approval/request', async (request) => { requests.push(request); return 'allowed-once' })
+  manager.listPlugins.mockResolvedValue([{ entryId: 'include:hello', enabled: false, meta: { title: { en: 'Hello command', zh: '你好命令' } } }] as never)
+  manager.listBundles.mockResolvedValue([{ name: 'hello-bundle', enabled: true, meta: { title: 'Hello bundle' } }] as never)
+  const agent = activeAgent()
+  await call({ action: 'install_bundle', target: '/Users/me/project/hello-command' }, agent)
+  await call({ action: 'install_bundle', target: '@scope/notes', enabled: false, approvedBuilds: ['esbuild'] }, agent)
+  await call({ action: 'set_plugin', target: 'include:hello', enabled: true }, agent)
+  await call({ action: 'set_bundle', target: 'hello-bundle', enabled: false }, agent)
+  await call({ action: 'remove_bundle', target: 'unlisted-bundle' }, agent)
+  await call({ action: 'set_version_exemption', target: 'old@1.0.0', runtimeVersion: '0.2.0', enabled: true, acceptRisk: true }, agent)
+  expect(requests.map(request => [request.displayReason?.en, request.grant])).toEqual([
+    ['Install the plugin “hello-command” from a folder on this computer into this profile. It will run with full access to your computer. The change applies to every chat in this profile.', 'install'],
+    ['Install the plugin “@scope/notes” from the npm registry into this profile. It will run with full access to your computer. Its setup scripts will also run: esbuild. It stays turned off until you turn it on. The change applies to every chat in this profile.', undefined],
+    ['Turn on the plugin “Hello command” in this profile. It will run with full access to your computer. The change applies to every chat in this profile.', 'enable'],
+    ['Turn off the plugin “Hello bundle” in this profile. The change applies to every chat in this profile.', 'disable'],
+    ['Remove the plugin “unlisted-bundle” from this profile. The change applies to every chat in this profile.', 'remove'],
+    ['Let “old@1.0.0” run on Stitch 0.2.0 although it does not declare support for that version. It may crash or lose data. The change applies to every chat in this profile.', undefined],
+  ])
+  expect(requests[2]?.displayReason?.['zh']).toBe('在当前 profile 中开启插件“你好命令”。它将拥有对这台电脑的完全访问权限。此更改对当前 profile 中的所有对话生效。')
+  for (const request of requests) {
+    expect(Object.keys(request.displayReason ?? {}).sort()).toEqual(['de', 'en', 'es', 'fr', 'ja', 'pt', 'ru', 'zh'])
+    expect(request.reason).toMatch(/^escalate sandbox to danger-full-access: plugin_manager \{"action":/)
+  }
+})
+
+it('lets the user allow one kind of change for the rest of the chat', async () => {
+  const { ctx, call, manager } = await fixture('workspace-write', 'ask')
+  const prompted = vi.fn(async (): Promise<ApprovalAnswer> => 'allowed-for-session')
+  ctx.on('approval/request', prompted)
+  const agent = activeAgent()
+  for (let attempt = 0; attempt < 3; attempt++) {
+    expect((await call({ action: 'set_plugin', target: `include:${attempt}`, enabled: true }, agent)).isError).toBe(false)
+  }
+  expect(prompted).toHaveBeenCalledTimes(1)
+  expect(manager.setPluginEnabled).toHaveBeenCalledTimes(3)
+  // Turning plugins off, installing, and version exemptions remain separate questions.
+  await call({ action: 'set_plugin', target: 'include:0', enabled: false }, agent)
+  await call({ action: 'install_bundle', target: 'bundle' }, agent)
+  await call({ action: 'set_version_exemption', target: 'old@1.0.0', runtimeVersion: '0.2.0', enabled: true, acceptRisk: true }, agent)
+  await call({ action: 'set_version_exemption', target: 'old@1.0.0', runtimeVersion: '0.2.0', enabled: true, acceptRisk: true }, agent)
+  expect(prompted).toHaveBeenCalledTimes(5)
+  // A new chat asks again.
+  const other = activeAgent('manager-approval-other')
+  await call({ action: 'set_plugin', target: 'include:1', enabled: true }, other)
+  expect(prompted).toHaveBeenCalledTimes(6)
+})
+
+it.each([
+  ['/Users/me/plugins/hello-command', { name: 'hello-command', source: { kind: 'folder' } }],
+  ['@scope/notes@^1.2.0', { name: '@scope/notes', source: { kind: 'registry' } }],
+  ['github:me/stitch-hello#main', { name: 'stitch-hello', source: { kind: 'host', host: 'github.com' } }],
+  ['git@gitlab.com:me/hello.git', { name: 'hello', source: { kind: 'host', host: 'gitlab.com' } }],
+  ['https://example.com/dl/hello-1.0.0.tgz', { name: 'hello-1.0.0', source: { kind: 'host', host: 'example.com' } }],
+  ['relative/path', { name: 'relative/path', source: { kind: 'unknown' } }],
+])('names the installed plugin and its source for %s', (spec, subject) => {
+  expect(installSubject(spec)).toEqual(subject)
 })
 
 it.each(['rejected', 'cancelled', 'unavailable'] as const)('does not mutate the profile when approval is %s', async (outcome) => {

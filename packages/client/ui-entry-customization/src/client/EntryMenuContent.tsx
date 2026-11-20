@@ -17,7 +17,7 @@ export interface EntryMenuInjected {
     /** Whether the Plugins page navigation service is present; the discovery row shows only while it is. */
     readonly pluginNavigation: HostObservable<boolean>
   }
-  /** Open the Plugins main list. */
+  /** Open the Plugins page at its Discover tab. */
   readonly browsePlugins: () => void
   /** Start a Creator draft with this region's prompt without sending it. */
   readonly createPlugin: () => void

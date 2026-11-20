@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-component-web",
-  "description": "Web search (no key needed) and web fetch tools, with their settings page.",
+  "description": "Lets the agent search the web (no key needed) and read web pages.",
   "version": "0.2.2-rc.5",
   "icon": "./icon.svg",
   "publishConfig": {

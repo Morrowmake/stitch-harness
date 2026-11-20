@@ -19,6 +19,8 @@ const FAILURE_KEYS = {
 export interface BundleDetailSectionProps {
   readonly name: string
   readonly version: string | undefined
+  /** Which document this section shows: the user guide the locale names (`locale`) or the README (`readme`). */
+  readonly origin: 'locale' | 'readme'
   readonly language: string
   readonly details: BundleDetailsState
   readonly t: Translate
@@ -28,27 +30,31 @@ export interface BundleDetailSectionProps {
 }
 
 /**
- * Read and render a bundle's detail document in the active language; relative images load from the Host beside it.
+ * Read and render a bundle's detail document in the active language once it is read and has the section's origin;
+ * relative images load from the Host beside it. Both sections share one read, and the `locale` one reports a failure.
  * @param props - the bundle, the language, the reads, and the page's callbacks.
- * @returns the section, or null when the bundle has no document.
+ * @returns the section, or null while reading and when the bundle has no document of that origin.
  */
 export function BundleDetailSection(props: BundleDetailSectionProps): ReactNode {
-  const { name, version, language, details, t, load, retry, image } = props
+  const { name, version, origin, language, details, t, load, retry, image } = props
   const key = bundleDetailKey(name, version, language)
   const state = details[key]
   useEffect(() => { load(name, version, language) }, [key, details])
   const labels = useDetailDocumentLabels({
-    title: t('detailTitle'), loading: t('detailLoading'), retry: t('retry'), copy: t('copy'), copied: t('copied'),
+    title: t(origin === 'locale' ? 'detailTitle' : 'detailReadmeTitle'), loading: t('detailLoading'), retry: t('retry'), copy: t('copy'), copied: t('copied'),
     codeBlock: t('codeBlock.title'), wrap: t('codeBlock.wrap'), unwrap: t('codeBlock.unwrap'), footnotes: t('detailFootnotes'),
   })
   const detail = state?.status === 'ready' ? state.detail : undefined
-  const document = detail?.status === 'found' ? detail.path : undefined
+  const found = detail?.status === 'found' && detail.origin === origin ? detail : undefined
+  const document = found?.path
   const images = useMemo<MarkdownPathImages | undefined>(
     () => document === undefined ? undefined : { resolve: value => image(name, document, value) },
     [name, document, image],
   )
+  const failed = state?.status === 'error' && origin === 'locale'
+  if (found === undefined && !failed) return null
   const shown = detailDocumentState(state?.status === 'error'
     ? { status: 'error', message: t(FAILURE_KEYS[state.failure]) }
-    : state === undefined || state.status === 'loading' ? state : { status: 'ready', markdown: detail?.status === 'found' ? detail.markdown : undefined })
+    : { status: 'ready', markdown: found?.markdown })
   return <DetailDocument state={shown} labels={labels} images={images} onRetry={() => { retry(name, version, language) }} />
 }

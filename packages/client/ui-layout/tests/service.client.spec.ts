@@ -17,6 +17,26 @@ function fakePanels(): PanelActions {
 }
 
 describe('LayoutController', () => {
+  it('tells reselect listeners when the shown panel is selected again, and only then', () => {
+    const panels = fakePanels()
+    const panelInfo = createSnapshotStore<{ activePanelId: MainPanelId | null }>({ activePanelId: null })
+    vi.mocked(panels.selectPanel).mockImplementation((activePanelId) => { panelInfo.set({ activePanelId }) })
+    const service = new LayoutController(panels, () => true, panelInfo)
+    const listener = vi.fn()
+    const stop = service.onReselect(listener)
+    const plugins = 'plugins' as MainPanelId
+    service.selectPanel(plugins)
+    service.selectPanel(null)
+    service.selectPanel(null)
+    expect(listener).not.toHaveBeenCalled()
+    service.selectPanel(plugins)
+    service.selectPanel(plugins)
+    expect(listener).toHaveBeenCalledExactlyOnceWith(plugins)
+    stop()
+    service.selectPanel(plugins)
+    expect(listener).toHaveBeenCalledOnce()
+  })
+
   it('forwards right column transitions to the constructor-supplied actions', () => {
     const panels = fakePanels()
     const service = new LayoutController(panels, () => true, createSnapshotStore({ activePanelId: null }))

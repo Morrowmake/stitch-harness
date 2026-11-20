@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import type { MarketListingEntry, MarketListingVersion } from '@deepseek-ai/dsh-api-remotes/client'
 import type { LocalizedText } from '@deepseek-ai/dsh-package-manifest'
 import {
-  declaredQuery, displayDeclarations, indexLabel, indexMenuItems, INITIAL_QUERY, presentedVersion, sourceFacts, withText,
+  compatibilityNote, declaredQuery, displayDeclarations, indexLabel, indexMenuItems, indexOrigin, INITIAL_QUERY, labelAttribution,
+  presentedVersion, sourceFacts, withText,
 } from '../src/client/presentation.ts'
 
 const resolveText = (text: LocalizedText): string => typeof text === 'string' ? text : text.zh ?? text.en
@@ -138,5 +139,39 @@ describe('indexMenuItems', () => {
     expect(indexMenuItems(indexes, resolveText).map(item => item.label)).toEqual([
       'Internal plugins', 'Direct index', 'Invalid Git source', 'github.com', 'raw.githubusercontent.com', 'https://[',
     ])
+  })
+})
+
+describe('index origin', () => {
+  const STITCH = 'https://raw.githubusercontent.com/Morrowmake/stitch-plugins/main/index.json'
+  const CDN = 'https://cdn.dsh.so/market/index.json'
+  const OTHER = 'https://a.example/i.json'
+
+  it('tells the Stitch index from community indexes, known ones with their harness', () => {
+    expect(indexOrigin(STITCH)).toEqual({ kind: 'stitch' })
+    expect(indexOrigin(CDN)).toEqual({ kind: 'community', known: 'plugin-market-cdn', harness: 'deepseek-harness' })
+    expect(indexOrigin(OTHER)).toEqual({ kind: 'community' })
+  })
+
+  it('names known indexes over their titles and GitHub sources', () => {
+    const known = (url: string): string | undefined => url === STITCH ? 'Stitch plugins' : url === CDN ? 'Plugin market' : undefined
+    const indexes = [{ url: STITCH, title: 'Stitch plugins index' }, { url: CDN, title: 'DSH.SO market' }, { url: OTHER, title: 'Other' }]
+    expect(indexMenuItems(indexes, resolveText, known).map(item => item.label)).toEqual(['Stitch plugins', 'Plugin market', 'Other'])
+    expect(indexLabel(indexes[1]!, resolveText, known)).toBe('Plugin market')
+  })
+
+  it('notes compatibility only for community versions', () => {
+    const undeclared = release('1.0.0')
+    const declared = release('1.0.0', { engines: { dsh: '>=0.1.0' } })
+    const unmet = release('1.0.0', { engines: { dsh: '0.1.0' }, compatibility: { compatible: false, runtimeVersion: '0.2.0', requirements: { 'engines.dsh': '0.1.0' }, exempted: false } })
+    expect([undeclared, declared, unmet].map(version => compatibilityNote(indexOrigin(STITCH), version))).toEqual([null, null, null])
+    expect([undeclared, declared, unmet].map(version => compatibilityNote(indexOrigin(OTHER), version))).toEqual(['undeclared', null, 'range'])
+    expect([undeclared, declared, unmet].map(version => compatibilityNote(indexOrigin(CDN), version))).toEqual(['harness', 'harness', 'harness'])
+  })
+
+  it('attributes verdict labels of community indexes only', () => {
+    const ids = ['risk-low', 'install-verified', 'security-audit', 'npm-week-10k']
+    expect(ids.map(id => labelAttribution(indexOrigin(OTHER), id))).toEqual(['low-risk', 'install-verified', 'verdict', null])
+    expect(ids.map(id => labelAttribution(indexOrigin(STITCH), id))).toEqual([null, null, null, null])
   })
 })

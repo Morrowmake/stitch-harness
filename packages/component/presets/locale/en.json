@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "Extra presets",
-    "description": "The PTC, Minimal, and Creator agent presets and the preset picker."
+    "title": "Extra agent styles",
+    "description": "Adds code-running, minimal, and creator agent styles you can pick per chat."
   }
 }

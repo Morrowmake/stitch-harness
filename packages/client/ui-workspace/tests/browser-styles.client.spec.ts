@@ -149,6 +149,13 @@ describe('WorkspaceBrowser.module.css list', () => {
     expect(declarations('.sectionHeader')?.get('padding-left')).toBe('var(--dsh-sidebar-row-padding)')
   })
 
+  it('gives the section title all room beside the search control, ending it in an ellipsis only when the sidebar is too narrow', () => {
+    const label = declarations('.sectionLabel')
+    expect([label?.get('flex'), label?.get('max-width'), label?.get('text-overflow')]).toEqual(['0 1 auto', '100%', 'ellipsis'])
+    // The search control keeps its button's width however long the title is.
+    expect(declarations('.searchSlot')?.get('min-width')).toBe('28px')
+  })
+
   it('extends native row action targets while retaining the compact layout footprint', () => {
     const button = rowDeclarations('.iconButton')
     expect(button?.get('width')).toBe('24px')
@@ -183,11 +190,12 @@ describe('WorkspaceBrowser.module.css list', () => {
     expect(declarations('.listArea')?.get('min-height')).toBe('0')
   })
 
-  it('marquees a clipped session title on row hover', () => {
-    // The shared MarqueeText animates the travel and fades the clipping
-    // edges; the row's stylesheet sizes the cell and keeps it unclipped on hover.
+  it('ends a clipped session title in an ellipsis in every row state', () => {
     expect(rowDeclarations('.sessionRow .title')?.get('flex')).toBe('1')
-    expect(rowDeclarations('.sessionRow:hover .title')?.get('text-overflow')).toBe('clip')
+    expect(rowDeclarations('.title')?.get('text-overflow')).toBe('ellipsis')
+    for (const state of ['.sessionRow:hover .title', '.sessionRow.menuOpen .title', '.sessionRow.selected .title']) {
+      expect(rowDeclarations(state)?.get('text-overflow'), state).toBeUndefined()
+    }
   })
 
   it('pins both rail controls to the shared left anchor during the column slide', () => {

@@ -449,12 +449,11 @@ describe('adapter registration, routing, and accepted-input ownership', () => {
     send(agent, 'go')
     await waitForIdle(ctx, agent)
     const turnEnd = agent.session.snapshotEvents().findLast(event => event.type === 'turn/end')
-    expect(turnEnd?.type === 'turn/end' && turnEnd.data.reason.kind === 'error'
+    const message = turnEnd?.type === 'turn/end' && turnEnd.data.reason.kind === 'error'
       ? turnEnd.data.reason.error.message
-      : undefined).toContain('No model provider configured')
-    expect(turnEnd?.type === 'turn/end' && turnEnd.data.reason.kind === 'error'
-      ? turnEnd.data.reason.error.message
-      : undefined).toContain('record a model selection')
+      : undefined
+    // One plain sentence: no session id, package name, or SDK hint.
+    expect(message).toBe('No AI model is set up yet. Add one in Settings → Models.')
   })
 
   it('a recorded selection supplies the route before a model-less Agent starts a step', async () => {

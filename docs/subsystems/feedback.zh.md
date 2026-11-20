@@ -321,7 +321,7 @@ fork 种子可以包含父 Session 的反馈事件，但 payload 保留父级 `s
 
 成功的消息反馈变更会等待权威持久化完成：live 操作通过所属 Session 追加，并要求有 `ctx.sessions.flush` 监听器参与；cold 操作通过写句柄追加并 flush。持久化故障会原样传播，不会报告成功。`maxNoteBytes` 为必填项，按 UTF-8 字节限制备注文本；Web Host 组合将其设为 `8192`。该包通过 `TypertRemoteService` 与 `@Remote` 发布 Host `messageFeedback.list`、`messageFeedback.put` 和 `messageFeedback.delete` 一元 Remote 约定；`command-feedback` 以同样方式发布面向 live Session 的 Session 级备注 `sessionFeedback.record`，以及用于 GitHub 报告的 `sessionFeedback.draftIssue` 与 `sessionFeedback.reportIssue`。下方生成的 Cordis API 是方法级权威。
 
-`draftIssue` 返回可编辑的标题，以及只包含评价、分类、Stitch 版本与操作系统的正文；它不读取 Session，也不发送任何内容。`reportIssue` 把确认后的标题与正文提交到 `FEEDBACK_REPOSITORY`（`Morrowmake/stitch-harness`）指定的仓库：`gh auth status` 成功时通过 `gh issue create` 提交，由 Host `subprocess` 提供方或 Node 的 `execFile` 以 argv、不经 shell 并在时限内运行；否则返回最长 7000 个字符的预填 `issues/new` URL，必要时截断正文并附加说明。两个方法都不向 Session 日志追加内容；弹窗在报告前先通过 `record` 记录。
+`draftIssue` 返回可编辑的标题、只包含评价（或 `No description provided.`）以及列出分类、Stitch 版本与操作系统的 `Details:` 列表的正文，以及目标 `repository`；它不读取 Session，也不发送任何内容。`reportIssue` 接收确认后的标题与正文以及用户选择的方式，目标是 `FEEDBACK_REPOSITORY`（`Morrowmake/stitch-harness`）指定的仓库。`via: 'browser'` 只返回最长 7000 个字符的预填 `issues/new` URL，必要时截断正文并附加说明，绝不运行 `gh`。`via: 'github-cli'` 在 `gh auth status` 成功时通过 `gh issue create` 提交，由 Host `subprocess` 提供方或 Node 的 `execFile` 以 argv、不经 shell 并在时限内运行；否则返回同一个预填 URL。两个方法都不向 Session 日志追加内容；弹窗在报告前先通过 `record` 记录。
 
 插件释放会关闭操作接纳，并排空已进入各 Session 队列的工作。
 
@@ -335,9 +335,9 @@ fork 种子可以包含父 Session 的反馈事件，但 payload 保留父级 `s
 
 每个 Session 一个 `MessageFeedbackController`，支撑该 Session 内所有消息的控件：一次 `list` 读取即填充整段对话，且延迟到首次 hover 或 focus 才发起，而非挂载时触发。每次变更把该 controller 最后观察到的版本作为 `ifVersion` 发送；`version-conflict` 响应携带权威条目，controller 据此对账而不重新拉取。变更按 Session 串行，排队操作与已提交版本比较。注入的 `retract` 操作会在该队列内重新检查已提交评分，并在并发变更后变为无操作，因此陈旧 UI 无法绕过弹窗记录裸评分。`connection/reset` 只刷新已读取过的 Session。
 
-任一未记录的评分都会打开该 Session 的反馈弹窗，即 `conversation.input.overlay` 的 `feedback-dialog` 条目：共用的 Modal 卡片，里面是七个分类标签和一个详情框。提交会 put 所选评分，带上所选分类与去除首尾空白的描述，两者也可都不带；成功会关闭弹窗并显示确认 toast，失败则保留弹窗与草稿并显示警告 toast。不带文本的 `/feedback`（`ui-commands` 以 `action` 路由的一个装饰）为 Session 打开同一个弹窗，随后通过 `sessionFeedback.record` 记录；`/feedback <text>` 仍走宿主命令路径。再次点击已记录的评分会直接撤回，不打开弹窗。
+任一未记录的评分都会打开该 Session 的反馈弹窗，即 `conversation.input.overlay` 的 `feedback-dialog` 条目：标题为**留下反馈**的共用 Modal 卡片，里面是七个分类标签和一个详情框。**保存备注**会 put 所选评分，带上所选分类与去除首尾空白的描述，两者也可都不带；按钮下方的一行与成功 toast 都说明备注留在本机、不会发送任何内容。成功会关闭弹窗，失败则保留弹窗与草稿并显示警告 toast。不带文本的 `/feedback`（`ui-commands` 以 `action` 路由的一个装饰）为 Session 打开同一个弹窗，随后通过 `sessionFeedback.record` 记录；`/feedback <text>` 仍走宿主命令路径。再次点击已记录的评分会直接撤回，不打开弹窗。
 
-**在 GitHub 上报告…**会把弹窗切换为由 `sessionFeedback.draftIssue` 起草的可编辑议题预览，并提供默认关闭的**附带会话 ID**复选框。确认时先像「提交」一样记录草稿，再调用 `sessionFeedback.reportIssue`，并在新标签页中打开返回的 GitHub 页面；点击确认之前不会提交任何内容。输入的 `/feedback <text>` 成功后，`command/executed` 事件携带提交的命令行，弹窗为该文本打开同一个已记录的预览，因此确认时只提交议题。
+**在 GitHub 上报告…**会把弹窗切换为由 `sessionFeedback.draftIssue` 起草的议题预览。预览说明会在起草回复给出的 `github.com/<repository>` 上创建一个任何人都能看到的公开议题，把正文显示为排版后的文本并提供用于原始 Markdown 的**编辑文本**切换，还提供默认关闭的**附带会话 ID**复选框。主操作**在 GitHub 上打开**先像「保存备注」一样记录草稿，再以 `via: 'browser'` 调用 `sessionFeedback.reportIssue`，并在新标签页中打开预填页面。**用我的 GitHub 账号提交**以 `via: 'github-cli'` 做同样的事，打开创建好的议题，或打开预填页面并以 toast 提示在 GitHub 上完成。点击这两个操作之前不会提交任何内容。输入的 `/feedback <text>` 成功后，`command/executed` 事件携带提交的命令行，弹窗为该文本打开同一个已记录的预览，因此发送时只提交议题。
 
 ## 边界与限制
 
@@ -429,19 +429,20 @@ Host Remote through which a product surface records a Session-level remark and, 
  * Preview a remark as a GitHub issue without sending anything. The body
  * names only the remark, its category, the Stitch version, and the OS.
  * @param request - the remark text and category.
- * @returns an editable title and Markdown body.
+ * @returns an editable title and Markdown body, and the public repository it would be filed on.
  */
-@Remote('draftIssue') draftIssue(request: SessionFeedbackIssueDraftRequest): Promise<SessionFeedbackIssue>
+@Remote('draftIssue') draftIssue(request: SessionFeedbackIssueDraftRequest): Promise<SessionFeedbackIssueDraft>
 
 /**
- * File a confirmed issue on the feedback repository: through an installed,
+ * Send a confirmed issue to the feedback repository the way the human
+ * chose: `browser` answers with the prefilled new-issue page the caller
+ * opens and never runs `gh`; `github-cli` files through an installed,
  * authenticated `gh` CLI (run by the Host `subprocess` provider when one is
- * mounted, else by Node without a shell), or else as a prefilled new-issue
- * page the caller opens.
- * @param issue - the title and body the human confirmed.
+ * mounted, else by Node without a shell) and falls back to the prefilled page.
+ * @param request - the title and body the human confirmed, and the chosen method.
  * @returns `created` with the issue URL, or `browser` with the prefilled page URL.
  */
-@Remote('reportIssue') reportIssue(issue: SessionFeedbackIssue): Promise<SessionFeedbackReportIssueResult>
+@Remote('reportIssue') reportIssue(request: SessionFeedbackReportIssueRequest): Promise<SessionFeedbackReportIssueResult>
 ```
 
 Source: [`packages/feedback/command-feedback/src/index.ts`](../../packages/feedback/command-feedback/src/index.ts)

@@ -11,21 +11,24 @@
  * history outside the direct-parent continuation path.
  */
 // Type-only: the carrier types, the forwarded Host-event face and the ctx.remote merge.
-import type { ModelSelection } from '@deepseek-ai/dsh-api-session-controller/types'
+import type { ModelCatalogModel, ModelSelection } from '@deepseek-ai/dsh-api-session-controller/types'
 import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
-import type { CommandUiContract, SelectOption } from '@deepseek-ai/dsh-client-ui-commands/client'
+import type { CommandUiContract, SelectOption, SelectOptionGroup } from '@deepseek-ai/dsh-client-ui-commands/client'
 // Type-only: pulls the ui-conversation SlotMap merge (the input.model seat).
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 // Type-only: pulls the locale plugin's Context merge (ctx.locale).
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
+// Type-only: pulls the first-run plugin's Context merge (ctx.firstRunUi), read optionally.
+import type {} from '@deepseek-ai/dsh-client-ui-first-run/client'
 import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import { IconDataOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ModelDirectoryState } from './directory.ts'
 import { ModelDirectoryResolver } from './service.ts'
 import type { ModelSelectInjected } from './slots.ts'
+import { sectionsOf } from './sections.ts'
 import { ModelSelect } from './ModelSelect.tsx'
 import { en, ja, es, fr, de, ru, pt, zh, type ModelKey } from './locales.ts'
 
@@ -47,20 +50,41 @@ function rowId(providerId: string, modelId: string): string {
   return `${providerId}/${modelId}`
 }
 
-/** Flatten the directory into popup rows; failure rows are listed for visibility but never selectable. */
-function optionsOf(directory: ModelDirectoryState, t: TranslateNS<'model'>): SelectOption[] {
+/**
+ * Flatten the directory into popup rows; failure rows are listed for visibility but never selectable.
+ * Each provider's pooled models keep its group; older models and each pinned
+ * account's entries follow under their own labelled groups.
+ */
+function optionsOf(
+  directory: ModelDirectoryState, t: TranslateNS<'model'>, resolveText: ModelSelectInjected['resolveText'],
+): SelectOption[] {
   const rows: SelectOption[] = []
   for (const group of directory.groups) {
-    for (const model of group.models) {
-      rows.push({
-        id: rowId(group.id, model.id),
-        label: model.name,
-        group: { name: group.id, label: group.name },
-        ...(directory.current !== null
-          && directory.current.provider === group.id
-          && directory.current.model === model.id
-          ? { active: true } : {}),
-      })
+    for (const section of sectionsOf(group, resolveText, number => t('section.accountFallback', { number }))) {
+      const { account } = section
+      const label = account === undefined ? group.name : t('section.account', { provider: group.name, account: account.label })
+      const parts: [readonly ModelCatalogModel[], SelectOptionGroup][] = [
+        [section.current, account === undefined
+          ? { name: group.id, label }
+          : { name: JSON.stringify(['account', group.id, account.id]), label }],
+        [section.older, {
+          name: JSON.stringify(['older', group.id, ...account === undefined ? [] : [account.id]]),
+          label: `${label} · ${t('section.older')}`,
+        }],
+      ]
+      for (const [models, rowGroup] of parts) {
+        for (const model of models) {
+          rows.push({
+            id: rowId(group.id, model.id),
+            label: model.name,
+            group: rowGroup,
+            ...(directory.current !== null
+              && directory.current.provider === group.id
+              && directory.current.model === model.id
+              ? { active: true } : {}),
+          })
+        }
+      }
     }
   }
   for (const failure of directory.failures) {
@@ -117,7 +141,20 @@ export function apply(ctx: ClientContext): void {
   // through the bound translate; the seat component reads the standard seat.
   const t = ctx.locale.bind(NS)
 
-  ctx.plugin(ModelDirectoryResolver)
+  // A Session with no model cannot send. With no model set up at all, the
+  // block offers the setup; otherwise the live model seat clears it.
+  ctx.plugin(ModelDirectoryResolver, {
+    block: (state: ModelDirectoryState) => {
+      const firstRun = ctx.get('firstRunUi')
+      if (state.groups.length > 0 || firstRun === undefined) {
+        return { reason: t(state.groups.length > 0 ? 'blocked.choose' : 'blocked.setUp') }
+      }
+      return {
+        reason: t('blocked.setUp'),
+        action: { label: t('blocked.setUpAction'), run: () => { firstRun.openProvider() } },
+      }
+    },
+  })
 
   // Entry 1: the /model popupSelect over the shared directory.
   ctx.inject(['commandUi', 'modelDirectories'], (scope: ClientContext) => {
@@ -141,7 +178,7 @@ export function apply(ctx: ClientContext): void {
           if (sessions.subagentAddress(session.sessionId) !== undefined) {
             throw new Error('model selection is unavailable for addressed subagent sessions')
           }
-          return optionsOf(await models.directoryFor(session.sessionId).load(), t)
+          return optionsOf(await models.directoryFor(session.sessionId).load(), t, text => ctx.locale.resolveText(text))
         },
         onSelect: async (option, session) => {
           if (sessions.subagentAddress(session.sessionId) !== undefined) {

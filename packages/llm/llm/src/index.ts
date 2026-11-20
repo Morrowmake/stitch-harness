@@ -17,6 +17,7 @@ import type {
   LlmFailure,
   LlmImageRequestPricing,
   LlmModelContext,
+  LlmModelDiscoveryRejection,
   LlmModelDiscoveryRequest,
   LlmModelInfo,
   LlmResolvedModelInfo,
@@ -545,7 +546,10 @@ export class LlmRuntime extends TypertRemoteService {
    * directory, and because a provider being *added* has no route to name yet.
    * Disposed with the fiber.
    * @param settingsNs - the namespace whose profiles this discovery serves.
-   * @param discover - interrogates one endpoint and must honor the supplied signal.
+   * @param discover - interrogates one endpoint and must honor the supplied signal. Its
+   *   `LlmError` tells the surface why it failed: `TRANSPORT`/`TIMEOUT` for an
+   *   unreachable endpoint, the HTTP `status` of a refusal, `INVALID_RESPONSE`
+   *   for a reply that is not a model listing.
    * @returns the disposer that withdraws the offer.
    */
   registerModelDiscovery(
@@ -636,6 +640,7 @@ export class LlmRuntime extends TypertRemoteService {
         {
           settingsNs,
           ...request.baseURL === undefined ? {} : { baseURL: request.baseURL },
+          reason: discoveryRejection(error),
         },
         { cause: error },
       )
@@ -726,6 +731,7 @@ export class LlmRuntime extends TypertRemoteService {
         ...badge === undefined ? {} : {
           badge: { text: typeof badge.text === 'string' ? badge.text : { ...badge.text }, tone: badge.tone },
         },
+        ...model.older === true ? { older: true } : {},
       }
     })
   }
@@ -1175,6 +1181,21 @@ function adapterFailureChunk(error: unknown, signal?: AbortSignal): StreamChunk 
       ? { kind: 'aborted', failure }
       : { kind: 'error', failure },
   }
+}
+
+/**
+ * Classify one discovery failure from the {@link LlmError} the registered
+ * discovery threw: `TRANSPORT`/`TIMEOUT` = unreachable; HTTP 401/403 =
+ * unauthorized; `INVALID_RESPONSE`, or any other HTTP status, = not
+ * compatible; everything else (unsupported protocol, malformed key, a non-`LlmError`) = other.
+ */
+function discoveryRejection(error: unknown): LlmModelDiscoveryRejection {
+  if (!(error instanceof LlmError)) return 'other'
+  const { code, status } = error.failure
+  if (code === 'TRANSPORT' || code === 'TIMEOUT') return 'unreachable'
+  if (status === 401 || status === 403) return 'unauthorized'
+  if (code === 'INVALID_RESPONSE' || status !== undefined) return 'not-compatible'
+  return 'other'
 }
 
 /** Copy a directory entry, including its arrays, so neither side can mutate the other's copy. */

@@ -85,8 +85,8 @@ function canListIndex(url: string): boolean {
 }
 
 /**
- * Register the read-only `plugin_market` tool while the `pluginMarket` service is mounted. The service comes from the
- * optional custom plugin indexes bundle, so a preset can keep this row without the tool appearing or the row waiting.
+ * Register the read-only `plugin_market` tool while the `pluginMarket` service is mounted. The Web composition mounts the
+ * service only for a profile-backed Host, so a preset can keep this row without the tool appearing or the row waiting.
  * @param ctx - Agent-scoped tool registration context.
  */
 export function apply(ctx: Context): void {

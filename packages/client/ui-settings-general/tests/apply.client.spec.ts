@@ -17,7 +17,8 @@ import { inject } from '../src/client/index.ts'
 import { HostReleasePrompt, type HostReleasePromptInjected } from '../src/client/HostReleasePrompt.tsx'
 import { CloseLabel, HeaderContent, TriggerContent } from '../src/client/chrome.tsx'
 import type { DesktopUpdateRowInjected } from '../src/client/DesktopUpdateRow.tsx'
-import type { DesktopUpdateBridge } from '../src/types.ts'
+import type { DesktopCommandBridge, DesktopCommandStatus, DesktopUpdateBridge } from '../src/types.ts'
+import type { DesktopCommandRowInjected } from '../src/client/DesktopCommandRow.tsx'
 import { GeneralSection } from '../src/client/GeneralSection.tsx'
 import type { DeveloperToolsRowInjected } from '../src/client/DeveloperToolsRow.tsx'
 import { SettingsDocumentAction } from '../src/client/SettingsDocumentAction.tsx'
@@ -179,6 +180,29 @@ describe('ui-settings-general apply', () => {
   it('omits the Desktop update-check row in browsers', async ({ mock, start }) => {
     const { c } = await client(mock, start)
     expect(c.ctx.slots.entries('settings.general.item').some(entry => entry.options.id === 'desktop-update-check')).toBe(false)
+  })
+
+  it('registers the Desktop terminal-command row only in Desktop', async ({ mock, start }) => {
+    const status = vi.fn(async (): Promise<DesktopCommandStatus> => ({ kind: 'installed', shadowed: false, selectionUnknown: false }))
+    const run = vi.fn(async (): Promise<DesktopCommandStatus> => ({ kind: 'notInstalled', shadowed: false, selectionUnknown: false }))
+    vi.stubGlobal('dshDesktop', { protocolVersion: 1, command: { status, run } satisfies DesktopCommandBridge })
+    onTestFinished(() => { vi.unstubAllGlobals() })
+    const { c } = await client(mock, start)
+    const row = c.ctx.slots.entries('settings.general.item').find(row => row.options.id === 'desktop-terminal-command')!
+    const injected = row.inject!() as unknown as DesktopCommandRowInjected
+    await injected.refresh()
+    expect(injected.hooks.desktopCommand.getSnapshot().status).toMatchObject({ kind: 'installed' })
+    await injected.run('remove')
+    expect(run).toHaveBeenCalledWith('remove')
+    expect(injected.hooks.desktopCommand.getSnapshot().status).toMatchObject({ kind: 'notInstalled' })
+    await c.unload(SELF)
+    await c.flush()
+    expect(c.ctx.slots.entries('settings.general.item').some(entry => entry.options.id === 'desktop-terminal-command')).toBe(false)
+  })
+
+  it('omits the Desktop terminal-command row in browsers', async ({ mock, start }) => {
+    const { c } = await client(mock, start)
+    expect(c.ctx.slots.entries('settings.general.item').some(entry => entry.options.id === 'desktop-terminal-command')).toBe(false)
   })
 
   it('the nav label thunk follows the active locale without re-registration', async ({ mock, start }) => {

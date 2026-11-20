@@ -164,13 +164,13 @@ export type {
 // Provider registry and discovery vocabulary for the llm namespace.
 export type {
   LlmConfigurableProvider, LlmDiscoveredModel,
-  LlmModelDiscoveryRequest, LlmNativeAuth, LlmProviderInfo,
+  LlmModelDiscoveryRejection, LlmModelDiscoveryRequest, LlmNativeAuth, LlmProviderInfo,
 } from '@deepseek-ai/dsh-llm/types'
 // Account-pool vocabulary for the llmAccounts namespace (secrets never ride it).
 export type {
-  AccountHealth, AccountId, AccountKind, AccountPatch, AccountProfile, AccountsSnapshot, AccountUsageView, AccountView,
-  LocalProviderProbeView, ProviderAccountsView, SignInAttemptId, SignInAttemptView, SignInPromptView, SignInRequest, UsageSnapshotView,
-  UsageWindowView,
+  AccountHealth, AccountId, AccountKind, AccountPatch, AccountProfile, AccountRetryResult, AccountsSnapshot, AccountUsageView,
+  AccountView, ApiKeyAccountAdded, ApiKeyCheck, LocalProviderProbeView, ProviderAccountsView, SignInAttemptId, SignInAttemptView,
+  SignInPromptView, SignInRequest, UsageSnapshotView, UsageWindowView,
 } from '@deepseek-ai/dsh-llm-pi-ai/types'
 // Reference-discovery result vocabulary for the fileReferences and
 // sessionReferenceResolver namespaces.

@@ -88,7 +88,7 @@ function checkpoint(meta: SessionHeader, title: string | null, lastPromptAt: num
     },
     rows: {
       title: { ver: 1, seq: -1, val: title },
-      sessionListMetadata: { ver: 1, seq: -1, val: { blank: false, lastPromptAt } },
+      sessionListMetadata: { ver: 2, seq: -1, val: { blank: false, lastPromptAt } },
     },
   }
 }

@@ -23,3 +23,33 @@ export interface DesktopUpdateBridge {
   /** @returns The result of one check made now, regardless of the preference. */
   check(): Promise<DesktopUpdateCheckResult>
 }
+
+/** Button the user pressed in the 'Terminal command' row. */
+export type DesktopCommandAction = 'install' | 'repair' | 'remove'
+
+/** Observed registration of the Desktop `stitch` terminal command. */
+export type DesktopCommandStatus =
+  /** This platform has no managed command; the row is hidden. */
+  | { readonly kind: 'unsupported' }
+  /** A development build or an app outside the Applications folder cannot register the command. */
+  | { readonly kind: 'unavailable' }
+  | { readonly kind: 'failed' }
+  | {
+    readonly kind: 'installed' | 'notInstalled' | 'broken'
+    /** Another `stitch` runs first in new terminals. */
+    readonly shadowed: boolean
+    /** The login shell could not be queried, so an alias may take precedence. */
+    readonly selectionUnknown: boolean
+  }
+
+/** Optional isolated preload API for the terminal command, absent in ordinary browsers. */
+export interface DesktopCommandBridge {
+  /** @returns The current registration; never shows a dialog. */
+  status(): Promise<DesktopCommandStatus>
+  /**
+   * Run one action through the shell's native confirmation and result dialogs.
+   * @param action - Install when absent; Repair or Remove when registered.
+   * @returns The registration observed after the dialogs close.
+   */
+  run(action: DesktopCommandAction): Promise<DesktopCommandStatus>
+}

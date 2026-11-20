@@ -325,12 +325,22 @@ export interface LlmModelDiscoveryOperation extends LlmModelDiscoveryRequest {
   signal?: AbortSignal
 }
 
+/**
+ * Why a draft provider interrogation failed, as the configuration surface
+ * explains it: `unreachable` = the endpoint could not be reached in time;
+ * `unauthorized` = it refused the credential (401/403); `not-compatible` = it
+ * answered, but not with a model listing (another HTTP failure, a non-JSON
+ * body, or a body without models); `other` = anything else.
+ */
+export type LlmModelDiscoveryRejection = 'unreachable' | 'unauthorized' | 'not-compatible' | 'other'
+
 declare module '@deepseek-ai/dsh-typert-protocol' {
   interface RemoteErrorDetailsMap {
     /** A draft provider interrogation refused or failed. */
     'llm/model-discovery-rejected': {
       readonly settingsNs: string
       readonly baseURL?: string
+      readonly reason: LlmModelDiscoveryRejection
     }
   }
 }
@@ -384,6 +394,12 @@ export interface LlmModelInfo {
    * omits it, and no model request or Session event carries it.
    */
   badge?: LlmModelBadge
+  /**
+   * Selector hint from catalog discovery: the entry is an alias, a dated
+   * snapshot, or a superseded version, so selectors collapse it under "Older
+   * models". Exact-route resolution omits it.
+   */
+  older?: boolean
 }
 
 /** Provider-owned context capacity for one exact provider/model route. */

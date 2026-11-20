@@ -8,10 +8,12 @@ import {
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { MarketCompatibility, MarketListingEntry, MarketListingVersion, MarketSearchResult, MarketSort } from '@deepseek-ai/dsh-api-remotes/client'
 import { isGitMarketIndexSourceAddress } from '@deepseek-ai/dsh-plugin-market-index/source'
+import { COMMUNITY_PLUGIN_INDEXES, type CommunityPluginIndexId } from '@deepseek-ai/dsh-plugin-market/indexes'
 import type { DiscoverFace, DiscoverState, ListingFailure, ListingState, SourceFailure } from './market-store.ts'
 import {
-  displayDeclarations, indexLabel, indexMenuItems, presentedVersion, sourceFacts, withText,
-  type DiscoverQuery, type DisplayDeclaration, type SourceFact,
+  compatibilityNote, displayDeclarations, indexLabel, indexMenuItems, indexOrigin, labelAttribution, presentedVersion, sourceFacts,
+  withText, type CompatibilityNote, type DiscoverQuery, type DisplayDeclaration, type IndexOrigin,
+  type KnownIndexName, type SourceFact,
 } from './presentation.ts'
 import { PluginDetailSection } from './PluginDetailSection.tsx'
 import css from './DiscoverSection.module.css'
@@ -42,6 +44,55 @@ const FACT_KEYS = {
   commit: 'factCommit',
   directory: 'factDirectory',
 } as const satisfies Record<SourceFact['kind'], string>
+
+const INDEX_NAME_KEYS = {
+  'awesome-plugins': 'indexNameAwesome',
+  'plugin-market-cdn': 'indexNameCdn',
+} as const satisfies Record<CommunityPluginIndexId, string>
+
+const COMPAT_KEYS = {
+  harness: 'compatHarness',
+  range: 'compatRange',
+  undeclared: 'compatUndeclared',
+} as const satisfies Record<CompatibilityNote, string>
+
+/** The names Stitch gives the indexes it knows, in the current language. */
+function knownIndexNames(t: Translate): KnownIndexName {
+  return (url) => {
+    const origin = indexOrigin(url)
+    if (origin.kind === 'stitch') return t('indexNameStitch')
+    return origin.known === undefined ? undefined : t(INDEX_NAME_KEYS[origin.known])
+  }
+}
+
+/** An index's labels with each verdict a community index gives attributed to it, in display order. */
+function attributedLabels<T>(
+  labels: readonly DisplayDeclaration<T>[], origin: IndexOrigin, market: string, t: Translate,
+): DisplayDeclaration<T>[] {
+  return labels.map((label) => {
+    switch (labelAttribution(origin, label.id)) {
+      case 'low-risk': return { ...label, title: t('ratedLowRisk', { market }) }
+      case 'install-verified': return { ...label, title: t('installVerifiedBy', { market }) }
+      case 'verdict': return { ...label, title: t('labelBy', { label: label.title, market }) }
+      case null: return label
+    }
+  })
+}
+
+/** The compatibility caution of a community version, with a warning icon. */
+function CompatibilityCaution({ origin, version, t }: {
+  readonly origin: IndexOrigin
+  readonly version: MarketListingVersion
+  readonly t: Translate
+}): ReactNode {
+  const note = compatibilityNote(origin, version)
+  return note === null ? null : (
+    <span className={css.compat} data-market-compat={note}>
+      <IconWarningOutlineRegular size={12} aria-hidden="true" />
+      {t(COMPAT_KEYS[note])}
+    </span>
+  )
+}
 
 function MarketIcon({ src, size }: { readonly src: string | undefined; readonly size: number }): ReactNode {
   const [failed, setFailed] = useState<string>()
@@ -137,8 +188,9 @@ function EntryAction({ entry, title, t, onInstall, onUpdate, onOpenInstalled }: 
   return <Button variant="outline" size="sm" aria-label={t('installTitle', { name: title })} onClick={() => { onInstall(version) }}>{t('install')}</Button>
 }
 
-function EntryCard({ entry, t, face, language, labels, onOpen, onInstall, onUpdate, onOpenInstalled }: {
+function EntryCard({ entry, origin, t, face, language, labels, onOpen, onInstall, onUpdate, onOpenInstalled }: {
   readonly entry: MarketListingEntry
+  readonly origin: IndexOrigin
   readonly t: Translate
   readonly face: DiscoverActions
   readonly language: string
@@ -162,6 +214,7 @@ function EntryCard({ entry, t, face, language, labels, onOpen, onInstall, onUpda
             ? t('entryMeta', { version: version.version, date })
             : t('entryMetaAuthor', { version: version.version, author: entry.author, date })}
         </span>
+        <CompatibilityCaution origin={origin} version={version} t={t} />
       </div>
       <div className={css.cardEnd}>
         <EntryAction entry={entry} title={title} t={t} onInstall={onInstall} onUpdate={onUpdate} onOpenInstalled={onOpenInstalled} />
@@ -218,9 +271,12 @@ function VersionRow({ entry, version, title, t, language, onInstall, onUpdate }:
   )
 }
 
-function EntryDetail({ entry, listing, t, face, hooks, language, onBack, onInstall, onUpdate, onOpenInstalled }: {
+function EntryDetail({ entry, listing, origin, market, t, face, hooks, language, onBack, onInstall, onUpdate, onOpenInstalled }: {
   readonly entry: MarketListingEntry
   readonly listing: MarketSearchResult
+  readonly origin: IndexOrigin
+  /** The index's display name. */
+  readonly market: string
   readonly t: Translate
   readonly face: DiscoverActions
   /** The detail section's bound hooks. */
@@ -233,9 +289,11 @@ function EntryDetail({ entry, listing, t, face, hooks, language, onBack, onInsta
   const date = formatDate(version.publishTimestamp, language, 'long')
   const categoryId = entry.metadata.category
   const category = categoryId === undefined ? undefined : listing.metadata.categories[categoryId]
-  const labels = displayDeclarations(listing.metadata.labels, face.resolveText, language)
+  const labels = attributedLabels(displayDeclarations(listing.metadata.labels, face.resolveText, language), origin, market, t)
     .filter(label => entry.metadata.labels.includes(label.id))
   const { compatibility } = version
+  // The incompatibility notice below already covers an unmet range.
+  const note = compatibilityNote(origin, version)
   return (
     <div className={css.detail} data-market-detail={entry.name}>
       <button type="button" className={css.crumb} onClick={onBack}>
@@ -248,12 +306,19 @@ function EntryDetail({ entry, listing, t, face, hooks, language, onBack, onInsta
           <div className={css.titleRow}>
             <h3 className={css.detailTitle}>{title}</h3>
             <Tag tone="neutral">{version.version}</Tag>
+            {origin.kind === 'community' ? <Tag tone="warning">{t('community')}</Tag> : null}
           </div>
           {title === entry.name ? null : <span className={css.meta}>{entry.name}</span>}
         </div>
         <EntryAction entry={entry} title={title} t={t} onInstall={onInstall} onUpdate={onUpdate} onOpenInstalled={onOpenInstalled} />
       </div>
       {entry.description === undefined ? null : <p className={css.detailDescription}>{face.resolveText(entry.description)}</p>}
+      {note === null || note === 'range' ? null : (
+        <p className={css.notice} role="note" data-market-compat={note}>
+          <IconWarningOutlineRegular size={14} aria-hidden="true" />
+          <span>{t(COMPAT_KEYS[note])}</span>
+        </p>
+      )}
       {compatibility.compatible ? null : (
         <p className={css.notice} role="note">
           <IconWarningOutlineRegular size={14} aria-hidden="true" />
@@ -305,7 +370,7 @@ function EntryDetail({ entry, listing, t, face, hooks, language, onBack, onInsta
           {labels.length === 0 ? null : (
             <div><dt>{t('factLabels')}</dt><dd className={css.tags}>{labels.map(label => <Tag key={label.id}>{label.title}</Tag>)}</dd></div>
           )}
-          <div><dt>{t('factMarket')}</dt><dd>{face.resolveText(listing.title)}</dd></div>
+          <div><dt>{t('factMarket')}</dt><dd>{market}</dd></div>
         </dl>
       </section>
     </div>
@@ -318,6 +383,8 @@ function SourcesDialog({ state, t, face }: {
   readonly face: DiscoverActions
 }): ReactNode {
   const git = isGitMarketIndexSourceAddress(state.draft)
+  const names = knownIndexNames(t)
+  const offered = COMMUNITY_PLUGIN_INDEXES.filter(known => !state.indexes.some(index => index.url === known.url))
   return (
     <Modal open={state.editing} onClose={face.toggleSources} title={t('sourcesTitle')} closeLabel={t('close')}
       description={t('sourcesDescription')} className={css.dialog as string}>
@@ -327,7 +394,10 @@ function SourcesDialog({ state, t, face }: {
             {state.indexes.map(index => (
               <li key={index.url} className={css.sourceRow}>
                 <div className={css.main}>
-                  <span className={css.strong}>{indexLabel(index, face.resolveText)}</span>
+                  <span className={css.titleRow}>
+                    <span className={css.strong}>{indexLabel(index, face.resolveText, names)}</span>
+                    {indexOrigin(index.url).kind === 'community' ? <Tag tone="warning">{t('communityTag')}</Tag> : null}
+                  </span>
                   <span className={css.meta}>{index.url}</span>
                   {index.error === undefined ? null : <span className={css.sourceError}>{index.error}</span>}
                 </div>
@@ -369,6 +439,35 @@ function SourcesDialog({ state, t, face }: {
           </div>
         </form>
         {state.sourceFailure === null ? null : <p className={css.error} role="alert">{sourceFailureText(state.sourceFailure, t)}</p>}
+        {offered.length === 0 ? null : (
+          <section className={css.suggested} aria-label={t('suggestedTitle')}>
+            <h4 className={css.sectionTitle}>{t('suggestedTitle')}</h4>
+            <p className={css.notice} role="note">
+              <IconWarningOutlineRegular size={14} aria-hidden="true" />
+              <span>{t('suggestedDescription')}</span>
+            </p>
+            <ul className={css.sourceList}>
+              {offered.map((known) => {
+                const name = t(INDEX_NAME_KEYS[known.id])
+                return (
+                  <li key={known.url} className={css.sourceRow} data-suggested-index={known.id}>
+                    <div className={css.main}>
+                      <span className={css.titleRow}>
+                        <span className={css.strong}>{name}</span>
+                        <Tag tone="warning">{t('communityTag')}</Tag>
+                      </span>
+                      <span className={css.meta}>{known.url}</span>
+                    </div>
+                    <Button variant="outline" size="sm" icon={<IconPlusOutlineRegular size={13} />} disabled={state.saving}
+                      aria-label={t('addIndexNamed', { market: name })} onClick={() => { face.addIndex(known.url) }}>
+                      {t('addSource')}
+                    </Button>
+                  </li>
+                )
+              })}
+            </ul>
+          </section>
+        )}
         <p className={css.notice} role="note">
           <IconWarningOutlineRegular size={14} aria-hidden="true" />
           <span>{t('sourcesTrust')}</span>
@@ -473,18 +572,22 @@ function Browser({ state, listing, t, face, hooks, language, onInstall, onUpdate
     labels: value === null ? [] : displayDeclarations(value.metadata.labels, face.resolveText, language),
     sortKeys: value === null ? [] : displayDeclarations(value.metadata.sortKeys, face.resolveText, language),
   }), [value, face, language])
+  const names = knownIndexNames(t)
+  const indexItems = indexMenuItems(state.indexes, face.resolveText, names)
+  const market = indexItems.find(item => item.id === listing.url)?.label ?? indexLabel({ url: listing.url }, face.resolveText, names)
+  const origin = indexOrigin(listing.url)
+  const labels = attributedLabels(declarations.labels, origin, market, t)
   // A reload keeps the opened plugin current while its page is loaded.
   const openEntry = opened === null ? undefined : value?.entries.find(entry => entry.name === opened.name) ?? opened
   if (openEntry !== undefined && value !== null) {
     return (
-      <EntryDetail entry={openEntry} listing={value} t={t} face={face} hooks={hooks} language={language} onBack={() => { setOpened(null) }}
+      <EntryDetail entry={openEntry} listing={value} origin={origin} market={market} t={t} face={face} hooks={hooks} language={language}
+        onBack={() => { setOpened(null) }}
         onInstall={(version) => { onInstall({ entry: openEntry, version }) }}
         onUpdate={(version) => { onUpdate({ entry: openEntry, version }) }}
         onOpenInstalled={() => { openPackage(openEntry.name) }} />
     )
   }
-  const indexItems = indexMenuItems(state.indexes, face.resolveText)
-  const market = indexItems.find(item => item.id === listing.url)?.label ?? indexLabel({ url: listing.url }, face.resolveText)
   const { sort } = query
   const sortOptions = [
     ...query.text.trim() === '' ? [] : [{ id: 'relevance', label: t('sortRelevance') }],
@@ -519,7 +622,15 @@ function Browser({ state, listing, t, face, hooks, language, onInstall, onUpdate
     <>
       <div className={css.toolbar} data-discover-toolbar>
         <Menu open={menu === 'market'} onClose={() => { setMenu(null) }} portal autoFocus selectedId={listing.url}
-          items={indexItems.map(({ id, label }) => ({ id, label: <span className={css.indexMenuName}>{label}</span> }))}
+          items={indexItems.map(({ id, label }) => ({
+            id,
+            label: (
+              <span className={css.indexMenuName}>
+                {label}
+                {indexOrigin(id).kind === 'community' ? <> <Tag tone="warning">{t('communityTag')}</Tag></> : null}
+              </span>
+            ),
+          }))}
           footer={[{ id: 'manage', label: t('manageSources'), icon: <IconSlidersTwoOutlineRegular size={14} /> }]}
           onSelect={(id) => {
             setMenu(null)
@@ -537,10 +648,10 @@ function Browser({ state, listing, t, face, hooks, language, onInstall, onUpdate
           placeholder={t('search')} aria-label={t('search')} onChange={(event) => { setText(event.target.value) }} />
         {declarations.labels.length === 0 ? null : (
           <Menu open={menu === 'filter'} onClose={() => { setMenu(null) }} portal autoFocus align="end" selectedIds={query.labels}
-            items={declarations.labels.map(item => ({ id: item.id, label: item.title }))}
+            items={labels.map(item => ({ id: item.id, label: item.title }))}
             onSelect={(id) => {
-              const labels = query.labels.includes(id) ? query.labels.filter(label => label !== id) : [...query.labels, id]
-              face.search({ ...query, labels })
+              const selected = query.labels.includes(id) ? query.labels.filter(label => label !== id) : [...query.labels, id]
+              face.search({ ...query, labels: selected })
             }}
             anchor={(
               <Button variant="ghost" size="sm" aria-haspopup="menu" aria-expanded={menu === 'filter'}
@@ -580,6 +691,17 @@ function Browser({ state, listing, t, face, hooks, language, onInstall, onUpdate
           ))}
         </div>
       )}
+      {origin.kind === 'stitch' ? null : (
+        <p className={css.notice} role="note" data-community-notice>
+          <IconWarningOutlineRegular size={14} aria-hidden="true" />
+          <span>
+            <strong>{t('community')}</strong>
+            {' '}
+            {t('communityBanner', { market })}
+            {origin.harness === undefined ? null : <> {t('communityHarness')}</>}
+          </span>
+        </p>
+      )}
       {listing.failure === null ? null : (
         <div className={css.failure}>
           <p className={css.error} role="alert">
@@ -592,12 +714,14 @@ function Browser({ state, listing, t, face, hooks, language, onInstall, onUpdate
         ? listing.status === 'loading' ? <ListSkeleton label={t('loading')} /> : null
         : value.total === 0
           // Results are published together with the query they answer.
-          ? <p className={css.muted}>{t(unfiltered(listing.answered as DiscoverQuery) ? 'emptyIndex' : 'noMatches')}</p>
+          ? origin.kind === 'stitch' && unfiltered(listing.answered as DiscoverQuery)
+            ? <EmptyStitchIndex state={state} t={t} face={face} names={names} />
+            : <p className={css.muted}>{t(unfiltered(listing.answered as DiscoverQuery) ? 'emptyIndex' : 'noMatches')}</p>
           : (
             <>
               <ul className={css.cards} aria-busy={busy}>
                 {value.entries.map(entry => (
-                  <EntryCard key={entry.name} entry={entry} t={t} face={face} language={language} labels={declarations.labels}
+                  <EntryCard key={entry.name} entry={entry} origin={origin} t={t} face={face} language={language} labels={labels}
                     onOpen={() => { setOpened(entry) }} onInstall={(version) => { onInstall({ entry, version }) }}
                     onUpdate={(version) => { onUpdate({ entry, version }) }} onOpenInstalled={() => { openPackage(entry.name) }} />
                 ))}
@@ -612,6 +736,47 @@ function Browser({ state, listing, t, face, hooks, language, onInstall, onUpdate
             </>
           )}
     </>
+  )
+}
+
+/**
+ * The Stitch index while it lists no plugins: say so plainly and lead to a community index, configured or offered, with
+ * the caution that Stitch does not review community indexes.
+ */
+function EmptyStitchIndex({ state, t, face, names }: {
+  readonly state: DiscoverState
+  readonly t: Translate
+  readonly face: DiscoverActions
+  readonly names: KnownIndexName
+}): ReactNode {
+  const configured = state.indexes.filter(index => indexOrigin(index.url).kind === 'community')
+  const offered = COMMUNITY_PLUGIN_INDEXES.filter(known => !state.indexes.some(index => index.url === known.url))
+  return (
+    <div className={css.empty} data-discover-empty="stitch">
+      <PluginArtworkDefault size={48} />
+      <p className={css.emptyTitle}>{t('emptyStitchTitle')}</p>
+      <p className={css.muted}>{t('emptyStitchDescription')}</p>
+      <p className={css.notice} role="note">
+        <IconWarningOutlineRegular size={14} aria-hidden="true" />
+        <span>{t('emptyStitchCaution')}</span>
+      </p>
+      <div className={css.emptyActions}>
+        {configured.map(index => (
+          <Button key={index.url} variant="outline" size="sm" onClick={() => { face.select(index.url) }}>
+            {t('browseIndexNamed', { market: indexLabel(index, face.resolveText, names) })}
+          </Button>
+        ))}
+        {offered.map(known => (
+          <Button key={known.url} variant="outline" size="sm" icon={<IconPlusOutlineRegular size={13} />} disabled={state.saving}
+            onClick={() => { face.addIndex(known.url) }}>
+            {t('addIndexNamed', { market: t(INDEX_NAME_KEYS[known.id]) })}
+          </Button>
+        ))}
+        <Button variant="ghost" size="sm" icon={<IconSlidersTwoOutlineRegular size={13} />} onClick={face.toggleSources}>
+          {t('manageSources')}
+        </Button>
+      </div>
+    </div>
   )
 }
 

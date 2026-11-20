@@ -2,7 +2,8 @@
 import type { ApprovalComposerProps } from './contract/slots.ts'
 
 /**
- * Render the shared card using the tool approval's one-shot decision policy.
+ * Render the shared card using the tool approval's decision policy: allow once,
+ * allow for the rest of the chat when the asker offers it, or deny.
  * @param props Selector-matched request and standard Slot props.
  * @returns The approval composer takeover.
  */
@@ -16,5 +17,6 @@ export function ApprovalPanel(props: ApprovalComposerProps) {
     canAnswer: () => approval.answerable,
     onAllow: () => approval.answer('allowed-once'),
     onReject: () => approval.answer('rejected'),
+    ...(approval.grant === undefined ? {} : { onAllowForChat: () => approval.answer('allowed-for-session') }),
   })
 }

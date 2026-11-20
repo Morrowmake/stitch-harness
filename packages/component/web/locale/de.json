@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Web",
-    "description": "Websuche (ohne Schlüssel) und Web-Abruf als Werkzeuge, mit ihrer Einstellungsseite."
+    "description": "Der Agent kann im Web suchen (ohne Schlüssel) und Webseiten lesen."
   }
 }

@@ -51,7 +51,13 @@ export function ModelStep({ provider, operations, t, onSaved }: ModelStepProps):
   }, [generation])
 
   const models = state.status === 'ready' ? state.models : []
-  const selected = chosen ?? models[0]?.id
+  // Nothing is chosen for the user: a lone model is the only answer, otherwise they pick.
+  const selected = chosen ?? (models.length === 1 ? models[0]?.id : undefined)
+  const current = models.filter(model => model.older !== true)
+  // A provider whose every model is marked older still lists them up front.
+  const shown = current.length === 0 ? models : current
+  const older = current.length === 0 ? [] : models.filter(model => model.older === true)
+  const [olderOpen, setOlderOpen] = useState(false)
   const save = (): void => {
     const model = models.find(entry => entry.id === selected)
     if (model === undefined) return
@@ -73,25 +79,49 @@ export function ModelStep({ provider, operations, t, onSaved }: ModelStepProps):
         ? <div className={css.rowHead}><Button variant="ghost" size="sm" onClick={() => { setGeneration(value => value + 1) }}>{t('retry')}</Button></div>
         : null}
       {models.length === 0 ? null : (
-        <ul className={css.models} role="radiogroup" aria-label={t('model.title')}>
-          {models.map(model => (
-            <li key={model.id}>
-              <label className={css.field}>
-                <span className={css.rowHead}>
-                  <input type="radio" name="first-run-default-model" value={model.id} checked={selected === model.id} disabled={busy}
-                    onChange={() => { setChosen(model.id) }} />
-                  <span className={css.name}>{model.name}</span>
-                  {model.name === model.id ? null : <span className={css.detail}>{model.id}</span>}
-                </span>
-              </label>
-            </li>
-          ))}
-        </ul>
+        <div className={css.models} role="radiogroup" aria-label={t('model.title')}>
+          <ModelChoices models={shown} selected={selected} busy={busy} choose={setChosen} />
+          {older.length === 0 ? null : (
+            <>
+              <div className={css.rowHead}>
+                <Button variant="ghost" size="sm" aria-expanded={olderOpen} onClick={() => { setOlderOpen(open => !open) }}>
+                  {olderOpen ? t('model.olderHide') : t('model.olderShow', { count: older.length })}
+                </Button>
+              </div>
+              {olderOpen ? <ModelChoices models={older} selected={selected} busy={busy} choose={setChosen} /> : null}
+            </>
+          )}
+        </div>
       )}
+      {models.length > 1 && selected === undefined ? <p className={css.muted}>{t('model.pick')}</p> : null}
       {error === undefined ? null : <p className={css.error} role="alert">{error}</p>}
       <div className={css.formActions}>
         <Button variant="primary" disabled={busy || selected === undefined} onClick={save}>{t('model.use')}</Button>
       </div>
     </div>
+  )
+}
+
+function ModelChoices({ models, selected, busy, choose }: {
+  models: readonly ProviderModel[]
+  selected: string | undefined
+  busy: boolean
+  choose: (id: string) => void
+}): ReactNode {
+  return (
+    <ul className={css.modelList}>
+      {models.map(model => (
+        <li key={model.id}>
+          <label className={css.field}>
+            <span className={css.rowHead}>
+              <input type="radio" name="first-run-default-model" value={model.id} checked={selected === model.id} disabled={busy}
+                onChange={() => { choose(model.id) }} />
+              <span className={css.name}>{model.name}</span>
+              {model.name === model.id ? null : <span className={css.detail}>{model.id}</span>}
+            </span>
+          </label>
+        </li>
+      ))}
+    </ul>
   )
 }

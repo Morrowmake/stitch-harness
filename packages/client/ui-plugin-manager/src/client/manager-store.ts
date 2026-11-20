@@ -1,7 +1,7 @@
 /**
  * The plugin manager's state: the Host's bundles joined with its plugin
  * entries, the action in flight, the install run, and the confirmation an
- * uninstall waits on. Every fact comes from the Host — the store re-reads
+ * uninstall or a change reaching other bundles waits on. Every fact comes from the Host — the store re-reads
  * after each action and after every `plugin-manager/changed` event, so a
  * change made on another surface shows here without a manual refresh.
  */
@@ -32,6 +32,7 @@ import type {
   RestartReason,
 } from '@deepseek-ai/dsh-api-remotes/client'
 import { normalizeRegistry, NPMMIRROR_REGISTRY, OFFICIAL_NPM_REGISTRY, REGISTRY_URL } from '@deepseek-ai/dsh-plugin-manager/registry'
+import { closeBundleChanges } from '@deepseek-ai/dsh-official-bundles'
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
 import type { LocalizedText, PluginLocalizedMeta } from '@deepseek-ai/dsh-package-manifest'
@@ -66,6 +67,8 @@ export type ManagerNotice =
   | { readonly kind: 'cancelled'; readonly seq: number }
   | { readonly kind: 'refresh-failed'; readonly seq: number }
   | { readonly kind: 'install'; readonly outcome: 'done' | 'failed' | 'unconfirmed' | 'applying' | 'unknown'; readonly seq: number }
+  /** Switching a bundle on also switched on the bundles it needs. */
+  | { readonly kind: 'also-enabled'; readonly packageName: string; readonly names: readonly string[]; readonly seq: number }
   | {
     readonly kind: 'failed'
     /** What was being done when it failed. */
@@ -115,6 +118,13 @@ export interface PackageView {
   readonly installed: boolean
   /** Default GUI visibility after package and Host checks; selected or profile-installed bundles remain manageable. */
   readonly listedByDefault?: boolean
+  /** The bundles this one needs: switching it on switches them on, switching one of them off switches it off. */
+  readonly requires?: readonly string[]
+  /**
+   * The modules of the built-in rows the bundle's patch switches without declaring them (`overrides`), as the running
+   * entries name them: a component that turns on another package's settings row owns those settings.
+   */
+  readonly configures?: readonly string[]
   /** Present for a profile dependency the installation does not also supply: the spec `pnpm add` accepts. */
   readonly source?: string
   /** Whether the installation ships the bundle for the person to switch on: official, off until selected, never removable. */
@@ -324,11 +334,14 @@ export function asksMirror(install: InstallState): boolean {
   return registryKey(choice.kind === 'custom' ? choice.url.trim() : choice.registry, install.registries?.resolved ?? null) === NPMMIRROR_REGISTRY
 }
 
-/** A destructive action waiting for the user's confirmation: a package's uninstall. */
-export interface ConfirmState {
-  readonly action: 'uninstall'
-  readonly packageName: string
-}
+/**
+ * A change waiting for the user's answer: a package's uninstall; switching off a bundle that switches off the
+ * `dependents` needing it; or switching a bundle back on whose `dependents` were switched off with it, which the user
+ * may switch back on too.
+ */
+export type ConfirmState =
+  | { readonly action: 'uninstall'; readonly packageName: string }
+  | { readonly action: 'disable-dependents' | 'restore-dependents'; readonly packageName: string; readonly dependents: readonly string[] }
 
 /** One package's version check: in flight, or the Host's answer and when it arrived. */
 export type VersionCheck =
@@ -478,11 +491,16 @@ export interface PluginManagerFace {
   enableInstalled: () => void
   /** Drop the list mark once it has been shown. */
   clearHighlight: () => void
-  /** Put a bundle into, or take it out of, the profile's layer list. */
+  /**
+   * Put a bundle into, or take it out of, the profile's layer list. Switching off a bundle other enabled bundles need
+   * first asks to switch them off too; switching a bundle back on offers to restore the bundles switched off with it.
+   */
   setEnabled: (packageName: string, enabled: boolean) => void
   /** Ask before removing a package from the profile. */
   uninstall: (packageName: string) => void
   confirm: () => void
+  /** Take the confirmation's other way: for a restore, switch on only the bundle asked for. */
+  confirmAlternative: () => void
   cancelConfirm: () => void
   /** Switch one of a bundle's rows on or off in the profile's user layer. */
   setRowEnabled: (entryId: PluginEntryId, enabled: boolean) => void
@@ -583,12 +601,16 @@ export function packageView(bundle: BundleInfo, plugins: readonly PluginInfo[]):
       ...live?.readOnlyReason === undefined ? {} : { readOnlyReason: live.readOnlyReason },
     }
   })
+  const configures = [...new Set(plugins.filter(plugin => plugin.patchId !== undefined && bundle.overrides.includes(plugin.patchId))
+    .map(plugin => plugin.moduleName))]
   return {
     name: bundle.name,
     official: bundle.official,
     availability: bundle.availability,
     installed: bundle.installed,
     ...bundle.listedByDefault === undefined ? {} : { listedByDefault: bundle.listedByDefault },
+    ...bundle.requires === undefined || bundle.requires.length === 0 ? {} : { requires: bundle.requires },
+    ...configures.length === 0 ? {} : { configures },
     optional: bundle.optional,
     removable: bundle.removable,
     ...bundle.update === undefined ? {} : { update: bundle.update },
@@ -681,6 +703,10 @@ export class PluginManagerController {
   /** A successful managed-profile read remains usable even when it returned no bundles. */
   private hasCachedInventory = false
   private pendingConfirm: (() => Promise<void>) | undefined
+  /** The confirmation's other way, when it offers one. */
+  private pendingAlternative: (() => Promise<void>) | undefined
+  /** The dependents each bundle switched off with it in this page's lifetime, offered back when it is switched on. */
+  private readonly turnedOffWith = new Map<string, readonly string[]>()
   /** Cancels the check the dialog has in flight. */
   private inspectAbort: AbortController | undefined
   private request: InstallRequest | undefined
@@ -830,12 +856,7 @@ export class PluginManagerController {
       toggleInstallDetails: () => { this.patchInstall({ detailsOpen: !this.getSnapshot().install.detailsOpen }) },
       enableInstalled: () => { void this.enableInstalled() },
       clearHighlight: () => { if (this.getSnapshot().highlight !== null) this.patch({ highlight: null }) },
-      setEnabled: (packageName, enabled) => {
-        void this.run(packageName, { packageName, action: enabled ? 'enable' : 'disable' }, async () => {
-          const result = await this.ctx.remote.pluginManager.setBundleEnabled(packageName, enabled)
-          this.applied(result, packageName)
-        })
-      },
+      setEnabled: (packageName, enabled) => { this.requestEnabled(packageName, enabled) },
       uninstall: (packageName) => {
         this.pendingConfirm = () => this.run(packageName, { packageName, action: 'uninstall' }, async () => {
           this.applied(await this.ctx.remote.pluginManager.removeBundle(packageName), packageName)
@@ -843,7 +864,12 @@ export class PluginManagerController {
         this.patch({ confirm: { action: 'uninstall', packageName } })
       },
       confirm: () => { void this.confirm() },
-      cancelConfirm: () => { this.pendingConfirm = undefined; this.patch({ confirm: null }) },
+      confirmAlternative: () => { void this.confirm(true) },
+      cancelConfirm: () => {
+        this.pendingConfirm = undefined
+        this.pendingAlternative = undefined
+        this.patch({ confirm: null })
+      },
       setRowEnabled: (entryId, enabled) => {
         void this.run(rowKey(entryId), { packageName: entryId, action: enabled ? 'rowEnable' : 'rowDisable' }, async () => {
           const result = await this.ctx.remote.pluginManager.setPluginEnabled(entryId, enabled)
@@ -1131,11 +1157,66 @@ export class PluginManagerController {
     return this.rerun
   }
 
-  private async confirm(): Promise<void> {
-    const pending = this.pendingConfirm
+  private async confirm(alternative = false): Promise<void> {
+    const pending = alternative ? this.pendingAlternative : this.pendingConfirm
     this.pendingConfirm = undefined
+    this.pendingAlternative = undefined
     this.patch({ confirm: null })
     if (pending !== undefined) await pending()
+  }
+
+  /**
+   * Switch a bundle, asking first when the change reaches other bundles: switching off one that enabled bundles need
+   * names them, and switching on one whose dependents went off with it offers them back.
+   */
+  private requestEnabled(packageName: string, enabled: boolean): void {
+    const { packages } = this.getSnapshot()
+    if (!enabled) {
+      const requiresOf = (name: string): readonly string[] => packages.find(pkg => pkg.name === name)?.requires ?? []
+      const selection = closeBundleChanges({ [packageName]: false }, packages.filter(pkg => pkg.enabled).map(pkg => pkg.name), requiresOf)
+      const dependents = Object.keys(selection).filter(name => name !== packageName && !selection[name])
+      if (dependents.length === 0) {
+        void this.switchBundle(packageName, false)
+        return
+      }
+      this.pendingConfirm = () => this.switchBundle(packageName, false)
+      this.pendingAlternative = undefined
+      this.patch({ confirm: { action: 'disable-dependents', packageName, dependents } })
+      return
+    }
+    const dependents = (this.turnedOffWith.get(packageName) ?? [])
+      .filter(name => packages.some(pkg => pkg.name === name && !pkg.enabled))
+    if (dependents.length === 0) {
+      void this.switchBundle(packageName, true)
+      return
+    }
+    this.pendingConfirm = () => this.switchBundle(packageName, true, dependents)
+    this.pendingAlternative = () => this.switchBundle(packageName, true)
+    this.patch({ confirm: { action: 'restore-dependents', packageName, dependents } })
+  }
+
+  /**
+   * Write one bundle's selection, with `restore` switched back on beside it. Remembers the dependents the Host switched
+   * off with a bundle, and says which prerequisites it switched on with one.
+   */
+  private switchBundle(packageName: string, enabled: boolean, restore: readonly string[] = []): Promise<void> {
+    return this.run(packageName, { packageName, action: enabled ? 'enable' : 'disable' }, async () => {
+      const answer = restore.length === 0
+        ? await this.ctx.remote.pluginManager.setBundleEnabled(packageName, enabled)
+        : await this.ctx.remote.pluginManager.setBundlesEnabled(Object.fromEntries([packageName, ...restore].map(name => [name, true])))
+      this.applied(answer, packageName)
+      /* v8 ignore next -- applied() throws for a refused answer */
+      const selection = answer.ok ? answer.value.selection ?? {} : {}
+      const others = Object.keys(selection).filter(name => name !== packageName && selection[name] === enabled && !restore.includes(name))
+      if (!enabled) {
+        if (others.length > 0) this.turnedOffWith.set(packageName, others)
+        return
+      }
+      this.turnedOffWith.delete(packageName)
+      if (others.length > 0 && this.getSnapshot().notice === null) {
+        this.patch({ notice: { kind: 'also-enabled', packageName, names: others, seq: ++this.noticeSeq } })
+      }
+    })
   }
 
   /** Drop the check in flight; its answer is ignored. */

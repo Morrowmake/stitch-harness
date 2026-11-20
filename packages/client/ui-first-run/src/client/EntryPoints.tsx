@@ -1,6 +1,6 @@
 /** The two on-demand entry points: Plugins page "Add plugin" menu and the Models page footer. */
 import type { ReactNode } from 'react'
-import { Button, IconLayersOutlineRegular, MenuItemButton } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, IconLayersOutlineRegular, IconPlusOutlineRegular, MenuItemButton } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-plugin-manager/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings-models/client'
@@ -41,7 +41,7 @@ export type SetUpProviderEntryProps = PropsRuntime<'settings.models.footer'> & P
 export function SetUpProviderEntry({ t, open }: SetUpProviderEntryProps): ReactNode {
   return (
     <div className={css.footerEntry}>
-      <Button variant="outline" size="sm" onClick={open}>{t('entry.provider')}</Button>
+      <Button variant="primary" icon={<IconPlusOutlineRegular size={14} />} onClick={open}>{t('entry.provider')}</Button>
       <span className={css.hint}>{t('entry.providerHint')}</span>
     </div>
   )

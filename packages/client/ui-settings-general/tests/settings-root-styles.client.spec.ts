@@ -9,3 +9,13 @@ it('keeps the indicator carrier full-width without inspecting account state', ()
   expect(css).not.toContain('data-signed-out')
   expect(css).toMatch(/\.triggerRow\.railRow\s*\{[^}]*width: 36px;/)
 })
+
+it('wraps a long section label in the rail instead of cutting it off', () => {
+  const label = /\n\.navLabel\s*\{([^}]*)\}/.exec(css)?.[1] ?? ''
+  expect(label).not.toMatch(/white-space: nowrap|text-overflow/)
+  expect(label).toContain('overflow-wrap: break-word;')
+  expect(label).toContain('hyphens: auto;')
+  const cell = /\n\.navCell\s*\{([^}]*)\}/.exec(css)?.[1] ?? ''
+  expect(cell).toContain('min-height: 40px;')
+  expect(cell).not.toMatch(/(?:^|\s)height:/)
+})

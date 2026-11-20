@@ -57,12 +57,13 @@ export function AgentPresetLabel({
 
   if (preset === undefined) return null
 
-  const option = options.find(entry => entry.id === preset)
-  const text = option === undefined ? undefined : presetDisplayText(option, t)
+  // Before the roster resolves the row, a shipped preset still reads by its
+  // localized name rather than its internal id (`cordis`).
+  const text = presetDisplayText(options.find(entry => entry.id === preset) ?? { id: preset }, t)
   return (
-    <span className={css.label} title={text?.description ?? t('headerHint')}>
+    <span className={css.label} title={text.description ?? t('headerHint')}>
       <IconAgentPresetOutlineRegular size={14} className={css.icon} />
-      {text?.name ?? preset}
+      {text.name}
     </span>
   )
 }

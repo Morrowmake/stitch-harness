@@ -9,7 +9,7 @@ import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import type { Browser, Locator, Page } from 'playwright'
 import { chromium } from 'playwright'
-import { HIDDEN_BUNDLES } from '@deepseek-ai/dsh-official-bundles'
+import { EXPERIMENTAL_BUNDLES, HIDDEN_BUNDLES } from '@deepseek-ai/dsh-official-bundles'
 import { afterAll, beforeAll, describe, expect, it, onTestFailed, onTestFinished } from 'vitest'
 import { join } from 'node:path'
 import {
@@ -68,14 +68,27 @@ describe('web e2e: plugin configuration pages', () => {
     while (await panel.getByRole('button', { name: /^返回/ }).count() > 0) {
       await panel.getByRole('button', { name: /^返回/ }).first().click()
     }
-    await panel.getByRole('heading', { name: '内置插件配置', exact: true }).waitFor({ timeout: 20_000 })
+    await panel.getByRole('searchbox', { name: '搜索插件', exact: true }).waitFor({ timeout: 20_000 })
     return panel
   }
 
-  /** Open one official plugin's page from its card and wait for its form. */
+  /** Settings pages that render on their bundle's page, by the bundle's title. */
+  const BUNDLE_PAGES: Readonly<Record<string, string>> = { 网页搜索与获取: '网络', 子智能体: '子智能体' }
+
+  /**
+   * Open one official settings page and wait for its form: on its bundle's page, or from its card in the Advanced
+   * group, which Everyday mode hides.
+   */
   async function openPage(panel: Locator, title: string): Promise<void> {
-    await panel.getByRole('button', { name: `查看 ${title}`, exact: true }).click()
-    await panel.locator('[data-plugin-config]').waitFor({ timeout: 10_000 })
+    const bundle = BUNDLE_PAGES[title]
+    if (bundle === undefined) {
+      const advanced = panel.getByRole('switch', { name: '显示高级项', exact: true })
+      if (await advanced.getAttribute('aria-checked') !== 'true') await advanced.click()
+      await panel.locator('[data-plugin-group="advanced"]').getByRole('button', { name: `查看 ${title}`, exact: true }).click()
+    } else {
+      await panel.getByRole('button', { name: `查看 ${bundle}`, exact: true }).click()
+    }
+    await panel.locator('[data-plugin-config]').first().waitFor({ timeout: 10_000 })
   }
 
   /** The settings document as the Host has written it so far. */
@@ -83,54 +96,43 @@ describe('web e2e: plugin configuration pages', () => {
     return readFile(join(scaffold.harnessHome, 'profiles', 'scaffold', 'cordis.patch.yml'), 'utf8').catch(() => '')
   }
 
-  it('keeps configuration pages first and opens the full experimental plugin list separately', async () => {
+  it('groups plugins by purpose, keeps advanced settings and off experiments behind Show advanced', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-plugin-config-cards'))
     const panel = await openPlugins()
 
-    // Every page the shipped web composition exposes: the shell executor, the
-    // agent loop, subagent selection, and the DeepSeek search provider.
-    await panel.getByRole('button', { name: '查看 网页搜索与获取', exact: true }).waitFor({ timeout: 20_000 })
-    const basic = panel.locator('[data-plugin-group="basic"]')
-    expect(await basic.locator('[data-plugin-item]').count()).toBe(4)
-    expect(await basic.locator(':scope > ul > li').evaluateAll(cards => cards.map(card => card.getAttribute('data-plugin-item'))))
-      .toEqual(['subagent', 'web-search', 'agent-loop', 'shell'])
-    for (const title of ['子智能体', '网页搜索与获取', 'Agent 循环', '终端']) {
-      expect(await basic.getByRole('button', { name: `查看 ${title}`, exact: true }).count()).toBe(1)
-    }
+    // Subagent selection and the search provider render on their bundles' pages, not as separate cards.
+    await panel.getByRole('button', { name: '查看 网络', exact: true }).waitFor({ timeout: 20_000 })
+    expect(await panel.getByRole('button', { name: '查看 子智能体', exact: true }).count()).toBe(1)
+    expect(await panel.locator('[data-plugin-item="subagent"], [data-plugin-item="web-search"]').count()).toBe(0)
+    // Everyday mode hides the Advanced group (the shell and agent-loop settings) and experimental bundles that are off.
+    const advanced = panel.locator('[data-plugin-group="advanced"]')
+    const showAdvanced = panel.getByRole('switch', { name: '显示高级项', exact: true })
+    expect(await showAdvanced.getAttribute('aria-checked')).toBe('false')
+    expect(await advanced.count()).toBe(0)
+    expect(await panel.getByRole('button', { name: '查看 持久终端', exact: true }).count()).toBe(0)
+    expect(await panel.locator('[data-plugin-hidden-note]').count()).toBe(1)
+    await showAdvanced.click()
+    expect((await advanced.locator('[data-plugin-item]').evaluateAll(cards => cards.map(card => card.getAttribute('data-plugin-item')))).sort())
+      .toEqual(['agent-loop', 'shell'])
     // A card carries the one-liner; the fields wait for the page.
-    expect(await basic.getByText('限制每条命令最多能跑多久、最多输出多少内容。', { exact: true }).count()).toBe(1)
+    expect(await advanced.getByText('限制每条命令最多能跑多久、最多输出多少内容。', { exact: true }).count()).toBe(1)
     expect(await panel.getByLabel('命令超时（毫秒）').count()).toBe(0)
-
-    const extensions = panel.locator('[data-plugin-group="extensions"]')
-    const more = panel.getByRole('button', { name: '更多', exact: true })
-    expect(await extensions.getByRole('heading', { name: '实验性插件', exact: true }).count()).toBe(1)
-    expect(await extensions.getByRole('button', { name: '更多', exact: true }).textContent()).toBe('更多')
-    expect(await extensions.getByRole('list').isVisible()).toBe(true)
-    expect(await panel.locator('[data-plugin-group="more"]').count()).toBe(0)
-    await more.focus()
-    await page.keyboard.press('Enter')
-    await panel.getByRole('heading', { name: '实验性插件', exact: true, level: 1 }).waitFor()
-    // The More list holds every eligible installed optional bundle.
+    // Every eligible installed optional experimental bundle is listed once advanced items show.
     const bundles = await scaffold.ctx.pluginManager.listBundles()
-    expect(await panel.locator('[data-plugin-group="more"] [data-plugin-package]').count())
-      .toBe(bundles.filter(bundle => !HIDDEN_BUNDLES.has(bundle.name)
+    expect(await panel.locator('[data-plugin-group="experimental"] [data-plugin-package]').count())
+      .toBe(bundles.filter(bundle => !HIDDEN_BUNDLES.has(bundle.name) && EXPERIMENTAL_BUNDLES.has(bundle.name)
         && bundle.official && (bundle.listedByDefault !== false || bundle.enabled || bundle.installed)).length)
-    expect(await basic.count()).toBe(0)
-    expect(await extensions.count()).toBe(0)
-    expect(await panel.locator('[data-plugin-group="bundles"]').count()).toBe(0)
     await panel.getByRole('button', { name: '查看 持久终端', exact: true }).click()
     await panel.locator('[data-plugin-detail]').waitFor()
-    await panel.getByRole('button', { name: '返回 实验性插件', exact: true }).click()
-    await panel.getByRole('heading', { name: '实验性插件', exact: true, level: 1 }).waitFor()
     await panel.getByRole('button', { name: '返回插件', exact: true }).focus()
     await page.keyboard.press('Space')
-    expect(await extensions.getByRole('list').isVisible()).toBe(true)
-    expect(await panel.locator('[data-plugin-group="more"]').count()).toBe(0)
-    await more.click()
-    await page.reload({ waitUntil: 'load' })
-    await openPlugins()
-    expect(await extensions.getByRole('list').isVisible()).toBe(true)
-    expect(await panel.locator('[data-plugin-group="more"]').count()).toBe(0)
+    await panel.getByRole('searchbox', { name: '搜索插件', exact: true }).waitFor()
+    expect(await panel.getByRole('button', { name: '查看 持久终端', exact: true }).count()).toBe(1)
+    // Search reaches entries Everyday mode hides.
+    await showAdvanced.click()
+    await panel.getByRole('searchbox', { name: '搜索插件', exact: true }).fill('持久终端')
+    expect(await panel.getByRole('button', { name: '查看 持久终端', exact: true }).count()).toBe(1)
+    await panel.getByRole('searchbox', { name: '搜索插件', exact: true }).fill('')
 
     const snapshot = await captureStableAria(page, '[data-plugin-panel]', scaffold.workspaceCwd)
     await compareOrRefreshGolden(OFFICIAL_EXPECTED, snapshot, MODE)
@@ -346,7 +348,7 @@ describe('web e2e: plugin configuration pages', () => {
 
     await timeout.fill('7000')
     await panel.getByRole('button', { name: '返回插件' }).click()
-    await panel.getByRole('heading', { name: '内置插件配置', exact: true }).waitFor({ timeout: 10_000 })
+    await panel.getByRole('searchbox', { name: '搜索插件', exact: true }).waitFor({ timeout: 10_000 })
     await openPage(panel, '终端')
 
     await expect.poll(() => panel.getByLabel('命令超时（毫秒）').inputValue(), { timeout: 5_000 }).toBe('12000')
@@ -398,6 +400,8 @@ describe('web e2e: plugin configuration pages', () => {
 
     // Off, the bundle's browser half is not loaded and the row has no configuration to open.
     await panel.getByRole('button', { name: '查看 @fixture/live-client', exact: true }).click()
+    // The bundle's rows sit behind Developer details.
+    await panel.getByRole('button', { name: '开发者信息', exact: true }).click()
     const row = panel.locator('[data-plugin-row]', { hasText: 'fixture-live-client' })
     await row.waitFor({ timeout: 10_000 })
     expect(await panel.getByRole('button', { name: '配置 @fixture/live-client' }).count()).toBe(0)
@@ -474,6 +478,7 @@ describe('web e2e: a community plugin settings page', () => {
     await page.getByRole('navigation', { name: '全局面板' }).getByRole('button', { name: '插件', exact: true }).click()
     const panel = page.locator('[data-plugin-panel]')
     await panel.getByRole('button', { name: '查看 @fixture/settings-section', exact: true }).click({ timeout: 20_000 })
+    await panel.getByRole('button', { name: '开发者信息', exact: true }).click()
     const row = panel.locator('[data-plugin-row]', { hasText: 'fixture-settings-section' })
     await row.waitFor({ timeout: 10_000 })
     const configure = panel.getByRole('button', { name: '配置 @fixture/settings-section' })

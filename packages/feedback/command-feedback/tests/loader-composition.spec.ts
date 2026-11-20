@@ -98,12 +98,12 @@ describe('/feedback real Loader composition through cordis.yml', () => {
     const accepted = await context.commands.execute(owner, '/feedback the diff view is unreadable', [], signal)
     expect(accepted?.result).toEqual({
       kind: 'success',
-      text: 'Feedback recorded for session feedback-loader-agent.',
+      text: 'Note saved on this computer. Nothing was sent.',
     })
     const rejected = await context.commands.execute(owner, '/feedback', [], signal)
     expect(rejected?.result).toEqual({
       kind: 'error',
-      text: 'Feedback text is required. Usage: /feedback <text>',
+      text: 'The note is empty. Type your note after the command, for example: /feedback The answer missed my question.',
     })
 
     // The domain event owns the payload; generic command bookkeeping omits it.

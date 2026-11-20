@@ -4,6 +4,8 @@ import { expect, it } from 'vitest'
 import { compareOrRefreshGolden, launchWebScaffold, watchConsole, webSnapshotMode } from './scaffold.ts'
 
 const EXPECTED = fileURLToPath(new URL('./expected/plugin-manager/header-natural-motion.expected.md', import.meta.url))
+/** Disables the Discover tab, so the Plugins page shows its title header without tabs. */
+const NO_DISCOVER = fileURLToPath(new URL('./no-discover.overlay.yml', import.meta.url))
 
 /** Measure the accepted resting or compact flex layout without changing the live header. */
 async function reference(page: Page, compact: boolean) {
@@ -70,9 +72,9 @@ it('preserves both header layouts and follows the scroll position without changi
   const facts: string[] = []
   try {
     for (const hasTabs of [false, true]) {
-      const scaffold = await launchWebScaffold(hasTabs ? {
-        profile: { packages: [], bundles: ['@deepseek-ai/dsh-experimental-plugin-market-bundle'] },
-      } : {})
+      const scaffold = await launchWebScaffold(hasTabs
+        ? { profile: { packages: [] } }
+        : { extraOverlayPath: NO_DISCOVER })
       try {
         const page = await browser.newPage({ viewport: { width: 1280, height: 480 }, locale: 'en-US' })
         const consoleWatch = watchConsole(page)
@@ -158,9 +160,7 @@ it('preserves both header layouts and follows the scroll position without changi
 })
 
 it('preserves the full header width when the list reserves a scrollbar gutter', async () => {
-  const scaffold = await launchWebScaffold({
-    profile: { packages: [], bundles: ['@deepseek-ai/dsh-experimental-plugin-market-bundle'] },
-  })
+  const scaffold = await launchWebScaffold({ profile: { packages: [] } })
   try {
     const browser = await chromium.launch()
     try {

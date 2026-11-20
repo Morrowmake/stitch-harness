@@ -2138,7 +2138,7 @@ export type PiAiThinkingTokenBudgetField = NonNullable<OpenAICompletionsCompat['
 
 /** Non-secret per-account metadata stored at `providers.<route>.accounts.<id>`. */
 export interface AccountProfile {
-  /** Display name shown in Settings, the model picker, and the usage badge; absent shows the account id. */
+  /** Display name shown in Settings, the model picker, and the usage badge; absent shows the sign-in email or "Account N". */
   alias?: string
   /** Default `true`. */
   pooled?: boolean
@@ -4728,7 +4728,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-user-approval`
 
 - `inject`: `sessionProjections`
-- `source`: [`packages/interaction/user-approval/src/index.ts:153`](../packages/interaction/user-approval/src/index.ts)
+- `source`: [`packages/interaction/user-approval/src/index.ts:184`](../packages/interaction/user-approval/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config. All optional — `static Config` supplies the defaults. */
@@ -5146,6 +5146,7 @@ export interface Config {
 | `@deepseek-ai/dsh-component-mcp` | — | [`packages/component/mcp/src/index.ts`](../packages/component/mcp/src/index.ts) |
 | `@deepseek-ai/dsh-component-office` | — | [`packages/component/office/src/index.ts`](../packages/component/office/src/index.ts) |
 | `@deepseek-ai/dsh-component-planning` | — | [`packages/component/planning/src/index.ts`](../packages/component/planning/src/index.ts) |
+| `@deepseek-ai/dsh-component-plugin-market-tool` | — | [`packages/component/plugin-market-tool/src/index.ts`](../packages/component/plugin-market-tool/src/index.ts) |
 | `@deepseek-ai/dsh-component-presets` | — | [`packages/component/presets/src/index.ts`](../packages/component/presets/src/index.ts) |
 | `@deepseek-ai/dsh-component-schedules` | — | [`packages/component/schedules/src/index.ts`](../packages/component/schedules/src/index.ts) |
 | `@deepseek-ai/dsh-component-search-tools` | — | [`packages/component/search-tools/src/index.ts`](../packages/component/search-tools/src/index.ts) |
@@ -5161,7 +5162,6 @@ export interface Config {
 | `@deepseek-ai/dsh-experimental-browser-use-runtime` | — | [`packages/experimental/browser-use-runtime/src/index.ts`](../packages/experimental/browser-use-runtime/src/index.ts) |
 | `@deepseek-ai/dsh-experimental-cot-translation-bundle` | — | [`packages/experimental/cot-translation-bundle/src/index.ts`](../packages/experimental/cot-translation-bundle/src/index.ts) |
 | `@deepseek-ai/dsh-experimental-forge-bundle` | — | [`packages/experimental/forge-bundle/src/index.ts`](../packages/experimental/forge-bundle/src/index.ts) |
-| `@deepseek-ai/dsh-experimental-plugin-market-bundle` | — | [`packages/experimental/plugin-market-bundle/src/index.ts`](../packages/experimental/plugin-market-bundle/src/index.ts) |
 | `@deepseek-ai/dsh-experimental-ralph-bundle` | — | [`packages/experimental/ralph-bundle/src/index.ts`](../packages/experimental/ralph-bundle/src/index.ts) |
 | `@deepseek-ai/dsh-experimental-session-search` | — | [`packages/experimental/session-search/src/index.ts`](../packages/experimental/session-search/src/index.ts) |
 | `@deepseek-ai/dsh-experimental-session-titles-bundle` | — | [`packages/experimental/session-titles-bundle/src/index.ts`](../packages/experimental/session-titles-bundle/src/index.ts) |

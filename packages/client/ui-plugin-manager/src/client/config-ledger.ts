@@ -13,10 +13,14 @@ import type {} from './slot-contract.ts'
 // Type-only: the `settings.section` declaration whose entries this page lists.
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 
-/** One official plugin as the page lists it: its registration id and its title in the active locale. */
+/**
+ * One official plugin as the page lists it: its registration id, its title in the active locale, and the package that
+ * registered it, when known, so the page shows the configuration with the bundle whose row runs that package.
+ */
 export interface OfficialItem {
   readonly id: string
   readonly label: string
+  readonly module?: string
 }
 
 /** One `settings.section` entry: its id, its title in the active locale, and the package that registered it, when known. */
@@ -74,6 +78,7 @@ export function configLedgerSource(ctx: ClientContext): HostObservable<ConfigLed
             /* v8 ignore next -- list-slot registration requires id */
             id: entry.options.id ?? '',
             label: resolveSlotLabel(entry.options.label) ?? '',
+            ...entry.module === undefined ? {} : { module: entry.module },
           })),
           bundles: keysOf('plugins.bundle.config'),
           rows: keysOf('plugins.row.config'),

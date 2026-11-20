@@ -130,7 +130,7 @@ export function apply(ctx: ClientContext): void {
         editReport: (draft) => { dialog.editReport(draft) },
         includeSessionId: (include) => { dialog.includeSessionId(include) },
         closeReport: () => { dialog.closeReport() },
-        confirmReport: () => dialog.confirmReport(),
+        confirmReport: via => dialog.confirmReport(via),
         dismiss: () => { dialog.dismiss() },
         dismissFailure: () => { dialog.dismissFailure() },
         dismissToast: (seq) => { dialog.dismissToast(seq) },

@@ -159,6 +159,7 @@ export interface EscalationApprover<A = object, C = string> {
     callId: C
     reason: string
     displayReason?: { readonly en: string; readonly [locale: string]: string }
+    grant?: string
     signal?: AbortSignal
   }): Promise<EscalationOutcome>
 }
@@ -193,12 +194,22 @@ export interface EscalationRequest {
   effectiveMode: SandboxMode
   /** The family's noun for the escalated action in user-facing texts (`command` for bash, `operation` for fs). */
   subject: string
+  /**
+   * Action class the user may allow for the rest of the chat, keyed with the
+   * tool name; `undefined` offers only a one-shot grant. Shell, file, and
+   * program escalations pass the requested mode.
+   */
+  grant: string | undefined
+  /** Localized plain-language description replacing the generic escalation text; the audit reason is unchanged. */
+  display?: { readonly en: string; readonly [locale: string]: string }
 }
 
 /**
  * Resolve a sandbox permission request before execution. Repeating the call's
  * effective mode returns it without approval. A strictly wider mode requires
- * approval and applies only to this call. Narrower or unsupported targets,
+ * approval and applies only to this call; the request's `grant` lets the
+ * approver skip asking again for the same tool and action class in this chat,
+ * but each later call still passes through this function. Narrower or unsupported targets,
  * missing approval services or agents for widening, and non-grant outcomes
  * throw {@link SandboxEscalationError} before execution; a `cancelled`
  * outcome while `approval.signal` is aborted rethrows the signal's reason.
@@ -207,7 +218,7 @@ export interface EscalationRequest {
  * @returns the granted mode, consumed by the one call that asked.
  */
 export async function approveEscalation<A, C>(request: EscalationRequest, approval: EscalationApproval<A, C>): Promise<SandboxMode> {
-  const { requestedMode: mode, effectiveMode, justification, subject } = request
+  const { requestedMode: mode, effectiveMode, justification, subject, grant, display } = request
   if (mode === effectiveMode) return effectiveMode
   // Strict widening is an EXECUTION check against the call's effective mode —
   // deliberately not a schema constraint (the enum is the closed target
@@ -237,7 +248,8 @@ export async function approveEscalation<A, C>(request: EscalationRequest, approv
     toolName: approval.toolName,
     callId: approval.callId,
     reason: `escalate sandbox to ${mode}: ${justification}`,
-    displayReason: escalationDisplayReason(mode, justification),
+    displayReason: display ?? escalationDisplayReason(mode as SandboxMode, justification),
+    ...grant === undefined ? {} : { grant },
     ...approval.signal ? { signal: approval.signal } : {},
   })
   switch (outcome) {

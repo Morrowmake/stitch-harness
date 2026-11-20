@@ -48,13 +48,13 @@ declare module '@deepseek-ai/dsh-session/types' {
 
 import { brandString } from '@deepseek-ai/dsh-brand'
 import type { ApprovalRequestId } from './types.ts'
-import type { ApprovalOutcome, ApprovalRequestEvent } from './types.ts'
+import type { ApprovalAnswer, ApprovalOutcome, ApprovalRequestEvent } from './types.ts'
 
 export { ApprovalRequestId } from './types.ts'
-export type { ApprovalOutcome } from './types.ts'
+export type { ApprovalAnswer, ApprovalOutcome } from './types.ts'
 
-/** Every {@link ApprovalOutcome}, for runtime normalization of answerer returns. */
-const OUTCOMES: readonly ApprovalOutcome[] = ['allowed-once', 'rejected', 'cancelled', 'unavailable']
+/** Every {@link ApprovalAnswer}, for runtime normalization of answerer returns. */
+const ANSWERS: readonly ApprovalAnswer[] = ['allowed-once', 'allowed-for-session', 'rejected', 'cancelled', 'unavailable']
 
 /**
  * A session's approval policy — what happens to an {@link ApprovalService}
@@ -81,20 +81,34 @@ const POLICY_NOTICE_NAMES: Readonly<Record<ApprovalPolicy, string>> = {
   never: 'never ask the user for approval',
 }
 
+/** One chat grant: the tool name and the action class its asker offered. */
+interface ApprovalGrant {
+  toolName: string
+  grant: string
+}
+
 interface ApprovalState {
   policy: ApprovalPolicy | null
   // Mirrors AgentRegistry's turn enclosure without requiring an agent registry.
   turnOpen: boolean
+  /** Chat grants given in this Session; bounded by the askers' distinct action classes. */
+  grants: ApprovalGrant[]
+  /** Asks that offered a chat grant and still await their decision, by request id. */
+  offered: Record<string, ApprovalGrant>
 }
+
+const approvalGrantSchema = zod.object({ toolName: zod.string(), grant: zod.string() })
 
 const approvalStateDefinition = {
   key: 'approvalState',
-  stateVersion: 1,
+  stateVersion: 2,
   stateSchema: zod.object({
     policy: zod.enum(['ask', 'never']).nullable(),
     turnOpen: zod.boolean(),
+    grants: zod.array(approvalGrantSchema),
+    offered: zod.record(zod.string(), approvalGrantSchema),
   }),
-  init: (): ApprovalState => ({ policy: null, turnOpen: false }),
+  init: (): ApprovalState => ({ policy: null, turnOpen: false, grants: [], offered: {} }),
   apply(state: ApprovalState, event: SessionEvent): ApprovalState {
     switch (event.type) {
       case 'approval/policy':
@@ -103,6 +117,23 @@ const approvalStateDefinition = {
         return state.turnOpen ? state : { ...state, turnOpen: true }
       case 'turn/end':
         return state.turnOpen ? { ...state, turnOpen: false } : state
+      case 'approval/asked': {
+        const { id, toolName, grant } = event.data
+        return grant === undefined ? state : { ...state, offered: { ...state.offered, [id]: { toolName, grant } } }
+      }
+      case 'approval/decided': {
+        const offer = state.offered[event.data.id]
+        if (offer === undefined) return state
+        const { [event.data.id]: _decided, ...offered } = state.offered
+        const granted = event.data.outcome === 'allowed-for-session'
+          && !state.grants.some(grant => grant.toolName === offer.toolName && grant.grant === offer.grant)
+        return { ...state, offered, grants: granted ? [...state.grants, offer] : state.grants }
+      }
+      case 'session/end-seed':
+        // A fork starts a new chat, so inherited grants end at its cut; any
+        // marker ends the asks of the lifecycle before it.
+        if (event.data.inherited === true && state.grants.length > 0) return { ...state, grants: [], offered: {} }
+        return Object.keys(state.offered).length === 0 ? state : { ...state, offered: {} }
       default:
         return state
     }
@@ -230,13 +261,17 @@ export class ApprovalService extends Service {
    * appending anything. The answerer phase always produces an outcome: an
    * aborted signal yields `'cancelled'`, a missing or throwing answerer yields
    * `'unavailable'` (fail closed), and a rogue non-vocabulary return value is
-   * normalized to `'unavailable'`. A failure that prevents either audit append
+   * normalized to `'unavailable'`. A request with a `grant` that an earlier
+   * `allowed-for-session` answer in this Session covers is allowed without
+   * dispatching; the `never` policy and an aborted signal still take
+   * precedence. A failure that prevents either audit append
    * from committing still rejects because returning an unlogged decision would
    * violate the pair. Session contains post-commit observer failures, so an
    * authoritative append cannot reject the request or suppress its matching
    * audit event.
-   * @param req - the pending decision (agent, tool identity, reason, signal).
-   * @returns the closed outcome; `'allowed-once'` is the only grant.
+   * @param req - the pending decision (agent, tool identity, reason, grant, signal).
+   * @returns the closed outcome; `'allowed-once'` is the only grant, including
+   *   an action a chat grant allows.
    * @throws when no turn is open or either audit event fails before the session
    *   append commit point.
    */
@@ -255,10 +290,11 @@ export class ApprovalService extends Service {
       toolName: req.toolName,
       ...req.callId !== undefined ? { callId: req.callId } : {},
       ...req.reason !== undefined ? { reason: req.reason } : {},
+      ...req.grant !== undefined ? { grant: req.grant } : {},
     })
-    const outcome = await this.decide(req, session)
-    session.append('approval/decided', { id, outcome })
-    return outcome
+    const answer = await this.decide(req, session)
+    session.append('approval/decided', { id, outcome: answer })
+    return answer === 'allowed-for-session' ? 'allowed-once' : answer
   }
 
   /**
@@ -288,10 +324,10 @@ export class ApprovalService extends Service {
   /**
    * Dispatch the waterfall, contained and raced against the request signal.
    * @param req - the borrowed public request.
-   * @param session - the request agent's session used for policy lookup.
-   * @returns the normalized closed outcome.
+   * @param session - the request agent's session used for policy and grant lookup.
+   * @returns the normalized answer; `allowed-for-session` only for a request offering a grant.
    */
-  private async decide(req: ApprovalRequest, session: Session): Promise<ApprovalOutcome> {
+  private async decide(req: ApprovalRequest, session: Session): Promise<ApprovalAnswer> {
     const signal = req.signal
     if (signal?.aborted) return 'cancelled'
     // The 'never' policy is decided HERE, before any dispatch: a listener
@@ -300,25 +336,30 @@ export class ApprovalService extends Service {
     // documented promise that 'never' rejects deterministically regardless
     // of registration order — only the service's own request path can.
     if (this.effectivePolicy(session) === 'never') return 'rejected'
+    const { grant, toolName } = req
+    if (grant !== undefined && this.approvalStateOf(session).grants
+      .some(given => given.toolName === toolName && given.grant === grant)) return 'allowed-for-session'
     // Enter the promise chain BEFORE dispatching: a listener that throws
     // SYNCHRONOUSLY (before its first await) must land in the same rejection
     // path as an async one — `Promise.resolve(call())` would let it escape
     // the containment into the caller.
-    const answer: Promise<ApprovalOutcome> = Promise.resolve().then(
+    const answer: Promise<ApprovalAnswer> = Promise.resolve().then(
       () => this.ctx.waterfall(
         scopeTarget(req.agent, req.agent), 'approval/request', req,
-        () => Promise.resolve<ApprovalOutcome>('unavailable'),
+        () => Promise.resolve<ApprovalAnswer>('unavailable'),
       ),
     ).then(
       // Normalize a rogue (non-vocabulary) answerer return to the fail-closed
-      // outcome instead of leaking it into callers' closed-union switches.
-      outcome => OUTCOMES.includes(outcome) ? outcome : 'unavailable',
+      // outcome instead of leaking it into callers' closed-union switches; a
+      // chat grant the request did not offer narrows to this one action.
+      (outcome): ApprovalAnswer => !ANSWERS.includes(outcome) ? 'unavailable'
+        : outcome === 'allowed-for-session' && grant === undefined ? 'allowed-once' : outcome,
       // A throwing answerer must fail the QUESTION closed, not the caller's
       // tool call open — the seam contains its callbacks.
       () => 'unavailable',
     )
     if (signal === undefined) return answer
-    return await new Promise<ApprovalOutcome>((resolve) => {
+    return await new Promise<ApprovalAnswer>((resolve) => {
       const onAbort = () => {
         signal.removeEventListener('abort', onAbort)
         resolve('cancelled')

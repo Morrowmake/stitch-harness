@@ -234,8 +234,7 @@ export class HarnessSdkJsonRpcServer {
       ? { provider: params.provider, model: params.model }
       : this.ctx.get('agentDefaultModel')?.configuredSelection()
     if (route === undefined) {
-      throw new Error('No model provider configured. Pass provider and model when starting the SDK, '
-        + 'or set provider/model for agent-default-model in your profile patch.')
+      throw new Error('No AI model is set up yet. Add one in Settings → Models, or pass provider and model when starting the SDK.')
     }
     const { provider, model } = route
     const reasoningEffort = params.reasoningEffort === undefined

@@ -43,6 +43,16 @@ export interface ConfigForm<T> {
    */
   subscribe(listener: () => void): () => void
   /**
+   * Check a candidate field value against the namespace's served schema, so
+   * an editor can flag a value the Host would refuse before saving it. The
+   * Host stays the authority: a path the served schema does not describe is
+   * accepted here and judged by the write.
+   * @param path - field path inside the namespace section.
+   * @param value - candidate JSON-shaped value.
+   * @returns false only when the served schema rejects the value.
+   */
+  accepts(path: readonly string[], value: unknown): boolean
+  /**
    * Queue one atomic namespace mutation. All operations share one revision
    * fence, Host validation, and recovery read. Supplying
    * `expectedRevision` preserves an earlier read as the fence instead of using

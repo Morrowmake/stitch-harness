@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 
 import { cleanup, render } from '@testing-library/react'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
-import type { ILayout, PanelInfo } from '@deepseek-ai/dsh-client-ui-layout/client'
+import type { ILayout, MainPanelId, PanelInfo } from '@deepseek-ai/dsh-client-ui-layout/client'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
 import { allowAllAccess, StaticRemoteAccess, TestRemote, usePinnedBrowserLanguages } from '@deepseek-ai/dsh-client-test-runtime'
@@ -111,11 +111,18 @@ async function bench(allows: ((action: string) => boolean) | 'switchable' = () =
     },
   })
   const panelInfo = createSnapshotStore<PanelInfo>({ activePanelId: null })
-  const selectPanel = vi.fn<ILayout['selectPanel']>((activePanelId) => { panelInfo.set({ activePanelId }) })
+  const reselect = new Set<(panelId: MainPanelId) => void>()
+  // Like the layout service: selecting the shown panel again tells its reselect listeners.
+  const selectPanel = vi.fn<ILayout['selectPanel']>((activePanelId) => {
+    const again = activePanelId !== null && panelInfo.getSnapshot().activePanelId === activePanelId
+    panelInfo.set({ activePanelId })
+    if (again) for (const listener of reselect) listener(activePanelId)
+  })
   const clientSync = createSnapshotStore({ syncing: false, failures: [] as { id: string; message: string }[] })
   const retryClient = vi.fn(() => Promise.resolve())
   ctx.provide('modules', { entries: { state: clientSync, retry: retryClient } })
   ctx.provide('layout', { panelInfo, selectPanel, beginNavigation: () => new AbortController().signal,
+    onReselect: (listener: (panelId: MainPanelId) => void) => { reselect.add(listener); return () => { reselect.delete(listener) } },
     toggleSidebar: vi.fn(), openRightbar: vi.fn(), closeRightbar: vi.fn() })
   await ctx.plugin(settings).await()
   return { ctx, slots: ctx.get('slots') as SlotRegistry, locale, list, remote, selectPanel, panelInfo, access, clientSync, retryClient, productCli }
@@ -140,22 +147,27 @@ describe('ui-plugin-manager browser plugin', () => {
     const entry = b.slots.entries('main')[0]!
     assert(entry.store && 'create' in entry.store)
     const navigation = entry.store.create()
-    expect(navigation.getSnapshot()).toEqual({ tab: 'installed', view: { kind: 'list' } })
+    expect(navigation.getSnapshot()).toEqual({ tab: 'installed', advanced: false, view: { kind: 'list' } })
     b.ctx.pluginNavigation.openBundle('dsh-navigation-test')
     expect(b.panelInfo.getSnapshot().activePanelId).toBe(PANEL_ID)
-    expect(navigation.getSnapshot()).toEqual({ tab: 'installed', view: { kind: 'package', name: 'dsh-navigation-test' } })
+    expect(navigation.getSnapshot()).toEqual({ tab: 'installed', advanced: false, view: { kind: 'package', name: 'dsh-navigation-test' } })
     b.selectPanel(null)
-    expect(navigation.getSnapshot()).toEqual({ tab: 'installed', view: { kind: 'list' } })
+    expect(navigation.getSnapshot()).toEqual({ tab: 'installed', advanced: false, view: { kind: 'list' } })
     b.selectPanel(PANEL_ID)
-    expect(navigation.getSnapshot()).toEqual({ tab: 'installed', view: { kind: 'list' } })
+    expect(navigation.getSnapshot()).toEqual({ tab: 'installed', advanced: false, view: { kind: 'list' } })
+    // Opening a bundle while Plugins is shown keeps the bundle; selecting Plugins again from its page returns to the list.
+    b.ctx.pluginNavigation.openBundle('dsh-navigation-test')
+    expect(navigation.getSnapshot()).toEqual({ tab: 'installed', advanced: false, view: { kind: 'package', name: 'dsh-navigation-test' } })
+    b.selectPanel(PANEL_ID)
+    expect(navigation.getSnapshot()).toEqual({ tab: 'installed', advanced: false, view: { kind: 'list' } })
     assert(navigation.actions.setView)
-    navigation.actions.setView({ kind: 'more' })
+    navigation.actions.setView({ kind: 'item', id: 'bash' })
     b.selectPanel(null)
-    expect(navigation.getSnapshot()).toEqual({ tab: 'installed', view: { kind: 'list' } })
+    expect(navigation.getSnapshot()).toEqual({ tab: 'installed', advanced: false, view: { kind: 'list' } })
     b.ctx.pluginNavigation.openBundle('dsh-navigation-test')
     removeRoot()
     b.selectPanel(null)
-    expect(navigation.getSnapshot()).toEqual({ tab: 'installed', view: { kind: 'package', name: 'dsh-navigation-test' } })
+    expect(navigation.getSnapshot()).toEqual({ tab: 'installed', advanced: false, view: { kind: 'package', name: 'dsh-navigation-test' } })
   })
 
   it('opens the Plugins list from another panel and resets bundle details without opening installation', async () => {
@@ -171,15 +183,23 @@ describe('ui-plugin-manager browser plugin', () => {
 
     b.ctx.pluginNavigation.openList()
     expect(b.panelInfo.getSnapshot().activePanelId).toBe(PANEL_ID)
-    expect(navigation.getSnapshot()).toEqual({ tab: 'installed', view: { kind: 'list' } })
+    expect(navigation.getSnapshot()).toEqual({ tab: 'installed', advanced: false, view: { kind: 'list' } })
     expect(face.hooks.pluginManager.getSnapshot().install.open).toBe(false)
 
     b.ctx.pluginNavigation.openBundle('dsh-navigation-test')
-    expect(navigation.getSnapshot()).toEqual({ tab: 'installed', view: { kind: 'package', name: 'dsh-navigation-test' } })
+    expect(navigation.getSnapshot()).toEqual({ tab: 'installed', advanced: false, view: { kind: 'package', name: 'dsh-navigation-test' } })
     navigation.actions.setTab('fixture-discover')
     b.ctx.pluginNavigation.openList()
     expect(b.panelInfo.getSnapshot().activePanelId).toBe(PANEL_ID)
-    expect(navigation.getSnapshot()).toEqual({ tab: 'installed', view: { kind: 'list' } })
+    expect(navigation.getSnapshot()).toEqual({ tab: 'installed', advanced: false, view: { kind: 'list' } })
+    expect(face.hooks.pluginManager.getSnapshot().install.open).toBe(false)
+
+    // A named tab opens at its list from any page and any panel.
+    b.ctx.pluginNavigation.openBundle('dsh-navigation-test')
+    b.selectPanel(null)
+    b.ctx.pluginNavigation.openTab('discover')
+    expect(b.panelInfo.getSnapshot().activePanelId).toBe(PANEL_ID)
+    expect(navigation.getSnapshot()).toEqual({ tab: 'discover', advanced: false, view: { kind: 'list' } })
     expect(face.hooks.pluginManager.getSnapshot().install.open).toBe(false)
     expect(b.list).not.toHaveBeenCalled()
   })
@@ -200,11 +220,11 @@ describe('ui-plugin-manager browser plugin', () => {
     expect(link.options).toMatchObject({ id: PANEL_ID, order: 15 })
     expect(resolveSlotLabel(link.options.label)).toBe('插件管理')
     const navigation = (b.slots.entries('main')[0]!.store as ReturnType<typeof createNavigationStore>).create()
-    navigation.actions.setView({ kind: 'more' })
+    navigation.actions.setView({ kind: 'package', name: 'dsh-navigation-test' })
     const linkInjected: object = link.inject!()
     ;(linkInjected as PluginsSettingsLinkInjected).openPlugins()
     expect(b.panelInfo.getSnapshot().activePanelId).toBe(PANEL_ID)
-    expect(navigation.getSnapshot()).toEqual({ tab: 'installed', view: { kind: 'list' } })
+    expect(navigation.getSnapshot()).toEqual({ tab: 'installed', advanced: false, view: { kind: 'list' } })
     // The page reads this page's client synchronization from the module system and retries through it.
     const pageInjected: object = b.slots.entries('main')[0]!.inject!()
     const sync = pageInjected as ClientSyncFace
@@ -304,7 +324,7 @@ describe('ui-plugin-manager browser plugin', () => {
     expect(b.selectPanel).toHaveBeenCalledWith(PANEL_ID)
     const entry = b.slots.entries('main')[0]!
     assert(entry.store && 'create' in entry.store)
-    expect(entry.store.create().getSnapshot()).toEqual({ tab: 'installed', view: { kind: 'package', name: 'dsh-navigation-test' } })
+    expect(entry.store.create().getSnapshot()).toEqual({ tab: 'installed', advanced: false, view: { kind: 'package', name: 'dsh-navigation-test' } })
     expect(entry.component).toBe(PluginManagerPage)
     expect(entry.options).toMatchObject({ key: PANEL_ID })
     expect(entry.locale).toBe(NS)

@@ -307,10 +307,13 @@ export class SessionInputShell implements SessionInput {
   /**
    * Apply one new-task request to this already-initialized input model.
    * @param options - content to adopt and the handling of an existing draft.
+   * @param prepared - draft text an earlier initialization placed; under `ask` an unedited
+   * draft equal to it is replaced, while other text is the user's own.
    * @returns applied when the requested text is adopted, even if unchanged;
-   * preserved when the current draft is kept; blocked after disposal or during a pending submission.
+   * preserved when the current draft is kept; occupied when `ask` meets the user's own text;
+   * blocked after disposal or during a pending submission.
    */
-  requestDraftInitialization(options: DraftInitializationOptions): DraftInitializationResult {
+  requestDraftInitialization(options: DraftInitializationOptions, prepared?: string): DraftInitializationResult {
     if (this.draftInitializationBlocked()) return 'blocked'
     const whenDraftExists = options.whenDraftExists ?? (options.clearPreviousDraft === true ? 'replace' : 'keep')
     if (whenDraftExists === 'replace') {
@@ -318,11 +321,17 @@ export class SessionInputShell implements SessionInput {
       return 'applied'
     }
     if (options.prompt === undefined) return 'preserved'
-    if (this.snapshot.draft === '' && this.attachmentIds.length === 0) {
+    const text = this.snapshot.draft
+    if (text === '' && this.attachmentIds.length === 0) {
       this.setDraft(options.prompt)
       return 'applied'
     }
     if (whenDraftExists === 'keep') return 'preserved'
+    if (whenDraftExists === 'ask') {
+      if (text !== '' && text !== prepared) return 'occupied'
+      this.setDraft(options.prompt)
+      return 'applied'
+    }
     this.draftEditor.appendDraft(options.prompt)
     return 'applied'
   }

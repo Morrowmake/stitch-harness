@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-component-office",
-  "description": "Office document tools and skills, and the present tool for deliverables.",
+  "description": "Create and edit Word, Excel, and PowerPoint files and show you the results.",
   "version": "0.2.2-rc.5",
   "icon": "./icon.svg",
   "publishConfig": {

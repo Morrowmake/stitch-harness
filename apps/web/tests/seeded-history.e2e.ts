@@ -785,7 +785,7 @@ describe('web e2e: seeded history renders through cold resume', () => {
       await input.fill('/feedback the diff view is unreadable')
       await input.press('Enter')
       const row = page.locator('[data-variant="others"]').filter({
-        hasText: `Feedback recorded for session ${SEED_ID}`,
+        hasText: 'Note saved on this computer. Nothing was sent.',
       })
       await row.waitFor({ timeout: 10_000 })
       const disclosure = row.locator('[data-expandable]')
@@ -797,7 +797,7 @@ describe('web e2e: seeded history renders through cold resume', () => {
       if (agent === undefined) throw new Error('seeded session did not attach an agent')
       const done = agent.session.snapshotEvents().filter(event => event.type === 'command/done').at(-1)
       if (done?.type !== 'command/done') throw new Error('feedback command did not settle')
-      expect(done.data.text).toBe(`Feedback recorded for session ${SEED_ID}.`)
+      expect(done.data.text).toBe('Note saved on this computer. Nothing was sent.')
 
       // command/done can arrive before the submit reply releases the composer.
       await expect.poll(() => input.textContent(), { timeout: 10_000 }).toBe('')

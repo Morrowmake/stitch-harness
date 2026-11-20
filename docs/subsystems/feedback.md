@@ -321,7 +321,7 @@ Fork seeds can contain parent feedback events, but their payload retains the par
 
 Successful message-feedback mutations await canonical persistence: live operations append through the owning Session and require a participating `ctx.sessions.flush` listener; cold operations append and flush through their write handle. Persistence failures propagate rather than reporting success. `maxNoteBytes` is required and bounds note text by UTF-8 bytes; the Web Host composition sets `8192`. The package publishes the Host `messageFeedback.list`, `messageFeedback.put`, and `messageFeedback.delete` unary Remote contract through `TypertRemoteService` and `@Remote`; `command-feedback` publishes `sessionFeedback.record` the same way for Session-level remarks on live Sessions, plus `sessionFeedback.draftIssue` and `sessionFeedback.reportIssue` for GitHub reports. The generated Cordis API below is the method-level authority.
 
-`draftIssue` returns an editable title and a body holding only the remark, its category, the Stitch version, and the OS; it reads no Session and sends nothing. `reportIssue` files a confirmed title and body on the repository named by `FEEDBACK_REPOSITORY` (`Morrowmake/stitch-harness`): through `gh issue create` when `gh auth status` succeeds, run as argv without a shell under a deadline by the Host `subprocess` provider or Node's `execFile`, and otherwise by answering a prefilled `issues/new` URL of at most 7000 characters, whose body is cut with a note when needed. Neither method appends to the Session log; the dialog records through `record` before reporting.
+`draftIssue` returns an editable title, a body holding only the remark (or `No description provided.`) and a `Details:` list of its category, the Stitch version, and the OS, and the target `repository`; it reads no Session and sends nothing. `reportIssue` takes the confirmed title and body plus the method the human chose, for the repository named by `FEEDBACK_REPOSITORY` (`Morrowmake/stitch-harness`). `via: 'browser'` only answers a prefilled `issues/new` URL of at most 7000 characters, whose body is cut with a note when needed, and never runs `gh`. `via: 'github-cli'` files through `gh issue create` when `gh auth status` succeeds, run as argv without a shell under a deadline by the Host `subprocess` provider or Node's `execFile`, and otherwise answers the same prefilled URL. Neither method appends to the Session log; the dialog records through `record` before reporting.
 
 Plugin disposal closes operation admission and drains accepted per-Session queue work.
 
@@ -335,9 +335,9 @@ The controls are the `feedback` entry (order 10) of the `conversation.chat.assis
 
 One `MessageFeedbackController` per Session backs every message control in that Session: a single `list` read seeds the whole transcript, deferred to first hover or focus rather than fired on mount. Each mutation sends the version that controller last observed as `ifVersion`; a `version-conflict` reply carries the authoritative item, so the controller reconciles from the reply instead of refetching. Mutations serialize per Session so a queued operation compares against the committed version. The injected `retract` operation rechecks the committed rating inside that queue and becomes a no-op after a concurrent change, so stale UI cannot bypass the dialog by recording a bare rating. A `connection/reset` refreshes only Sessions already read.
 
-Either unrecorded rating opens the Session's feedback dialog, the `feedback-dialog` entry of `conversation.input.overlay`: the shared Modal card with seven category chips and a detail box. Submit puts the selected judgment carrying the chosen category and the trimmed description, or neither; success closes the dialog and shows the acknowledgement toast, while failure keeps the dialog and draft open and shows a warning toast. The same dialog opens for the Session from a bare `/feedback` — a decoration `ui-commands` routes as an `action` — and then records through `sessionFeedback.record`; `/feedback <text>` keeps the Host command path. Clicking a recorded rating retracts it without opening the dialog.
+Either unrecorded rating opens the Session's feedback dialog, the `feedback-dialog` entry of `conversation.input.overlay`: the shared Modal card titled **Leave feedback** with seven category chips and a detail box. **Save note** puts the selected judgment carrying the chosen category and the trimmed description, or neither; a line under the button and the success toast both say the note stays on this computer and nothing is sent. Success closes the dialog, while failure keeps the dialog and draft open and shows a warning toast. The same dialog opens for the Session from a bare `/feedback` — a decoration `ui-commands` routes as an `action` — and then records through `sessionFeedback.record`; `/feedback <text>` keeps the Host command path. Clicking a recorded rating retracts it without opening the dialog.
 
-**Report on GitHub…** switches the dialog to an editable issue preview drafted by `sessionFeedback.draftIssue`, with an **Include session id** box that is off by default. Confirming records the draft as Submit would, then calls `sessionFeedback.reportIssue` and opens the returned GitHub page in a new tab; nothing is filed before that click. After a typed `/feedback <text>` succeeds, the `command/executed` event carries the submitted line and the dialog opens the same preview for that text, already recorded, so confirming files the issue only.
+**Report on GitHub…** switches the dialog to an issue preview drafted by `sessionFeedback.draftIssue`. It states that a public issue anyone can read is created on `github.com/<repository>` from the draft reply, renders the body as formatted text with an **Edit text** toggle for the raw Markdown, and offers an **Include session id** box that is off by default. **Open on GitHub**, the primary action, records the draft as Save note would, calls `sessionFeedback.reportIssue` with `via: 'browser'`, and opens the prefilled page in a new tab. **File with my GitHub account** does the same with `via: 'github-cli'` and opens the created issue, or the prefilled page with a finish-on-GitHub toast. Nothing is filed before either click. After a typed `/feedback <text>` succeeds, the `command/executed` event carries the submitted line and the dialog opens the same preview for that text, already recorded, so sending files the issue only.
 
 ## Boundaries and limitations
 
@@ -429,19 +429,20 @@ Host Remote through which a product surface records a Session-level remark and, 
  * Preview a remark as a GitHub issue without sending anything. The body
  * names only the remark, its category, the Stitch version, and the OS.
  * @param request - the remark text and category.
- * @returns an editable title and Markdown body.
+ * @returns an editable title and Markdown body, and the public repository it would be filed on.
  */
-@Remote('draftIssue') draftIssue(request: SessionFeedbackIssueDraftRequest): Promise<SessionFeedbackIssue>
+@Remote('draftIssue') draftIssue(request: SessionFeedbackIssueDraftRequest): Promise<SessionFeedbackIssueDraft>
 
 /**
- * File a confirmed issue on the feedback repository: through an installed,
+ * Send a confirmed issue to the feedback repository the way the human
+ * chose: `browser` answers with the prefilled new-issue page the caller
+ * opens and never runs `gh`; `github-cli` files through an installed,
  * authenticated `gh` CLI (run by the Host `subprocess` provider when one is
- * mounted, else by Node without a shell), or else as a prefilled new-issue
- * page the caller opens.
- * @param issue - the title and body the human confirmed.
+ * mounted, else by Node without a shell) and falls back to the prefilled page.
+ * @param request - the title and body the human confirmed, and the chosen method.
  * @returns `created` with the issue URL, or `browser` with the prefilled page URL.
  */
-@Remote('reportIssue') reportIssue(issue: SessionFeedbackIssue): Promise<SessionFeedbackReportIssueResult>
+@Remote('reportIssue') reportIssue(request: SessionFeedbackReportIssueRequest): Promise<SessionFeedbackReportIssueResult>
 ```
 
 Source: [`packages/feedback/command-feedback/src/index.ts`](../../packages/feedback/command-feedback/src/index.ts)

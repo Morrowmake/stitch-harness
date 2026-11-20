@@ -116,7 +116,6 @@
     "@deepseek-ai/dsh-cua-bundle": "workspace:*",
     "@deepseek-ai/dsh-cua-mcp": "workspace:*",
     "@deepseek-ai/dsh-timeline": "workspace:*",
-    "@deepseek-ai/dsh-experimental-plugin-market-bundle": "workspace:*",
     "@deepseek-ai/dsh-experimental-forge-bundle": "workspace:*",
     "@deepseek-ai/dsh-subagent-claude-code": "workspace:*",
     "@deepseek-ai/dsh-subagent-codex": "workspace:*",
@@ -137,7 +136,8 @@
     "@deepseek-ai/dsh-component-mcp": "workspace:*",
     "@deepseek-ai/dsh-component-context-helpers": "workspace:*",
     "@deepseek-ai/dsh-component-presets": "workspace:*",
-    "@deepseek-ai/dsh-component-short-prompt": "workspace:*"
+    "@deepseek-ai/dsh-component-short-prompt": "workspace:*",
+    "@deepseek-ai/dsh-component-plugin-market-tool": "workspace:*"
   },
   "devDependencies": {
     "@deepseek-ai/dsh-brand": "workspace:*",

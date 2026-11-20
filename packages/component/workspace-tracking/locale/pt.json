@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Acompanhamento do espaço de trabalho",
-    "description": "Registra os arquivos alterados em cada turno e mostra os cartões de alterações e entregas."
+    "description": "Mostra quais arquivos cada resposta alterou e o que o agente entregou."
   }
 }

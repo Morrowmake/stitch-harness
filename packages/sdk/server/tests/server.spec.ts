@@ -1100,7 +1100,9 @@ describe('HarnessSdkJsonRpcServer', () => {
     const ctx = await makeHarness(storageDir)
     try {
       const server = new HarnessSdkJsonRpcServer(ctx, new FakeTransport())
-      await expect(server.initialize({ cwd: storageDir })).rejects.toThrow('No model provider configured.')
+      await expect(server.initialize({ cwd: storageDir })).rejects.toThrow(
+        'No AI model is set up yet. Add one in Settings → Models, or pass provider and model when starting the SDK.',
+      )
       await server.shutdown()
     } finally {
       await ctx.fiber.dispose()
