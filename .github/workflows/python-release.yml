@@ -40,7 +40,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
 
-      - uses: actions/download-artifact@v8.0.1
+      - uses: actions/download-artifact@v8.0.2
         with:
           pattern: stitch_harness*
           path: dist
@@ -96,7 +96,7 @@ jobs:
           print(f"version={wheel_version}")
           PY
 
-      - uses: actions/download-artifact@v8.0.1
+      - uses: actions/download-artifact@v8.0.2
         with:
           pattern: stitch_harness*
           path: dist
