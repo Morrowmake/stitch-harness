@@ -1,0 +1,22 @@
+# MCP connectors component: switches on the `# component: mcp` rows that dsh-web-app
+# (and, for shared base rows, its placeholder patches) keeps disabled, and marks
+# `mcp` enabled for the `component: mcp` gates of the agent presets.
+# Deselecting the bundle restores the placeholders.
+
+- id: mcp-manager
+  disabled: false
+
+- id: mcp-account
+  disabled: false
+
+- id: mcp-resources
+  disabled: false
+
+- id: ui-connector-account
+  disabled: false
+
+- insert:
+    - id: component-mcp
+      name: '@deepseek-ai/dsh-agent-preset-registry/component'
+      config:
+        id: mcp

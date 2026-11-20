@@ -2,7 +2,7 @@
 import { Context, Service } from '@deepseek-ai/cordis'
 import { afterEach, expect, it, onTestFinished, vi } from 'vitest'
 import PluginMarket from '../src/index.ts'
-import { DEFAULT_PLUGIN_INDEX } from '../src/index-url.ts'
+import { DEFAULT_PLUGIN_INDEX, DEFAULT_PLUGIN_INDEXES } from '../src/index-url.ts'
 import { parseIndexBody } from '../src/parse.ts'
 
 // Parse in-process; parse-worker.spec.ts runs the real Worker.
@@ -31,14 +31,19 @@ async function mount(): Promise<PluginMarket> {
   return ctx.get('pluginMarket')!
 }
 
-it('configures the Stitch index by default without requesting it', async () => {
+it('configures the Stitch index, then the DeepSeek Harness indexes, by default without requesting them', async () => {
   const fetch = vi.fn(() => Promise.resolve(new Response(JSON.stringify(PUBLISHED))))
   vi.stubGlobal('fetch', fetch)
 
   const market = await mount()
 
   expect(DEFAULT_PLUGIN_INDEX).toBe('https://raw.githubusercontent.com/Morrowmake/stitch-plugins/main/index.json')
-  expect(market.listIndexes()).toEqual([{ url: DEFAULT_PLUGIN_INDEX }])
+  expect(DEFAULT_PLUGIN_INDEXES).toEqual([
+    DEFAULT_PLUGIN_INDEX,
+    'https://awesome-dsh-plugin.com/index.json',
+    'https://cdn.dsh.so/market/index.json',
+  ])
+  expect(market.listIndexes()).toEqual(DEFAULT_PLUGIN_INDEXES.map(url => ({ url })))
   expect(fetch).not.toHaveBeenCalled()
 })
 
@@ -51,5 +56,8 @@ it('reads the published empty index when Discover searches it', async () => {
 
   expect(fetch).toHaveBeenCalledOnce()
   expect(result).toMatchObject({ url: DEFAULT_PLUGIN_INDEX, title: 'Stitch plugins', total: 0, entries: [], nextOffset: null })
-  expect(market.listIndexes()).toEqual([{ url: DEFAULT_PLUGIN_INDEX, title: 'Stitch plugins', description: 'Community plugin index for Stitch' }])
+  expect(market.listIndexes()).toEqual([
+    { url: DEFAULT_PLUGIN_INDEX, title: 'Stitch plugins', description: 'Community plugin index for Stitch' },
+    ...DEFAULT_PLUGIN_INDEXES.slice(1).map(url => ({ url })),
+  ])
 })

@@ -187,10 +187,7 @@ export function verifyProductUse(
   const profileFile = ts.createSourceFile(profilePath, readFileSync(profilePath, 'utf8'), ts.ScriptTarget.Latest, true)
   const templates = literalDeclaration(profileFile, 'PROFILE_TEMPLATES')
   const fallback = stringList(literalDeclaration(profileFile, 'DEFAULT_PROFILE_BUNDLES'), PROFILE_SOURCE)
-  const optionals = [
-    ...stringList(literalDeclaration(profileFile, 'OPTIONAL_BUNDLES'), PROFILE_SOURCE),
-    ...stringList(literalDeclaration(profileFile, 'ON_DEMAND_BUNDLES'), PROFILE_SOURCE),
-  ]
+  const optionals = stringList(literalDeclaration(profileFile, 'OPTIONAL_BUNDLES'), PROFILE_SOURCE)
   if (!isRecord(templates)) throw new Error(`${PROFILE_SOURCE}: PROFILE_TEMPLATES must be a literal object`)
   for (const name of PROFILES) if (!isRecord(templates[name])) failures.push(`${PROFILE_SOURCE}: missing shipped ${name} profile`)
   const layers = (names: readonly string[], reach: Reachability): PatchOptions[][] => names.flatMap((name) => {

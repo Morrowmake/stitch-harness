@@ -18,7 +18,7 @@ import {
 import type { NpmFileSource } from '@deepseek-ai/dsh-plugin-detail/types'
 import { DetailReader, repositoryOf, type DetailLocation, type RepositoryLocation } from './detail.ts'
 import { repositoryFiles, type RepositoryFileOptions } from './detail-files.ts'
-import { DEFAULT_PLUGIN_INDEX, normalizeIndexUrl } from './index-url.ts'
+import { DEFAULT_PLUGIN_INDEXES, normalizeIndexUrl } from './index-url.ts'
 import { RepositoryCache } from './repository-cache.ts'
 import { parseIndexInWorker } from './parse-thread.ts'
 import { MarketSearch } from './search.ts'
@@ -111,7 +111,7 @@ export default class PluginMarket extends TypertRemoteService {
   static inject = ['pluginManager']
 
   static Config = z.object({
-    indexes: z.array(z.string().pattern(/^(?:https?|git\+(?:https|ssh)):\/\/\S+$/u)).default([DEFAULT_PLUGIN_INDEX]).volatile(),
+    indexes: z.array(z.string().pattern(/^(?:https?|git\+(?:https|ssh)):\/\/\S+$/u)).default([...DEFAULT_PLUGIN_INDEXES]).volatile(),
     fetchTimeoutMs: z.natural().min(1).max(MAX_TIMER_DELAY_MS).default(15000),
     maxBytes: z.natural().min(1).default(128 * 1024 * 1024),
     cacheTtlMs: z.natural().default(600000),

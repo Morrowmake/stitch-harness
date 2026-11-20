@@ -41,6 +41,7 @@ kind: "package-reference"
 | `suffix` | `''` | `deployment:persona-suffix` 模板；省略或空文本会遮蔽掉全局后缀 |
 | `complete` | `false` | 仅将渲染后的前缀用作系统提示词；忽略后缀 |
 | `includeRuntimeContext` | `true` | 是否为此 agent 作用域包含可选运行时上下文；false 会抑制可选贡献，但不禁用拥有它们的服务；必需贡献仍会保留 |
+| `omitSections` | `[]` | 此 agent 作用域组装时省略的其他提示词段落名称（例如 `tool:read`）；未列出的段落不受影响 |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-persona)是每个受支持字段及其 JSDoc 的穷尽式真源。
 

@@ -183,7 +183,7 @@ The sentence is stable within the Creator preset; switching to a different prese
 
 #### What the model sees
 
-When `surfaceContext` is true, `STITCH_WEB_URL` appears in the managed bash environment with its description, resolved per invocation as the advertised application URL defined under Listening, trust, and public deployments above. When it is false, the variable is not registered. The GUI orientation, the implementation checkout, and the current GUI URL come from the [`dsh-harness-dev-context`](../../context/harness-dev-context/README.md) row this bundle mounts.
+When `surfaceContext` is true, `STITCH_WEB_URL` appears in the managed bash environment with its description, resolved per invocation as the advertised application URL defined under Listening, trust, and public deployments above; `DSH_WEB_URL` carries the same value for DeepSeek Harness plugins. When it is false, neither variable is registered. The GUI orientation, the implementation checkout, and the current GUI URL come from the [`dsh-harness-dev-context`](../../context/harness-dev-context/README.md) row this bundle mounts.
 
 #### Token effect
 

@@ -183,7 +183,7 @@ preset 提供一条目录项。没有其他 skill 的会话还会收到目录的
 
 #### 模型看到什么
 
-当 `surfaceContext` 为 true 时，`STITCH_WEB_URL` 连同描述出现在受管 bash 环境中，每次调用时解析为上文「监听、信任与公开部署」定义的公告应用 URL。为 false 时不注册该变量。GUI 定位、实现 checkout 与当前 GUI URL 由本 bundle 挂载的 [`dsh-harness-dev-context`](../../context/harness-dev-context/README.zh.md) 行提供。
+当 `surfaceContext` 为 true 时，`STITCH_WEB_URL` 连同描述出现在受管 bash 环境中，每次调用时解析为上文「监听、信任与公开部署」定义的公告应用 URL；`DSH_WEB_URL` 为 DeepSeek Harness 插件携带相同的值。为 false 时两个变量都不注册。GUI 定位、实现 checkout 与当前 GUI URL 由本 bundle 挂载的 [`dsh-harness-dev-context`](../../context/harness-dev-context/README.zh.md) 行提供。
 
 #### Token 影响
 

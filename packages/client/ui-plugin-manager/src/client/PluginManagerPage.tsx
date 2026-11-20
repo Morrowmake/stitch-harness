@@ -389,18 +389,6 @@ function SourceSection({ pkg, t }: { readonly pkg: PackageView; readonly t: Tran
               <dd>{pkg.version}</dd>
             </div>
           )}
-        {pkg.installTarget === undefined ? null : (
-          <>
-            <div>
-              <dt>{t('sourceTargetSpec')}</dt>
-              <dd><code>{pkg.installTarget.spec}</code></dd>
-            </div>
-            <div>
-              <dt>{t('sourceTargetVersion')}</dt>
-              <dd>{pkg.installTarget.version}</dd>
-            </div>
-          </>
-        )}
       </dl>
     </section>
   )
@@ -426,8 +414,7 @@ function EnableSwitch({ pkg, title, t, busy, onSetEnabled }: {
       <Switch
         checked={pkg.enabled}
         label={t('enableToggle', { name: title })}
-        disabled={busy || pkg.readOnlyReason !== undefined || (!pkg.enabled && pkg.error !== undefined
-          && (pkg.error.code === 'unsupported-platform' || !(pkg.availability === 'missing' && pkg.installTarget !== undefined)))}
+        disabled={busy || pkg.readOnlyReason !== undefined || (!pkg.enabled && pkg.error !== undefined)}
         {...pkg.readOnlyReason === undefined ? {} : { title: managementText({ code: pkg.readOnlyReason }, t) }}
         onChange={onSetEnabled}
       />
@@ -555,14 +542,6 @@ function updatesNote(packages: readonly PackageView[], versions: PluginManagerSt
   return { text: t('updatesNone') }
 }
 
-function updateAvailable(pkg: PackageView): boolean {
-  const target = pkg.installTarget
-  // An update removes the installed package first, so a package that cannot be removed offers none.
-  if (!pkg.installed || !pkg.removable || pkg.availability === 'installation' || target === undefined) return false
-  return pkg.version !== target.version
-    || ((target.spec.startsWith('link:') || pkg.source?.startsWith('link:') === true) && pkg.source !== target.spec)
-}
-
 /**
  * One package as a card that opens its page: its name, its one-liner, its tags, its bundle switch, and why the Host
  * skipped it or does not support its platform.
@@ -597,7 +576,7 @@ function PackageCard({ pkg, t, resolveText, busy, highlighted, newer, onOpen, on
             {beta ? <Tag className={css.statusTag} tone="info">{t('statusBeta')}</Tag> : null}
             <StatusTag status={status} t={t} />
             {pkg.availability === 'missing' ? <Tag className={css.statusTag}>{t(pkg.installed ? 'statusMissingFiles' : 'statusNotInstalled')}</Tag> : null}
-            {updateAvailable(pkg) || newer !== undefined ? <Tag className={css.statusTag} tone="info">{t('statusUpdateAvailable')}</Tag> : null}
+            {newer !== undefined ? <Tag className={css.statusTag} tone="info">{t('statusUpdateAvailable')}</Tag> : null}
           </>
         )}
         description={description}
@@ -745,7 +724,7 @@ function RowDetail({ pkg, row, t, resolveText, onBack, renderSlot, renderFactory
  */
 function PackageDetail({
   pkg, t, resolveText, busy, rowBusy, configured, configure, sections, renderSlot, renderFactory, inMore, versions, detail,
-  onBack, onSetEnabled, onUninstall, onUpdate, onSetRowEnabled, onEnsureVersions, onCheckVersions, onUpdateVersion,
+  onBack, onSetEnabled, onUninstall, onSetRowEnabled, onEnsureVersions, onCheckVersions, onUpdateVersion,
 }: {
   readonly pkg: PackageView
   /** The package's version check, when one started. */
@@ -771,7 +750,6 @@ function PackageDetail({
   readonly onBack: () => void
   readonly onSetEnabled: (enabled: boolean) => void
   readonly onUninstall: () => void
-  readonly onUpdate: () => void
   readonly onSetRowEnabled: (row: PackageRow, enabled: boolean) => void
   /** Check a package's versions unless a check already started. */
   readonly onEnsureVersions: (packageName: string) => void
@@ -793,12 +771,6 @@ function PackageDetail({
         actions={(
           <div className={css.detailActions}>
             {renderSlot('plugins.detail.actions', { subject })}
-            {updateAvailable(pkg) ? (
-              <Button variant="outline" size="sm" icon={<IconRefreshOutlineRegular size={13} />}
-                disabled={busy} aria-label={t('updateLabel', { name: title })} onClick={onUpdate}>
-                {t('update')}
-              </Button>
-            ) : null}
             {newer === undefined ? null : (
               <Button variant="primary" size="sm" icon={<IconRefreshOutlineRegular size={13} />}
                 disabled={busy} aria-label={t('versionsUpdateLabel', { version: newer })} onClick={() => { onUpdateVersion(newer) }}>
@@ -831,7 +803,7 @@ function PackageDetail({
           {beta ? <Tag className={css.statusTag} tone="info">{t('statusBeta')}</Tag> : null}
           <StatusTag status={status} t={t} />
           {pkg.availability === 'missing' ? <Tag className={css.statusTag}>{t(pkg.installed ? 'statusMissingFiles' : 'statusNotInstalled')}</Tag> : null}
-          {updateAvailable(pkg) || newer !== undefined ? <Tag className={css.statusTag} tone="info">{t('statusUpdateAvailable')}</Tag> : null}
+          {newer !== undefined ? <Tag className={css.statusTag} tone="info">{t('statusUpdateAvailable')}</Tag> : null}
           {renderSlot('plugins.detail.badge', { subject })}
         </div>
         <p className={css.detailName}><code data-plugin-name>{pkg.name}</code></p>
@@ -1554,7 +1526,7 @@ function InstallDialog({
             : null}
           {phase !== 'done'
             ? null
-            : install.installed !== null && install.subject?.selection === undefined
+            : install.installed !== null
               ? <Button variant="primary" className={css.wide} disabled={install.enabling} aria-busy={install.enabling} onClick={onEnableNow}>{t('installEnableNow')}</Button>
               : <Button variant="primary" className={css.wide} onClick={onClose}>{t('installClose')}</Button>}
         </div>
@@ -1860,7 +1832,7 @@ export function PluginManagerPage(props: PluginManagerPageProps): ReactNode {
               renderSlot={renderSlot}
               inMore={backToMore}
               detail={(
-                <BundleDetailSection name={openPkg.name} version={openPkg.version} fromNpm={openPkg.availability === 'missing'}
+                <BundleDetailSection name={openPkg.name} version={openPkg.version}
                   language={language} details={bundleDetails} t={t}
                   load={props.loadDetail} retry={props.retryDetail} image={props.detailImage} />
               )}
@@ -1870,7 +1842,6 @@ export function PluginManagerPage(props: PluginManagerPageProps): ReactNode {
               }}
               onSetEnabled={(enabled) => { setBundleEnabled(openPkg.name, enabled) }}
               onUninstall={() => { props.uninstall(openPkg.name) }}
-              onUpdate={() => { props.update(openPkg.name) }}
               onSetRowEnabled={setRowEnabled}
               versions={state.versions[openPkg.name]}
               onEnsureVersions={props.ensureVersions}

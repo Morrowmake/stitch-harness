@@ -1,4 +1,4 @@
-/** The bundle package names the dsh installation selects, offers, installs on demand, or retires. */
+/** The bundle package names the dsh installation selects, offers, or retires. */
 
 /** Installation-owned defaults used when a shipped profile is first opened. */
 export interface ProfileTemplate {
@@ -6,13 +6,51 @@ export interface ProfileTemplate {
   bundles: readonly string[]
 }
 
-/** The shipped profile templates auto-initialized on first use, by name. */
+/**
+ * The shipped profile templates auto-initialized on first use, by name. The `web` template (also Desktop's profile)
+ * is dsh-base + dsh-web-app + the Standard component set; `web-minimal` is the same host with the Minimal set. Both
+ * spell out `COMPONENT_PRESETS` (./components.ts) literally, because the product gates read these lists statically.
+ */
 export const PROFILE_TEMPLATES: Record<string, ProfileTemplate> = {
   acp: {
     bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-acp-app'],
   },
   web: {
-    bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'],
+    bundles: [
+      '@deepseek-ai/dsh-base',
+      '@deepseek-ai/dsh-web-app',
+      '@deepseek-ai/dsh-component-files',
+      '@deepseek-ai/dsh-component-terminal',
+      '@deepseek-ai/dsh-component-browser',
+      '@deepseek-ai/dsh-component-search-tools',
+      '@deepseek-ai/dsh-component-web',
+      '@deepseek-ai/dsh-component-jobs',
+      '@deepseek-ai/dsh-component-planning',
+      '@deepseek-ai/dsh-component-goals',
+      '@deepseek-ai/dsh-component-schedules',
+      '@deepseek-ai/dsh-component-subagents',
+      '@deepseek-ai/dsh-component-agent-teams',
+      '@deepseek-ai/dsh-component-workflows',
+      '@deepseek-ai/dsh-component-office',
+      '@deepseek-ai/dsh-component-workspace-tracking',
+      '@deepseek-ai/dsh-component-mcp',
+      '@deepseek-ai/dsh-component-context-helpers',
+      '@deepseek-ai/dsh-component-presets',
+    ],
+  },
+  'web-minimal': {
+    bundles: [
+      '@deepseek-ai/dsh-base',
+      '@deepseek-ai/dsh-web-app',
+      '@deepseek-ai/dsh-component-files',
+      '@deepseek-ai/dsh-component-terminal',
+      '@deepseek-ai/dsh-component-browser',
+      '@deepseek-ai/dsh-component-jobs',
+      '@deepseek-ai/dsh-component-workspace-tracking',
+      '@deepseek-ai/dsh-component-context-helpers',
+      '@deepseek-ai/dsh-component-presets',
+      '@deepseek-ai/dsh-component-short-prompt',
+    ],
   },
   headless: {
     bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-headless'],
@@ -66,10 +104,6 @@ export const OPTIONAL_BUNDLES: readonly string[] = [
   '@deepseek-ai/dsh-experimental-plugin-market-bundle',
   '@deepseek-ai/dsh-experimental-tool-worktree',
   '@deepseek-ai/dsh-experimental-forge-bundle',
-]
-
-/** Public Stitch release members available through the ordinary on-demand bundle installer. */
-export const ON_DEMAND_BUNDLES: readonly string[] = [
   '@deepseek-ai/dsh-subagent-claude-code',
   '@deepseek-ai/dsh-subagent-codex',
 ]

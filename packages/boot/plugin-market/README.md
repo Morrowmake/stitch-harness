@@ -28,7 +28,7 @@ The optional [custom plugin indexes bundle](../../experimental/plugin-market-bun
 
 | Config | Default | Meaning |
 |---|---|---|
-| `indexes` | `[DEFAULT_PLUGIN_INDEX]` | Canonical index source URLs in display order. Discover, Settings, and `setIndexes` change this field without remounting this service or `plugin-manager`. |
+| `indexes` | `DEFAULT_PLUGIN_INDEXES` | Canonical index source URLs in display order. The default is `DEFAULT_PLUGIN_INDEX`, then the DeepSeek Harness indexes `https://awesome-dsh-plugin.com/index.json` and `https://cdn.dsh.so/market/index.json`, each fetched only when read. Discover, Settings, and `setIndexes` change this field without remounting this service or `plugin-manager`. |
 | `fetchTimeoutMs` | `15000` | Deadline for each HTTP(S) index or detail file request, including the response body. |
 | `maxBytes` | `134217728` | Largest accepted index file. |
 | `cacheTtlMs` | `600000` | Lifetime of a successfully read index document, a detail read result, and a repository's default-branch commit. |

@@ -110,7 +110,7 @@ describe('web-app runtime glue', () => {
     const url = `http://${advertised}:4567`
     expect(ctx.webApp.getAdvertisedUrl()).toBe(url)
     await vi.waitFor(() => {
-      expect(contributions.find(item => item.name === 'web-runtime')?.resolve()).toEqual({ STITCH_WEB_URL: url })
+      expect(contributions.find(item => item.name === 'web-runtime')?.resolve()).toEqual({ STITCH_WEB_URL: url, DSH_WEB_URL: url })
     })
     expect(warn).not.toHaveBeenCalled()
   })
@@ -123,6 +123,7 @@ describe('web-app runtime glue', () => {
     await vi.waitFor(() => {
       expect(contributions.find(item => item.name === 'web-runtime')?.resolve()).toEqual({
         STITCH_WEB_URL: 'https://proxy.example:8443/web/',
+        DSH_WEB_URL: 'https://proxy.example:8443/web/',
       })
     })
   })

@@ -66,6 +66,8 @@ The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-a
 
 Two contributors declaring the same key, or a contributor claiming a reserved built-in (`STITCH_HOME`, `STITCH_SHELL`, `STITCH_SESSION_ID`, `STITCH_PROFILE`, `STITCH_PROFILE_DIR`, `STITCH_INSTALL_DIR`, `STITCH_NODE_EXECUTABLE`), fails plugin load loudly. A `STITCH_*` key must be all-caps with underscores (for example `STITCH_REGION`), and a missing description fails registration.
 
+DeepSeek Harness plugins run unchanged: a contributor may also declare `DSH_*` keys under the same rules, and the `DSH_` spellings of the built-ins are reserved too. For agent calls the registry exports `DSH_SESSION_ID` alongside `STITCH_SESSION_ID` with the same value.
+
 -----
 
 <a id="understand-the-implementation"></a>

@@ -10,6 +10,7 @@
 
 - [打开「发现」](#turn-on)
 - [浏览和安装](#browse-and-install)
+- [运行 DeepSeek Harness 插件](#deepseek-harness-plugins)
 - [发布索引](#publish-an-index)
 - [用参考生成器生成索引](#generate-an-index)
 - [索引格式参考](#index-format)
@@ -20,7 +21,7 @@
 
 打开**插件**，在**实验性插件**下找到**自定义插件索引**并打开开关。**已安装**旁边会出现**发现**标签页，Creator 模式也会获得只读的 `plugin_market` 工具。关闭该组合包会再次移除这两者。
 
-Stitch 不内置任何索引源。选择**发现**，点击**添加索引源**，输入一个索引文件的 URL。URL 必须使用 `http:` 或 `https:`，并且不能包含用户名、密码或 `#` 片段。网络路径上的任何人都能修改 `http:` 索引，包括其中列出的安装 spec，因此经由不受你控制的网络访问的索引应使用 `https:`。每个索引源属于当前 profile。
+「发现」首先列出 Stitch 插件索引，然后是 DeepSeek Harness 索引 `https://awesome-dsh-plugin.com/index.json` 和 `https://cdn.dsh.so/market/index.json`；在你打开之前不会请求任何索引。要添加其他索引，选择**发现**，点击**添加索引源**，输入一个索引文件的 URL。URL 必须使用 `http:` 或 `https:`，并且不能包含用户名、密码或 `#` 片段。网络路径上的任何人都能修改 `http:` 索引，包括其中列出的安装 spec，因此经由不受你控制的网络访问的索引应使用 `https:`。每个索引源属于当前 profile。
 
 <a id="browse-and-install"></a>
 ## 浏览和安装
@@ -32,6 +33,28 @@ Stitch 不内置任何索引源。选择**发现**，点击**添加索引源**�
 选择卡片会打开插件页面。**版本**列表显示列出的每个版本及其兼容性，并为 Stitch 接受的任何版本提供**安装**，包括旧版本和预发布版本。显示**已安装**、**有新版本**或**随 Stitch 提供**的卡片会改为打开已安装的组合包。
 
 索引是第三方内容。每个插件的标题、描述、图标、作者和来源都由索引决定；Stitch 检查文件格式，但不验证这些声明。只添加你信任的索引源，并在安装前核对确认框中的来源。
+
+<a id="deepseek-harness-plugins"></a>
+## 运行 DeepSeek Harness 插件
+
+Stitch 可以运行为 DeepSeek Harness（DSH）编写的插件。可以在「发现」中安装，也可以在命令行安装：
+
+```sh
+stitch plugin --profile web add <package>
+```
+
+一个小型兼容层让这些插件无需修改即可运行：
+
+- **环境变量。** 当 `STITCH_HOME`、`STITCH_AGENTS_HOME` 或 `STITCH_PERMISSION_MODE` 等 `STITCH_` 变量未设置时，Stitch 会改为读取其 `DSH_` 拼写；`STITCH_` 值始终优先。shell 命令和终端会收到与 `STITCH_SESSION_ID`、`STITCH_WEB_URL` 值相同的 `DSH_SESSION_ID` 和 `DSH_WEB_URL`，插件除了 `STITCH_*` 之外也可以注册名为 `DSH_*` 的 shell 变量。
+- **Skill。** 已存在的 `~/.dsh/skills` 或 `<project>/.dsh/skills` 目录中的 skill 可以使用。Stitch 只读取这些目录，从不创建它们；同名时 Stitch 的 skill 胜出。
+- **索引。** 「发现」在 Stitch 索引之后列出 DeepSeek Harness 索引，见[打开「发现」](#turn-on)。
+
+有些插件仍然无法工作：
+
+- 硬编码 `~/.dsh` 的插件会把数据留在那里，而不是 `~/.stitch` 下。
+- Harness peer 范围是精确版本或低于 `0.2.0` 的插件无法通过兼容性检查。若仍要安装，用 `stitch plugin --profile web allow-version <package@version> --stitch-version <exact> --accept-risk` 批准这一确切的版本组合。
+- 运行 `dsh` 可执行文件的插件会失败，因为 Stitch 只安装 `stitch`。
+- 依赖 DeepSeek 服务或 Stitch 已删除的 DeepSeek Harness 包的插件无法工作。
 
 <a id="publish-an-index"></a>
 ## 发布索引

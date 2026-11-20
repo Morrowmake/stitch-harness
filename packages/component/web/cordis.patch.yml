@@ -1,0 +1,22 @@
+# Web component: switches on the `# component: web` rows that dsh-web-app
+# (and, for shared base rows, its placeholder patches) keeps disabled, and marks
+# `web` enabled for the `component: web` gates of the agent presets.
+# Deselecting the bundle restores the placeholders.
+
+- id: web
+  disabled: false
+
+- id: web-search-keyless
+  disabled: false
+
+- id: web-fetch-http
+  disabled: false
+
+- id: ui-settings-web-search
+  disabled: false
+
+- insert:
+    - id: component-web
+      name: '@deepseek-ai/dsh-agent-preset-registry/component'
+      config:
+        id: web

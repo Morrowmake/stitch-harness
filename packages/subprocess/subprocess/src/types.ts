@@ -12,8 +12,14 @@ import type { Duplex, Readable, Writable } from 'node:stream'
 /** Namespace prefix reserved for Stitch-managed child environment facts. */
 export const DSH_ENV_PREFIX = 'STITCH_' as const
 
-/** One environment key inside the managed {@link DSH_ENV_PREFIX} namespace. */
-export type DshEnvironmentKey = `${typeof DSH_ENV_PREFIX}${string}`
+/**
+ * Prefix of the DeepSeek Harness (DSH) namespace that Stitch also accepts, so DSH plugins can
+ * register and read their `DSH_*` facts unchanged.
+ */
+export const DSH_COMPAT_ENV_PREFIX = 'DSH_' as const
+
+/** One environment key inside the managed {@link DSH_ENV_PREFIX} namespace or its DSH-compatible alias. */
+export type DshEnvironmentKey = `${typeof DSH_ENV_PREFIX | typeof DSH_COMPAT_ENV_PREFIX}${string}`
 
 /** Trusted Stitch variables for one child-process execution. */
 export type DshEnvironment = Readonly<Record<DshEnvironmentKey, string>>

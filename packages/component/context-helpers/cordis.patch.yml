@@ -1,0 +1,19 @@
+# Context helpers component: switches on the `# component: context-helpers` rows that dsh-web-app
+# (and, for shared base rows, its placeholder patches) keeps disabled, and marks
+# `context-helpers` enabled for the `component: context-helpers` gates of the agent presets.
+# Deselecting the bundle restores the placeholders.
+
+- id: image-offload
+  disabled: false
+
+- id: repeat-tool-reminder
+  disabled: false
+
+- id: session-title-llm
+  disabled: false
+
+- insert:
+    - id: component-context-helpers
+      name: '@deepseek-ai/dsh-agent-preset-registry/component'
+      config:
+        id: context-helpers

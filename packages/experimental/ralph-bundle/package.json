@@ -39,7 +39,8 @@
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml",
-      "listedByDefault": false
+      "listedByDefault": false,
+      "requires": ["@deepseek-ai/dsh-component-workflows"]
     }
   },
   "dependencies": {

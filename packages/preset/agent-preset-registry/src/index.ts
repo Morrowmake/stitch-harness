@@ -1,6 +1,7 @@
 /** Declarative Agent capability sets, activation and session binding. */
+import { setTimeout as sleep } from 'node:timers/promises'
 import type { ProjectionHandle } from '@deepseek-ai/dsh-session-projection'
-import { Context, Service } from '@deepseek-ai/cordis'
+import { Context, FiberState, Service } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { Remote, RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import { bindScopeParent, createScope, scopeOf, scopeParentOf, type Scope, type ScopeKey, type ScopeParentBinding } from '@deepseek-ai/dsh-scope'
@@ -16,6 +17,7 @@ import type { AgentPreset, Config } from './preset.ts'
 import { agentPresetProjectionDefinition } from './session.ts'
 import { auditRows, leakedServices, mountPreset, serviceForMount, type PresetMount } from './mount.ts'
 import { activeCompositionModules, definitionComposition, mountedCompositionRows, type AgentPresetComposition, type AgentPresetInspection } from './composition-inventory.ts'
+import { enabledComponents, gateDefinition } from './components.ts'
 
 export { agentPresetProjectionDefinition } from './session.ts'
 export { entryListProblem, type PresetDefinition } from './definition.ts'
@@ -43,6 +45,10 @@ interface Definition {
   generation?: Generation
   /** Mount failure; unset while a tree is mounted, whose rows {@link AgentPresetRegistry.diagnostic} re-audits on read. */
   broken?: string
+  /** The definition's own component gate fails: it is absent from the roster and mounts nothing. */
+  inactive?: boolean
+  /** The gated composition the current revision was activated from. */
+  composition?: string
 }
 interface Binding {
   parent: ScopeParentBinding
@@ -62,6 +68,7 @@ export class AgentPresetRegistry extends TypertRemoteService {
   private readonly generations = new Map<ScopeKey, Generation>()
   private readonly bindings = new WeakMap<ScopeKey, Binding>()
   private readonly switches = new Map<string, Promise<unknown>>()
+  private componentRefresh: Promise<void> = Promise.resolve()
 
   constructor(ctx: Context, public config: Config) {
     super(ctx, 'agentPresets')
@@ -116,13 +123,17 @@ export class AgentPresetRegistry extends TypertRemoteService {
   }
 
   private async activate(record: Definition): Promise<void> {
+    const gated = gateDefinition(record.config, enabledComponents(this.owner.loader))
+    record.composition = JSON.stringify(gated)
+    record.inactive = !gated.active
+    if (record.inactive) return
     const key = {}
     const scope = createScope(this.owner, key)
     try {
       const problem = entryListProblem(record.config.plugins)
       if (problem !== undefined) throw new Error(problem)
       const context = scope.ctx.extend({ baseUrl: record.context.baseUrl })
-      const mount = await mountPreset(context, record.config.id, record.config.plugins)
+      const mount = await mountPreset(context, record.config.id, gated.plugins)
       const generation: Generation = { scope, key, mount, users: 0, retired: false }
       context.effect(() => {
         this.generations.set(key, generation)
@@ -134,6 +145,48 @@ export class AgentPresetRegistry extends TypertRemoteService {
       this.owner.logger.warn(`agent preset ${record.config.id}: ${record.broken}`)
       await scope.dispose()
     }
+  }
+
+  /**
+   * Re-compose every definition whose gated composition changed since its current revision, after the component
+   * markers starting or stopping in this Loader pass settle. Live Agents keep the revision they joined.
+   */
+  refreshComponents(): void {
+    this.componentRefresh = this.componentRefresh
+      .then(() => sleep(0))
+      .then(() => this.applyComponents())
+      .catch((error: unknown) => { this.owner.logger.warn(`agent preset components: ${String(error)}`) })
+  }
+
+  private async applyComponents(): Promise<void> {
+    // Markers also stop while the Host shuts down; a stopping registry composes nothing new.
+    if (this.owner.fiber.state !== FiberState.ACTIVE) return
+    const enabled = enabledComponents(this.owner.loader)
+    for (const record of [...this.definitions.values()]) {
+      await record.ready
+      if (this.definitions.get(record.config.id) !== record) continue
+      if (JSON.stringify(gateDefinition(record.config, enabled)) === record.composition) continue
+      const previous = record.generation
+      delete record.generation
+      delete record.broken
+      record.ready = this.activate(record)
+      await record.ready
+      if (previous !== undefined) {
+        previous.retired = true
+        await this.collect(previous)
+      }
+    }
+  }
+
+  /** The registered, active definition of an id. */
+  private activeDefinition(id: string): Definition | undefined {
+    const record = this.definitions.get(id)
+    return record?.inactive === true ? undefined : record
+  }
+
+  /** Ids of registered, active definitions, for not-found diagnostics. */
+  private activeIds(): string[] {
+    return [...this.definitions.values()].filter(record => record.inactive !== true).map(record => record.config.id)
   }
 
   /**
@@ -192,15 +245,16 @@ export class AgentPresetRegistry extends TypertRemoteService {
   async list(): Promise<AgentPreset[]> {
     const rows = await Promise.all([...this.definitions.values()].map(async (record) => {
       const broken = await this.diagnostic(record)
-      return {
+      if (record.inactive === true) return []
+      return [{
         id: record.config.id,
         ...(record.config.name === undefined ? {} : { name: record.config.name }),
         ...(record.config.description === undefined ? {} : { description: record.config.description }),
         ...(record.config.order === undefined ? {} : { order: record.config.order }),
         ...(broken === undefined ? {} : { broken }),
-      }
+      }]
     }))
-    return rows.sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity) || a.id.localeCompare(b.id))
+    return rows.flat().sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity) || a.id.localeCompare(b.id))
   }
 
   /** Read the selection roster.
@@ -218,9 +272,9 @@ export class AgentPresetRegistry extends TypertRemoteService {
    */
   async resolve(id?: string): Promise<AgentPreset> {
     const wanted = id ?? this.defaultId
-    const record = this.definitions.get(wanted)
+    const record = this.activeDefinition(wanted)
     if (record === undefined) throw new RemoteError('agent-preset/not-found', `Unknown agent preset: ${wanted}`,
-      { agentPreset: wanted, available: [...this.definitions.keys()] })
+      { agentPreset: wanted, available: this.activeIds() })
     const broken = await this.diagnostic(record)
     return { id: wanted, ...(broken === undefined ? {} : { broken }) }
   }
@@ -231,10 +285,10 @@ export class AgentPresetRegistry extends TypertRemoteService {
    */
   @Remote('read')
   readDocument(agentPreset: string): Promise<AgentPresetDocument> {
-    const record = this.definitions.get(agentPreset)
+    const record = this.activeDefinition(agentPreset)
     if (record === undefined) {
       return Promise.reject(new RemoteError('agent-preset/not-found', `Unknown agent preset: ${agentPreset}`,
-        { agentPreset, available: [...this.definitions.keys()] }))
+        { agentPreset, available: this.activeIds() }))
     }
     const { id, name, description, plugins } = record.config
     // The Loader's own dialect, so `!!js` conditions read as declared rather than as expression objects.
@@ -247,11 +301,11 @@ export class AgentPresetRegistry extends TypertRemoteService {
   private async retain(id?: string): Promise<Generation> {
     const wanted = id ?? this.defaultId
     while (true) {
-      const record = this.definitions.get(wanted)
+      const record = this.activeDefinition(wanted)
       if (record === undefined) throw new RemoteError('agent-preset/not-found', `Unknown agent preset: ${wanted}`,
-        { agentPreset: wanted, available: [...this.definitions.keys()] })
+        { agentPreset: wanted, available: this.activeIds() })
       const broken = await this.diagnostic(record)
-      if (this.definitions.get(wanted) !== record) continue
+      if (this.activeDefinition(wanted) !== record) continue
       const generation = record.generation
       if (broken !== undefined || generation === undefined) {
         const reason = broken as string
@@ -399,16 +453,19 @@ export class AgentPresetRegistry extends TypertRemoteService {
   /** Read plugin rows without creating an Agent.
    * @returns Current declaration metadata and activation states.
    */
-  compositionInventory(): Promise<AgentPresetComposition[]> {
-    return Promise.all([...this.definitions.values()].map(async (record) => {
+  async compositionInventory(): Promise<AgentPresetComposition[]> {
+    const enabled = enabledComponents(this.owner.loader)
+    const rows = await Promise.all([...this.definitions.values()].map(async (record) => {
       const { id, name, description } = record.config
       const broken = await this.diagnostic(record)
-      const read = definitionComposition(record.config.plugins, () => { throw new Error('Inactive definition') })
-      return { id, ...(name === undefined ? {} : { name }), ...(description === undefined ? {} : { description }),
+      if (record.inactive === true) return []
+      const read = definitionComposition(gateDefinition(record.config, enabled).plugins, () => { throw new Error('Inactive definition') })
+      return [{ id, ...(name === undefined ? {} : { name }), ...(description === undefined ? {} : { description }),
         isDefault: id === this.defaultId,
         ...(broken === undefined ? {} : { broken }),
-        rows: record.generation === undefined ? ('rows' in read ? read.rows : []) : mountedCompositionRows(record.generation.mount.tree) }
+        rows: record.generation === undefined ? ('rows' in read ? read.rows : []) : mountedCompositionRows(record.generation.mount.tree) }]
     }))
+    return rows.flat()
   }
 }
 export default AgentPresetRegistry

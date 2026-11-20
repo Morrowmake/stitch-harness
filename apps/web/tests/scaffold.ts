@@ -814,6 +814,9 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
         op: 'set', path: [WELCOME_NOTICE_ACK_FIELD], value: WELCOME_NOTICE_VERSION,
       }])
     }
+    // Mirrored from packages/client/ui-first-run/src/settings.ts for the same
+    // reason as the welcome notice: e2e lanes start past the first-run dialog.
+    await ctx.settings.mutate('ui-first-run', [{ op: 'set', path: ['completedVersion'], value: '2026-11-20.1' }])
     if (options.firstUse !== true && ctx.workspaceRegistry.list().length === 0) {
       const initial = await ctx.workspaceRegistry.initializeDefault(async () => workspaceCwd)
       if (initial !== undefined) await ctx.workspaceRegistry.delete(initial.id)

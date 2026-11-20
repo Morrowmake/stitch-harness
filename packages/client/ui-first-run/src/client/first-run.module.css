@@ -1,0 +1,244 @@
+/* First-run dialog: provider, default-model, and component steps; the two entry points. */
+
+.dialog {
+  width: min(640px, calc(100vw - 32px));
+}
+
+.content {
+  max-height: min(720px, calc(100vh - var(--dsh-frame-top-clearance, 0px) - 64px));
+  overflow-y: auto;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.progress {
+  margin: 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.intro,
+.hint,
+.muted,
+.error,
+.notice {
+  margin: 0;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.intro {
+  color: var(--dsw-alias-label-secondary);
+}
+
+.hint,
+.muted {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.error {
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.notice {
+  color: var(--dsw-alias-state-warn-label);
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.groupHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.groupTitle {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  color: var(--dsw-alias-label-primary);
+}
+
+.groupAction {
+  margin-left: auto;
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 0.5px solid var(--dsw-alias-border-l3);
+  border-radius: var(--dsw-radius-sm);
+}
+
+.rowSelected {
+  border-color: var(--dsw-alias-border-selected);
+}
+
+.rowHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.rowText {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 500;
+  color: var(--dsw-alias-label-primary);
+}
+
+.detail {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.rowActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.formActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.hostedList {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.models {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 280px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.code {
+  padding: 4px 8px;
+  border-radius: var(--dsw-radius-xs);
+  /* An outline rather than an elevated fill: this sheet's lists scroll, and elevated fills there need a scrollbar rebind. */
+  border: 0.5px solid var(--dsw-alias-border-l3);
+  font-family: var(--ds-font-family-code);
+  font-size: 16px;
+  line-height: 24px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.select {
+  min-height: 36px;
+  border: 0.5px solid var(--dsw-alias-border-l3);
+  border-radius: var(--dsw-radius-sm);
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+}
+
+.icon {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--dsw-alias-link);
+  font: inherit;
+  font-size: 13px;
+  line-height: 20px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.link:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.menuCopy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.menuDescription {
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.footerEntry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}

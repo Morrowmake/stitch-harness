@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Workspace tracking",
+    "description": "Records the files each turn changes and shows the changed-files and delivery cards."
+  }
+}

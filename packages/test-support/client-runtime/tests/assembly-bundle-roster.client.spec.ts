@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { PLATFORM_MODULES } from '@deepseek-ai/dsh-client-web/src/platform.ts'
 import { afterAll, describe, expect, it, onTestFinished } from 'vitest'
 import { MODULES_PACKAGE } from '../src/assembly/modules.ts'
-import { WEB_PROFILE_BUNDLES, bundleRoster, webApp } from '../src/assembly/bundle-roster.ts'
+import { CLI_ANCHOR, WEB_PROFILE_BUNDLES, bundleRoster, webApp } from '../src/assembly/bundle-roster.ts'
 
 function profileScope(name: string) {
   const services: Record<string, object | undefined> = { profileContext: { name } }
@@ -13,16 +13,17 @@ function profileScope(name: string) {
 }
 
 describe('webApp (the real web profile)', () => {
-  it('composes dsh-base then dsh-web-app: unique names, inject edges on roster rows or platform seed words', () => {
-    expect(WEB_PROFILE_BUNDLES).toEqual(['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'])
+  it('composes dsh-base, dsh-web-app, then the Standard components: unique names, inject edges on roster rows or platform seed words', () => {
+    expect(WEB_PROFILE_BUNDLES.slice(0, 2)).toEqual(['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'])
+    expect(WEB_PROFILE_BUNDLES).toContain('@deepseek-ai/dsh-component-schedules')
     const names = webApp.rows.map(row => row.name)
     expect(new Set(names).size).toBe(names.length)
     const known = new Set([...names, ...PLATFORM_MODULES])
     const dangling = webApp.rows.flatMap(row => row.inject.filter(target => !known.has(target)).map(target => `${row.name} -> ${target}`))
     expect(dangling).toEqual([])
-    expect(bundleRoster(WEB_PROFILE_BUNDLES, undefined, profileScope('web')).rows).toEqual(webApp.rows)
+    expect(bundleRoster(WEB_PROFILE_BUNDLES, CLI_ANCHOR, profileScope('web')).rows).toEqual(webApp.rows)
     expect(names).not.toContain('@deepseek-ai/dsh-client-ui-sidebar-browser')
-    expect(bundleRoster(WEB_PROFILE_BUNDLES, undefined, profileScope('desktop')).rows.map(row => row.name))
+    expect(bundleRoster(WEB_PROFILE_BUNDLES, CLI_ANCHOR, profileScope('desktop')).rows.map(row => row.name))
       .toContain('@deepseek-ai/dsh-client-ui-sidebar-browser')
   })
 

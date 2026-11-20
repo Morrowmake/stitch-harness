@@ -48,12 +48,16 @@ skill 可以是被扫描根目录顶层的目录 bundle `<name>/SKILL.md`，也�
 | Rank | 来源 | 路径 |
 |---|---|---|
 | 100 | `project-dsh` | `<projectRoot>/.stitch/skills` |
+| 150 | `project-deepseek-harness` | `<projectRoot>/.dsh/skills`，仅当其存在时 |
 | 200 | `project-agents` | `<projectRoot>/.agents/skills` |
 | 300 | `custom` | `Config.customSkillDirs` |
 | 400 | `user-dsh` | `<dshHome>/skills` |
+| 450 | `user-deepseek-harness` | `~/.dsh/skills`，仅当其存在时 |
 | 500 | `user-agents` | `<agentsHome>/skills` |
 
 项目根目录是包含 `.git` 的最近祖先目录；如果不存在，则使用当前 cwd。用户 Stitch 根目录会跳过其 `.system` 子目录。`includeDefaultRoots: false` 会省略项目根、用户根以及 `$STITCH_BUNDLED_SKILL_DIR` 默认值，使隔离提供方只看到自身配置的根；`bundledSkillDir` 会按 rank 600 添加一个随包提供的根目录。
+
+两个 DeepSeek Harness 根目录用于公开现有 DSH 安装中已有的 skill。它们是只读的：提供方从不创建或写入它们，并且只在查找时目录存在才加入。每个根都紧排在对应的 Stitch `.stitch` 根之后，因此同名时 Stitch 的 skill 胜出；用户 DSH 根同样跳过其 `.system` 子目录，并且当 `dshHome` 本身就是 `~/.dsh` 时会被省略。
 
 ### 挂载与配置
 

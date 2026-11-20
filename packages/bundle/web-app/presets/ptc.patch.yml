@@ -1,12 +1,17 @@
 # Agent preset ptc: one `@deepseek-ai/dsh-agent-preset` declaration inserted
 # after the web patch. Edits saved from the Web editor override this row's
 # `config.plugins` by id from the profile patch.
+#
+# The preset needs the Extra presets component and, for its PTC runtime, the
+# Workflows component. A row's `component:` gate keeps it in the composition
+# only while the profile selects that component; see packages/component/README.md.
 - insert:
     - id: preset-ptc
       name: '@deepseek-ai/dsh-agent-preset'
       config:
         id: ptc
         order: 2
+        component: [presets, workflows]
         plugins:
           - id: persona
             name: '@deepseek-ai/dsh-persona'
@@ -17,6 +22,7 @@
             config:
               maxBytes: 65536
           - id: time-context
+            component: context-helpers
             name: '@deepseek-ai/dsh-time-context'
           - id: tool-bash
             name: '@deepseek-ai/dsh-tool-bash'
@@ -30,22 +36,28 @@
               # Set true to add the apply_patch tool beside edit.
               applyPatch: false
           - id: tool-fs-search
+            component: search-tools
             name: '@deepseek-ai/dsh-tool-fs-search'
             config:
               sampleOverCapGlobResults: false
           - id: tool-jobs
+            component: jobs
             name: '@deepseek-ai/dsh-tool-jobs'
           - id: tool-schedule
+            component: schedules
             name: '@deepseek-ai/dsh-tool-schedule'
           - id: skill-filesystem
             name: '@deepseek-ai/dsh-skill-filesystem'
           - id: tool-skill
             name: '@deepseek-ai/dsh-tool-skill'
           - id: command-goal
+            component: goals
             name: '@deepseek-ai/dsh-command-goal'
           - id: tool-goal
+            component: goals
             name: '@deepseek-ai/dsh-tool-goal'
           - id: planning
+            component: planning
             name: cordis:group
             group: true
             isolate:
@@ -78,6 +90,7 @@
               - id: command-compact
                 name: '@deepseek-ai/dsh-command-compact'
               - id: tool-result-pruner
+                component: context-helpers
                 name: '@deepseek-ai/dsh-compaction-tool-result-pruner'
                 config:
                   thresholdChars: 8192
@@ -90,10 +103,12 @@
               workflowEngine: true
             config:
               - id: tool-subagent-control
+                component: subagents
                 name: '@deepseek-ai/dsh-tool-subagent-control'
                 config:
                   interrupt: false
               - id: tool-subagent
+                component: subagents
                 name: '@deepseek-ai/dsh-tool-subagent'
                 config:
                   provider: spawn
@@ -101,25 +116,30 @@
                   modelSelection: true
                   modelDiscovery: true
               - id: tool-subagent-fork
+                component: subagents
                 name: '@deepseek-ai/dsh-tool-subagent'
                 config:
                   provider: fork
                   toolName: subagent_fork
               - id: workflow-ptc
+                component: workflows
                 name: '@deepseek-ai/dsh-workflow-ptc'
                 disabled: true
                 config:
                   provider: spawn
               - id: tool-workflow
+                component: workflows
                 name: '@deepseek-ai/dsh-tool-workflow'
                 disabled: true
           - id: tool-ask-user
             name: '@deepseek-ai/dsh-tool-ask-user'
           - id: tool-todo
+            component: planning
             name: '@deepseek-ai/dsh-tool-todo'
             config:
               allowParallelInProgress: true
           - id: tool-web
+            component: web
             name: '@deepseek-ai/dsh-tool-web'
             config:
               fetch: true
@@ -127,8 +147,10 @@
           - id: tool-executor-ptc
             name: '@deepseek-ai/dsh-tool-executor-ptc'
           - id: present
+            component: office
             name: '@deepseek-ai/dsh-tool-present'
           - id: tool-office
+            component: office
             name: '@deepseek-ai/dsh-tool-office'
           - id: tool-plugin-manager
             name: '@deepseek-ai/dsh-plugin-manager/tools'

@@ -1,0 +1,28 @@
+# Subagents component: switches on the `# component: subagents` rows that dsh-web-app
+# (and, for shared base rows, its placeholder patches) keeps disabled, and marks
+# `subagents` enabled for the `component: subagents` gates of the agent presets.
+# Deselecting the bundle restores the placeholders.
+
+- id: subagent
+  disabled: false
+
+- id: subagent-spawn-in-process
+  disabled: false
+
+- id: subagent-fork-in-process
+  disabled: false
+
+- id: subagent-model-selection-settings
+  disabled: false
+
+- id: ui-subagent
+  disabled: false
+
+- id: ui-settings-subagent
+  disabled: false
+
+- insert:
+    - id: component-subagents
+      name: '@deepseek-ai/dsh-agent-preset-registry/component'
+      config:
+        id: subagents

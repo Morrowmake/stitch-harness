@@ -37,9 +37,9 @@ kind: "package-reference"
 
 已安装的组合包及其插件行在卡片和详情页中，按当前界面语言显示各自的标题与描述。每个字段先读取导出的 locale `meta`，缺失时回退到包根插件可访问的 `package.json`，子路径插件从不读取；标题最终使用完整包名或模块名，两处都没有描述时不提供包描述。作者格式见[插件展示元信息](../../../docs/cookbook/adding-a-package.zh.md#plugin-display-metadata)。组合包卡片、详情和组件行显示包根的清单 `icon` 或导出的 `./icon`，或子路径插件导出的 `<子路径>/icon`；未声明或无法解码时保留默认插画。安装预览仍使用注册表或 manifest 信息。
 
-组合包页面在其各部分中首先显示该组合包的详细介绍文档，不带单独的标题：以当前界面语言、带图片的 Markdown 显示该组合包的详细介绍。该文档是组合包 `locale/<language>.json` 中 `meta.detail` 指定的 Markdown 文件，没有时为组合包的 README，由 [`pluginManager.readBundleDetail`](../../boot/plugin-manager/README.zh.md#bundle-detail-documents) 按 [`dsh-plugin-detail` 的文档顺序](../../util/plugin-detail/README.zh.md#document-order)读取；不读取组合包声明的仓库。已安装组合包的文档来自其自身文件，不访问网络；按需官方组合包的文档按其提供的版本从 npm 文件 CDN 读取。文档加载期间，该部分显示三行骨架屏；没有文档的组合包不显示该部分；读取失败时说明原因，并提供**重试**。原始 HTML 会被省略，相对路径的图片从 Host 上该文档旁的位置加载，相对链接保持为文本，文档高度超过该部分的高度上限时在该部分内滚动。文件未安装的组合包（例如按需官方组合包）从 npm 文件 CDN 读取：读取前先询问 Host 的注册表比较，npmmirror 响应最快时，先从 npmmirror 读取该文档及其图片。已安装组合包的读取不等待该比较。任何 profile 变化和连接重置都会重新读取已显示的文档。
+组合包页面在其各部分中首先显示该组合包的详细介绍文档，不带单独的标题：以当前界面语言、带图片的 Markdown 显示该组合包的详细介绍。该文档是组合包 `locale/<language>.json` 中 `meta.detail` 指定的 Markdown 文件，没有时为组合包的 README，由 [`pluginManager.readBundleDetail`](../../boot/plugin-manager/README.zh.md#bundle-detail-documents) 按 [`dsh-plugin-detail` 的文档顺序](../../util/plugin-detail/README.zh.md#document-order)从组合包自身文件读取，不访问网络；不读取组合包声明的仓库。文档加载期间，该部分显示三行骨架屏；没有文档的组合包不显示该部分；读取失败时说明原因，并提供**重试**。原始 HTML 会被省略，相对路径的图片从 Host 上该文档旁的位置加载，相对链接保持为文本，文档高度超过该部分的高度上限时在该部分内滚动。任何 profile 变化和连接重置都会重新读取已显示的文档。
 
-官方按需卡片在安装前即可离线显示。在“添加插件”中输入不带版本的官方包名时，使用 Host 提供的匹配版本或源码 checkout 目标，保留用户选择的安装源，并在安装后提供“立即启用”。开启会打开已有的安装进度对话框，安装[当前 Host 提供的目标](../../boot/plugin-manager/README.zh.md#use-this-package)并选择配置层。安装源回退、取消和脚本审批继续使用同一组控件。关闭保留依赖；移除是独立操作。版本或开发链接来源不同会提供**更新**；详情显示当前及所提供的来源和版本。更新先删除已安装的包，再以相同的选择状态安装所提供的包，并报告是否需要重启；删除之后安装失败时，该包保持未安装。文件缺失或不可读的包在诊断旁保留记录的依赖来源。已启用的 bundle 在 checkout 目标不可用时仍可关闭。
+文件缺失或不可读的包在诊断旁保留记录的依赖来源，已启用的此类包仍可关闭。
 
 首次读取列表时，页面显示一条较短的分组标题占位和四行骨架卡片，沿用真实卡片的行、图标和文字间距，操作区域留白。骨架使用与 Session 搜索相同的透明度呼吸动效，在减少动态效果模式下保持静止。无障碍加载文案和读取时机不变；刷新时保留已有列表，安装及组件加载仍使用各自的状态提示。
 
@@ -194,7 +194,7 @@ Host 入口通过生成的 Remote 接口暴露 `pluginRegistryProbe.fastest()`�
 - **只管理组合包**——没有组合包 patch 的依赖在安装前就被拒绝；profile 里已有的这类依赖不上页面，除非 profile 选中了它；加载普通插件模块仍是文件操作。
 - **行只显示阶段，不显示原因**——失败的行只显示为失败，没有 Host 的错误文本；Host 日志里有。
 - **一次只能安装一个**——对话框一次运行一个 pnpm 命令；第二个 spec 要等前一个完成。
-- **没有版本选择器**——spec 按 pnpm 接受的写法输入；页面不列出注册表版本。官方按需条目提供[当前安装对应的目标](../../boot/plugin-manager/README.zh.md#use-this-package)。其他 profile 插件通过卸载后重新安装更改版本；安装随附的组合包随 Stitch 升级。
+- **没有版本选择器**——spec 按 pnpm 接受的写法输入；页面不列出注册表版本。profile 插件通过卸载后重新安装更改版本；安装随附的组合包随 Stitch 升级。
 - **安装源选择只属于本浏览器**——它存在 `localStorage` 里，所以另一个浏览器会独立计算初始推荐；`stitch plugin` 命令和 agent 工具使用 Host 配置的注册表。
 - **每次读注册表都要运行 pnpm**——打开对话框、检查、安装各问一次 pnpm 自身配置指向哪里；没有 pnpm 的机器读作未知，不提供备选。
 

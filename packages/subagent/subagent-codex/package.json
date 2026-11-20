@@ -36,7 +36,8 @@
   "license": "MIT",
   "dsh": {
     "bundle": {
-      "patch": "./cordis.patch.yml"
+      "patch": "./cordis.patch.yml",
+      "requires": ["@deepseek-ai/dsh-component-subagents"]
     }
   },
   "peerDependencies": {

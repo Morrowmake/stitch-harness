@@ -1,0 +1,16 @@
+# Workflows component: switches on the `# component: workflows` rows that dsh-web-app
+# (and, for shared base rows, its placeholder patches) keeps disabled, and marks
+# `workflows` enabled for the `component: workflows` gates of the agent presets.
+# Deselecting the bundle restores the placeholders.
+
+- id: ptc-runtime
+  disabled: false
+
+- id: ui-workflow-run
+  disabled: false
+
+- insert:
+    - id: component-workflows
+      name: '@deepseek-ai/dsh-agent-preset-registry/component'
+      config:
+        id: workflows

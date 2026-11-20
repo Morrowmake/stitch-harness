@@ -7,7 +7,14 @@ export interface PresetDefinition {
   readonly name?: string
   readonly description?: string
   readonly order?: number
-  readonly plugins: readonly (Omit<EntryOptions, 'id' | 'disabled'> & { id?: string; disabled?: EntryOptions['disabled'] | JsExpr })[]
+  /** Component gate: the preset is listed and mounted only while it holds (see `components.ts`). */
+  readonly component?: string | readonly string[]
+  /** Child rows; a row's own `component` gate drops it from the composition while the gate fails. */
+  readonly plugins: readonly (Omit<EntryOptions, 'id' | 'disabled'> & {
+    id?: string
+    disabled?: EntryOptions['disabled'] | JsExpr
+    component?: string | readonly string[]
+  })[]
 }
 
 /** Validate a parsed Cordis entry list, including nested groups.

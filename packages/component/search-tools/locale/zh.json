@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "搜索工具",
+    "description": "用于查找文件和文本的 glob 与 grep 工具。"
+  }
+}

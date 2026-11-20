@@ -39,9 +39,9 @@ kind: "package-library"
 
 `PROTECTED_PLUGINS` 列出[插件管理器](../../boot/plugin-manager/README.zh.md)因管理功能依赖而保持只读的插件包；包含其中任一插件的组合包是管理组合包。移除其中一项只解除这一条 `management-required` 拒绝；管理器自身的入口、随安装提供的组合包和不可寻址的行仍由各自的规则保护。[Web 插件页](../../client/ui-plugin-manager/README.zh.md)隐藏 `HIDDEN_BUNDLES`，把 `EXTENSION_BUNDLES` 按顺序排在最前，在 profile 启用 `MORE_BUNDLES` 之前不把它们放上主列表，并为 `EXPERIMENTAL_BUNDLES` 显示实验性标记。
 
-### 按需组合包
+### 组件
 
-`ON_DEMAND_BUNDLES` 列出只在请求时安装的官方公开包。`OFFICIAL_ON_DEMAND_CATALOG` 内嵌这些包自己持有的本地化元信息、图标和可选的 `dsh.bundle.platforms` 声明，用于离线发现与安装前的 Host 平台检查；`pnpm gen-official-bundle-catalog` 显式更新生成内容，`verify-official-bundle-catalog` 检查资源完整性与时效；构建使用已提交的目录，不导入提供方代码。目录不包含安装目标：插件管理器根据运行中的版本和安装推导目标，并使用普通的组合包安装器。[产品使用检查](../../../scripts/verify-product-use.ts)针对 Web 组合随附选择和按需选择，不执行提供方。
+`src/components.ts` 定义 Web 与 Desktop 的功能组件：`COMPONENTS` 按显示与层顺序列出每个官方组件组合包，每个组件在 `COMPONENT_HOST_BUNDLES`（`dsh-base` + `dsh-web-app`）之上开启一整项功能；`COMPONENT_PRESETS` 命名首次运行选择器提供的 `minimal` 与 `standard` 组合，其中 `standard` 复现随附的 `web` profile。`matchComponentPreset` 把 profile 的组合包列表归类为其中一个组合或 `custom`；`closeBundleChanges` 按 `dsh.bundle.requires` 闭合一次启用变更：启用某个组合包会启用其前置包，停用某个组合包会停用所有依赖它的组合包。子代理提供方 `@deepseek-ai/dsh-subagent-claude-code` 与 `@deepseek-ai/dsh-subagent-codex` 是随安装附带的普通 `OPTIONAL_BUNDLES`，[产品使用检查](../../../scripts/verify-product-use.ts)针对 Web 将它们与其他可选选择一起组合，不执行提供方。
 
 -----
 
@@ -59,7 +59,6 @@ kind: "package-library"
 |---|---|
 | [`src/bundles.ts`](src/bundles.ts) | Profile 模板，以及默认、安装持有、已退役、可选和按需组合包列表 |
 | [`src/plugin-manager.ts`](src/plugin-manager.ts) | 受保护的插件包，以及 Web 插件页的隐藏、排序和实验性组合包列表 |
-| [`src/catalog.generated.ts`](src/catalog.generated.ts) | 按需组合包的生成离线元信息 |
 | [`src/index.ts`](src/index.ts) | 公开导出与目录条目类型 |
 
 </details>

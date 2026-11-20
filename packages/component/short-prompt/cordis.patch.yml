@@ -1,0 +1,10 @@
+# Short system prompt component: switches on the `# component: short-prompt` rows that dsh-web-app
+# (and, for shared base rows, its placeholder patches) keeps disabled, and marks
+# `short-prompt` enabled for the `component: short-prompt` gates of the agent presets.
+# Deselecting the bundle restores the placeholders.
+
+- insert:
+    - id: component-short-prompt
+      name: '@deepseek-ai/dsh-agent-preset-registry/component'
+      config:
+        id: short-prompt

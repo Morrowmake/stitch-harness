@@ -15,8 +15,8 @@ One provider's spawn working directories, executable paths, ordinary processes, 
 `STITCH_*` variables are Harness-owned child-process facts; implementations discard ambient `STITCH_*` names before the caller's explicit `env` merges, so a current fact arrives only as a deliberate string entry, while an explicit `undefined` tombstone removes an ordinary ambient value. Each collected stream reports its truncation and spill-recovery state through `CollectedOutput`.
 
 ```ts type-equiv
-/** One environment key inside the managed {@link DSH_ENV_PREFIX} namespace. */
-type DshEnvironmentKey = `${typeof DSH_ENV_PREFIX}${string}`
+/** One environment key inside the managed {@link DSH_ENV_PREFIX} namespace or its DSH-compatible alias. */
+type DshEnvironmentKey = `${typeof DSH_ENV_PREFIX | typeof DSH_COMPAT_ENV_PREFIX}${string}`
 ```
 
 ```ts type-equiv

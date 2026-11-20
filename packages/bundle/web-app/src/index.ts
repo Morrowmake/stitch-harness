@@ -58,7 +58,7 @@ export interface Config {
   /** Print the URL lines on activation; a non-interactive layer can turn them off. */
   printUrl: boolean
   /**
-   * Register the `STITCH_WEB_URL` bash variable naming this GUI. A one-shot
+   * Register the `STITCH_WEB_URL` bash variable naming this GUI, plus its DeepSeek Harness alias `DSH_WEB_URL`. A one-shot
    * non-interactive layer can turn it off when its user is not in the GUI.
    */
   surfaceContext: boolean
@@ -81,6 +81,8 @@ export const Config: z<Config> = z.object({
 
 /** Environment variable naming the advertised URL of this Web GUI. */
 const STITCH_WEB_URL = 'STITCH_WEB_URL' as const
+/** DeepSeek Harness alias of {@link STITCH_WEB_URL}, exported with the same value for DSH plugins. */
+const DSH_WEB_URL = 'DSH_WEB_URL' as const
 
 const BROWSER_OPENER_MODULE = import.meta.resolve('open')
 
@@ -220,8 +222,12 @@ export function apply(ctx: Context, config: Config): void {
         name: 'web-runtime',
         variables: {
           [STITCH_WEB_URL]: { description: 'Advertised URL of the Stitch Web GUI serving this session.' },
+          [DSH_WEB_URL]: { description: 'DeepSeek Harness alias of STITCH_WEB_URL, for DSH plugins.' },
         },
-        resolve: () => ({ [STITCH_WEB_URL]: appRootUrl() }),
+        resolve: () => {
+          const url = appRootUrl()
+          return { [STITCH_WEB_URL]: url, [DSH_WEB_URL]: url }
+        },
       })
     })
   }

@@ -10,6 +10,7 @@ A plugin index is one JSON file that lists installable Stitch bundles with their
 
 - [Turn on Discover](#turn-on)
 - [Browse and install](#browse-and-install)
+- [Running DeepSeek Harness plugins](#deepseek-harness-plugins)
 - [Publish an index](#publish-an-index)
 - [Generate an index with the reference generator](#generate-an-index)
 - [Index format reference](#index-format)
@@ -20,7 +21,7 @@ A plugin index is one JSON file that lists installable Stitch bundles with their
 
 Open **Plugins**, find **Custom plugin indexes** under **Experimental plugins**, and switch it on. A **Discover** tab appears next to **Installed**, and Creator mode gains the read-only `plugin_market` tool. Switching the bundle off removes both again.
 
-Stitch ships no index source. Select **Discover**, choose **Add index source**, and enter the URL of an index file. A URL must use `http:` or `https:` and must not contain a user name, password, or `#` fragment. Anyone on the network path can change an `http:` index, including the install specs it lists, so use `https:` for an index reached over a network you do not control. Each source belongs to the current profile.
+Discover lists the Stitch plugin index first, then the DeepSeek Harness indexes `https://awesome-dsh-plugin.com/index.json` and `https://cdn.dsh.so/market/index.json`; none is fetched until you open it. To add another, select **Discover**, choose **Add index source**, and enter the URL of an index file. A URL must use `http:` or `https:` and must not contain a user name, password, or `#` fragment. Anyone on the network path can change an `http:` index, including the install specs it lists, so use `https:` for an index reached over a network you do not control. Each source belongs to the current profile.
 
 <a id="browse-and-install"></a>
 ## Browse and install
@@ -32,6 +33,28 @@ Each card shows the plugin's recommended version: the highest version compatible
 Select a card to open its page. The **Versions** list shows every listed version with its compatibility and offers **Install** for any version Stitch accepts, including older releases and prereleases. A card that shows **Installed**, **Update available**, or **Provided by Stitch** opens the installed bundle instead.
 
 Indexes are third-party content. An index chooses each plugin's title, description, icon, author, and source; Stitch checks the file format but not those claims. Add only sources you trust, and check the source in the confirmation before installing.
+
+<a id="deepseek-harness-plugins"></a>
+## Running DeepSeek Harness plugins
+
+Stitch runs plugins written for DeepSeek Harness (DSH). Install one from Discover, or from the command line:
+
+```sh
+stitch plugin --profile web add <package>
+```
+
+A small compatibility layer lets these plugins run unchanged:
+
+- **Environment.** When a `STITCH_` variable such as `STITCH_HOME`, `STITCH_AGENTS_HOME`, or `STITCH_PERMISSION_MODE` is unset, Stitch reads its `DSH_` spelling instead; a `STITCH_` value always wins. Shell commands and terminals receive `DSH_SESSION_ID` and `DSH_WEB_URL` with the same values as `STITCH_SESSION_ID` and `STITCH_WEB_URL`, and a plugin may register shell variables named `DSH_*` as well as `STITCH_*`.
+- **Skills.** Skills in an existing `~/.dsh/skills` or `<project>/.dsh/skills` directory are available. Stitch only reads these directories and never creates them; a Stitch skill with the same name wins.
+- **Indexes.** Discover lists the DeepSeek Harness indexes after the Stitch index, as described under [Turn on Discover](#turn-on).
+
+Some plugins still do not work:
+
+- A plugin that hard-codes `~/.dsh` keeps its data there rather than under `~/.stitch`.
+- A plugin whose Harness peer range is an exact version or below `0.2.0` fails the compatibility check. To install it anyway, approve that exact pair with `stitch plugin --profile web allow-version <package@version> --stitch-version <exact> --accept-risk`.
+- A plugin that runs a `dsh` executable fails, because Stitch installs only `stitch`.
+- A plugin that depends on DeepSeek services or on DeepSeek Harness packages that Stitch removed does not work.
 
 <a id="publish-an-index"></a>
 ## Publish an index

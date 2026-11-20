@@ -1,0 +1,16 @@
+# Workspace tracking component: switches on the `# component: workspace-tracking` rows that dsh-web-app
+# (and, for shared base rows, its placeholder patches) keeps disabled, and marks
+# `workspace-tracking` enabled for the `component: workspace-tracking` gates of the agent presets.
+# Deselecting the bundle restores the placeholders.
+
+- id: workspace-changes
+  disabled: false
+
+- id: ui-deliverables
+  disabled: false
+
+- insert:
+    - id: component-workspace-tracking
+      name: '@deepseek-ai/dsh-agent-preset-registry/component'
+      config:
+        id: workspace-tracking

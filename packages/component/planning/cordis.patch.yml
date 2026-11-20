@@ -1,0 +1,13 @@
+# Planning component: switches on the `# component: planning` rows that dsh-web-app
+# (and, for shared base rows, its placeholder patches) keeps disabled, and marks
+# `planning` enabled for the `component: planning` gates of the agent presets.
+# Deselecting the bundle restores the placeholders.
+
+- id: ui-plan
+  disabled: false
+
+- insert:
+    - id: component-planning
+      name: '@deepseek-ai/dsh-agent-preset-registry/component'
+      config:
+        id: planning

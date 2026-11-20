@@ -22,11 +22,19 @@ import { applyEntryPatches, parseEntryYaml, type PatchOptions } from '@deepseek-
 import { exactPackageSpecifier, parseDshClient } from '@deepseek-ai/dsh-client-modules/client'
 import { ClientRoster, type ClientRosterRow } from './roster.ts'
 
+/** The CLI installation manifest: it ships the official bundles, components included, and resolves them. */
+export const CLI_ANCHOR: string = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', '..', 'apps', 'cli', 'package.json')
+
+// This package does not depend on dsh-official-bundles; the CLI installation's copy is typed by the field read here.
+const officialBundles = createRequire(CLI_ANCHOR)('@deepseek-ai/dsh-official-bundles') as {
+  PROFILE_TEMPLATES: Record<string, { bundles: readonly string[] } | undefined>
+}
+
 /**
  * The `web` profile's bundle layers, in the order `stitch --profile web` applies them
- * (`PROFILE_TEMPLATES.web` in `@deepseek-ai/dsh-official-bundles`).
+ * (`PROFILE_TEMPLATES.web` in `@deepseek-ai/dsh-official-bundles`, resolved from the CLI installation).
  */
-export const WEB_PROFILE_BUNDLES: readonly string[] = ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app']
+export const WEB_PROFILE_BUNDLES: readonly string[] = officialBundles.PROFILE_TEMPLATES.web?.bundles ?? []
 
 interface PackageManifest {
   name?: unknown
@@ -161,6 +169,6 @@ function describe(message: string, args: readonly unknown[]): string {
 const webProfileServices: Readonly<Record<string, object | undefined>> = { profileContext: { name: 'web' } }
 
 /** The `web` profile's browser roster, composed with its profile name and no business Host services. */
-export const webApp: ClientRoster = bundleRoster(WEB_PROFILE_BUNDLES, undefined, {
+export const webApp: ClientRoster = bundleRoster(WEB_PROFILE_BUNDLES, CLI_ANCHOR, {
   get: (name: string) => webProfileServices[name],
 })

@@ -1,4 +1,4 @@
-/** Profile defaults and explicit overrides for the shipped Browser entry. */
+/** Profile defaults and explicit overrides for the shipped Browser entry, switched on by the browser component. */
 import { fileURLToPath } from 'node:url'
 import { Context } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
@@ -15,9 +15,14 @@ it.each([
   { profile: 'web', override: false, disabled: false },
   { profile: 'desktop', override: true, disabled: true },
 ])('applies Browser availability for $profile with override $override', async ({ profile, override, disabled }) => {
-  const rows = loadOverlayPatches('browser-defaults', fileURLToPath(new URL('../cordis.patch.yml', import.meta.url)))
+  // dsh-web-app keeps the row a disabled placeholder; the browser component layer sets its profile default.
+  const host = loadOverlayPatches('browser-defaults', fileURLToPath(new URL('../cordis.patch.yml', import.meta.url)))
     .flatMap(patch => patch.insert ?? []).filter(row => row.id === 'ui-sidebar-browser')
-  expect(rows).toHaveLength(1)
+  expect(host).toHaveLength(1)
+  expect(host[0]!.disabled).toBe(true)
+  const component = loadOverlayPatches('browser-defaults', fileURLToPath(new URL('../../../component/browser/cordis.patch.yml', import.meta.url)))
+    .filter(patch => patch.id === 'ui-sidebar-browser')
+  const rows = applyEntryPatches(host, component, (message) => { throw new Error(message) }).data
   expect(rows[0]!.name).toBe('@deepseek-ai/dsh-client-ui-sidebar-browser')
   const configured = applyEntryPatches(rows, override === undefined ? [] : [{ id: 'ui-sidebar-browser', disabled: override }],
     (message) => { throw new Error(message) }).data

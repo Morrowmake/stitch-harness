@@ -21,8 +21,9 @@ import { AMBIENT_ACCOUNT, ENV_ACCOUNT, isAccountRoute, newAccountId, parseRecord
 import { sessionKeyOf } from './runtime.ts'
 import type { AccountRuntime, AccountsRuntime } from './runtime.ts'
 import { SignInAttempts } from './signin.ts'
+import { probeLocalServers } from './local-probe.ts'
 import type {
-  AccountId, AccountPatch, AccountsSnapshot, AccountUsageView, AccountView, ProviderAccountsView,
+  AccountId, AccountPatch, AccountsSnapshot, AccountUsageView, AccountView, LocalProviderProbeView, ProviderAccountsView,
   SignInAttemptId, SignInAttemptView, SignInRequest,
 } from './types.ts'
 import { accountToken, isExhaustedWindow, UsageCache, UsageCredentialError, usageFetcherFor } from './usage/index.ts'
@@ -350,6 +351,19 @@ export default class LlmAccountsRemote extends TypertRemoteService {
   async retryAccountNow(provider: string, account: AccountId): Promise<void> {
     await this.requireAccount(provider, account)
     this.runtime.health.clear(provider, account)
+  }
+
+  /**
+   * Ask the local inference servers on their default loopback ports (Ollama
+   * `localhost:11434`, LM Studio `localhost:1234`) which models they serve.
+   * Runs only when called, reaches only those fixed URLs, and gives each a
+   * short deadline; nothing is stored.
+   * @param signal - cancels the probe.
+   * @returns one view per server, `running: false` when it did not answer.
+   */
+  @Remote
+  probeLocalProviders(signal: AbortSignal): Promise<LocalProviderProbeView[]> {
+    return probeLocalServers(this.fetchFn, signal)
   }
 
   private async snapshot(only: string | undefined, sessionId: string | undefined): Promise<AccountsSnapshot> {

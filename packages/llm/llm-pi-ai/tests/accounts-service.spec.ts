@@ -311,6 +311,27 @@ describe('llmAccounts usage', () => {
   })
 })
 
+describe('llmAccounts local probe', () => {
+  it('probes only when asked, through the Remote fetch seam, and only the loopback listing URLs', async () => {
+    const urls: string[] = []
+    const h = await harness((url) => {
+      urls.push(url)
+      return Promise.resolve(url.includes(':11434/')
+        ? new Response(JSON.stringify({ models: [{ name: 'llama3.2:latest' }] }), { status: 200 })
+        : new Response('', { status: 404 }))
+    })
+    expect(urls).toEqual([])
+    const views = await h.remote.probeLocalProviders(new AbortController().signal)
+    expect(urls.sort()).toEqual(['http://localhost:11434/api/tags', 'http://localhost:1234/v1/models'])
+    expect(views).toEqual([
+      { id: 'ollama', displayName: 'Ollama', baseURL: 'http://localhost:11434/v1', running: true, models: ['llama3.2:latest'] },
+      { id: 'lmstudio', displayName: 'LM Studio', baseURL: 'http://localhost:1234/v1', running: false, models: [] },
+    ])
+    // Nothing is stored: settings stay untouched.
+    expect(h.mutations).toEqual([])
+  })
+})
+
 describe('llmAccounts sign-in', () => {
   it('registers a flow per attempt, records metadata, and leaves no flow behind', async () => {
     const h = await harness()

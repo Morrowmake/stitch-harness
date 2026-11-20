@@ -41,6 +41,7 @@ Mount this row inside a preset composition to give that preset's sessions their 
 | `suffix` | `''` | Template for `deployment:persona-suffix`; omitted or empty text shadows the global suffix away |
 | `complete` | `false` | Use only the rendered prefix as the system prompt; ignore the suffix |
 | `includeRuntimeContext` | `true` | Include optional runtime context for this agent scope; false suppresses optional contributions without disabling their owning services; required contributions remain |
+| `omitSections` | `[]` | Names of other prompt sections (for example `tool:read`) this agent scope assembles without; unnamed sections are untouched |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-persona) is the exhaustive source for every accepted field and its JSDoc.
 

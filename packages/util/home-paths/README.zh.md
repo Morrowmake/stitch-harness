@@ -38,6 +38,8 @@ const cache = dshCachePath('models')         // $STITCH_HOME/cache/models, defau
 
 显式配置的路径优先级最高，然后是 `$STITCH_HOME`，最后是默认的 `~/.stitch`。空或仅含空白的 `$STITCH_HOME` 视为未设置，因此空白的覆盖值绝不会把主目录解析到当前工作目录。
 
+为兼容 DeepSeek Harness，两个根目录都通过 `readProductEnv(name, env?)` 读取：它返回 `$STITCH_<name>`，仅当其不存在时才返回 `$DSH_<name>`。因此在对应的 `STITCH_` 变量未设置时，已设置的 `$DSH_HOME` 或 `$DSH_AGENTS_HOME` 会生效；`STITCH_` 值始终优先。其他读取产品变量的代码也使用同一个辅助函数。
+
 `dshCachePath(...segments)` 从解析出的主目录下的 `cache` 目录派生路径。不传路径段时返回缓存目录本身。传入首个选项对象 `dshCachePath({ dshHome: home }, ...segments)` 可使用显式配置的主目录，遵循相同的优先级与波浪号展开规则。它返回绝对路径，不会创建目录。
 
 <a id="choosing-a-category"></a>

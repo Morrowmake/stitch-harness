@@ -68,6 +68,8 @@ function childEnvironment(spec: TerminalBackendSpawnSpec, dialect: ShellDialect)
     GIT_PAGER: 'cat',
     STITCH_SHELL: '1',
     STITCH_SESSION_ID: spec.owner.id,
+    // DeepSeek Harness alias, so DSH plugin scripts read the same session id.
+    DSH_SESSION_ID: spec.owner.id,
     STITCH_PTY_SESSION_ID: spec.sessionId,
   }
   if (dialect === 'pwsh') {

@@ -40,9 +40,15 @@ it('loads the shipped Office rows with separately patched settings and authorize
     'office-kit': '@deepseek-ai/dsh-office-kit',
     'ui-sidebar-documentpreview': '@deepseek-ai/dsh-client-ui-sidebar-documentpreview',
   }
-  const rows = loadOverlayPatches('web-office-test', fileURLToPath(new URL('../cordis.patch.yml', import.meta.url)))
+  const placeholders = loadOverlayPatches('web-office-test', fileURLToPath(new URL('../cordis.patch.yml', import.meta.url)))
     .flatMap(patch => patch.insert ?? []).filter(row => row.id !== undefined && Object.hasOwn(expectedRows, row.id))
-  expect(rows.map(row => [row.id, row.name])).toEqual(Object.entries(expectedRows))
+  expect(placeholders.map(row => [row.id, row.name, row.disabled])).toEqual(Object.entries(expectedRows).map(row => [...row, true]))
+  // The office and files components switch the placeholders on; their other rows and markers are outside this test.
+  const components = ['office', 'files'].flatMap(id => loadOverlayPatches('web-office-test',
+    fileURLToPath(new URL(`../../../component/${id}/cordis.patch.yml`, import.meta.url))))
+    .filter(patch => patch.id !== undefined && Object.hasOwn(expectedRows, patch.id))
+  const rows = applyEntryPatches(placeholders, components, (message) => { throw new Error(message) }).data
+  expect(rows.every(row => row.disabled === false)).toBe(true)
   const providerConfig = { maxInputBytes: 4096, maxConcurrentConversions: 1, fontFallbacks: [['Missing Serif', 'Available Serif']], outputDirectory }
   const clientConfig = { office: { maxCachedEntries: 3, maxCachedBytes: 8192 } }
   const configured = applyEntryPatches(rows, [

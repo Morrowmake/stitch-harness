@@ -1,0 +1,13 @@
+# Browser panel component: switches on the `# component: browser` rows that dsh-web-app
+# (and, for shared base rows, its placeholder patches) keeps disabled, and marks
+# `browser` enabled for the `component: browser` gates of the agent presets.
+# Deselecting the bundle restores the placeholders.
+
+- id: ui-sidebar-browser
+  disabled: !!js "ctx.get('profileContext')?.name !== 'desktop'"
+
+- insert:
+    - id: component-browser
+      name: '@deepseek-ai/dsh-agent-preset-registry/component'
+      config:
+        id: browser

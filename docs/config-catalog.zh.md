@@ -2623,6 +2623,11 @@ export interface Config {
   complete?: boolean
   /** Suppress dynamic runtime-context snapshots for this persona's agent scope. */
   includeRuntimeContext?: boolean
+  /**
+   * Names of other prompt sections to leave out of this persona's agent scope, such as the `tool:<name>` guidance of
+   * tools whose schema descriptions suffice. Sections not named here are untouched.
+   */
+  omitSections?: string[]
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-persona -->
@@ -2650,8 +2655,7 @@ export interface PlanModeConfig {
 ## `@deepseek-ai/dsh-plugin-manager`
 
 - `inject`: `loader` · `profileContext`
-- `refs`: [`NpmFileSource`](subsystems/boot.zh.md)
-- `source`: [`packages/boot/plugin-manager/src/index.ts:56`](../packages/boot/plugin-manager/src/index.ts)
+- `source`: [`packages/boot/plugin-manager/src/index.ts:55`](../packages/boot/plugin-manager/src/index.ts)
 
 ```ts config-catalog
 /** The pnpm executable, registries, and limits for diagnostics, lookups and connection checks. */
@@ -2686,10 +2690,6 @@ export interface Config {
   detailMaxBytes?: number
   /** Largest image served beside a bundle detail document, in bytes. */
   detailImageMaxBytes?: number
-  /** Deadline of one npm file CDN request for an offered bundle's detail document. */
-  detailFetchTimeoutMs?: number
-  /** npm file CDNs that offered bundles are read from, in order; a read's `npmFileSources` moves the CDNs it names first. */
-  detailNpmFileSources?: NpmFileSource[]
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-plugin-manager -->
@@ -3297,7 +3297,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-skill-filesystem`
 
 - `inject`: `skills`
-- `source`: [`packages/skill/skill-filesystem/src/index.ts:49`](../packages/skill/skill-filesystem/src/index.ts)
+- `source`: [`packages/skill/skill-filesystem/src/index.ts:55`](../packages/skill/skill-filesystem/src/index.ts)
 
 ```ts config-catalog
 /** Local filesystem skill provider configuration. */
@@ -4780,7 +4780,7 @@ export interface Config {
   /** Print the URL lines on activation; a non-interactive layer can turn them off. */
   printUrl: boolean
   /**
-   * Register the `STITCH_WEB_URL` bash variable naming this GUI. A one-shot
+   * Register the `STITCH_WEB_URL` bash variable naming this GUI, plus its DeepSeek Harness alias `DSH_WEB_URL`. A one-shot
    * non-interactive layer can turn it off when its user is not in the GUI.
    */
   surfaceContext: boolean
@@ -4986,6 +4986,7 @@ export interface Config {
 | `@deepseek-ai/dsh-client-ui-entry-customization` | — | [`packages/client/ui-entry-customization/src/index.ts`](../packages/client/ui-entry-customization/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-file-actions` | — | [`packages/client/ui-file-actions/src/index.ts`](../packages/client/ui-file-actions/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-file-drag` | — | [`packages/client/ui-file-drag/src/index.ts`](../packages/client/ui-file-drag/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-first-run` | — | [`packages/client/ui-first-run/src/index.ts`](../packages/client/ui-first-run/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-goal` | — | [`packages/client/ui-goal/src/index.ts`](../packages/client/ui-goal/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-input-trigger` | — | [`packages/client/ui-input-trigger/src/index.ts`](../packages/client/ui-input-trigger/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-jobs` | — | [`packages/client/ui-jobs/src/index.ts`](../packages/client/ui-jobs/src/index.ts) |
@@ -5116,6 +5117,24 @@ export interface Config {
 | `@deepseek-ai/dsh-client-ui-slots` | — | [`packages/client/ui-slots/src/index.ts`](../packages/client/ui-slots/src/index.ts) |
 | `@deepseek-ai/dsh-client-web` | — | [`packages/client/web/src/index.ts`](../packages/client/web/src/index.ts) |
 | `@deepseek-ai/dsh-cmdline` | — | [`packages/boot/cmdline/src/index.ts`](../packages/boot/cmdline/src/index.ts) |
+| `@deepseek-ai/dsh-component-agent-teams` | — | [`packages/component/agent-teams/src/index.ts`](../packages/component/agent-teams/src/index.ts) |
+| `@deepseek-ai/dsh-component-browser` | — | [`packages/component/browser/src/index.ts`](../packages/component/browser/src/index.ts) |
+| `@deepseek-ai/dsh-component-context-helpers` | — | [`packages/component/context-helpers/src/index.ts`](../packages/component/context-helpers/src/index.ts) |
+| `@deepseek-ai/dsh-component-files` | — | [`packages/component/files/src/index.ts`](../packages/component/files/src/index.ts) |
+| `@deepseek-ai/dsh-component-goals` | — | [`packages/component/goals/src/index.ts`](../packages/component/goals/src/index.ts) |
+| `@deepseek-ai/dsh-component-jobs` | — | [`packages/component/jobs/src/index.ts`](../packages/component/jobs/src/index.ts) |
+| `@deepseek-ai/dsh-component-mcp` | — | [`packages/component/mcp/src/index.ts`](../packages/component/mcp/src/index.ts) |
+| `@deepseek-ai/dsh-component-office` | — | [`packages/component/office/src/index.ts`](../packages/component/office/src/index.ts) |
+| `@deepseek-ai/dsh-component-planning` | — | [`packages/component/planning/src/index.ts`](../packages/component/planning/src/index.ts) |
+| `@deepseek-ai/dsh-component-presets` | — | [`packages/component/presets/src/index.ts`](../packages/component/presets/src/index.ts) |
+| `@deepseek-ai/dsh-component-schedules` | — | [`packages/component/schedules/src/index.ts`](../packages/component/schedules/src/index.ts) |
+| `@deepseek-ai/dsh-component-search-tools` | — | [`packages/component/search-tools/src/index.ts`](../packages/component/search-tools/src/index.ts) |
+| `@deepseek-ai/dsh-component-short-prompt` | — | [`packages/component/short-prompt/src/index.ts`](../packages/component/short-prompt/src/index.ts) |
+| `@deepseek-ai/dsh-component-subagents` | — | [`packages/component/subagents/src/index.ts`](../packages/component/subagents/src/index.ts) |
+| `@deepseek-ai/dsh-component-terminal` | — | [`packages/component/terminal/src/index.ts`](../packages/component/terminal/src/index.ts) |
+| `@deepseek-ai/dsh-component-web` | — | [`packages/component/web/src/index.ts`](../packages/component/web/src/index.ts) |
+| `@deepseek-ai/dsh-component-workflows` | — | [`packages/component/workflows/src/index.ts`](../packages/component/workflows/src/index.ts) |
+| `@deepseek-ai/dsh-component-workspace-tracking` | — | [`packages/component/workspace-tracking/src/index.ts`](../packages/component/workspace-tracking/src/index.ts) |
 | `@deepseek-ai/dsh-cua-bundle` | — | [`packages/experimental/cua-bundle/src/index.ts`](../packages/experimental/cua-bundle/src/index.ts) |
 | `@deepseek-ai/dsh-deque` | — | [`packages/util/deque/src/index.ts`](../packages/util/deque/src/index.ts) |
 | `@deepseek-ai/dsh-error` | — | [`packages/util/error/src/index.ts`](../packages/util/error/src/index.ts) |

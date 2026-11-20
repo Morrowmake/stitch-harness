@@ -38,6 +38,8 @@ const cache = dshCachePath('models')         // $STITCH_HOME/cache/models, defau
 
 An explicit configured path has the highest precedence, then `$STITCH_HOME`, then the default `~/.stitch`. An empty or whitespace-only `$STITCH_HOME` is treated as unset, so a blank override never resolves the home to the current working directory.
 
+For DeepSeek Harness compatibility, both roots are read through `readProductEnv(name, env?)`, which returns `$STITCH_<name>` and, only when that is absent, `$DSH_<name>`. A set `$DSH_HOME` or `$DSH_AGENTS_HOME` therefore takes effect when its `STITCH_` counterpart is unset; a `STITCH_` value always wins. Other readers of product variables use the same helper.
+
 `dshCachePath(...segments)` derives paths from the resolved home's `cache` directory. With no segments it returns the cache directory itself. Pass an initial options object, `dshCachePath({ dshHome: home }, ...segments)`, to use an explicit configured home with the same precedence and tilde expansion. It returns an absolute path without creating directories.
 
 <a id="choosing-a-category"></a>

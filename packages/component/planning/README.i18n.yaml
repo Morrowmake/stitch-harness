@@ -1,0 +1,37 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/component/planning/README.md
+/:
+  en: 76942ac93cf32cb7
+  zh: b846461b0b5dc64f
+/deepseek-ai-dsh-component-planning:
+  en: a51aca46da30b068
+  zh: 4589b87b4ef963c3
+/deepseek-ai-dsh-component-planning/summary:
+  en: 21f7f7f8946648af
+  zh: 7bdd6f12f5f8853d
+/deepseek-ai-dsh-component-planning/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 988e839059414d27
+/deepseek-ai-dsh-component-planning/use-this-package:
+  en: 67773f42b782ec2f
+  zh: 4a1a44a546da8836
+/deepseek-ai-dsh-component-planning/understand-the-implementation:
+  en: a8eb4c4c5347086b
+  zh: a0431c354501ae78
+/deepseek-ai-dsh-component-planning/further-exploration:
+  en: 6d3e63b2c15f3736
+  zh: ed7131f630dfdcaa
+/deepseek-ai-dsh-component-planning/model-experience:
+  en: a4f8583b05b2a5c2
+  zh: f0c9ac76dd6af49a
+/deepseek-ai-dsh-component-planning/model-experience/kv-cache-effect:
+  en: c249b630e9076402
+  zh: d0a10c81c391c3b9
+/deepseek-ai-dsh-component-planning/known-limitations-and-deferred-work:
+  en: 8a8b6c123adad290
+  zh: 8c2e57d9a86339b3
+/deepseek-ai-dsh-component-planning/known-limitations-and-deferred-work/dev-note:
+  en: 279d01435256cd2a
+  zh: 83780964e5de2f54

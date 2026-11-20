@@ -27,11 +27,10 @@ function pkg(root: string, directory: string, name: string, fields: Record<strin
   write(root, 'tsconfig.base.json', config)
 }
 
-function profiles(root: string, optional: string[] = [], onDemand: string[] = []): void {
+function profiles(root: string, optional: string[] = []): void {
   write(root, profile, `export const PROFILE_TEMPLATES = ${JSON.stringify(Object.fromEntries(
     ['web', 'acp', 'headless', 'sdk', 'sdk-minimal'].map(name => [name, { bundles: [base] }]),
-  ))}\nexport const DEFAULT_PROFILE_BUNDLES = ['${base}']\nexport const OPTIONAL_BUNDLES = ${JSON.stringify(optional)}\n`
-    + `export const ON_DEMAND_BUNDLES = ${JSON.stringify(onDemand)}\n`)
+  ))}\nexport const DEFAULT_PROFILE_BUNDLES = ['${base}']\nexport const OPTIONAL_BUNDLES = ${JSON.stringify(optional)}\n`)
 }
 
 function fixture(): string {
@@ -194,7 +193,7 @@ describe('product package use', () => {
     expect(failures(root)).toContain(`${candidateDir} (${candidate}): no product runtime use`)
   })
 
-  it.each(['shipped', 'on-demand'])('keeps %s optional selection and its runtime closure separate from default use', (delivery) => {
+  it('keeps optional selection and its runtime closure separate from default use', () => {
     const root = fixture()
     const bundle = '@deepseek-ai/dsh-experimental-feature'
     pkg(root, 'packages/experimental/feature', bundle, { dsh: { bundle: { patch: './cordis.patch.yml' } } })
@@ -202,20 +201,20 @@ describe('product package use', () => {
     pkg(root, 'packages/core/indirect', '@deepseek-ai/dsh-indirect')
     write(root, `${candidateDir}/src/index.ts`, "import '@deepseek-ai/dsh-indirect'")
     write(root, 'packages/experimental/feature/cordis.patch.yml', [{ insert: [{ name: candidate }] }])
-    profiles(root, delivery === 'shipped' ? [bundle] : [], delivery === 'on-demand' ? [bundle] : [])
+    profiles(root, [bundle])
     const result = verifyProductUse(root, declarations())
     expect(result.failures).toEqual([])
     expect(result.optionalPackages).toEqual([candidateDir, 'packages/core/indirect', 'packages/experimental/feature'])
     expect(result.defaultPackages).not.toContain(candidateDir)
   })
 
-  it.each(['shipped', 'on-demand'])('does not count a %s optional patch whose target is absent', (delivery) => {
+  it('does not count an optional patch whose target is absent', () => {
     const root = fixture()
     const bundle = '@deepseek-ai/dsh-experimental-feature'
     pkg(root, 'packages/experimental/feature', bundle, { dsh: { bundle: { patch: './cordis.patch.yml' } } })
     pkg(root, candidateDir, candidate)
     write(root, 'packages/experimental/feature/cordis.patch.yml', [{ id: 'absent', insert: [{ name: candidate }] }])
-    profiles(root, delivery === 'shipped' ? [bundle] : [], delivery === 'on-demand' ? [bundle] : [])
+    profiles(root, [bundle])
     expect(failures(root)).toContain('no product runtime use')
   })
 
@@ -235,10 +234,10 @@ describe('product package use', () => {
     ])
   })
 
-  it('rejects an on-demand catalog entry without an installable bundle declaration', () => {
+  it('rejects an optional bundle without an installable bundle declaration', () => {
     const root = fixture()
     pkg(root, candidateDir, candidate)
-    profiles(root, [], [candidate])
+    profiles(root, [candidate])
     expect(failures(root, declarations())).toContain(`${candidate} must declare dsh.bundle.patch`)
   })
 

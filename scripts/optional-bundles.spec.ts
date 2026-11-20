@@ -9,6 +9,7 @@ import type { EntryOptions } from '@deepseek-ai/cordis-plugin-loader'
 import { loadOverlayPatches } from '../packages/boot/app-boot/src/index.ts'
 import { readPluginMeta } from '../packages/boot/app-boot/src/package-meta.ts'
 import { bundlePatchPaths, composeEntries, initProfile, readProfileManifest } from '../packages/boot/app-boot/src/profile.ts'
+import { COMPONENT_BUNDLES } from '../packages/util/official-bundles/src/components.ts'
 import { OPTIONAL_BUNDLES, PROFILE_TEMPLATES } from '../packages/util/official-bundles/src/bundles.ts'
 import { HIDDEN_BUNDLES } from '../packages/util/official-bundles/src/plugin-manager.ts'
 import type { DshBundleManifest } from '../packages/util/package-manifest/src/types.ts'
@@ -247,7 +248,8 @@ describe('optional bundles', () => {
   })
 
   it('delivers the Schedule service and task page without a Host clock row', () => {
-    const composed = composeEntries(shipped)
+    // The Web template selects the schedules component, which switches on the rows dsh-web-app keeps disabled.
+    const composed = composeEntries(profileLayers('web'))
     // The delivered composition carries the Host Schedule service and its task
     // page enabled; the clock stays preset-level, so no Host row declares it.
     for (const row of [
@@ -256,8 +258,22 @@ describe('optional bundles', () => {
     ]) {
       expect(composed.filter(entry => entry.id === row.id && entry.name === row.name && entry.disabled !== true))
         .toHaveLength(1)
+      // Without the component the same rows stay disabled placeholders.
+      expect(composeEntries(shipped).find(entry => entry.id === row.id)?.disabled).toBe(true)
     }
+    expect(composed.filter(entry => entry.id === 'component-schedules' && entry.disabled !== true)).toHaveLength(1)
     expect(composed.some(entry => entry.id === 'time-context')).toBe(false)
+  })
+
+  it.each(['web', 'web-minimal'] as const)('composes the %s template, and every component over it, without patch warnings', (template) => {
+    const names = PROFILE_TEMPLATES[template]!.bundles
+    const warnings: string[] = []
+    composeEntries(names.map(name => bundle(name).patches), warning => warnings.push(warning))
+    expect(warnings).toEqual([])
+    const hosts = names.filter(name => !COMPONENT_BUNDLES.includes(name))
+    const all = [...hosts.slice(0, hosts.indexOf('@deepseek-ai/dsh-web-app') + 1), ...COMPONENT_BUNDLES, ...hosts.slice(hosts.indexOf('@deepseek-ai/dsh-web-app') + 1)]
+    composeEntries(all.map(name => bundle(name).patches), warning => warnings.push(warning))
+    expect(warnings).toEqual([])
   })
 
   it('keeps the clock and the reminder tools on the presets that declare them', () => {
@@ -286,6 +302,8 @@ describe('optional bundles', () => {
         const matches = plugins.filter(row => row.id === plugin.id && row.name === plugin.name)
         expect(matches).toHaveLength(1)
         expect(matches[0]?.disabled).not.toBe(true)
+        // Each mounts only while its component's marker is mounted.
+        expect((matches[0] as { component?: string } | undefined)?.component).toBe(plugin.id === 'tool-schedule' ? 'schedules' : 'context-helpers')
       }
     }
     for (const id of ['preset-standard', 'preset-cordis', 'preset-ptc']) {

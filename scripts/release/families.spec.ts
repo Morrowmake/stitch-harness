@@ -5,7 +5,6 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { officialClientBuildEnvironment, writeClientBuildRecord } from '../client-build-environment.ts'
-import { ON_DEMAND_BUNDLES } from '../../packages/util/official-bundles/src/bundles.ts'
 import { releaseFamily, type ReleaseMember } from './families.ts'
 import { compareVersions, nextVendorVersion, planShared, reachesPayload } from './bump.ts'
 
@@ -241,30 +240,6 @@ describe('release families', () => {
       '@deepseek-ai/dsh-consumer',
       '@deepseek-ai/dsh-zebra',
     ])
-  })
-
-  it('publishes on-demand catalog members before dsh without adding installed dependencies', () => {
-    const dsh = member('apps/cli', '@deepseek-ai/dsh')
-    const providers = ON_DEMAND_BUNDLES.map(name => member(`packages/subagent/${name}`, name))
-    const plan = releaseFamily('dsh').publishOrder([dsh, ...providers])
-    expect(plan.order.map(entry => entry.name)).toEqual([...ON_DEMAND_BUNDLES.toSorted(), dsh.name])
-    expect(dsh.manifest).toEqual({})
-    expect(plan.droppedPeerEdges).toEqual([])
-  })
-
-  it('rejects an advertised provider missing from the public release family', () => {
-    expect(() => releaseFamily('dsh').publishOrder([member('apps/cli', '@deepseek-ai/dsh')]))
-      .toThrow('Official catalog prerequisite')
-  })
-
-  it('keeps catalog prerequisites ahead of a dsh peer declaration', () => {
-    const dsh = member('apps/cli', '@deepseek-ai/dsh')
-    const providers = ON_DEMAND_BUNDLES.map(name => member(`packages/subagent/${name}`, name, {
-      peerDependencies: { '@deepseek-ai/dsh': 'workspace:*' },
-    }))
-    const plan = releaseFamily('dsh').publishOrder([dsh, ...providers])
-    expect(plan.order.map(entry => entry.name)).toEqual([...ON_DEMAND_BUNDLES.toSorted(), dsh.name])
-    expect(plan.droppedPeerEdges).toEqual(ON_DEMAND_BUNDLES.toSorted().map(name => ({ consumer: name, peer: dsh.name })))
   })
 
   it.each(['dependencies', 'optionalDependencies', 'peerDependencies'])(

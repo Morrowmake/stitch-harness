@@ -21,7 +21,6 @@ Build Desktop installers locally, choose deployment and signing mode, and retrie
 - [GitHub release builds](#github-release-builds)
 - [macOS release signing and diagnostics](#macos-release-signing)
 - [Directory builds and preparation](#directory-and-preparation)
-- [Local Official bundles from a loopback registry](#local-official-bundles-from-a-loopback-registry)
 - [Runtime file selection and installation checks](#runtime-file-selection)
 - [Desktop runtime preparation](#desktop-runtime-preparation)
 - [Installation and release verification](#verification)
@@ -237,24 +236,6 @@ pnpm run prepare:desktop
 ```
 
 This diagnostic command is an alternative stopping point, not the first half of a two-command build. A later `package:desktop*` command repeats the build selected by its signing mode and all preparation so it cannot consume stale stitch packages, runtime files, or stitch content.
-
-<a id="local-official-bundles-from-a-loopback-registry"></a>
-
-## Local Official bundles from a loopback registry
-
-The test DMG excludes the provider runtimes the Official on-demand catalog advertises, and a release publishes matching bundle versions to npm. To install locally built bundles before that release, start a loopback registry that packs and serves the catalog's complete local dependency closure:
-
-```sh
-pnpm run dev:bundle-registry
-```
-
-The command validates the catalog and the workspace inventory, runs `pnpm run build:official`, packs the closure into a new `dist/test-bundles/<run-id>/` directory, writes `bundle-registry.json` last as the completion marker, and only then prints the artifact path, the registry URL, and the exact `name@version` specs. It serves `127.0.0.1` on an allocated port under a fresh namespace until Ctrl+C or SIGTERM, and stopping it leaves both the artifacts and the installed packages on disk. It needs no `.env.macos`, Apple credentials, or npm credentials, and it does not change `pnpm run package:desktop:unsigned`.
-
-In the packaged application, open Plugins → Add plugin, paste one printed spec, choose **Custom address**, paste the printed registry URL, and install. A custom registry is asked alone, so this process must answer every dependency: repository-owned packages come from the run's own archives, and third-party packages keep npm's real metadata and bytes through a fixed redirect to `registry.npmjs.org`, which still requires network access. The installed entry stays Official because its package name is in the catalog. The registry choice is remembered in this browser; choose an offered registry again to switch back.
-
-A run's artifacts are immutable, so a rebuild serves a new namespace and a new URL, and the Official **Update** control does not appear while the installed and running versions match. The profile records the previous run's tarball URL in `pnpm-lock.yaml`, and pnpm verifies recorded entries, so installing or reinstalling that bundle against a new URL is refused with `ERR_PNPM_TARBALL_URL_MISMATCH` and can leave the earlier files in place. To test changed code at the same version, clear the stale resolution first — `pnpm clean --lockfile` in `$STITCH_HOME/profiles/<profile>`, or install into a fresh profile — then install again from the new URL. `bundle-registry.json` records each archive's version, filename, size, and SHA-512 integrity together with the packing checkout's commit and dirty flag.
-
-The served `time` is the real packing time, so pnpm 11's default 24-hour `minimumReleaseAge` records the exemption it granted in the profile's `pnpm-workspace.yaml` (`minimumReleaseAgeExclude`); an explicitly stricter policy there fails the installation with pnpm's own message instead of being overridden. A `@scope:registry` route in `~/.npmrc` or the profile's `.npmrc` overrides `--registry` for that scope, so it must not route the served scope.
 
 <a id="runtime-file-selection"></a>
 

@@ -12,8 +12,8 @@
   en: 675416ce293f2416
   zh: 0c1c233f1b3109c2
 /desktop-packaging/table-of-contents:
-  en: 3cd354d5cbe9c9e8
-  zh: f09e252ff835a64b
+  en: 0ccd0f9b4af93e2a
+  zh: 78249772ec6e794f
 /desktop-packaging/choose-a-build-path:
   en: 3c753e347a26cb44
   zh: 1926078ee154890c
@@ -42,11 +42,8 @@
   en: 0ac984742550fc81
   zh: ee418ae7db14bd6a
 /desktop-packaging/directory-builds-and-preparation:
-  en: 36f29c23f038858c
-  zh: 34a54c8b1e390730
-/desktop-packaging/local-official-bundles-from-a-loopback-registry:
-  en: d614f595f30d9fc1
-  zh: 01afe958e318f0b4
+  en: 998bd99de4f374e2
+  zh: 52872a379f6332a6
 /desktop-packaging/runtime-file-selection-and-installation-checks:
   en: dacccde5db2bb9c9
   zh: 274419919d32209f

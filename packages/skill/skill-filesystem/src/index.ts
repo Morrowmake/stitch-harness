@@ -11,6 +11,7 @@
 
 import { access, lstat, readdir, readFile, realpath, stat } from 'node:fs/promises'
 import { unwatchFile, watchFile, type Stats } from 'node:fs'
+import { homedir } from 'node:os'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import chokidar from 'chokidar'
@@ -34,10 +35,15 @@ import {
 } from '@deepseek-ai/dsh-skill'
 
 const PROJECT_DSH_RANK = 100
+// DeepSeek Harness roots rank right after the matching Stitch `.stitch` root, so a Stitch skill wins a name collision.
+const PROJECT_DEEPSEEK_HARNESS_RANK = 150
 const PROJECT_AGENTS_RANK = 200
 const CUSTOM_RANK = 300
 const USER_DSH_RANK = 400
+const USER_DEEPSEEK_HARNESS_RANK = 450
 const USER_AGENTS_RANK = 500
+/** Directory name of DeepSeek Harness, whose existing `skills` roots Stitch reads but never creates or writes. */
+const DEEPSEEK_HARNESS_DIR_NAME = '.dsh'
 const DEFAULT_WATCH_STABILITY_THRESHOLD_MS = 200
 const DEFAULT_WATCH_POLL_INTERVAL_MS = 100
 const DEFAULT_WATCH_MAX_PROJECTS = 128
@@ -251,19 +257,26 @@ export class FileSystemSkillProvider implements SkillProvider {
 
   private async roots(cwd: string | undefined): Promise<SkillRoot[]> {
     const roots: SkillRoot[] = []
+    const fs = optionalFileSystem(this.ctx)
     if (this.includeDefaultRoots && cwd !== undefined) {
-      const projectRoot = await findProjectRoot(resolve(cwd), optionalFileSystem(this.ctx))
-      roots.push(
-        { path: join(projectRoot, '.stitch/skills'), source: 'project-dsh', rank: PROJECT_DSH_RANK, projectRoot },
-        { path: join(projectRoot, '.agents/skills'), source: 'project-agents', rank: PROJECT_AGENTS_RANK, projectRoot },
-      )
+      const projectRoot = await findProjectRoot(resolve(cwd), fs)
+      roots.push({ path: join(projectRoot, '.stitch/skills'), source: 'project-dsh', rank: PROJECT_DSH_RANK, projectRoot })
+      const deepseekHarness = join(projectRoot, DEEPSEEK_HARNESS_DIR_NAME, 'skills')
+      if (await pathExists(deepseekHarness, fs)) {
+        roots.push({ path: deepseekHarness, source: 'project-deepseek-harness', rank: PROJECT_DEEPSEEK_HARNESS_RANK, projectRoot })
+      }
+      roots.push({ path: join(projectRoot, '.agents/skills'), source: 'project-agents', rank: PROJECT_AGENTS_RANK, projectRoot })
     }
     roots.push(...this.customSkillDirs.map(path => ({ path, source: 'custom' as const, rank: CUSTOM_RANK })))
     if (this.includeDefaultRoots) {
-      roots.push(
-        { path: join(this.dshHome, 'skills'), source: 'user-dsh', rank: USER_DSH_RANK, skipSystem: true },
-        { path: join(this.agentsHome, 'skills'), source: 'user-agents', rank: USER_AGENTS_RANK },
-      )
+      const userSkills = join(this.dshHome, 'skills')
+      roots.push({ path: userSkills, source: 'user-dsh', rank: USER_DSH_RANK, skipSystem: true })
+      const deepseekHarness = join(homedir(), DEEPSEEK_HARNESS_DIR_NAME, 'skills')
+      // A Stitch home pointed at `~/.dsh` already scans this root as Stitch's own.
+      if (deepseekHarness !== userSkills && await pathExists(deepseekHarness, fs)) {
+        roots.push({ path: deepseekHarness, source: 'user-deepseek-harness', rank: USER_DEEPSEEK_HARNESS_RANK, skipSystem: true })
+      }
+      roots.push({ path: join(this.agentsHome, 'skills'), source: 'user-agents', rank: USER_AGENTS_RANK })
     }
     if (this.bundledSkillDir !== undefined) {
       roots.push({ path: this.bundledSkillDir, source: 'bundled', rank: BUNDLED_SKILL_RANK, trustedHost: true })

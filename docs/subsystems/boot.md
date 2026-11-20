@@ -10,11 +10,11 @@ The [boot package group](../../packages/boot/README.md) owns launcher-provided p
 
 `PluginInfo` carries module identity, effective enablement, fiber phase and optional display `meta`, plus a unique `patchId` or a `readOnlyReason`.
 
-`BundleInfo.official` identifies project-maintained shipped optional bundles and on-demand catalog entries independently of installation. `availability` identifies a readable installation-provided or profile package, or `missing`; on-demand catalog entries exclude undeclared transitive copies. `installed` records the profile dependency declaration. An on-demand `installTarget` carries the host-derived exact spec and version. `BundleInfo` also carries the package name, optional installed version, selected enablement, removal availability, update method (`update`: `registry` or `git`, absent when the bundle cannot be updated), optional resolution or unsupported-platform error, and, for a bundle the profile's own dependency supplies and the installation does not, `source`: that dependency as a spec `pnpm add` accepts. Its optional `meta` and each `BundleRowInfo.meta` contain display text or a metadata diagnostic; Clients select a language at render time.
+`BundleInfo.official` identifies project-maintained shipped optional bundles and components independently of installation. `availability` identifies a readable installation-provided or profile package, or `missing` for a selected bundle whose package cannot be read. `installed` records the profile dependency declaration. `BundleInfo` also carries the package name, optional installed version, selected enablement, removal availability, update method (`update`: `registry` or `git`, absent when the bundle cannot be updated), optional resolution or unsupported-platform error, and, for a bundle the profile's own dependency supplies and the installation does not, `source`: that dependency as a spec `pnpm add` accepts. Its optional `meta` and each `BundleRowInfo.meta` contain display text or a metadata diagnostic; Clients select a language at render time.
 
 `InstallBundleOptions.saveExact` passes `--save-exact` to the shared package installer. `InstallBundleOptions.enabled` defaults to true. False installs without selecting the bundle layer. `approvedBuilds` grants persistent script permission to the supplied pending package names before installation. `registry` names the registry asked first; absent, the configured one. `expected` names the package and manifest version the spec must install; a run that installs anything else is undone with its profile files and modules and fails with `unexpected-package`, one whose package declares no bundle fails with `not-bundle`, and one whose bundle patches cannot load fails as an operation error.
 
-`BundleDetail` is a profile bundle's long description: `{ status: 'found' }` with its `origin` (`locale` or `readme`), its `path` inside the package, and its `markdown`, or `{ status: 'none' }`; [`readBundleDetail`](../../packages/boot/plugin-manager/README.md#bundle-detail-documents) documents the order and the image route. `NpmFileSource` names a public npm file CDN, `jsdelivr`, `unpkg`, or `npmmirror`; a read's `npmFileSources` lists the ones to ask first.
+`BundleDetail` is a profile bundle's long description, read from the bundle's installed files: `{ status: 'found' }` with its `origin` (`locale` or `readme`), its `path` inside the package, and its `markdown`, or `{ status: 'none' }`; [`readBundleDetail`](../../packages/boot/plugin-manager/README.md#bundle-detail-documents) documents the order and the image route. `NpmFileSource` names a public npm file CDN, `jsdelivr`, `unpkg`, or `npmmirror`; a plugin market detail read's `npmFileSources` lists the ones to ask first.
 
 `PluginRegistries` carries the configured first registry, `null` for the one pnpm's own configuration names, the fallbacks asked after it, and `resolved`, the URL pnpm's own configuration names or `null` while unread. `InspectOptions.registry` names the registry a lookup asks first.
 
@@ -222,17 +222,14 @@ Manage profile files and apply their declared reload lifecycle.
 ```ts cordis-catalog
 /**
  * Read a bundle's long description: the Markdown file its locale `meta.detail` names in `language`, otherwise its
- * README. An installed bundle is read from its directory without network access; an official bundle the installation
- * offers before it is installed is read from the npm file CDNs at its offered version. Nothing is cached.
+ * README, read from the bundle's directory without network access. Nothing is cached.
  * @param name - the bundle's package name, as `listBundles()` lists it.
  * @param language - the display language, such as `zh-CN`; documents fall back through its prefixes to English.
- * @param options - `npmFileSources` names npm file CDNs to ask first for an offered bundle, in order, such as the one
- *   a Client measured as fastest; configured CDNs it omits follow, and CDNs that are not configured are not asked.
  * @returns the document with its origin and path, or `none`.
  * @throws {RemoteError} `plugin-manager/unknown-bundle`, `plugin-manager/invalid-language`, or
  *   `plugin-manager/detail-unavailable`.
  */
-@Remote async readBundleDetail(name: string, language: string, options?: { npmFileSources?: NpmFileSource[] }): Promise<BundleDetail>
+@Remote async readBundleDetail(name: string, language: string): Promise<BundleDetail>
 
 /** Read exact plugin-version exemptions saved in this profile.
  * @returns Accepted package-name@version keys with the runtime versions they may run on, and any
@@ -256,7 +253,7 @@ Manage profile files and apply their declared reload lifecycle.
  */
 @Remote async listPlugins(): Promise<PluginInfo[]>
 
-/** Read installed, installation-provided, and offline Official catalog bundles, plus selected non-bundle names.
+/** Read installed and installation-provided bundles, plus selected non-bundle names.
  * A dependency without a bundle patch is listed, as a `not-bundle` problem, only while it is selected.
  * @returns Package versions, manifest descriptions, the installable spec of profile dependencies, rows, optional
  * display metadata, activation selections, whether the installation offers the bundle, and removal availability.
@@ -321,6 +318,17 @@ Manage profile files and apply their declared reload lifecycle.
  * @returns Persisted and runtime outcomes.
  */
 @Remote setBundleEnabled(name: string, enabled: boolean): Promise<ChangeResult>
+
+/** Select or remove several bundle layers with one profile write and one reload.
+ * @param changes Requested enablement per bundle package name; prerequisites (`dsh.bundle.requires`) follow.
+ * @returns Persisted and runtime outcomes; `selection` holds every bundle the change set, prerequisites included.
+ */
+@Remote setBundlesEnabled(changes: Record<string, boolean>): Promise<ChangeResult>
+
+/** Read which named component set the profile selects.
+ * @returns `minimal` or `standard` when the enabled components equal that set, otherwise `custom`, with the enabled components.
+ */
+@Remote componentPreset(): Promise<ComponentPresetMatch>
 
 /**
  * Install a package using the same pnpm implementation as stitch plugin. GitHub

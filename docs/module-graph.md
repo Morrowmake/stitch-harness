@@ -175,6 +175,7 @@ flowchart TD
     pkg_client_ui_entry_customization["client-ui-entry-customization"]
     pkg_client_ui_file_actions["client-ui-file-actions"]
     pkg_client_ui_file_drag["client-ui-file-drag"]
+    pkg_client_ui_first_run["client-ui-first-run"]
     pkg_client_ui_goal["client-ui-goal"]
     pkg_client_ui_input_trigger["client-ui-input-trigger"]
     pkg_client_ui_jobs["client-ui-jobs"]
@@ -226,6 +227,26 @@ flowchart TD
     pkg_compaction_basic["compaction-basic"]
     pkg_compaction_image_offload["compaction-image-offload"]
     pkg_compaction_tool_result_pruner["compaction-tool-result-pruner"]
+  end
+  subgraph group_component["packages/component"]
+    pkg_component_agent_teams["component-agent-teams"]
+    pkg_component_browser["component-browser"]
+    pkg_component_context_helpers["component-context-helpers"]
+    pkg_component_files["component-files"]
+    pkg_component_goals["component-goals"]
+    pkg_component_jobs["component-jobs"]
+    pkg_component_mcp["component-mcp"]
+    pkg_component_office["component-office"]
+    pkg_component_planning["component-planning"]
+    pkg_component_presets["component-presets"]
+    pkg_component_schedules["component-schedules"]
+    pkg_component_search_tools["component-search-tools"]
+    pkg_component_short_prompt["component-short-prompt"]
+    pkg_component_subagents["component-subagents"]
+    pkg_component_terminal["component-terminal"]
+    pkg_component_web["component-web"]
+    pkg_component_workflows["component-workflows"]
+    pkg_component_workspace_tracking["component-workspace-tracking"]
   end
   subgraph group_computer_use["packages/computer-use"]
     pkg_computer_use["computer-use"]
@@ -1547,6 +1568,7 @@ flowchart TD
 | [`client-ui-entry-customization`](../packages/client/ui-entry-customization) | `client` | — |
 | [`client-ui-file-actions`](../packages/client/ui-file-actions) | `client` | — |
 | [`client-ui-file-drag`](../packages/client/ui-file-drag) | `client` | — |
+| [`client-ui-first-run`](../packages/client/ui-first-run) | `client` | — |
 | [`client-ui-goal`](../packages/client/ui-goal) | `client` | — |
 | [`client-ui-input-trigger`](../packages/client/ui-input-trigger) | `client` | — |
 | [`client-ui-jobs`](../packages/client/ui-jobs) | `client` | — |
@@ -1591,6 +1613,24 @@ flowchart TD
 | [`client-ui-workflow-run`](../packages/client/ui-workflow-run) | `client` | — |
 | [`client-ui-workspace`](../packages/client/ui-workspace) | `client` | — |
 | [`client-web`](../packages/client/web) | `client` | — |
+| [`component-agent-teams`](../packages/component/agent-teams) | `component` | — |
+| [`component-browser`](../packages/component/browser) | `component` | — |
+| [`component-context-helpers`](../packages/component/context-helpers) | `component` | — |
+| [`component-files`](../packages/component/files) | `component` | — |
+| [`component-goals`](../packages/component/goals) | `component` | — |
+| [`component-jobs`](../packages/component/jobs) | `component` | — |
+| [`component-mcp`](../packages/component/mcp) | `component` | — |
+| [`component-office`](../packages/component/office) | `component` | — |
+| [`component-planning`](../packages/component/planning) | `component` | — |
+| [`component-presets`](../packages/component/presets) | `component` | — |
+| [`component-schedules`](../packages/component/schedules) | `component` | — |
+| [`component-search-tools`](../packages/component/search-tools) | `component` | — |
+| [`component-short-prompt`](../packages/component/short-prompt) | `component` | — |
+| [`component-subagents`](../packages/component/subagents) | `component` | — |
+| [`component-terminal`](../packages/component/terminal) | `component` | — |
+| [`component-web`](../packages/component/web) | `component` | — |
+| [`component-workflows`](../packages/component/workflows) | `component` | — |
+| [`component-workspace-tracking`](../packages/component/workspace-tracking) | `component` | — |
 | [`computer-use`](../packages/computer-use/computer-use) | `computer-use` | — |
 | [`linear`](../packages/connector/linear) | `connector` | — |
 | [`notion`](../packages/connector/notion) | `connector` | — |

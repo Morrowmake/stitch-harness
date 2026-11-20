@@ -26,6 +26,10 @@
       "types": "./lib/types/display.d.ts",
       "default": "./lib/types/display.js"
     },
+    "./component": {
+      "types": "./lib/types/component.d.ts",
+      "default": "./lib/types/component.js"
+    },
     "./typert": {
       "types": "./lib/typert.host.d.ts",
       "default": "./lib/typert.host.js"

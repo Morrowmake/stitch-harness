@@ -1,0 +1,37 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/component/context-helpers/README.md
+/:
+  en: 157a57803460b280
+  zh: 0c50c0748151ec4c
+/deepseek-ai-dsh-component-context-helpers:
+  en: 9e48c4298cf428b7
+  zh: 7e054fad696071f7
+/deepseek-ai-dsh-component-context-helpers/summary:
+  en: 0b719e222c04af4a
+  zh: 58cd854991c034ce
+/deepseek-ai-dsh-component-context-helpers/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 988e839059414d27
+/deepseek-ai-dsh-component-context-helpers/use-this-package:
+  en: f6e987dd82784b6b
+  zh: c054049c205273a3
+/deepseek-ai-dsh-component-context-helpers/understand-the-implementation:
+  en: d88e9797f3569a0d
+  zh: 427b93590098a0e9
+/deepseek-ai-dsh-component-context-helpers/further-exploration:
+  en: 6d3e63b2c15f3736
+  zh: ed7131f630dfdcaa
+/deepseek-ai-dsh-component-context-helpers/model-experience:
+  en: 6aab86238f20f7ff
+  zh: 9a4b00d99903d338
+/deepseek-ai-dsh-component-context-helpers/model-experience/kv-cache-effect:
+  en: c249b630e9076402
+  zh: d0a10c81c391c3b9
+/deepseek-ai-dsh-component-context-helpers/known-limitations-and-deferred-work:
+  en: 8a8b6c123adad290
+  zh: 8c2e57d9a86339b3
+/deepseek-ai-dsh-component-context-helpers/known-limitations-and-deferred-work/dev-note:
+  en: 279d01435256cd2a
+  zh: 83780964e5de2f54

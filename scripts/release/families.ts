@@ -15,7 +15,6 @@ import {
   officialClientBuildEnvironment,
   readClientBuildRecord,
 } from '../client-build-environment.ts'
-import { ON_DEMAND_BUNDLES } from '../../packages/util/official-bundles/src/bundles.ts'
 
 /**
  * Dependency sections a consumer must publish after, because npm resolves them
@@ -249,13 +248,6 @@ export abstract class ReleaseFamily {
   }
 
   /**
-   * Packages that must already be published before this member can advertise them.
-   * @param _member - Member being published.
-   * @returns Release prerequisites that do not become installed dependencies.
-   */
-  protected publicationPrerequisites(_member: ReleaseMember): readonly string[] { return [] }
-
-  /**
    * The family members one member declares in the given sections.
    * @param member - the dependent member.
    * @param byName - every family member by package name.
@@ -274,13 +266,6 @@ export abstract class ReleaseFamily {
       for (const name of Object.keys(dependencies)) {
         const dependency = byName.get(name)
         if (dependency !== undefined && dependency.name !== member.name) edges.push(dependency)
-      }
-    }
-    if (sections.includes('dependencies')) {
-      for (const name of this.publicationPrerequisites(member)) {
-        const prerequisite = byName.get(name)
-        if (prerequisite === undefined) throw new Error(`${member.name}: Official catalog prerequisite ${name} is missing from the public release family`)
-        if (!edges.some(edge => edge.name === name)) edges.push(prerequisite)
       }
     }
     return edges.sort((left, right) => left.name.localeCompare(right.name))
@@ -404,11 +389,6 @@ class DshFamily extends ReleaseFamily {
     if (!files.some(file => file.startsWith('package/src/') && file.endsWith('.ts'))) {
       throw new Error(`${member.name} packed no source`)
     }
-  }
-
-  /** Publish every advertised on-demand package before the installation that offers it. */
-  protected override publicationPrerequisites(member: ReleaseMember): readonly string[] {
-    return member.name === '@deepseek-ai/dsh' ? ON_DEMAND_BUNDLES : []
   }
 
   /** Require the packed Stitch runtime graph to stay on the shared exact release version. */

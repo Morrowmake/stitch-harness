@@ -66,6 +66,8 @@ contributor 必须声明它返回的每个键；返回未声明或非字符串�
 
 两个 contributor 声明同一个键，或 contributor 声称拥有保留内置键（`STITCH_HOME`、`STITCH_SHELL`、`STITCH_SESSION_ID`、`STITCH_PROFILE`、`STITCH_PROFILE_DIR`、`STITCH_INSTALL_DIR`、`STITCH_NODE_EXECUTABLE`），都会导致插件加载时明确报错。`STITCH_*` 键必须全大写并带下划线（例如 `STITCH_REGION`），缺少描述也会让注册失败。
 
+DeepSeek Harness 插件无需修改即可运行：contributor 也可以按相同规则声明 `DSH_*` 键，内置键的 `DSH_` 拼写同样被保留。对于 agent 调用，注册表会在 `STITCH_SESSION_ID` 之外同时导出值相同的 `DSH_SESSION_ID`。
+
 -----
 
 <a id="understand-the-implementation"></a>

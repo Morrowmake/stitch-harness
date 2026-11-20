@@ -11,9 +11,7 @@ import type { PatchOptions } from '@deepseek-ai/cordis-plugin-include'
 import z from '@deepseek-ai/schemastery'
 import semver from 'semver'
 import { TypertRemoteService, Remote, RemoteError, remoteErrorOf } from '@deepseek-ai/dsh-typert-protocol'
-import { detailImageResponse, NPM_FILE_SOURCES } from '@deepseek-ai/dsh-plugin-detail'
-import type { NpmFileSource } from '@deepseek-ai/dsh-plugin-detail/types'
-import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
+import { detailImageResponse } from '@deepseek-ai/dsh-plugin-detail'
 import type {} from '@deepseek-ai/dsh-client-connection'
 import { readBundleDocument, readBundleImage, type BundleDetailOptions } from './bundle-detail.ts'
 import { pluginEntryId, readPluginInventory } from '@deepseek-ai/dsh-host-plugin-inventory'
@@ -22,15 +20,16 @@ import {
   readProfilePatches, bundlePatchPaths,
   evaluatePluginCompatibility, readProfileCompatibility, readProfileVersionExemptions,
   setProfileVersionExemption, validatePluginVersionExemption, PROFILE_COMPATIBILITY_FILENAME,
-  getDshRuntimeVersion, ResolutionRestartRequired,
+  ResolutionRestartRequired,
   assertBundlePlatform, UnsupportedBundlePlatformError,
 } from '@deepseek-ai/dsh-app-boot'
-import { OPTIONAL_BUNDLES, OFFICIAL_ON_DEMAND_CATALOG, PROTECTED_PLUGINS } from '@deepseek-ai/dsh-official-bundles'
+import {
+  closeBundleChanges, COMPONENT_BUNDLES, COMPONENT_HOST_BUNDLES, matchComponentPreset, OPTIONAL_BUNDLES, PROTECTED_PLUGINS,
+} from '@deepseek-ai/dsh-official-bundles'
 import type {} from '@deepseek-ai/dsh-hmr'
 import type { ProfileContext, ProfileManifest } from '@deepseek-ai/dsh-app-boot'
 import { bundleManifest, readProfileRegistry, registryArguments, runProfilePnpm, saveManifest, viewProfilePackage } from './operations.ts'
 import { classifyInstallFailure } from './install-failure.ts'
-import { officialBundleInstallTarget } from './official-install-target.ts'
 import { dependencySpec, InvalidInstallSpecError, parseInstallSpec, pinnedGitOrigin, type ParsedInstallSpec } from './install-spec.ts'
 import { attributeFailure, normalizeRegistry, NPMMIRROR_REGISTRY, registryPlan } from './registry.ts'
 import { flatten, writePluginEnabled } from './patch.ts'
@@ -41,10 +40,10 @@ import { checkGitConnection, checkGithubConnection, type GithubConnectionFailure
 import { chooseGitTransport, sshGitSpec } from './git-transport.ts'
 import { newerVersions, VERSION_FIELDS, VERSION_LIST_FIELDS, versionFacts } from './versions.ts'
 import type {
-  BundleDetail, BundleInfo, BundleRowInfo, ChangeResult, InspectOptions, InstallBundleOptions, ListVersionsOptions, ManagementError,
-  PackageResult, PluginChange, PluginEntryId, PluginInfo, PluginInstallCancellation, PluginInstallProgress, PluginInstallRequestId,
-  PluginRegistries, PluginSpecInspection, PluginUpdateResult, PluginUpdateStep, PluginVersion, PluginVersionList, Registry,
-  RegistryAttempt, UpdateBundleOptions,
+  BundleDetail, BundleInfo, BundleRowInfo, ChangeResult, ComponentPresetMatch, InspectOptions, InstallBundleOptions, ListVersionsOptions,
+  ManagementError, PackageResult, PluginChange, PluginEntryId, PluginInfo, PluginInstallCancellation, PluginInstallProgress,
+  PluginInstallRequestId, PluginRegistries, PluginSpecInspection, PluginUpdateResult, PluginUpdateStep, PluginVersion, PluginVersionList,
+  Registry, RegistryAttempt, UpdateBundleOptions,
   PluginOperation, PluginOperationId,
 } from './types.ts'
 export type * from './types.ts'
@@ -84,10 +83,6 @@ export interface Config {
   detailMaxBytes?: number
   /** Largest image served beside a bundle detail document, in bytes. */
   detailImageMaxBytes?: number
-  /** Deadline of one npm file CDN request for an offered bundle's detail document. */
-  detailFetchTimeoutMs?: number
-  /** npm file CDNs that offered bundles are read from, in order; a read's `npmFileSources` moves the CDNs it names first. */
-  detailNpmFileSources?: NpmFileSource[]
 }
 
 /** The Fetch route serving images beside bundle detail documents. */
@@ -255,6 +250,23 @@ function bundleSelection(manifest: ProfileManifest): readonly string[] {
 }
 
 /**
+ * Insert a newly selected bundle: a component at its canonical position after dsh-web-app, so its patch applies before
+ * optional bundles that override the rows it switches on; any other bundle last.
+ * @param bundles The current selection.
+ * @param name The bundle to add.
+ * @returns The new selection.
+ */
+function placeBundle(bundles: readonly string[], name: string): string[] {
+  const rank = COMPONENT_BUNDLES.indexOf(name)
+  const host = COMPONENT_HOST_BUNDLES.at(-1)
+  const after = rank < 0 ? -1 : bundles.findLastIndex((item) => {
+    const other = COMPONENT_BUNDLES.indexOf(item)
+    return item === host || (other >= 0 && other < rank)
+  })
+  return after < 0 ? [...bundles, name] : bundles.toSpliced(after + 1, 0, name)
+}
+
+/**
  * The package an installation spec names before pnpm runs: a registry name, a local directory's manifest name, or the
  * dependency saved with this git or tarball spec or the SSH form of its Git URL, compared as the plugin list shows saved specs.
  * @param spec The installation spec.
@@ -338,8 +350,6 @@ export class PluginManager extends TypertRemoteService {
     versionLookupConcurrency: z.number().step(1).min(1).default(4),
     detailMaxBytes: z.natural().min(1).default(1024 * 1024),
     detailImageMaxBytes: z.natural().min(1).default(5 * 1024 * 1024),
-    detailFetchTimeoutMs: z.natural().min(1).max(MAX_TIMER_DELAY_MS).default(15000),
-    detailNpmFileSources: z.array(z.union(NPM_FILE_SOURCES)).min(1).default([...NPM_FILE_SOURCES]),
   })
   /** Management bundles remain protected if their files become unreadable. */
   private readonly managementBundles = new Set<string>()
@@ -389,7 +399,7 @@ export class PluginManager extends TypertRemoteService {
     const required = config as Required<Config>
     this.detail = {
       profile: this.profile, maxDocumentBytes: required.detailMaxBytes, maxImageBytes: required.detailImageMaxBytes,
-      npmFileSources: required.detailNpmFileSources, timeoutMs: required.detailFetchTimeoutMs, lifetime: this.abort.signal,
+      lifetime: this.abort.signal,
     }
     ctx.effect(() => async () => {
       this.abort.abort()
@@ -404,19 +414,16 @@ export class PluginManager extends TypertRemoteService {
 
   /**
    * Read a bundle's long description: the Markdown file its locale `meta.detail` names in `language`, otherwise its
-   * README. An installed bundle is read from its directory without network access; an official bundle the installation
-   * offers before it is installed is read from the npm file CDNs at its offered version. Nothing is cached.
+   * README, read from the bundle's directory without network access. Nothing is cached.
    * @param name - the bundle's package name, as `listBundles()` lists it.
    * @param language - the display language, such as `zh-CN`; documents fall back through its prefixes to English.
-   * @param options - `npmFileSources` names npm file CDNs to ask first for an offered bundle, in order, such as the one
-   *   a Client measured as fastest; configured CDNs it omits follow, and CDNs that are not configured are not asked.
    * @returns the document with its origin and path, or `none`.
    * @throws {RemoteError} `plugin-manager/unknown-bundle`, `plugin-manager/invalid-language`, or
    *   `plugin-manager/detail-unavailable`.
    */
   @Remote
-  async readBundleDetail(name: string, language: string, options?: { npmFileSources?: NpmFileSource[] }): Promise<BundleDetail> {
-    return await readBundleDocument(await this.listedBundle(name), language, options?.npmFileSources ?? [], this.detail)
+  async readBundleDetail(name: string, language: string): Promise<BundleDetail> {
+    return await readBundleDocument(await this.listedBundle(name), language, this.detail)
   }
 
   private async listedBundle(name: string): Promise<BundleInfo> {
@@ -426,8 +433,8 @@ export class PluginManager extends TypertRemoteService {
   }
 
   /**
-   * Answer `GET ${DETAIL_FILE_PATH}?bundle=<name>&document=<path>&path=<destination>[&sources=<cdn>,...]` with one image
-   * beside a bundle document; `sources` names npm file CDNs to ask first for an offered bundle, as `readBundleDetail` does.
+   * Answer `GET ${DETAIL_FILE_PATH}?bundle=<name>&document=<path>&path=<destination>` with one image beside a bundle
+   * document.
    */
   private async serveDetailFile(request: Request): Promise<Response> {
     const params = new URL(request.url).searchParams
@@ -436,7 +443,7 @@ export class PluginManager extends TypertRemoteService {
     const cache = 'no-store'
     if (bundle === null || document === null || path === null) return detailImageResponse('invalid', cache)
     try {
-      const image = await readBundleImage(await this.listedBundle(bundle), document, path, params.get('sources')?.split(',') ?? [], this.detail)
+      const image = await readBundleImage(await this.listedBundle(bundle), document, path, this.detail)
       return detailImageResponse(image, cache)
     } catch (error) {
       const failure = remoteErrorOf(error)
@@ -495,7 +502,7 @@ export class PluginManager extends TypertRemoteService {
     })
   }
 
-  /** Read installed, installation-provided, and offline Official catalog bundles, plus selected non-bundle names.
+  /** Read installed and installation-provided bundles, plus selected non-bundle names.
    * A dependency without a bundle patch is listed, as a `not-bundle` problem, only while it is selected.
    * @returns Package versions, manifest descriptions, the installable spec of profile dependencies, rows, optional
    * display metadata, activation selections, whether the installation offers the bundle, and removal availability.
@@ -520,35 +527,14 @@ export class PluginManager extends TypertRemoteService {
     const selected = bundleSelection(manifest)
     const recorded = manifest.dependencies ?? {}
     const dependencies = Object.keys(recorded)
-    const catalog = new Map(OFFICIAL_ON_DEMAND_CATALOG.map(entry => [entry.packageName, entry]))
-    const names = [...new Set([...selected, ...dependencies, ...Object.keys(installation.dependencies ?? {}), ...catalog.keys()])]
+    const names = [...new Set([...selected, ...dependencies, ...Object.keys(installation.dependencies ?? {})])]
     const bundles: Omit<BundleInfo, 'update'>[] = []
-    const runtimeVersion = getDshRuntimeVersion()
     for (const name of names) {
       const installed = dependencies.includes(name)
       const optional = OPTIONAL_BUNDLES.includes(name)
       const enabled = selected.includes(name)
       const shipped = Object.hasOwn(installation.dependencies ?? {}, name)
-      const offered = catalog.get(name)
-      const official = optional || offered !== undefined
-      let target: Pick<BundleInfo, 'installTarget'> = {}
-      let targetError: ManagementError | undefined
-      if (offered !== undefined) {
-        try { target = { installTarget: officialBundleInstallTarget(name, this.profile.installAnchor, runtimeVersion) } }
-        catch (error) { targetError = managementError(error) }
-      }
-      const catalogMeta = offered === undefined ? {} : { meta: offered.meta }
-      if (offered !== undefined && !installed && !shipped) {
-        let platformError: ManagementError | undefined
-        try { assertBundlePlatform(offered.platforms, process.platform) }
-        catch (error) { platformError = managementError(error) }
-        const error = platformError ?? targetError ?? (enabled ? { code: 'not-bundle' as const } : undefined)
-        bundles.push({ name, official, availability: 'missing', ...catalogMeta, ...target, enabled, installed, optional,
-          ...platformError?.code === 'unsupported-platform' ? { listedByDefault: false } : {},
-          removable: enabled, rows: [], overrides: [],
-          ...error === undefined ? {} : { error } })
-        continue
-      }
+      const official = optional || COMPONENT_BUNDLES.includes(name)
       // Installation-owned copies remain protected even if a profile also declares their names.
       const owned = installed && !shipped
       const removable = owned || (enabled && !installed && !shipped)
@@ -562,9 +548,9 @@ export class PluginManager extends TypertRemoteService {
         const info = bundleManifest(name, this.profile.dir, this.profile.installAnchor)
         availability = shipped ? 'installation' : 'profile'
         if (info === undefined) {
-          if (enabled || offered !== undefined) bundles.push({ name, official, availability, ...catalogMeta, ...target,
+          if (enabled) bundles.push({ name, official, availability,
             ...sourceOf(), enabled, installed, optional, removable: removable && readOnlyReason === undefined,
-            ...(readOnlyReason === undefined ? {} : { readOnlyReason }), error: targetError ?? { code: 'not-bundle' }, rows: [], overrides: [] })
+            ...(readOnlyReason === undefined ? {} : { readOnlyReason }), error: { code: 'not-bundle' }, rows: [], overrides: [] })
           continue
         }
         version = info.version
@@ -577,7 +563,7 @@ export class PluginManager extends TypertRemoteService {
         const compatibility = evaluatePluginCompatibility(info, exemptions)
         if (compatibility !== undefined && !compatibility.exempted) throw new ManagementFailure('incompatible-version', [incompatiblePlugin(compatibility)])
         const dir = resolveBundleDir('stitch', name, this.profile.installAnchor, this.profile.dir)
-        const read: BundleInfo['meta'] = offered?.meta ?? readPluginMeta(info.name ?? name, pathToFileURL(join(dir, 'package.json')).href)
+        const read: BundleInfo['meta'] = readPluginMeta(info.name ?? name, pathToFileURL(join(dir, 'package.json')).href)
         const meta = listingDiagnostic === undefined
           ? read
           : { ...read, error: read?.error === undefined ? listingDiagnostic : `${read.error}; ${listingDiagnostic}` }
@@ -585,20 +571,19 @@ export class PluginManager extends TypertRemoteService {
         try { assertBundlePlatform(info.dsh?.bundle?.platforms, process.platform) }
         catch (error) { platformError = managementError(error) }
         if (platformError?.code === 'unsupported-platform') listing = { listedByDefault: false }
-        const error = platformError ?? targetError
-        bundles.push({ name, official, availability, ...listing, ...target, ...(version === undefined ? {} : { version }),
+        bundles.push({ name, official, availability, ...listing, ...(version === undefined ? {} : { version }),
           ...(info.description === undefined || info.description === '' ? {} : { description: info.description }),
           ...meta === undefined ? {} : { meta },
           ...sourceOf(info.name), enabled, installed, optional, removable: removable && readOnlyReason === undefined,
           ...(readOnlyReason === undefined ? {} : { readOnlyReason }),
           ...this.declaredRows(name, info),
-          ...error === undefined ? {} : { error } })
+          ...platformError === undefined ? {} : { error: platformError } })
       } catch (error) {
-        if (enabled || installed || optional || offered !== undefined) {
-          bundles.push({ name, official, availability, ...listing, ...catalogMeta, ...target, ...(version === undefined ? {} : { version }),
+        if (enabled || installed || optional) {
+          bundles.push({ name, official, availability, ...listing, ...(version === undefined ? {} : { version }),
             ...sourceOf(), enabled, installed, optional, removable: removable && readOnlyReason === undefined,
             ...(readOnlyReason === undefined ? {} : { readOnlyReason }),
-            error: targetError ?? managementError(error), rows: [], overrides: [] })
+            error: managementError(error), rows: [], overrides: [] })
         }
       }
     }
@@ -954,9 +939,39 @@ export class PluginManager extends TypertRemoteService {
   @Remote
   setBundleEnabled(name: string, enabled: boolean): Promise<ChangeResult> {
     return this.change(result => this.configure(async () => {
-      await this.selectBundle(name, enabled)
-      Object.assign(result, enabled ? await this.publishAndReload(this.bundleRows(name).map(row => row.id)) : await this.reload())
+      const selection = await this.selectBundles({ [name]: enabled })
+      // Prerequisites and dependents the selection also changed.
+      if (Object.keys(selection).some(item => item !== name)) result.selection = selection
+      Object.assign(result, await this.reloadSelection(selection))
     }), { stage: 'enable', target: name, enabled }, 'bundle')
+  }
+
+  /** Select or remove several bundle layers with one profile write and one reload.
+   * @param changes Requested enablement per bundle package name; prerequisites (`dsh.bundle.requires`) follow.
+   * @returns Persisted and runtime outcomes; `selection` holds every bundle the change set, prerequisites included.
+   */
+  @Remote
+  setBundlesEnabled(changes: Record<string, boolean>): Promise<ChangeResult> {
+    return this.change(result => this.configure(async () => {
+      result.selection = await this.selectBundles(changes)
+      Object.assign(result, await this.reloadSelection(result.selection))
+    }), { stage: 'enable', target: Object.keys(changes).join(', ') }, 'bundle', { target: null })
+  }
+
+  /** Read which named component set the profile selects.
+   * @returns `minimal` or `standard` when the enabled components equal that set, otherwise `custom`, with the enabled components.
+   */
+  @Remote
+  componentPreset(): Promise<ComponentPresetMatch> {
+    return Promise.resolve(matchComponentPreset(bundleSelection(readProfileState(() => readProfileManifest('stitch', this.profile.dir)))))
+  }
+
+  /** Apply a saved selection, requiring the rows of every newly enabled bundle to start. */
+  private reloadSelection(selection: Readonly<Record<string, boolean>>): Promise<Reload> {
+    const enabled = Object.keys(selection).filter(name => selection[name])
+    return enabled.length > 0
+      ? this.publishAndReload(enabled.flatMap(name => this.bundleRows(name).map(row => row.id)))
+      : this.reload()
   }
 
   /**
@@ -1108,7 +1123,7 @@ export class PluginManager extends TypertRemoteService {
       result.target = name
       result.stage = 'enable'
       return this.configure(async () => {
-        if (options?.enabled !== false) await this.selectBundle(name, true)
+        if (options?.enabled !== false) await this.selectBundles({ [name]: true })
         // Without HMR the replaced package's plugins keep running until the restart the result already reports.
         if (Object.hasOwn(before, name) && this.ownerContext.get('hmr') === undefined) return
         // A selected bundle's own rows must start.
@@ -1165,7 +1180,7 @@ export class PluginManager extends TypertRemoteService {
         }
         const contributions = bundle.error === undefined ? this.bundleRows(name) : []
         if (bundle.enabled) {
-          await this.selectBundle(name, false)
+          await this.selectBundles({ [name]: false })
           Object.assign(result, await this.reload())
         }
         if ([...this.ctx.loader.entries()].some(entry => entry.fiber?.uid != null
@@ -1275,10 +1290,42 @@ export class PluginManager extends TypertRemoteService {
     }
   }
 
-  private async selectBundle(name: string, enabled: boolean): Promise<void> {
+  /**
+   * Save a selection change closed over bundle prerequisites, validating every bundle it touches first.
+   * @param changes Requested enablement per bundle package name.
+   * @returns Every bundle whose selection was requested or changed by the closure, with its final state.
+   */
+  private async selectBundles(changes: Readonly<Record<string, boolean>>): Promise<Record<string, boolean>> {
     const manifest = readProfileManifest('stitch', this.profile.dir)
     const previous = bundleSelection(manifest)
-    if (enabled || !previous.includes(name)) {
+    const selection = closeBundleChanges(changes, previous, name => this.bundleRequires(name))
+    let bundles = [...previous]
+    for (const [name, enabled] of Object.entries(selection)) {
+      this.validateSelection(name, enabled, previous.includes(name))
+      if (!enabled) bundles = bundles.filter(item => item !== name)
+      else if (!bundles.includes(name)) bundles = placeBundle(bundles, name)
+    }
+    if (JSON.stringify(previous) !== JSON.stringify(bundles)) {
+      manifest.dsh = { ...manifest.dsh, profile: { ...manifest.dsh?.profile, bundles } }
+      await saveManifest(this.profile.dir, manifest)
+    }
+    for (const [name, enabled] of Object.entries(selection)) if (enabled) this.protectsManager(name)
+    return selection
+  }
+
+  /** The prerequisite bundles a bundle declares; an unreadable manifest declares none, and selection reports it. */
+  private bundleRequires(name: string): string[] {
+    try {
+      const requires: unknown = bundleManifest(name, this.profile.dir, this.profile.installAnchor)?.dsh?.bundle?.requires
+      return Array.isArray(requires) ? requires.filter((item): item is string => typeof item === 'string') : []
+    } catch (_error) {
+      return []
+    }
+  }
+
+  /** Refuse an enablement the bundle cannot take, or a removal of a bundle management needs. */
+  private validateSelection(name: string, enabled: boolean, selected: boolean): void {
+    if (enabled || !selected) {
       const metadata = bundleManifest(name, this.profile.dir, this.profile.installAnchor)
       if (metadata === undefined) throw new ManagementFailure('not-bundle')
       if (enabled) {
@@ -1288,14 +1335,7 @@ export class PluginManager extends TypertRemoteService {
         this.bundleRows(name)
       }
     }
-    if (!enabled && previous.includes(name)) {
-      if (this.protectsManager(name)) throw new ManagementFailure('management-required')
-    }
-    const bundles = enabled ? [...previous, ...previous.includes(name) ? [] : [name]] : previous.filter(item => item !== name)
-    if (JSON.stringify(previous) === JSON.stringify(bundles)) return
-    manifest.dsh = { ...manifest.dsh, profile: { ...manifest.dsh?.profile, bundles } }
-    await saveManifest(this.profile.dir, manifest)
-    if (enabled) this.protectsManager(name)
+    if (!enabled && selected && this.protectsManager(name)) throw new ManagementFailure('management-required')
   }
 
   private bundleRows(name: string): EntryOptions[] {

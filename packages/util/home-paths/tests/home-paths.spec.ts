@@ -16,6 +16,7 @@ import {
   dshHomePath,
   dshPath,
   expandHomePath,
+  readProductEnv,
   resolveAgentsHome,
   resolveDshHome,
 } from '@deepseek-ai/dsh-home-paths'
@@ -50,6 +51,16 @@ describe('dsh path helpers', () => {
   it('treats an empty or whitespace-only STITCH_HOME as unset', () => {
     expect(resolveDshHome(undefined, { STITCH_HOME: '' })).toBe(defaultDshHome())
     expect(resolveDshHome(undefined, { STITCH_HOME: '   ' })).toBe(defaultDshHome())
+  })
+
+  it('falls back to DeepSeek Harness DSH_* variables only when the STITCH_* one is absent', () => {
+    expect(readProductEnv('SESSION_ID', { DSH_SESSION_ID: 'dsh' })).toBe('dsh')
+    expect(readProductEnv('SESSION_ID', { STITCH_SESSION_ID: 'stitch', DSH_SESSION_ID: 'dsh' })).toBe('stitch')
+    expect(readProductEnv('SESSION_ID', {})).toBeUndefined()
+    expect(resolveDshHome(undefined, { DSH_HOME: '/tmp/dsh-home' })).toBe(resolve('/tmp/dsh-home'))
+    expect(resolveDshHome(undefined, { STITCH_HOME: '/tmp/stitch-home', DSH_HOME: '/tmp/dsh-home' })).toBe(resolve('/tmp/stitch-home'))
+    expect(resolveAgentsHome(undefined, { DSH_AGENTS_HOME: '/tmp/dsh-agents' })).toBe(resolve('/tmp/dsh-agents'))
+    expect(resolveAgentsHome(undefined, { STITCH_AGENTS_HOME: '/tmp/a', DSH_AGENTS_HOME: '/tmp/b' })).toBe(resolve('/tmp/a'))
   })
 
   it('joins child segments onto the resolved STITCH_HOME', () => {

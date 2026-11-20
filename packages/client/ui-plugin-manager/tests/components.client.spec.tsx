@@ -125,7 +125,6 @@ function renderTab(
     closeInstall: vi.fn(),
     editInstallSpec: vi.fn(),
     runInstall: vi.fn(),
-    update: vi.fn(),
     cancelInstall: vi.fn(),
     reconcileInstall: vi.fn(),
     toggleInstallDetails: vi.fn(),
@@ -151,7 +150,7 @@ function renderTab(
     toggleUpdateOutput: vi.fn(),
     loadDetail: vi.fn(),
     retryDetail: vi.fn(),
-    detailImage: vi.fn((name: string, document: string, destination: string, _fromNpm: boolean) =>
+    detailImage: vi.fn((name: string, document: string, destination: string) =>
       `https://dsh.example/api/plugin-manager/detail-file?bundle=${name}&document=${document}&path=${destination}`),
   }
   const unusedStandardHook = (): never => { throw new Error('Plugin manager fixture does not provide global state') }
@@ -533,7 +532,7 @@ describe('PluginManagerPage', () => {
   it('shows a bundle\'s detail document first among its sections, and its failures with a retry', () => {
     const b = renderTab({ packages: [pkg()] })
     act(() => { b.navigation.actions.setView({ kind: 'package', name: 'dsh-better-sidebar' }) })
-    expect(b.actions.loadDetail).toHaveBeenCalledWith('dsh-better-sidebar', '0.16.0', 'en', false)
+    expect(b.actions.loadDetail).toHaveBeenCalledWith('dsh-better-sidebar', '0.16.0', 'en')
     expect(screen.getByRole('status', { name: en.detailLoading })).toBeTruthy()
     const key = bundleDetailKey('dsh-better-sidebar', '0.16.0', 'en')
     b.setDetails({ [key]: { status: 'ready', detail: { status: 'found', origin: 'locale', path: 'guide/DETAIL.md', markdown: '# Sidebar\n\n![shot](img/a.png)' } } })
@@ -550,12 +549,12 @@ describe('PluginManagerPage', () => {
       expect(screen.getByRole('alert').textContent).toBe(text)
     }
     fireEvent.click(screen.getByRole('button', { name: en.retry }))
-    expect(b.actions.retryDetail).toHaveBeenCalledWith('dsh-better-sidebar', '0.16.0', 'en', false)
+    expect(b.actions.retryDetail).toHaveBeenCalledWith('dsh-better-sidebar', '0.16.0', 'en')
     b.setDetails({ [key]: { status: 'ready', detail: { status: 'none' } } })
     expect(document.querySelector('[data-detail-document]')).toBeNull()
     // A read the controller forgot, after a profile change, starts again.
     b.setDetails({})
-    expect(b.actions.loadDetail).toHaveBeenLastCalledWith('dsh-better-sidebar', '0.16.0', 'en', false)
+    expect(b.actions.loadDetail).toHaveBeenLastCalledWith('dsh-better-sidebar', '0.16.0', 'en')
   })
 
   it('says where a bundle comes from: the spec that installs it, or built in, with its version', () => {
@@ -576,8 +575,7 @@ describe('PluginManagerPage', () => {
     expect(facts()).toEqual([en.sourceSpec, en.sourceBuiltIn])
     act(() => { b.navigation.actions.setView({ kind: 'package', name: 'dsh-missing' }) })
     expect(facts()).toEqual([en.sourceSpec, en.sourceNotInstalled])
-    // A bundle whose files are not installed is read from the npm file CDNs.
-    expect(b.actions.loadDetail).toHaveBeenLastCalledWith('dsh-missing', undefined, 'en', true)
+    expect(b.actions.loadDetail).toHaveBeenLastCalledWith('dsh-missing', undefined, 'en')
   })
 
   it('preserves the requested bundle through StrictMode effect replay and page remounts', () => {
@@ -1473,7 +1471,7 @@ describe('PluginManagerPage', () => {
       fireEvent.click(screen.getByRole('button', { name: dict.moreAction }))
       expect(card()).toBeNull()
       for (const availability of ['profile', 'missing'] as const) {
-        const installed = { ...entry, installed: true, availability, installTarget: { spec: `${name}@1.0.0`, version: '1.0.0' } }
+        const installed = { ...entry, installed: true, availability }
         set({ packages: [other, installed] })
         expect(card()).not.toBeNull()
         expect(screen.getByText(dict.reasonUnsupportedPlatform)).toBeTruthy()
@@ -2855,12 +2853,11 @@ it('supplies the accepted entry values and atomic mutation action to a custom pl
   expect(mutate).toHaveBeenCalledWith([{ op: 'set', path: ['count'], value: 3 }], 7)
 })
 
-describe('on-demand Official bundles', () => {
+describe('Official bundles whose package is missing', () => {
   const name = '@deepseek-ai/dsh-subagent-codex'
   const title = 'Codex subagent'
   const catalog = (): PackageView => ({ name, meta: { title }, official: true, availability: 'missing', installed: false,
     optional: false, removable: false, enabled: false, rows: [],
-    installTarget: { spec: `${name}@2.0.0`, version: '2.0.0' },
   })
 
   it('keeps one card on the secondary page before installation, after installation, and after removal', () => {
@@ -2883,30 +2880,7 @@ describe('on-demand Official bundles', () => {
     assertOfficial()
   })
 
-  it.each(['checking', 'starting'] as const)('keeps the catalog switch busy while its installation is %s', (phase) => {
-    const entry = catalog()
-    renderTab({ packages: [entry], install: { ...IDLE_INSTALL, phase, subject: {
-      status: 'accepted', kind: 'registry', name, version: '2.0.0', spec: `${name}@2.0.0`, registry: null,
-      bundle: true, selection: true, saveExact: true,
-    } } })
-    fireEvent.click(screen.getByRole('button', { name: en.moreAction }))
-    expect(screen.getByRole('switch', { name: en.enableToggle.replace('{name}', title) }).hasAttribute('disabled')).toBe(true)
-  })
-
-  it('offers an explicit update and displays installed and target versions', () => {
-    const entry = { ...catalog(), installed: true, availability: 'profile' as const, removable: true, version: '1.0.0' }
-    const { actions } = renderTab({ packages: [entry] })
-    fireEvent.click(screen.getByRole('button', { name: en.moreAction }))
-    expect(screen.getByText(en.statusUpdateAvailable)).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: en.openDetail.replace('{name}', title) }))
-    const detail = document.querySelector('[data-plugin-detail]') as HTMLElement
-    expect(within(detail).getByText('1.0.0')).toBeTruthy()
-    expect(within(detail).getByText('2.0.0')).toBeTruthy()
-    fireEvent.click(within(detail).getByRole('button', { name: en.updateLabel.replace('{name}', title) }))
-    expect(actions.update).toHaveBeenCalledWith(name)
-  })
-
-  it.each([undefined, `${name}@1.0.0`])('retains dependency source=%s beside unavailable status and the update action', (source) => {
+  it.each([undefined, `${name}@1.0.0`])('retains dependency source=%s beside unavailable status', (source) => {
     renderTab({ packages: [{ ...catalog(), ...source === undefined ? {} : { source }, installed: true, removable: true, error: { code: 'operation-error', diagnostic: 'Unreadable package files' } }] })
     fireEvent.click(screen.getByRole('button', { name: en.moreAction }))
     expect(screen.getByText(en.statusMissingFiles)).toBeTruthy()
@@ -2915,31 +2889,10 @@ describe('on-demand Official bundles', () => {
     expect(within(detail).queryByText(en.statusNotInstalled)).toBeNull()
     if (source !== undefined) expect(within(detail).getByText(source).tagName).toBe('CODE')
     expect(within(detail).queryAllByText(en.statusMissingFiles)).not.toEqual([])
-    expect(within(detail).getByRole('button', { name: en.updateLabel.replace('{name}', title) })).toBeTruthy()
   })
 
-  it.each([
-    ['link:/current-checkout/codex', `${name}@2.0.0`, true],
-    ['link:/current-checkout/codex', 'link:/other-checkout/codex', true],
-    ['link:/current-checkout/codex', 'link:/current-checkout/codex', false],
-    [`${name}@2.0.0`, 'link:/current-checkout/codex', true],
-    [`${name}@2.0.0`, `${name}@^2.0.0`, false],
-    [`${name}@2.0.0`, undefined, false],
-  ] as const)('offers source replacement from %s with recorded source %s: %s', (spec, source, expected) => {
-    const entry: PackageView = { ...catalog(), installed: true, availability: 'profile', removable: true, version: '2.0.0',
-      installTarget: { spec, version: '2.0.0' }, ...source === undefined ? {} : { source } }
-    renderTab({ packages: [entry] })
-    fireEvent.click(screen.getByRole('button', { name: en.moreAction }))
-    expect(screen.queryByText(en.statusUpdateAvailable) !== null).toBe(expected)
-    fireEvent.click(screen.getByRole('button', { name: en.openDetail.replace('{name}', title) }))
-    const detail = document.querySelector('[data-plugin-detail]') as HTMLElement
-    expect(within(detail).getByText(en.sourceTargetSpec)).toBeTruthy()
-    expect(within(detail).getAllByText(spec).every(element => element.tagName === 'CODE')).toBe(true)
-    expect(within(detail).queryByRole('button', { name: en.updateLabel.replace('{name}', title) }) !== null).toBe(expected)
-  })
-
-  it('allows Off while an enabled source bundle has no usable installation target', () => {
-    const { installTarget: _target, ...entry } = catalog()
+  it('allows Off while an enabled bundle cannot be read', () => {
+    const entry = catalog()
     const { actions, set } = renderTab({ packages: [{ ...entry, enabled: true,
       error: { code: 'operation-error', diagnostic: 'Source package is not built' } }] })
     fireEvent.click(screen.getByRole('button', { name: en.moreAction }))

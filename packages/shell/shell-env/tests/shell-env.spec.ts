@@ -51,11 +51,34 @@ describe('ShellEnvRegistry', () => {
       STITCH_SHELL: '1',
     })
     expect(registry.collect(execution('session-a'))).toEqual({
+      DSH_SESSION_ID: 'session-a',
       STITCH_HOME: resolve('./test-dsh-home'),
       STITCH_NODE_EXECUTABLE: process.execPath,
       STITCH_SESSION_ID: 'session-a',
       STITCH_SHELL: '1',
     })
+  })
+
+  it('accepts DSH_-prefixed contributions from DeepSeek Harness plugins and reserves DSH_ built-ins', () => {
+    const registry = new ShellEnvRegistry(new Context(), { dshHome: './test-dsh-home' })
+    registry.register({
+      name: 'dsh-plugin',
+      variables: { DSH_PLUGIN_FACT: { description: 'Fact from a DSH plugin.' } },
+      resolve: () => ({ DSH_PLUGIN_FACT: 'dsh' }),
+    })
+    expect(registry.collect(execution()).DSH_PLUGIN_FACT).toBe('dsh')
+    for (const key of ['DSH_SESSION_ID', 'DSH_HOME']) {
+      expect(() => registry.register({
+        name: `${key}-claimer`,
+        variables: { [key]: { description: 'Reserved key.' } },
+        resolve: () => ({}),
+      })).toThrow(new RegExp(`reserved key "${key}"`))
+    }
+    expect(() => registry.register({
+      name: 'bad-dsh-suffix',
+      variables: { DSH_lower: { description: 'Invalid suffix.' } },
+      resolve: () => ({}),
+    })).toThrow(/invalid key/)
   })
 
   it('omits the Node executable inside a single-executable application', () => {

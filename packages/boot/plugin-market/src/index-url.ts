@@ -10,6 +10,18 @@ import { PLUGIN_INDEX_REPOSITORY } from '@deepseek-ai/dsh-product'
 export const DEFAULT_PLUGIN_INDEX = `https://raw.githubusercontent.com/${PLUGIN_INDEX_REPOSITORY}/main/index.json`
 
 /**
+ * DeepSeek Harness (DSH) plugin indexes, whose plugins Stitch runs; listed after
+ * {@link DEFAULT_PLUGIN_INDEX} and, like it, fetched only when read.
+ */
+export const DEEPSEEK_HARNESS_PLUGIN_INDEXES = [
+  'https://awesome-dsh-plugin.com/index.json',
+  'https://cdn.dsh.so/market/index.json',
+] as const
+
+/** The `indexes` default, in display order: the Stitch index, then the DeepSeek Harness indexes. */
+export const DEFAULT_PLUGIN_INDEXES: readonly string[] = [DEFAULT_PLUGIN_INDEX, ...DEEPSEEK_HARNESS_PLUGIN_INDEXES]
+
+/**
  * Validate and normalize one index source URL.
  * @param text - URL as configured or entered.
  * @returns the URL's serialization.

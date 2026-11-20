@@ -1,0 +1,19 @@
+# Agent teams component: switches on the `# component: agent-teams` rows that dsh-web-app
+# (and, for shared base rows, its placeholder patches) keeps disabled, and marks
+# `agent-teams` enabled for the `component: agent-teams` gates of the agent presets.
+# Deselecting the bundle restores the placeholders.
+
+- id: agent-team
+  disabled: false
+
+- id: tool-agent-team
+  disabled: false
+
+- id: ui-agent-team
+  disabled: false
+
+- insert:
+    - id: component-agent-teams
+      name: '@deepseek-ai/dsh-agent-preset-registry/component'
+      config:
+        id: agent-teams

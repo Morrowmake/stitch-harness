@@ -1,0 +1,37 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/component/workspace-tracking/README.md
+/:
+  en: 27cec0fefbe9787d
+  zh: 5b70e4731fcdb9f5
+/deepseek-ai-dsh-component-workspace-tracking:
+  en: d0a1233545fe0128
+  zh: 77618149c4a91b83
+/deepseek-ai-dsh-component-workspace-tracking/summary:
+  en: 7aaa0a21545f78c8
+  zh: 05b49cf4b5e1d599
+/deepseek-ai-dsh-component-workspace-tracking/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 988e839059414d27
+/deepseek-ai-dsh-component-workspace-tracking/use-this-package:
+  en: 63f0c1f5d3a9225b
+  zh: 9b64d79fea1e419e
+/deepseek-ai-dsh-component-workspace-tracking/understand-the-implementation:
+  en: c348a00ec173058d
+  zh: d0978357399a1edb
+/deepseek-ai-dsh-component-workspace-tracking/further-exploration:
+  en: 6d3e63b2c15f3736
+  zh: ed7131f630dfdcaa
+/deepseek-ai-dsh-component-workspace-tracking/model-experience:
+  en: 1417b92da9ad0545
+  zh: ef8f633ebc164590
+/deepseek-ai-dsh-component-workspace-tracking/model-experience/kv-cache-effect:
+  en: c249b630e9076402
+  zh: d0a10c81c391c3b9
+/deepseek-ai-dsh-component-workspace-tracking/known-limitations-and-deferred-work:
+  en: 8a8b6c123adad290
+  zh: 8c2e57d9a86339b3
+/deepseek-ai-dsh-component-workspace-tracking/known-limitations-and-deferred-work/dev-note:
+  en: 279d01435256cd2a
+  zh: 83780964e5de2f54

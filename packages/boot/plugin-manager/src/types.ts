@@ -69,15 +69,13 @@ export interface BundleRowInfo {
   entryId?: PluginEntryId
 }
 
-/** One shipped, profile-installed, or discoverable on-demand bundle. */
+/** One shipped or profile-installed bundle. */
 export interface BundleInfo {
   name: string
-  /** Project-maintained shipped optional bundle or on-demand catalog entry, independent of installation and selection. */
+  /** Project-maintained shipped optional bundle or component, independent of installation and selection. */
   official: boolean
-  /** Readable package location; on-demand catalog entries exclude undeclared transitive copies, and declared files may be missing. */
+  /** Readable package location; declared files may be missing. */
   availability: 'installation' | 'profile' | 'missing'
-  /** Exact released Host version or same-checkout development link offered for an on-demand catalog entry. */
-  installTarget?: { spec: string; version: string }
   version?: string
   /** Local display text with available translations or literal fallbacks, or a metadata diagnostic. */
   meta?: PluginLocalizedMeta
@@ -178,6 +176,11 @@ export interface ChangeResult {
   stage: 'install' | 'enable' | 'remove'
   target: string
   enabled?: boolean
+  /**
+   * Final selection of every bundle a selection change touched: the requested bundles, the prerequisites
+   * (`dsh.bundle.requires`) it enabled with them, and the bundles it disabled because they need a disabled one.
+   */
+  selection?: Record<string, boolean>
   error?: ManagementError
   /** Pre-existing inactive entries the operation left as they were. */
   warnings?: string[]
@@ -403,6 +406,14 @@ export type BundleDetail =
     readonly markdown: string
   }
   | { readonly status: 'none' }
+
+/** Which named component set the profile's enabled components equal (`matchComponentPreset` of dsh-official-bundles). */
+export interface ComponentPresetMatch {
+  /** `minimal` / `standard` when the enabled components equal that set exactly, otherwise `custom`. */
+  readonly preset: 'minimal' | 'standard' | 'custom'
+  /** Enabled component package names, in component order. */
+  readonly enabled: readonly string[]
+}
 
 /** What changed in the profile, for consumers that show it. */
 export interface PluginChange {

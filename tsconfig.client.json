@@ -155,6 +155,7 @@
     { "path": "./packages/client/ui-settings-general/tsconfig.client.json" },
     { "path": "./packages/client/ui-settings-models" },
     { "path": "./packages/client/ui-llm-accounts" },
+    { "path": "./packages/client/ui-first-run/tsconfig.client.json" },
     { "path": "./packages/client/ui-plugin-manager/tsconfig.client.json" },
     { "path": "./packages/client/ui-plugin-market" },
     { "path": "./packages/client/locale/tsconfig.client.json" },

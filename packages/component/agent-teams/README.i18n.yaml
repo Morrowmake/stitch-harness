@@ -1,0 +1,37 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/component/agent-teams/README.md
+/:
+  en: 699d1a9bb6028b79
+  zh: 64217680d0c47e98
+/deepseek-ai-dsh-component-agent-teams:
+  en: fcdbf3ba03039d08
+  zh: b2c12ecbb1f31eba
+/deepseek-ai-dsh-component-agent-teams/summary:
+  en: ff2117e7fb83affb
+  zh: f835c29bf25d60f8
+/deepseek-ai-dsh-component-agent-teams/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 988e839059414d27
+/deepseek-ai-dsh-component-agent-teams/use-this-package:
+  en: 00672a47bc2c9ac7
+  zh: c1c11829bb255995
+/deepseek-ai-dsh-component-agent-teams/understand-the-implementation:
+  en: f7bbc1a05b68e28e
+  zh: 2bc7d973b1faba86
+/deepseek-ai-dsh-component-agent-teams/further-exploration:
+  en: 6d3e63b2c15f3736
+  zh: ed7131f630dfdcaa
+/deepseek-ai-dsh-component-agent-teams/model-experience:
+  en: fb6fec75487d770e
+  zh: 6de983459cc4a8a0
+/deepseek-ai-dsh-component-agent-teams/model-experience/kv-cache-effect:
+  en: c249b630e9076402
+  zh: d0a10c81c391c3b9
+/deepseek-ai-dsh-component-agent-teams/known-limitations-and-deferred-work:
+  en: 8a8b6c123adad290
+  zh: 8c2e57d9a86339b3
+/deepseek-ai-dsh-component-agent-teams/known-limitations-and-deferred-work/dev-note:
+  en: 279d01435256cd2a
+  zh: 83780964e5de2f54

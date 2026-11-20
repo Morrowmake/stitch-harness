@@ -6,6 +6,7 @@ import { dirname, join, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Context } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
+import { applyEntryPatches } from '@deepseek-ai/cordis-plugin-include'
 import AgentRegistry from '@deepseek-ai/dsh-agent'
 import { loadOverlayPatches } from '@deepseek-ai/dsh-app-boot'
 import { provideWorkingDirectoryFixture } from '@deepseek-ai/dsh-agent-loop-testkit'
@@ -41,10 +42,20 @@ const OFFICE_TOOLS = ['office_convert', 'office_recalculate', 'office_render']
 afterEach(() => { vi.unstubAllEnvs() })
 
 /** Plugin rows of one shipped agent preset. */
-function presetPlugins(preset: string): { id: string; name: string }[] {
+function presetPlugins(preset: string): { id: string; name: string; component?: string }[] {
   const [row] = loadOverlayPatches(preset, fileURLToPath(new URL(`../presets/${preset}.patch.yml`, import.meta.url)))
     .flatMap(patch => patch.insert ?? [])
-  return (row!.config as { plugins: { id: string; name: string }[] }).plugins
+  return (row!.config as { plugins: { id: string; name: string; component?: string }[] }).plugins
+}
+
+/** The Office Host rows dsh-web-app declares as disabled placeholders, switched on by the office component layer. */
+function officeHostRows() {
+  const placeholders = loadOverlayPatches('desktop-office', fileURLToPath(new URL('../cordis.patch.yml', import.meta.url)))
+    .flatMap(patch => patch.insert ?? []).filter(row => ROWS.includes(row.id))
+  expect(placeholders.every(row => row.disabled === true)).toBe(true)
+  const component = loadOverlayPatches('desktop-office', fileURLToPath(new URL('../../../component/office/cordis.patch.yml', import.meta.url)))
+    .filter(patch => patch.insert === undefined)
+  return applyEntryPatches(placeholders, component, (message) => { throw new Error(message) }).data
 }
 
 it('mounts the Office tools in the standard and PTC presets and omits it from the minimal preset', () => {
@@ -91,9 +102,11 @@ async function boot(profile: string, primaryRuntime: (root: string) => string | 
   const builtin: Record<string, string> = {
     'office-kit': 'cordis:officeKit', 'tool-office': 'cordis:toolOffice', 'workspace-dependencies': 'cordis:dependencies', 'skill-office': 'cordis:office',
   }
-  const hostRows = loadOverlayPatches('desktop-office', fileURLToPath(new URL('../cordis.patch.yml', import.meta.url)))
-    .flatMap(patch => patch.insert ?? []).filter(row => ROWS.includes(row.id))
-  const rows = [...hostRows.slice(0, 1), presetPlugins('standard').find(row => row.id === 'tool-office')!, ...hostRows.slice(1)]
+  const hostRows = officeHostRows()
+  // The preset registry mounts the Office tools only under the office component's marker, without the gate key.
+  const { component, ...toolOffice } = presetPlugins('standard').find(row => row.id === 'tool-office')!
+  expect(component).toBe('office')
+  const rows = [...hostRows.slice(0, 1), toolOffice, ...hostRows.slice(1)]
   expect(rows.map(row => row.id)).toEqual(ROWS)
   const entries = rows.map(row => ({ ...row, name: builtin[row.id]! }))
   await ctx.loader.root.update(entries.filter(row => mounted.includes(row.id)))

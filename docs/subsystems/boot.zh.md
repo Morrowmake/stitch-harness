@@ -10,11 +10,11 @@
 
 `PluginInfo` 包含模块标识、实际启停状态、fiber 阶段和可选的展示 `meta`，以及唯一的 `patchId` 或 `readOnlyReason`。
 
-`BundleInfo.official` 标识项目维护的随附可选组合包和按需目录项，独立于安装状态。`availability` 表示可读取的安装随附包、profile 包或 `missing`；按需目录项不计入未声明的传递依赖副本。`installed` 记录 profile 的依赖声明。按需条目的 `installTarget` 包含 Host 生成的精确 spec 和版本。`BundleInfo` 还包含包名、可选的安装版本、组合层选择状态、删除可用性、更新方式（`update`：`registry` 或 `git`，组合包无法更新时不存在）、可选的解析错误或平台不支持错误；由 profile 自身依赖提供、且安装不提供的组合包还带有 `source`，即该依赖在 `pnpm add` 中可用的 spec。它的可选 `meta` 与各行的 `BundleRowInfo.meta` 包含展示文本或元信息诊断；Client 在渲染时选择语言。
+`BundleInfo.official` 标识项目维护的随附可选组合包和组件，独立于安装状态。`availability` 表示可读取的安装随附包、profile 包，或 `missing`（已选择但包不可读的组合包）。`installed` 记录 profile 的依赖声明。`BundleInfo` 还包含包名、可选的安装版本、组合层选择状态、删除可用性、更新方式（`update`：`registry` 或 `git`，组合包无法更新时不存在）、可选的解析错误或平台不支持错误；由 profile 自身依赖提供、且安装不提供的组合包还带有 `source`，即该依赖在 `pnpm add` 中可用的 spec。它的可选 `meta` 与各行的 `BundleRowInfo.meta` 包含展示文本或元信息诊断；Client 在渲染时选择语言。
 
 `InstallBundleOptions.saveExact` 向共享包安装器传入 `--save-exact`。`InstallBundleOptions.enabled` 默认为 true，false 表示安装但不选择组合包层。`approvedBuilds` 在安装前向指定的待审批包名授予持久脚本权限。`registry` 指定首先询问的注册表；缺省为配置的那个。`expected` 指定该 spec 必须安装的包与清单版本；安装了其他任何内容的运行会连同其 profile 文件与模块一起被撤销，并以 `unexpected-package` 失败，所安装的包未声明组合包的运行以 `not-bundle` 失败，组合包 patch 无法加载的运行则以操作错误失败。
 
-`BundleDetail` 是 profile 中组合包的详细介绍：`{ status: 'found' }` 携带其 `origin`（`locale` 或 `readme`）、在包内的 `path` 和 `markdown`；否则为 `{ status: 'none' }`。[`readBundleDetail`](../../packages/boot/plugin-manager/README.zh.md#bundle-detail-documents) 说明读取顺序和图片路由。`NpmFileSource` 指定一个公共 npm 文件 CDN：`jsdelivr`、`unpkg` 或 `npmmirror`；一次读取的 `npmFileSources` 列出先请求的 CDN。
+`BundleDetail` 是 profile 中组合包的详细介绍，从组合包的已安装文件读取：`{ status: 'found' }` 携带其 `origin`（`locale` 或 `readme`）、在包内的 `path` 和 `markdown`；否则为 `{ status: 'none' }`。[`readBundleDetail`](../../packages/boot/plugin-manager/README.zh.md#bundle-detail-documents) 说明读取顺序和图片路由。`NpmFileSource` 指定一个公共 npm 文件 CDN：`jsdelivr`、`unpkg` 或 `npmmirror`；插件市场详细介绍读取的 `npmFileSources` 列出先请求的 CDN。
 
 `PluginRegistries` 携带配置的第一个注册表（`null` 即 pnpm 自身配置指定的那个）、随后依次询问的备选注册表，以及 `resolved`——pnpm 自身配置指向的 URL，未读到时为 `null`。`InspectOptions.registry` 指定一次查询首先询问的注册表。
 
@@ -222,17 +222,14 @@ Manage profile files and apply their declared reload lifecycle.
 ```ts cordis-catalog
 /**
  * Read a bundle's long description: the Markdown file its locale `meta.detail` names in `language`, otherwise its
- * README. An installed bundle is read from its directory without network access; an official bundle the installation
- * offers before it is installed is read from the npm file CDNs at its offered version. Nothing is cached.
+ * README, read from the bundle's directory without network access. Nothing is cached.
  * @param name - the bundle's package name, as `listBundles()` lists it.
  * @param language - the display language, such as `zh-CN`; documents fall back through its prefixes to English.
- * @param options - `npmFileSources` names npm file CDNs to ask first for an offered bundle, in order, such as the one
- *   a Client measured as fastest; configured CDNs it omits follow, and CDNs that are not configured are not asked.
  * @returns the document with its origin and path, or `none`.
  * @throws {RemoteError} `plugin-manager/unknown-bundle`, `plugin-manager/invalid-language`, or
  *   `plugin-manager/detail-unavailable`.
  */
-@Remote async readBundleDetail(name: string, language: string, options?: { npmFileSources?: NpmFileSource[] }): Promise<BundleDetail>
+@Remote async readBundleDetail(name: string, language: string): Promise<BundleDetail>
 
 /** Read exact plugin-version exemptions saved in this profile.
  * @returns Accepted package-name@version keys with the runtime versions they may run on, and any
@@ -256,7 +253,7 @@ Manage profile files and apply their declared reload lifecycle.
  */
 @Remote async listPlugins(): Promise<PluginInfo[]>
 
-/** Read installed, installation-provided, and offline Official catalog bundles, plus selected non-bundle names.
+/** Read installed and installation-provided bundles, plus selected non-bundle names.
  * A dependency without a bundle patch is listed, as a `not-bundle` problem, only while it is selected.
  * @returns Package versions, manifest descriptions, the installable spec of profile dependencies, rows, optional
  * display metadata, activation selections, whether the installation offers the bundle, and removal availability.
@@ -321,6 +318,17 @@ Manage profile files and apply their declared reload lifecycle.
  * @returns Persisted and runtime outcomes.
  */
 @Remote setBundleEnabled(name: string, enabled: boolean): Promise<ChangeResult>
+
+/** Select or remove several bundle layers with one profile write and one reload.
+ * @param changes Requested enablement per bundle package name; prerequisites (`dsh.bundle.requires`) follow.
+ * @returns Persisted and runtime outcomes; `selection` holds every bundle the change set, prerequisites included.
+ */
+@Remote setBundlesEnabled(changes: Record<string, boolean>): Promise<ChangeResult>
+
+/** Read which named component set the profile selects.
+ * @returns `minimal` or `standard` when the enabled components equal that set, otherwise `custom`, with the enabled components.
+ */
+@Remote componentPreset(): Promise<ComponentPresetMatch>
 
 /**
  * Install a package using the same pnpm implementation as stitch plugin. GitHub

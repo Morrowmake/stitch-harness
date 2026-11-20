@@ -1,0 +1,16 @@
+# Schedules component: switches on the `# component: schedules` rows that dsh-web-app
+# (and, for shared base rows, its placeholder patches) keeps disabled, and marks
+# `schedules` enabled for the `component: schedules` gates of the agent presets.
+# Deselecting the bundle restores the placeholders.
+
+- id: schedule
+  disabled: false
+
+- id: ui-schedule
+  disabled: false
+
+- insert:
+    - id: component-schedules
+      name: '@deepseek-ai/dsh-agent-preset-registry/component'
+      config:
+        id: schedules

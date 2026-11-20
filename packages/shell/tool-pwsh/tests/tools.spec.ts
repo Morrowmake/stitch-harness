@@ -464,6 +464,7 @@ describe('execution through the bash seam', () => {
     expect(request?.workdir).toBe('/sessions/s1')
     expect(request?.timeoutMs).toBe(1234)
     expect(request?.dshEnv).toEqual({
+      DSH_SESSION_ID: 'session-1',
       STITCH_HOME: dshHome,
       STITCH_NODE_EXECUTABLE: process.execPath,
       STITCH_SHELL: '1',

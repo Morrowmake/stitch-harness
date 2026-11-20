@@ -1409,6 +1409,7 @@ describe('the model-facing bash tool builds its request from named args only (no
     })
 
     expect(bash.requests[0]?.dshEnv).toEqual({
+      DSH_SESSION_ID: 'request-fg',
       STITCH_HOME: recordingDshHome,
       STITCH_NODE_EXECUTABLE: process.execPath,
       STITCH_SESSION_ID: 'request-fg',
@@ -1436,6 +1437,7 @@ describe('the model-facing bash tool builds its request from named args only (no
 
     expect(bash.requests[0]?.env).toBeUndefined()
     expect(bash.requests[0]?.dshEnv).toEqual({
+      DSH_SESSION_ID: 'request-bg',
       STITCH_HOME: recordingDshHome,
       STITCH_NODE_EXECUTABLE: process.execPath,
       STITCH_SESSION_ID: 'request-bg',
@@ -1460,12 +1462,14 @@ describe('the model-facing bash tool builds its request from named args only (no
 
     expect(bash.requests.map(request => request.dshEnv)).toEqual([
       {
+        DSH_SESSION_ID: 'request-parent',
         STITCH_HOME: recordingDshHome,
         STITCH_NODE_EXECUTABLE: process.execPath,
         STITCH_SESSION_ID: 'request-parent',
         STITCH_SHELL: '1',
       },
       {
+        DSH_SESSION_ID: 'request-child',
         STITCH_HOME: recordingDshHome,
         STITCH_NODE_EXECUTABLE: process.execPath,
         STITCH_SESSION_ID: 'request-child',

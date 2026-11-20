@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Configuration initiale",
+    "description": "Affiche la configuration initiale une fois par profil — fournisseur de modèles (Ollama et LM Studio locaux d’abord, tout serveur compatible OpenAI, fournisseurs hébergés), modèle par défaut et composants Minimal / Standard / Personnalisé — et la rouvre depuis la page Plugins et Réglages → Modèles."
+  }
+}

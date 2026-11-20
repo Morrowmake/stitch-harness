@@ -220,7 +220,7 @@ it('reads an index with installation status, compatibility, and install argument
     bundles: [
       bundle('same', { version: '1.0.0' }), bundle('older', { version: '1.5.0' }), bundle('newer', { version: '3.0.0' }),
       bundle('unknown', {}), bundle('unparsed', { version: 'local' }), bundle('shipped', { installed: false, optional: true, availability: 'installation', version: '1.0.0' }),
-      bundle('catalog', { installed: false, official: true, availability: 'missing', installTarget: { spec: 'catalog@1.0.0', version: '1.0.0' } }),
+      bundle('catalog', { installed: false, official: true, availability: 'missing' }),
       bundle('incompatible', { version: '0.9.0' }),
     ],
     exemptions: { 'exempted@1.0.0': [runtime] },

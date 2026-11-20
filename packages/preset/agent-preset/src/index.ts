@@ -18,6 +18,8 @@ export default class AgentPreset {
     name: z.string(),
     description: z.string(),
     order: z.number(),
+    // Component gate on the whole preset; rows carry their own `component` gates inside `plugins`.
+    component: z.union([z.string(), z.array(z.string())]),
     // Cordis owns individual plugin schemas; the registry validates entry structure.
     plugins: z.array(z.any()).required(),
   }) as z<Config>

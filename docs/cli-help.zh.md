@@ -175,7 +175,7 @@ Example:
 <a id="stitch-web"></a>
 ## `stitch web`
 
-调用方式: `stitch web --help`, `stitch --profile web --help`
+调用方式: `stitch web --help`, `stitch --profile web --help`, `stitch web-minimal --help`, `stitch --profile web-minimal --help`
 
 ```text
 Usage: stitch --profile web [options]

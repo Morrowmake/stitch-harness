@@ -169,7 +169,8 @@ export type {
 // Account-pool vocabulary for the llmAccounts namespace (secrets never ride it).
 export type {
   AccountHealth, AccountId, AccountKind, AccountPatch, AccountProfile, AccountsSnapshot, AccountUsageView, AccountView,
-  ProviderAccountsView, SignInAttemptId, SignInAttemptView, SignInPromptView, SignInRequest, UsageSnapshotView, UsageWindowView,
+  LocalProviderProbeView, ProviderAccountsView, SignInAttemptId, SignInAttemptView, SignInPromptView, SignInRequest, UsageSnapshotView,
+  UsageWindowView,
 } from '@deepseek-ai/dsh-llm-pi-ai/types'
 // Reference-discovery result vocabulary for the fileReferences and
 // sessionReferenceResolver namespaces.

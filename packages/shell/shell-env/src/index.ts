@@ -11,7 +11,7 @@
 import { dirname } from 'node:path'
 import { Service, type Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { DSH_ENV_PREFIX } from '@deepseek-ai/dsh-shell'
+import { DSH_COMPAT_ENV_PREFIX, DSH_ENV_PREFIX } from '@deepseek-ai/dsh-shell'
 import type { DshEnvironment, DshEnvironmentKey } from '@deepseek-ai/dsh-shell'
 import { DSH_HOME_ENV, resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import { ShellEnvError } from './error.ts'
@@ -69,7 +69,7 @@ export interface BashEnvContributor {
 export interface BashEnvVariableInfo extends BashEnvVariable {
   /** Contributor that owns the variable. */
   contributor: string
-  /** Declared `STITCH_*` environment variable name. */
+  /** Declared `STITCH_*` (or DSH-compatible `DSH_*`) environment variable name. */
   key: DshEnvironmentKey
 }
 
@@ -79,15 +79,14 @@ const STITCH_PROFILE_KEY = `${DSH_ENV_PREFIX}PROFILE` as const
 const STITCH_PROFILE_DIR_KEY = `${DSH_ENV_PREFIX}PROFILE_DIR` as const
 const STITCH_INSTALL_DIR_KEY = `${DSH_ENV_PREFIX}INSTALL_DIR` as const
 const STITCH_NODE_EXECUTABLE_KEY = `${DSH_ENV_PREFIX}NODE_EXECUTABLE` as const
-const RESERVED_BASH_ENV_KEYS = new Set<DshEnvironmentKey>([
-  DSH_HOME_ENV,
-  STITCH_SHELL_KEY,
-  STITCH_SESSION_ID_KEY,
-  STITCH_PROFILE_KEY,
-  STITCH_PROFILE_DIR_KEY,
-  STITCH_INSTALL_DIR_KEY,
-  STITCH_NODE_EXECUTABLE_KEY,
-])
+/** DeepSeek Harness alias of the session id, exported alongside it for DSH plugins. */
+const DSH_SESSION_ID_KEY = `${DSH_COMPAT_ENV_PREFIX}SESSION_ID` as const
+const BUILTIN_SUFFIXES = ['HOME', 'SHELL', 'SESSION_ID', 'PROFILE', 'PROFILE_DIR', 'INSTALL_DIR', 'NODE_EXECUTABLE'] as const
+const BASH_ENV_KEY_PREFIXES = [DSH_ENV_PREFIX, DSH_COMPAT_ENV_PREFIX] as const
+// Built-ins are reserved under both prefixes so a plugin cannot shadow the DSH alias of one either.
+const RESERVED_BASH_ENV_KEYS = new Set<DshEnvironmentKey>(
+  BASH_ENV_KEY_PREFIXES.flatMap(prefix => BUILTIN_SUFFIXES.map(suffix => `${prefix}${suffix}` as const)),
+)
 const BASH_ENV_KEY_SUFFIX = /^[A-Z][A-Z0-9_]*$/
 
 /**
@@ -130,8 +129,8 @@ export class ShellEnvRegistry extends Service {
 
       const variables = Object.entries(contributor.variables) as [DshEnvironmentKey, BashEnvVariable][]
       for (const [key, variable] of variables) {
-        if (!key.startsWith(DSH_ENV_PREFIX)
-          || !BASH_ENV_KEY_SUFFIX.test(key.slice(DSH_ENV_PREFIX.length))) {
+        const prefix = BASH_ENV_KEY_PREFIXES.find(candidate => key.startsWith(candidate))
+        if (prefix === undefined || !BASH_ENV_KEY_SUFFIX.test(key.slice(prefix.length))) {
           throw new Error(`bash env contributor "${contributor.name}" declared invalid key "${key}"`)
         }
         if (RESERVED_BASH_ENV_KEYS.has(key)) {
@@ -172,6 +171,7 @@ export class ShellEnvRegistry extends Service {
     if (sea === undefined || !sea.isSea()) values[STITCH_NODE_EXECUTABLE_KEY] = process.execPath
     if (execution.agent !== undefined) {
       values[STITCH_SESSION_ID_KEY] = execution.agent.session.header.id
+      values[DSH_SESSION_ID_KEY] = execution.agent.session.header.id
     }
     const profile = this.ctx.get('profileContext')
     if (profile !== undefined) {

@@ -145,6 +145,19 @@ export interface SignInAttemptView {
   error?: string
 }
 
+/** One local inference server as the first-run provider picker shows it (`llmAccounts.probeLocalProviders`). */
+export interface LocalProviderProbeView {
+  /** Suggested route key for the server. */
+  id: 'ollama' | 'lmstudio'
+  displayName: string
+  /** OpenAI-compatible endpoint a route for this server uses. */
+  baseURL: string
+  /** Whether the server answered its model listing on the default loopback port. */
+  running: boolean
+  /** Model ids the server lists; empty when it is not running. */
+  models: readonly string[]
+}
+
 /** Prefix of pinned per-account model ids: `~acct:<accountId>:<modelId>`. */
 export const PINNED_MODEL_PREFIX = '~acct:'
 

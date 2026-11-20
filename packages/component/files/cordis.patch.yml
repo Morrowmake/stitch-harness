@@ -1,0 +1,16 @@
+# Files & preview component: switches on the `# component: files` rows that dsh-web-app
+# (and, for shared base rows, its placeholder patches) keeps disabled, and marks
+# `files` enabled for the `component: files` gates of the agent presets.
+# Deselecting the bundle restores the placeholders.
+
+- id: ui-sidebar-documentpreview
+  disabled: false
+
+- id: ui-sidebar-files
+  disabled: false
+
+- insert:
+    - id: component-files
+      name: '@deepseek-ai/dsh-agent-preset-registry/component'
+      config:
+        id: files

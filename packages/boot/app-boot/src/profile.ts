@@ -28,7 +28,9 @@ import type { EntryOptions } from '@deepseek-ai/cordis-plugin-loader'
 import { applyEntryPatches, type PatchOptions } from '@deepseek-ai/cordis-plugin-include'
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import type { DshBundleManifest, DshPackageManifest } from '@deepseek-ai/dsh-package-manifest'
-import { INSTALLATION_OWNED_PROFILE_TUPLES, PROFILE_TEMPLATES, RETIRED_BUNDLES } from '@deepseek-ai/dsh-official-bundles'
+import {
+  COMPONENT_BUNDLES, COMPONENT_HOST_BUNDLES, COMPONENT_PRESETS, INSTALLATION_OWNED_PROFILE_TUPLES, PROFILE_TEMPLATES, RETIRED_BUNDLES,
+} from '@deepseek-ai/dsh-official-bundles'
 import { assertBundlePlatform } from './bundle-platform.ts'
 import { evaluatePluginCompatibility, pluginCompatibilityWarning } from './plugin-compatibility.ts'
 import { readProfileVersionExemptions } from './profile-compatibility.ts'
@@ -619,6 +621,21 @@ function dropRetiredBundles(dir: string, manifest: ProfileManifest): ProfileMani
 }
 
 /**
+ * Give a profile written before components existed the Standard component set: a list that selects dsh-web-app and
+ * no component gets the Standard components right after dsh-web-app, so the profile keeps its features. The manifest
+ * is written back only when it changes.
+ */
+function adoptComponents(dir: string, manifest: ProfileManifest): ProfileManifest {
+  const bundles = manifest.dsh?.profile?.bundles ?? []
+  const hostBundle = COMPONENT_HOST_BUNDLES.at(-1)
+  const host = hostBundle === undefined ? -1 : bundles.indexOf(hostBundle)
+  if (host < 0 || bundles.some(bundle => COMPONENT_BUNDLES.includes(bundle))) return manifest
+  const normalized = withBundles(manifest, bundles.toSpliced(host + 1, 0, ...COMPONENT_PRESETS.standard))
+  writeProfileManifest(dir, normalized)
+  return normalized
+}
+
+/**
  * Resolve a package's root directory from one anchor without depending on the
  * package exporting `./package.json` (`require.resolve` would need that):
  * probe the require resolution paths for a directory holding the named
@@ -665,8 +682,9 @@ export function resolveBundleDir(
  * Load an already initialized profile directory without resolving it through
  * the shared Harness home. This is used by application-owned profiles whose
  * package project and lifecycle belong to that application.
- * Retired bundles are removed from the stored bundle list first, rewriting the
- * manifest when it listed one. Unreadable bundles, unsupported Host platforms, and bundles whose own dsh requirements
+ * Retired bundles are removed from the stored bundle list first, and a dsh-web-app list without any component
+ * receives the Standard components, rewriting the manifest when either changes it. Unreadable bundles, unsupported
+ * Host platforms, and bundles whose own dsh requirements
  * the profile does not exempt are skipped
  * without changing the manifest and listed in `skippedBundles`; nothing is printed.
  * @param binName - the diagnostic prefix on thrown errors.
@@ -681,7 +699,7 @@ export function loadProfileDirectory(
   installAnchor: string,
   options: { userLayer?: boolean } = {},
 ): Profile {
-  const manifest = dropRetiredBundles(dir, readProfileManifest(binName, dir))
+  const manifest = adoptComponents(dir, dropRetiredBundles(dir, readProfileManifest(binName, dir)))
   const bundles = manifest.dsh?.profile?.bundles ?? []
   const layers: ProfileLayer[] = []
   const skippedBundles: SkippedBundle[] = []

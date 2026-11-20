@@ -48,12 +48,16 @@ Default roots are scanned in this provider's rank order:
 | Rank | Source | Path |
 |---|---|---|
 | 100 | `project-dsh` | `<projectRoot>/.stitch/skills` |
+| 150 | `project-deepseek-harness` | `<projectRoot>/.dsh/skills`, only when it exists |
 | 200 | `project-agents` | `<projectRoot>/.agents/skills` |
 | 300 | `custom` | `Config.customSkillDirs` |
 | 400 | `user-dsh` | `<dshHome>/skills` |
+| 450 | `user-deepseek-harness` | `~/.dsh/skills`, only when it exists |
 | 500 | `user-agents` | `<agentsHome>/skills` |
 
 The project root is the nearest ancestor containing `.git`; without one, the current cwd is used. The user Stitch root skips its `.system` child. `includeDefaultRoots: false` omits the project and user rows plus the `$STITCH_BUNDLED_SKILL_DIR` default so an isolated provider sees only its own configured roots; `bundledSkillDir` adds a bundled root at rank 600.
+
+The two DeepSeek Harness roots expose skills an existing DSH installation already has. They are read-only: the provider never creates or writes them, and adds each only when the directory exists at lookup time. Each ranks right after the matching Stitch `.stitch` root, so a Stitch skill wins a name collision; the user DSH root also skips its `.system` child and is omitted when `dshHome` already is `~/.dsh`.
 
 ### Mount and configure
 

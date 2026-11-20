@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { lstat, mkdir, readdir, readFile, realpath, rename, rm, stat, symlink, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -12,6 +12,14 @@ import * as SkillFileSystem from '../src/index.ts'
 const tempDirs: string[] = []
 afterEach(async () => {
   for (const dir of tempDirs.splice(0)) await rm(dir, { recursive: true, force: true })
+})
+
+// Isolate the OS home so a developer's real `~/.dsh/skills` never joins the catalog under test.
+beforeEach(async () => {
+  const osHome = await tempDir('skill-os-home')
+  vi.stubEnv('HOME', osHome)
+  vi.stubEnv('USERPROFILE', osHome)
+  return () => { vi.unstubAllEnvs() }
 })
 
 async function tempDir(name: string): Promise<string> {
@@ -221,6 +229,47 @@ describe('FileSystemSkillProvider', () => {
     const noGit = await tempDir('skill-no-git')
     await writeSkill(join(noGit, '.stitch/skills'), 'fallback-root', 'Fallback root')
     expect((await ctx.skills.list({ cwd: noGit })).map(skill => skill.name)).toContain('fallback-root')
+  })
+
+  it('reads existing DeepSeek Harness skill roots read-only, after the matching Stitch roots', async () => {
+    const home = await tempDir('skill-dsh-compat-home')
+    const project = await tempDir('skill-dsh-compat-project')
+    await mkdir(join(project, '.git'), { recursive: true })
+    vi.stubEnv('HOME', home)
+    vi.stubEnv('USERPROFILE', home)
+
+    await writeSkill(join(project, '.stitch/skills'), 'project-shared', 'project stitch skill')
+    await writeSkill(join(project, '.dsh/skills'), 'project-shared', 'project dsh skill')
+    await writeSkill(join(project, '.agents/skills'), 'project-agents-vs-dsh', 'project agents skill')
+    await writeSkill(join(project, '.dsh/skills'), 'project-agents-vs-dsh', 'project dsh beats agents')
+    await writeSkill(join(home, '.stitch/skills'), 'user-shared', 'user stitch skill')
+    await writeSkill(join(home, '.dsh/skills'), 'user-shared', 'user dsh skill')
+    await writeSkill(join(home, '.dsh/skills'), 'user-dsh-only', 'user dsh only')
+    await writeSkill(join(home, '.dsh/skills/.system'), 'dsh-system', 'managed by DSH')
+    const ctx = await setupLocal(home)
+
+    const skills = await ctx.skills.list({ cwd: project })
+    expect(skills.find(skill => skill.name === 'project-shared')).toMatchObject({ description: 'project stitch skill', source: 'project-dsh' })
+    expect(skills.find(skill => skill.name === 'project-agents-vs-dsh')).toMatchObject({ source: 'project-deepseek-harness' })
+    expect(skills.find(skill => skill.name === 'user-shared')).toMatchObject({ description: 'user stitch skill', source: 'user-dsh' })
+    expect(skills.find(skill => skill.name === 'user-dsh-only')).toMatchObject({ source: 'user-deepseek-harness' })
+    expect(skills.find(skill => skill.name === 'dsh-system')).toBeUndefined()
+    expect((await ctx.skills.get('user-dsh-only'))?.content).toBe('Use the skill.')
+  })
+
+  it('never creates absent DeepSeek Harness skill roots', async () => {
+    const home = await tempDir('skill-dsh-absent-home')
+    const project = await tempDir('skill-dsh-absent-project')
+    await mkdir(join(project, '.git'), { recursive: true })
+    vi.stubEnv('HOME', home)
+    vi.stubEnv('USERPROFILE', home)
+    await writeSkill(join(home, '.stitch/skills'), 'stitch-only', 'stitch only')
+    const ctx = await setupLocal(home, { watch: true })
+    onTestFinished(() => ctx.fiber.dispose())
+
+    expect((await ctx.skills.list({ cwd: project })).map(skill => skill.name)).toEqual(['stitch-only'])
+    await expect(lstat(join(home, '.dsh'))).rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(lstat(join(project, '.dsh'))).rejects.toMatchObject({ code: 'ENOENT' })
   })
 
   it('reports an unreadable trusted-host skill file as SKILL_READ_FAILED', async () => {

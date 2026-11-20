@@ -28,7 +28,7 @@ kind: "package-reference"
 
 | 配置 | 默认值 | 含义 |
 |---|---|---|
-| `indexes` | `[DEFAULT_PLUGIN_INDEX]` | 按显示顺序排列的规范索引源 URL。发现区、设置和 `setIndexes` 可修改此字段，无需重新挂载本服务或 `plugin-manager`。 |
+| `indexes` | `DEFAULT_PLUGIN_INDEXES` | 按显示顺序排列的规范索引源 URL。默认值为 `DEFAULT_PLUGIN_INDEX`，其后是 DeepSeek Harness 索引 `https://awesome-dsh-plugin.com/index.json` 和 `https://cdn.dsh.so/market/index.json`，每个索引都只在读取时才会请求。发现区、设置和 `setIndexes` 可修改此字段，无需重新挂载本服务或 `plugin-manager`。 |
 | `fetchTimeoutMs` | `15000` | 单次通过 HTTP(S) 请求索引或详细介绍文件的时限，包括读取响应体。 |
 | `maxBytes` | `134217728` | 接受的最大索引文件大小。 |
 | `cacheTtlMs` | `600000` | 成功读取的索引文档、详细介绍的读取结果以及仓库默认分支提交的缓存时长。 |

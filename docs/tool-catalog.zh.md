@@ -84,7 +84,7 @@
     },
     "target": {
       "type": "string",
-      "description": "Plugin entry id, bundle package name, or installation spec, according to action. For an Official catalog entry, pass list_bundles installTarget.spec to install_bundle."
+      "description": "Plugin entry id, bundle package name, or installation spec, according to action."
     },
     "enabled": {
       "type": "boolean",

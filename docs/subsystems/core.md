@@ -600,6 +600,12 @@ presetForSession(session: Session): string | null
  */
 async register(definition: PresetDefinition): Promise<() => Promise<void>>
 
+/**
+ * Re-compose every definition whose gated composition changed since its current revision, after the component
+ * markers starting or stopping in this Loader pass settle. Live Agents keep the revision they joined.
+ */
+refreshComponents(): void
+
 /** Inspect retained revisions, or the exact revision an Agent joined.
  * @param ctx - optional Agent context; omission includes all retained revisions.
  * @returns detached module references and isolation diagnostics; no match returns an empty list.
@@ -680,7 +686,7 @@ async acquireScope(id?: string): Promise<{ key: ScopeKey } & AsyncDisposable>
 /** Read plugin rows without creating an Agent.
  * @returns Current declaration metadata and activation states.
  */
-compositionInventory(): Promise<AgentPresetComposition[]>
+async compositionInventory(): Promise<AgentPresetComposition[]>
 ```
 
 Types: [ScopeKey](scope.md) · [Session](session.md)

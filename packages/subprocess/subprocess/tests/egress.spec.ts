@@ -61,6 +61,24 @@ function childFetch(target: string, env: Record<string, string>): Promise<string
   })
 }
 
+describe('ambient Harness identity scrub', () => {
+  it('drops STITCH_* and the DSH_ spellings of built-in facts, keeping other DSH_* names', () => {
+    const names = ['STITCH_SESSION_ID', 'DSH_SESSION_ID', 'dsh_web_url', 'DSH_HOME', 'DSH_PTY_SESSION_ID', 'DSH_PLUGIN_FACT']
+    const previous = names.map(name => [name, process.env[name]] as const)
+    for (const name of names) process.env[name] = 'stale'
+    try {
+      const env = scrubbedParentEnv()
+      for (const name of names.slice(0, 5)) expect(env).not.toHaveProperty(name)
+      expect(env.DSH_PLUGIN_FACT).toBe('stale')
+    } finally {
+      for (const [name, value] of previous) {
+        if (value === undefined) Reflect.deleteProperty(process.env, name)
+        else process.env[name] = value
+      }
+    }
+  })
+})
+
 describe('child process egress', () => {
   it('a child Node honors the proxy the user exported', async () => {
     // The user's own export is what a child inherits, so the scenario starts from one.

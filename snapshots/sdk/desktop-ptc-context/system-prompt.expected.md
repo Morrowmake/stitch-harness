@@ -170,7 +170,7 @@ interface ToolArgsMap {
   plugin_manager: {
     /** Management operation. */
     action: "list_plugins" | "list_bundles" | "set_plugin" | "set_bundle" | "install_bundle" | "remove_bundle" | "list_version_exemptions" | "set_version_exemption";
-    /** Plugin entry id, bundle package name, or installation spec, according to action. For an Official catalog entry, pass list_bundles installTarget.spec to install_bundle. */
+    /** Plugin entry id, bundle package name, or installation spec, according to action. */
     target?: string;
     /** Required for set operations; defaults to true for installation. For set_version_exemption, true grants and false revokes. */
     enabled?: boolean;

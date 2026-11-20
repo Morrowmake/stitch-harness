@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Context helpers",
+    "description": "Time context, repeat reminders, image offload, tool-output pruning, and model-written session titles."
+  }
+}

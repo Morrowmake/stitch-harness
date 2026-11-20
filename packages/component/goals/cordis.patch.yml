@@ -1,0 +1,19 @@
+# Goals component: switches on the `# component: goals` rows that dsh-web-app
+# (and, for shared base rows, its placeholder patches) keeps disabled, and marks
+# `goals` enabled for the `component: goals` gates of the agent presets.
+# Deselecting the bundle restores the placeholders.
+
+- id: goal
+  disabled: false
+
+- id: goal-round-driver
+  disabled: false
+
+- id: ui-goal
+  disabled: false
+
+- insert:
+    - id: component-goals
+      name: '@deepseek-ai/dsh-agent-preset-registry/component'
+      config:
+        id: goals

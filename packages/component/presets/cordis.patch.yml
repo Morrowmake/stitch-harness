@@ -1,0 +1,13 @@
+# Extra presets component: switches on the `# component: presets` rows that dsh-web-app
+# (and, for shared base rows, its placeholder patches) keeps disabled, and marks
+# `presets` enabled for the `component: presets` gates of the agent presets.
+# Deselecting the bundle restores the placeholders.
+
+- id: ui-agent-preset
+  disabled: false
+
+- insert:
+    - id: component-presets
+      name: '@deepseek-ai/dsh-agent-preset-registry/component'
+      config:
+        id: presets

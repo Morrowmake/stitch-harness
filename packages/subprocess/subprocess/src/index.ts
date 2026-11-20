@@ -10,11 +10,11 @@
 
 import { Context, Service } from '@deepseek-ai/cordis'
 import { proxyEnvironmentForChild } from '@deepseek-ai/dsh-http-proxy'
-import { DSH_ENV_PREFIX } from './types.ts'
+import { DSH_COMPAT_ENV_PREFIX, DSH_ENV_PREFIX } from './types.ts'
 import type { SubprocessHandle, SubprocessSpawnSpec } from './types.ts'
 import type { SubprocessTerminalEnvironment, SubprocessTerminalHandle, SubprocessTerminalSpawnSpec } from './types.ts'
 
-export { DSH_ENV_PREFIX } from './types.ts'
+export { DSH_COMPAT_ENV_PREFIX, DSH_ENV_PREFIX } from './types.ts'
 export {
   SUBPROCESS_ERROR_CODES,
   SubprocessError,
@@ -54,6 +54,15 @@ export type {
 export const SENSITIVE_ENV_PATTERN = /KEY|PASSWORD|SECRET|TOKEN/i
 
 /**
+ * DeepSeek Harness spellings of the Harness-owned built-in facts. Ambient values are scrubbed like
+ * `STITCH_*`, so a stale inherited identity never reaches a child; other `DSH_*` names pass through.
+ */
+const SCRUBBED_DSH_COMPAT_KEYS = new Set(
+  ['HOME', 'SHELL', 'SESSION_ID', 'PTY_SESSION_ID', 'PROFILE', 'PROFILE_DIR', 'INSTALL_DIR', 'NODE_EXECUTABLE', 'WEB_URL']
+    .map(suffix => `${DSH_COMPAT_ENV_PREFIX}${suffix}`),
+)
+
+/**
  * The ambient parent environment minus credential-shaped names and minus all
  * `STITCH_*` names — the canonical base every harness child starts from. `PATH`,
  * `HOME`, locale, and proxy variables survive, so child CLIs run normally;
@@ -73,7 +82,9 @@ export const SENSITIVE_ENV_PATTERN = /KEY|PASSWORD|SECRET|TOKEN/i
 export function scrubbedParentEnv(): Record<string, string> {
   const env: Record<string, string> = {}
   for (const [key, value] of Object.entries(process.env)) {
-    if (value !== undefined && !SENSITIVE_ENV_PATTERN.test(key) && !key.toUpperCase().startsWith(DSH_ENV_PREFIX)) env[key] = value
+    const upper = key.toUpperCase()
+    if (value !== undefined && !SENSITIVE_ENV_PATTERN.test(key) && !upper.startsWith(DSH_ENV_PREFIX)
+      && !SCRUBBED_DSH_COMPAT_KEYS.has(upper)) env[key] = value
   }
   // A child Node ignores the inherited proxy variables unless the flag this adds is set, so an MCP
   // stdio server or subagent CLI would connect directly while its parent proxies. The same overlay

@@ -1,0 +1,19 @@
+# Office documents component: switches on the `# component: office` rows that dsh-web-app
+# (and, for shared base rows, its placeholder patches) keeps disabled, and marks
+# `office` enabled for the `component: office` gates of the agent presets.
+# Deselecting the bundle restores the placeholders.
+
+- id: office-kit
+  disabled: false
+
+- id: workspace-dependencies
+  disabled: !!js "ctx.get('profileContext')?.name !== 'desktop' || !process.env.STITCH_PRIMARY_RUNTIME"
+
+- id: skill-office
+  disabled: false
+
+- insert:
+    - id: component-office
+      name: '@deepseek-ai/dsh-agent-preset-registry/component'
+      config:
+        id: office

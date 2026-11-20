@@ -225,7 +225,7 @@ export function testProfileResolution(mode: ExampleMode): void {
         ].join('\n'),
         'cordis.patch.yml': JSON.stringify([
           { id: 'headless-startup', disabled: true },
-          { id: 'sandbox-policy', inject: [], config: { mode: process.env.STITCH_PERMISSION_MODE ?? 'workspace-write' } },
+          { id: 'sandbox-policy', inject: [], config: { mode: process.env.STITCH_PERMISSION_MODE ?? process.env.DSH_PERMISSION_MODE ?? 'workspace-write' } },
           { id: 'headless-runner', disabled: true },
           { insert: [
             { id: 'external-plugin', name: pluginName },

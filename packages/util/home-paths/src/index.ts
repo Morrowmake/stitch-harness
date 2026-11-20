@@ -27,6 +27,21 @@ export const DEFAULT_AGENTS_HOME_DISPLAY = `~/${AGENTS_HOME_DIR_NAME}`
 /** Environment variable that overrides the default shared agent configuration root. */
 export const AGENTS_HOME_ENV = `${ENV_PREFIX}AGENTS_HOME`
 
+/** Environment prefix of DeepSeek Harness (DSH), read as a fallback so DSH plugins and launchers keep working. */
+export const DSH_COMPAT_ENV_PREFIX = 'DSH_'
+
+/**
+ * Read one product environment variable by its unprefixed name, e.g. `HOME` for
+ * `$STITCH_HOME`. A defined `STITCH_*` value always wins; the DeepSeek Harness
+ * `DSH_*` spelling is consulted only when the Stitch one is absent.
+ * @param name - variable name without the product prefix.
+ * @param env - environment mapping to read.
+ * @returns the Stitch value, else the DSH value, else `undefined`.
+ */
+export function readProductEnv(name: string, env: Record<string, string | undefined> = process.env): string | undefined {
+  return env[`${ENV_PREFIX}${name}`] ?? env[`${DSH_COMPAT_ENV_PREFIX}${name}`]
+}
+
 /**
  * Give a native filesystem watcher one canonical spelling of a path, even
  * when its final components do not exist yet. The deepest existing ancestor
@@ -95,7 +110,7 @@ export function expandHomePath(path: string): string {
  * Resolve one user-data root from an explicit path, an environment override, and a default.
  * @param configured - explicit path, which has highest precedence.
  * @param env - environment mapping to read.
- * @param envName - environment variable that overrides the default.
+ * @param envName - unprefixed product variable that overrides the default, read by {@link readProductEnv}.
  * @param fallback - default root, used when neither the explicit path nor the environment provides one.
  * @returns the normalized absolute root.
  */
@@ -105,7 +120,7 @@ function resolveRoot(
   envName: string,
   fallback: () => string,
 ): string {
-  const fromEnv = env[envName]
+  const fromEnv = readProductEnv(envName, env)
   const selected = configured ?? (fromEnv !== undefined && fromEnv.trim().length > 0 ? fromEnv : fallback())
   return resolve(expandHomePath(selected))
 }
@@ -134,7 +149,7 @@ function rootDisplay(resolvedRoot: string, defaultRoot: string, defaultLabel: st
  * @returns the normalized absolute harness home path.
  */
 export function resolveDshHome(configured?: string, env: Record<string, string | undefined> = process.env): string {
-  return resolveRoot(configured, env, DSH_HOME_ENV, defaultDshHome)
+  return resolveRoot(configured, env, 'HOME', defaultDshHome)
 }
 
 /**
@@ -150,7 +165,7 @@ export function resolveDshHome(configured?: string, env: Record<string, string |
  * @returns the normalized absolute shared agent configuration root.
  */
 export function resolveAgentsHome(configured?: string, env: Record<string, string | undefined> = process.env): string {
-  return resolveRoot(configured, env, AGENTS_HOME_ENV, defaultAgentsHome)
+  return resolveRoot(configured, env, 'AGENTS_HOME', defaultAgentsHome)
 }
 
 /**

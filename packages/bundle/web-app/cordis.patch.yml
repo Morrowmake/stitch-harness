@@ -33,11 +33,17 @@
 
 # `dsh.client` rows are the browser roster the modules node half scans into
 # window.__DSH_BOOT__; the modules row is simultaneously a host row.
+#
+# A row marked `disabled: true  # component: <id>` belongs to that component:
+# the `@deepseek-ai/dsh-component-<id>` bundle (packages/component/<id>)
+# switches it on, so the row runs exactly while the profile selects the
+# component. Keeping the row here preserves its id, position, and config.
 - insert:
     # Host-owned authorization sampled at Agent creation. The Plugins page
     # edits this settings namespace independently of the selected preset.
     - id: subagent-model-selection-settings
       name: '@deepseek-ai/dsh-tool-subagent/model-selection-settings'
+      disabled: true  # component: subagents
 
     - id: message-feedback
       name: '@deepseek-ai/dsh-message-feedback'
@@ -102,10 +108,12 @@
     # the roster rides the session control stream above.
     - id: job-controller
       name: '@deepseek-ai/dsh-api-job-controller'
+      disabled: true  # component: jobs
     # Workspace file service: bounded read, directory listing, and the
     # agent-write change feed inside the session workspace root.
     - id: terminal-controller
       name: '@deepseek-ai/dsh-api-terminal-controller'
+      disabled: true  # component: terminal
     - id: workspace-files
       name: '@deepseek-ai/dsh-api-workspace-files'
 
@@ -115,6 +123,7 @@
     # which declare them in their own scope.
     - id: schedule
       name: '@deepseek-ai/dsh-schedule'
+      disabled: true  # component: schedules
 
     # Configuration-surface reads and writes over Typert Remote. Each method
     # reports an actionable error when its settings-domain provider is absent.
@@ -127,12 +136,14 @@
     # provider, so the manager starts after it.
     - id: mcp-manager
       name: '@deepseek-ai/dsh-mcp-manager'
+      disabled: true  # component: mcp
       inject: [credentials]
 
     # MCP connector accounts on the Plugins page; connectors register their
     # OAuth server with `ctx.mcpAccounts`.
     - id: mcp-account
       name: '@deepseek-ai/dsh-mcp-account'
+      disabled: true  # component: mcp
 
     # Workspace commands and reconnect-safe projection over Typert Remote.
     - id: workspace-controller
@@ -278,6 +289,7 @@
 
     - id: office-kit
       name: '@deepseek-ai/dsh-office-kit'
+      disabled: true  # component: office
       config:
         outputDirectory: !!js dshHomePath('office-kit', 'outputs')
 
@@ -288,13 +300,14 @@
     # profiles, selects `user` to direct the model to the user's Python.
     - id: workspace-dependencies
       name: '@deepseek-ai/dsh-tool-workspace-dependencies'
-      disabled: !!js "ctx.get('profileContext')?.name !== 'desktop' || !process.env.STITCH_PRIMARY_RUNTIME"
+      disabled: true  # component: office
       config:
         source: !!js process.env.STITCH_PRIMARY_RUNTIME
         root: !!js dshHomePath('dsh-runtimes', 'dsh-primary-runtime')
 
     - id: skill-office
       name: '@deepseek-ai/dsh-skill-office'
+      disabled: true  # component: office
       config:
         pythonEnvironment: !!js "ctx.get('profileContext')?.name === 'desktop' && process.env.STITCH_PRIMARY_RUNTIME ? 'workspace-dependencies' : 'user'"
 
@@ -302,17 +315,20 @@
     # Markdown, code, HTML, PDF, Office, and plain-text renderers.
     - id: ui-sidebar-documentpreview
       name: '@deepseek-ai/dsh-client-ui-sidebar-documentpreview'
+      disabled: true  # component: files
 
     # Web profiles opt in; Desktop retains sandboxed HTTP(S) Browser tabs.
     - id: ui-sidebar-browser
       name: '@deepseek-ai/dsh-client-ui-sidebar-browser'
-      disabled: !!js "ctx.get('profileContext')?.name !== 'desktop'"
+      disabled: true  # component: browser
 
     - id: ui-sidebar-terminal
       name: '@deepseek-ai/dsh-client-ui-sidebar-terminal'
+      disabled: true  # component: terminal
     # The right Sidebar's workspace file tree tab type.
     - id: ui-sidebar-files
       name: '@deepseek-ai/dsh-client-ui-sidebar-files'
+      disabled: true  # component: files
 
     - id: ui-settings
       name: '@deepseek-ai/dsh-client-ui-settings'
@@ -329,6 +345,14 @@
     - id: ui-llm-accounts
       name: '@deepseek-ai/dsh-client-ui-llm-accounts'
 
+    # First-run setup, shown once per profile on the web and in the desktop
+    # app: provider picker (local Ollama / LM Studio first, any OpenAI-
+    # compatible URL, hosted providers), default model, and the Minimal /
+    # Standard / Custom component picker; reopened from the Plugins page and
+    # Settings → Models. Its settings section remembers the completion.
+    - id: ui-first-run
+      name: '@deepseek-ai/dsh-client-ui-first-run'
+
     # Plugin management: the sidebar Plugins page installs, enables, disables,
     # and removes the profile's bundles through the `pluginManager` Remote.
     # Without a profile-backed Host it reports itself unavailable.
@@ -339,6 +363,7 @@
     # connectors register their accounts with `ctx.connectorAccounts`.
     - id: ui-connector-account
       name: '@deepseek-ai/dsh-client-ui-connector-account'
+      disabled: true  # component: mcp
 
     - id: ui-conversation
       name: '@deepseek-ai/dsh-client-ui-conversation'
@@ -377,11 +402,13 @@
     # hole renders empty.
     - id: ui-deliverables
       name: '@deepseek-ai/dsh-client-ui-deliverables'
+      disabled: true  # component: workspace-tracking
 
     # Records each top-level turn's changed files from git working-tree
     # snapshots; the changed-files card above renders its events.
     - id: workspace-changes
       name: '@deepseek-ai/dsh-workspace-changes'
+      disabled: true  # component: workspace-tracking
 
 
     - id: ui-workspace
@@ -391,6 +418,7 @@
     # existing generic workflow tool row.
     - id: ui-workflow-run
       name: '@deepseek-ai/dsh-client-ui-workflow-run'
+      disabled: true  # component: workflows
 
     # Input triggers: the '/' | '@' pipeline (ui-input-trigger), the command surface over
     # it (ui-commands), and the reference sources (ui-skill / ui-reference).
@@ -405,9 +433,11 @@
 
     - id: ui-agent-team
       name: '@deepseek-ai/dsh-client-ui-agent-team'
+      disabled: true  # component: agent-teams
 
     - id: ui-subagent
       name: '@deepseek-ai/dsh-client-ui-subagent'
+      disabled: true  # component: subagents
 
     - id: ui-reference
       name: '@deepseek-ai/dsh-client-ui-reference'
@@ -421,11 +451,13 @@
     # record panels over the session job-output service.
     - id: ui-jobs
       name: '@deepseek-ai/dsh-client-ui-jobs'
+      disabled: true  # component: jobs
 
     # Task management and Session reminder catalog over the Host Schedule
     # service mounted above.
     - id: ui-schedule
       name: '@deepseek-ai/dsh-client-ui-schedule'
+      disabled: true  # component: schedules
 
     # Session panel: the header toggle and the floating panel over the main
     # Conversation body, with the Environment section other plugins extend.
@@ -435,6 +467,7 @@
     # Goal surface: GoalBar in the input dock over the goal session projection.
     - id: ui-goal
       name: '@deepseek-ai/dsh-client-ui-goal'
+      disabled: true  # component: goals
 
     # The feedback surface: Like/Dislike in the assistant-message action
     # strip, the feedback dialog behind Dislike and /feedback with its
@@ -453,6 +486,7 @@
     # sessions created later. Absent a roster it renders nothing.
     - id: ui-agent-preset
       name: '@deepseek-ai/dsh-client-ui-agent-preset'
+      disabled: true  # component: presets
 
     # Region-local More menus: pin or unpin plugin launchers and start a
     # plugin draft.
@@ -470,13 +504,16 @@
 
     - id: ui-settings-subagent
       name: '@deepseek-ai/dsh-client-ui-settings-subagent'
+      disabled: true  # component: subagents
 
     - id: ui-settings-web-search
       name: '@deepseek-ai/dsh-client-ui-settings-web-search'
+      disabled: true  # component: web
 
     # Plan control: the composer plan seat over the plan projection + /plan channel.
     - id: ui-plan
       name: '@deepseek-ai/dsh-client-ui-plan'
+      disabled: true  # component: planning
 
     - id: ui-user-questions
       name: '@deepseek-ai/dsh-client-ui-user-questions'
@@ -599,6 +636,61 @@
 
 - id: tool-web
   disabled: true
+
+# ── host rows of the shared base that belong to a component ────────────────
+#
+# These base rows stay enabled for the single-agent profiles (acp, headless,
+# sdk). Here they are placeholders like the `# component:` rows above: the
+# named component bundle switches each back on, so the Web composition runs
+# them exactly while the profile selects that component.
+
+- id: jobs
+  disabled: true  # component: jobs
+
+- id: goal
+  disabled: true  # component: goals
+
+- id: goal-round-driver
+  disabled: true  # component: goals
+
+- id: subagent
+  disabled: true  # component: subagents
+
+- id: subagent-spawn-in-process
+  disabled: true  # component: subagents
+
+- id: subagent-fork-in-process
+  disabled: true  # component: subagents
+
+- id: agent-team
+  disabled: true  # component: agent-teams
+
+- id: tool-agent-team
+  disabled: true  # component: agent-teams
+
+- id: ptc-runtime
+  disabled: true  # component: workflows
+
+- id: web
+  disabled: true  # component: web
+
+- id: web-search-keyless
+  disabled: true  # component: web
+
+- id: web-fetch-http
+  disabled: true  # component: web
+
+- id: mcp-resources
+  disabled: true  # component: mcp
+
+- id: image-offload
+  disabled: true  # component: context-helpers
+
+- id: repeat-tool-reminder
+  disabled: true  # component: context-helpers
+
+- id: session-title-llm
+  disabled: true  # component: context-helpers
 
 # The preset selection registry. The shipped preset declarations follow as
 # separate patch files under `presets/`, listed after this file in

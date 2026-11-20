@@ -75,6 +75,11 @@ export interface DshBundleManifest {
   patch: string | string[]
   /** Show the bundle in GUI lists before the profile enables or installs it; omission means true. */
   listedByDefault?: boolean
+  /**
+   * Bundle package names this bundle needs selected with it. The plugin manager enables them together with this
+   * bundle and disables this bundle when one of them is disabled.
+   */
+  requires?: string[]
 }
 
 /** The bundle composition declared by a profile directory. */

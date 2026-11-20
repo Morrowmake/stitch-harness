@@ -1,0 +1,16 @@
+# Terminal component: switches on the `# component: terminal` rows that dsh-web-app
+# (and, for shared base rows, its placeholder patches) keeps disabled, and marks
+# `terminal` enabled for the `component: terminal` gates of the agent presets.
+# Deselecting the bundle restores the placeholders.
+
+- id: terminal-controller
+  disabled: false
+
+- id: ui-sidebar-terminal
+  disabled: false
+
+- insert:
+    - id: component-terminal
+      name: '@deepseek-ai/dsh-agent-preset-registry/component'
+      config:
+        id: terminal

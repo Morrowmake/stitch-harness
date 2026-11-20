@@ -43,6 +43,11 @@ export interface Config {
   complete?: boolean
   /** Suppress dynamic runtime-context snapshots for this persona's agent scope. */
   includeRuntimeContext?: boolean
+  /**
+   * Names of other prompt sections to leave out of this persona's agent scope, such as the `tool:<name>` guidance of
+   * tools whose schema descriptions suffice. Sections not named here are untouched.
+   */
+  omitSections?: string[]
 }
 
 /** Runtime schema for the persona row. */
@@ -51,6 +56,7 @@ export const Config: z<Config> = z.object({
   suffix: z.string().default(''),
   complete: z.boolean().default(false),
   includeRuntimeContext: z.boolean().default(true),
+  omitSections: z.array(z.string()).default([]),
 })
 
 /**
@@ -72,4 +78,11 @@ export function apply(ctx: Context, config: Config): void {
     text: config.suffix ?? '',
   }), 'persona.suffix()')
   if (!(config.includeRuntimeContext ?? true)) ctx.systemPrompt.suppressRuntimeContext()
+  const omitted = new Set(config.omitSections)
+  if (omitted.size === 0) return
+  // Scope-filtered: only this persona's agent scope assembles without the omitted sections.
+  ctx.on('system-prompt/assemble', async (_assembly, _context, next) => {
+    const assembly = await next()
+    return { ...assembly, sections: assembly.sections.filter(section => !omitted.has(section.name)) }
+  })
 }
