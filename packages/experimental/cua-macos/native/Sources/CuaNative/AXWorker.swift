@@ -415,7 +415,10 @@ actor AXWorker {
                 }
                 elementWindow = enclosing.element
                 guard let bounds = try ax().bounds(selected), bounds.width > 0, bounds.height > 0 else { throw NativeFailure(code: "NATIVE_ERROR", message: "Element has no pointer bounds") }
-                window = try WindowGeometry.resolve(owner: identity, windowID: enclosing.id) { try ax().bounds(enclosing.element) }
+                // A closure that captures `self` reads as actor-isolated to Swift 6.1/6.2 region checking, which
+                // then rejects the later use of the window element; capture the access and element directly.
+                let access = ax(), windowElement = enclosing.element
+                window = try WindowGeometry.resolve(owner: identity, windowID: enclosing.id) { try access.bounds(windowElement) }
                 point = WindowPoint(x: bounds.x + bounds.width / 2 - window.bounds.x, y: bounds.y + bounds.height / 2 - window.bounds.y)
             } else {
                 let id = try params.windowID()

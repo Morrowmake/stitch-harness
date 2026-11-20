@@ -68,8 +68,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # The Computer Use helper's Package.swift needs Swift 6 (Xcode 16), the
-          # default toolchain on the macOS 15 images.
+          # The Computer Use helper's Package.swift needs Swift 6; the macOS jobs select
+          # Xcode 26.3 (Swift 6.2), the newest Xcode both macOS 15 images ship.
           - target: mac-arm64
             runner: macos-15
             script: package:desktop:mac:arm64:unsigned
@@ -97,6 +97,14 @@ jobs:
           # A short cache root keeps the runtime's deep node_modules paths below MAX_PATH.
           New-Item -ItemType Directory -Force -Path 'C:\stitch-cache' | Out-Null
           Add-Content -Path $env:GITHUB_ENV -Value 'STITCH_DESKTOP_PACKAGE_CACHE_DIR=C:\stitch-cache' -Encoding utf8
+
+      # The images default to Xcode 16.4 (Swift 6.1), whose concurrency checking diverges from the
+      # Swift 6.2+ the Computer Use helper is built and checked with.
+      - name: Select Xcode 26.3
+        if: runner.os == 'macOS'
+        run: |
+          sudo xcode-select -s /Applications/Xcode_26.3.app
+          xcrun swift --version
 
       # Full history: the build records the packaged commit and its dirty state.
       - uses: actions/checkout@v7.0.1
