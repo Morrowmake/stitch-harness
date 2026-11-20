@@ -371,7 +371,10 @@ const accountProfile = z.object({
   alias: z.string(),
   pooled: z.boolean(),
   pinned: z.boolean(),
-  models: z.array(z.string()),
+  // Absent allows every model and `[]` allows none, so omission must survive:
+  // schemastery would otherwise materialize `[]` for an absent array and turn
+  // every signed-in account without an allowlist into one that serves nothing.
+  models: z.array(z.string()).default(undefined as unknown as string[]),
   order: z.number(),
   createdAt: z.natural(),
 })

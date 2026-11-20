@@ -33,6 +33,7 @@ Stitch release notes. Stitch is a fork of DeepSeek Harness 0.2.2-rc.5; changes m
 ### Fixed
 
 - The desktop app no longer quits silently at launch while DeepSeek Harness is running. The packaged app was named `@deepseek-ai/dsh-desktop`, so it shared DeepSeek Harness's Electron data directory and single-instance lock. It is now `stitch-desktop`, which also gives it its own Windows uninstall cleanup target and updater cache.
+- A provider signed in with OAuth or given an API key from the first-run dialog or Settings now lists its models. Each account's stored metadata was read as allowing no models, so the first-run model step said the provider "lists no models yet" and the composer offered none. Existing profiles work after updating; no re-sign-in is needed.
 
 ### Repository
 
